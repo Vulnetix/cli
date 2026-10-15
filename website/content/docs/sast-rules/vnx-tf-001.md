@@ -1,11 +1,11 @@
 ---
 title: "VNX-TF-001 – Terraform AWS S3 Bucket with Public ACL"
-description: "Detect AWS S3 buckets configured with public-read or public-read-write ACLs in Terraform, which make all bucket contents accessible to the entire internet."
+description: "Detect S3 buckets and objects in Terraform whose ACL grants access to everyone: public-read, public-read-write or authenticated-read canned ACLs, or grants to the AllUsers or AuthenticatedUsers groups, unless the bucket's own public access block (in any file) or the module's inputs neutralise them."
 ---
 
 ## Overview
 
-This rule flags Terraform `.tf` files where an S3 bucket resource is configured with `acl = "public-read"` or `acl = "public-read-write"`. These ACL values instruct AWS to grant read or full access to the bucket and all of its objects to any anonymous internet user, without any authentication required.
+This rule flags Terraform `.tf` files where an `aws_s3_bucket`, `aws_s3_bucket_acl`, `aws_s3_object`, `aws_s3_bucket_object` or `alicloud_oss_bucket` resource, or an S3 bucket module, sets `acl = "public-read"`, `"public-read-write"` or `"authenticated-read"`, or carries a `grant`/`grantee` whose `uri` is the `AllUsers` or `AuthenticatedUsers` group. It does not report private or log-delivery ACLs, ACLs taken from variables, grants to canonical users or the LogDelivery group, a bucket whose own `aws_s3_bucket_public_access_block` (in any file of the project) sets `block_public_acls` or `ignore_public_acls = true`, an S3 module whose own inputs set either, any bucket when an `aws_s3_account_public_access_block` in the project does, or comments.
 
 S3 buckets with public ACLs have been the source of some of the largest data breaches in cloud computing history. Misconfigured buckets containing customer records, application backups, internal documentation, and cryptographic keys have been exposed to the internet, often without the owning organization's knowledge. AWS has introduced multiple safeguards over the years specifically because this misconfiguration is so common and so harmful.
 
@@ -23,21 +23,27 @@ The `public-read-write` ACL is particularly dangerous: it allows anyone on the i
 
 ## What Gets Flagged
 
-The rule matches `.tf` files containing `acl = "public-read"` or `acl = "public-read-write"`.
-
 ```hcl
-# FLAGGED: public-read ACL exposes all objects to the internet
-resource "aws_s3_bucket" "uploads" {
-  bucket = "my-app-uploads"
-  acl    = "public-read"
+resource "aws_s3_bucket" "assets" {
+  bucket = "acme-public-assets"
+  acl    = "public-read"            # FLAGGED
 }
 
-# FLAGGED: public-read-write allows unauthenticated uploads
-resource "aws_s3_bucket" "assets" {
-  bucket = "my-app-assets"
-  acl    = "public-read-write"
+resource "aws_s3_bucket_acl" "partners" {
+  bucket = aws_s3_bucket.partners.id
+  acl    = "authenticated-read"     # FLAGGED: any AWS account can read
+}
+
+resource "aws_s3_bucket" "downloads" {
+  grant {
+    type        = "Group"
+    uri         = "http://acs.amazonaws.com/groups/global/AllUsers"   # FLAGGED
+    permissions = ["READ"]
+  }
 }
 ```
+
+Not flagged: `acl = "private"`, `acl = var.bucket_acl`, or a public ACL on a bucket whose public access block sets `ignore_public_acls = true`.
 
 ## Remediation
 

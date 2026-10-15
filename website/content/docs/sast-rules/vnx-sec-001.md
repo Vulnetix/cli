@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-001 – AWS Access Key ID"
-description: "Detects hardcoded AWS access key IDs (AKIA prefix) in source code, which enable account takeover and unauthorized resource access if exposed."
+description: "Reports a hard-coded AWS access key ID (AKIA, ASIA, ABIA, ACCA or A3T prefix plus 16 base32 characters), excluding AWS's documented EXAMPLE keys, placeholders, detector patterns and test files."
 ---
 
 ## Overview
@@ -19,25 +19,28 @@ Hardcoded secrets are never secure — there is no "safe" value to use as a plac
 
 ## What Gets Flagged
 
-Any source file line containing a 20-character string starting with `AKIA` followed by uppercase letters and digits.
+A standalone 20-character token that starts with `AKIA` (long-term IAM user key), `ASIA` (STS session key), `ABIA`, `ACCA` or `A3T` and continues with 16 base32 characters, in any file: SDK configuration, Terraform providers, `.env` files, shell exports and JSON session documents.
 
 ```python
-# FLAGGED: hardcoded AWS access key ID
-import boto3
-
-client = boto3.client(
-    's3',
-    aws_access_key_id='AKIAIOSFODNN7EXAMPLE',
-    aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
-)
+# FLAGGED: a real-looking access key ID passed to boto3
+client = boto3.client("s3", aws_access_key_id="AKIA<16 base32 characters>")
 ```
 
-```yaml
-# FLAGGED: key in a config file
-aws:
-  access_key_id: AKIAIOSFODNN7EXAMPLE
-  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+```hcl
+# FLAGGED: a key in a Terraform provider block
+provider "aws" {
+  access_key = "AKIA<16 base32 characters>"
+}
 ```
+
+Not flagged:
+
+- AWS's documented example keys (ending in `EXAMPLE`) and placeholder runs such as `AKIAXXXXXXXXXXXXXXXX` or `AKIA0000000000000000`.
+- The prefix embedded in a longer alphanumeric run, and detector regexes or prefix lists such as `r"AKIA[0-9A-Z]{16}"`.
+- Environment lookups (`os.environ["AWS_ACCESS_KEY_ID"]`).
+- Test, fixture, vendored and generated files.
+
+The paired secret access key is VNX-SEC-003.
 
 ## Detecting a Compromise
 

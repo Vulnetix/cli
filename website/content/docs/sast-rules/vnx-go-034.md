@@ -26,6 +26,10 @@ An OAuth redirect URI read from the request and used without comparing it with t
 redirectURI := q.Get("redirect_uri")
 http.Redirect(w, r, redirectURI+"?code="+code+"&state="+state, http.StatusFound)
 
+// FLAGGED: through a variable built from it
+target := redirectURI + "?code=" + url.QueryEscape(code)
+http.Redirect(w, r, target, http.StatusFound)
+
 // FLAGGED: implicit grant, inline
 http.Redirect(w, r, r.FormValue("redirect_uri")+"#access_token="+tok, http.StatusFound)
 
@@ -37,7 +41,7 @@ u := cfg.AuthCodeURL(state, oauth2.SetAuthURLParam("redirect_uri", r.PostFormVal
 c.Redirect(http.StatusFound, c.Query("redirect_uri") + "?code=" + code)
 ```
 
-Not flagged: a value checked first (`slices.Contains(client.RedirectURIs, redirectURI)`, `ru != registered`), constant or configured redirect URLs, comments and strings. Open redirects through other parameter names (`next`, `url`) are reported by VNX-GO-005 and VNX-GO-025.
+Not flagged: a value checked first (`slices.Contains(client.RedirectURIs, redirectURI)`, `ru != registered`, `client.RedirectURIs[redirectURI]`, a `switch` over the configured callbacks), constant or configured redirect URLs, comments and strings. Open redirects through other parameter names (`next`, `url`) are reported by VNX-GO-005 and VNX-GO-025.
 
 ## Remediation
 

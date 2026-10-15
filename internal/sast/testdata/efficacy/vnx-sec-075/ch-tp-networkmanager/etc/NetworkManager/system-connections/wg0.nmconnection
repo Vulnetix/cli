@@ -1,0 +1,11 @@
+[connection]
+id=wg0
+type=wireguard
+interface-name=wg0
+
+[wireguard]
+~>private-key=@@sample:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=@@
+listen-port=51820
+
+[wireguard-peer.PUBKEYPLACEHOLDER]
+endpoint=vpn.acme-corp.io:51820

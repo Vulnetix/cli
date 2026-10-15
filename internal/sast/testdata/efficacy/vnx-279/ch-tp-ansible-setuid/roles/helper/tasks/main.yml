@@ -1,0 +1,12 @@
+---
+- name: Install the helper setuid root
+  ansible.builtin.copy:
+    src: helper
+    dest: /usr/local/bin/helper
+    owner: root
+~>    mode: '4755'
+
+- name: Mark the mount helper setuid
+  ansible.builtin.file:
+    path: /usr/local/bin/mount-helper
+~>    mode: u+s

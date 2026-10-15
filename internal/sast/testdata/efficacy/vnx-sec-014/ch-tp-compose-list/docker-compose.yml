@@ -1,0 +1,10 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=app
+~>      - POSTGRES_PASSWORD=pg_Hq83ksL2
+  cache:
+    image: redis:7
+    environment:
+~>      - "REDIS_PASSWORD=r3d1s_Zk29a"

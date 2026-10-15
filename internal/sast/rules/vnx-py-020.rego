@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-020",
 	"name": "tarfile.extractall() without path validation (zip slip)",
-	"description": "A tar archive is extracted with no extraction filter and no member validation, in a .py file. Reported: extractall() or extract() on a TarFile (a name bound by `x = tarfile.open(...)`, `tarfile.TarFile(...)`/`TarFile.open(...)` or `with tarfile.open(...) as x`, a parameter annotated TarFile, module aliases and a from-imported TarFile included) and tarfile.open(...).extractall(...) chained, when the call passes no filter= (or filter='fully_trusted'/fully_trusted_filter/None) and no members= other than x.getmembers(), arguments read across a call broken over lines. A member named ../../etc/cron.d/x, an absolute path or a symlink then writes outside the destination (CVE-2007-4559, CWE-22). Use filter='data' (Python 3.12+, the default from 3.14), tarfile.data_filter, or validate each member's resolved path. Not reported: a call with filter='data'/'tar'/data_filter, members= from a filtering function, extraction preceded within 15 lines by a getmembers()/member loop that checks paths (realpath, abspath, commonpath, is_relative_to, startswith, '..', isabs, issym/islnk), a file that sets TarFile.extraction_filter, zipfile extraction (zipfile sanitises member names), extractfile(), and the calls in comments or string literals.",
+	"description": "A tar archive is extracted with no extraction filter and no member validation, in a .py file. Reported: extractall() or extract() on a TarFile (a name or attribute bound by `x = tarfile.open(...)` / `self.x = tarfile.open(...)`, `tarfile.TarFile(...)`/`TarFile.open(...)` or `with tarfile.open(...) as x`, a parameter annotated TarFile, module aliases and a from-imported TarFile included) and tarfile.open(...).extractall(...) chained, when the call passes no filter= (or filter='fully_trusted'/fully_trusted_filter/None) and no members= other than x.getmembers(), arguments read across a call broken over lines. A member named ../../etc/cron.d/x, an absolute path or a symlink then writes outside the destination (CVE-2007-4559, CWE-22). Use filter='data' (Python 3.12+, the default from 3.14), tarfile.data_filter, or validate each member's resolved path. Not reported: a call with filter='data'/'tar'/data_filter, members= from a filtering function, extraction preceded within 15 lines by a getmembers()/member loop that checks member paths (it must refer to the members: getmembers(), getnames(), .name or member; a loop over other names does not count) (realpath, abspath, commonpath, is_relative_to, startswith, '..', isabs, issym/islnk), a file that sets TarFile.extraction_filter, zipfile extraction (zipfile sanitises member names), extractfile(), and the calls in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-020/",
 	"languages": ["python"],
 	"severity": "high",
@@ -43,7 +43,8 @@ _bare_tarfile(content) := "" if {
 
 # Names bound to a TarFile.
 _tar_names(code, ctor) := {m[1] |
-	some m in regex.find_all_string_submatch_n(concat("", [`(?m)^\s*(\w+)\s*=\s*`, ctor]), code, -1)
+	# x = tarfile.open(...), self.archive = tarfile.open(...)
+	some m in regex.find_all_string_submatch_n(concat("", [`(?m)^\s*(\w+(?:\.\w+)?)\s*=\s*`, ctor]), code, -1)
 } | {m[1] |
 	some m in regex.find_all_string_submatch_n(concat("", [`(?m)\bwith\s*`, ctor, `[^\n]*?\)\s+as\s+(\w+)`]), code, -1)
 } | {m[1] |
@@ -84,6 +85,8 @@ _safe(args) if {
 _guarded(lines, i) if {
 	w := helpers.code_window(lines, i - 1, 15, 0)
 	regex.match(`getmembers\(\)|\bfor\s+\w+\s+in\s+\w+\s*:`, w)
+	# the check is about archive members, not some other loop's names
+	regex.match(`getmembers\(\)|getnames\(\)|\.name\b|\.linkname\b|\bmember\b`, w)
 	regex.match(`realpath|abspath|commonpath|commonprefix|is_relative_to|\.startswith\(|["']\.\.["']|isabs\(|\.issym\(|\.islnk\(|\.resolve\(`, w)
 }
 
@@ -94,7 +97,7 @@ _global_filter(content) if {
 
 _sink(code, names, ctor) := [m[0][1], m[0][2]] if {
 	some n in names
-	m := regex.find_all_string_submatch_n(concat("", [`(?:^|[^\w.])`, n, `\.(extractall|extract)\s*\((.*)$`]), code, 1)
+	m := regex.find_all_string_submatch_n(concat("", [`(?:^|[^\w.])`, replace(n, ".", `\.`), `\.(extractall|extract)\s*\((.*)$`]), code, 1)
 	count(m) > 0
 }
 

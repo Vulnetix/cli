@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CS-001",
 	"name": "C# SQL injection: query text built by concatenation, interpolation or string.Format",
-	"description": "A SQL statement is executed whose text is assembled from non-constant values instead of bound parameters. Reported: an ADO.NET command or data adapter (new SqlCommand/SqlDataAdapter and the OleDb, Odbc, Oracle, MySql, Npgsql, Sqlite, SqlCe and DB2 equivalents, including target-typed new) or a CommandText assignment (statement or object initializer) whose text uses + with a non-constant operand, an interpolated string with a non-constant hole, string.Format/string.Concat or a StringBuilder filled that way; EF Core FromSqlRaw/ExecuteSqlRaw(Async)/SqlQueryRaw, and FromSql/ExecuteSqlCommand/SqlQuery with concatenation (or with interpolation under EF6, where those take a plain string); Dapper Query/Execute methods and LINQ-to-SQL ExecuteQuery/ExecuteCommand with a SQL literal built the same way. The query may be built inline, across several lines, or in a variable assigned or appended to (+=, Append, AppendFormat) up to 30 lines above the call. Not reported: @/:/$ parameter placeholders with Parameters.Add/AddWithValue, Dapper parameter objects, FromSqlInterpolated/ExecuteSqlInterpolated and FormattableString queries, concatenation of const or static readonly fields, ALL_CAPS constants and nameof(), placeholder lists built from \"@p\" + i, stored-procedure names, comparisons, and the pattern in comments and log strings. A query string received as a method parameter and built by the caller is not followed.",
+	"description": "A SQL statement is executed whose text is assembled from non-constant values instead of bound parameters. Reported: an ADO.NET command or data adapter (new SqlCommand/SqlDataAdapter and the OleDb, Odbc, Oracle, MySql, Npgsql, Sqlite, SqlCe and DB2 equivalents, including target-typed new) or a CommandText assignment (statement or object initializer) whose text uses + with a non-constant operand, an interpolated string with a non-constant hole, string.Format/string.Concat or a StringBuilder filled that way; EF Core FromSqlRaw/ExecuteSqlRaw(Async)/SqlQueryRaw, and FromSql/ExecuteSqlCommand/SqlQuery with concatenation (or with interpolation under EF6, where those take a plain string); Dapper Query/Execute methods and LINQ-to-SQL ExecuteQuery/ExecuteCommand with a SQL literal built the same way; NHibernate CreateSQLQuery/CreateQuery (in a file that uses NHibernate) built the same way. The query may be built inline, across several lines, or in a variable assigned or appended to (+=, Append, AppendFormat) up to 30 lines above the call. Not reported: @/:/$ parameter placeholders with Parameters.Add/AddWithValue, Dapper parameter objects, FromSqlInterpolated/ExecuteSqlInterpolated and FormattableString queries, concatenation of const or static readonly fields, ALL_CAPS constants and nameof(), a conditional choosing between two literals (desc ? \"DESC\" : \"ASC\"), placeholder lists built from \"@p\" + i, stored-procedure names, comparisons, and the pattern in comments and log strings. A query string received as a method parameter and built by the caller is not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-cs-001/",
 	"languages": ["csharp"],
 	"severity": "high",
@@ -26,7 +26,7 @@ _has_any(s, needles) if {
 	contains(s, n)
 }
 
-_file_needles := {"Command", "DataAdapter", "FromSql", "ExecuteSql", "SqlQuery", "Dapper", "ExecuteQuery"}
+_file_needles := {"Command", "DataAdapter", "FromSql", "ExecuteSql", "SqlQuery", "Dapper", "ExecuteQuery", "CreateSQLQuery", "CreateSqlQuery", "CreateQuery"}
 
 _line_needles := {"Command", "DataAdapter", "FromSql", "ExecuteSql", "SqlQuery", "Query", "Execute"}
 
@@ -45,7 +45,15 @@ _sinks := [
 	{"kind": "ef", "re": `\.(?:FromSql|ExecuteSqlCommand|ExecuteSqlCommandAsync|SqlQuery)\s*(?:<[^>()]*>)?\s*\(`},
 	{"kind": "dapper", "re": `\.(?:Query|QueryAsync|QueryFirst|QueryFirstAsync|QueryFirstOrDefault|QueryFirstOrDefaultAsync|QuerySingle|QuerySingleAsync|QuerySingleOrDefault|QuerySingleOrDefaultAsync|QueryMultiple|QueryMultipleAsync|Execute|ExecuteAsync|ExecuteScalar|ExecuteScalarAsync|ExecuteReader|ExecuteReaderAsync)\s*(?:<[^>()]*>)?\s*\(`},
 	{"kind": "linq", "re": `\.(?:ExecuteQuery|ExecuteCommand)\s*(?:<[^>()]*>)?\s*\(`},
+	{"kind": "nh", "re": `\.(?:CreateSQLQuery|CreateSqlQuery|CreateQuery)\s*\(`},
 ]
+
+# NHibernate ISession.CreateSQLQuery (SQL) and CreateQuery (HQL) count only
+# in a file that uses NHibernate; LINQ's IQueryProvider.CreateQuery takes an
+# expression, never text.
+_kind_ok(kind, _) if kind != "nh"
+
+_kind_ok("nh", content) if contains(content, "NHibernate")
 
 _sql_keyword := `(?i)\b(select\s[\s\S]*\sfrom|insert\s+into|update\s+\S+\s+set|delete\s+from|exec(ute)?\s|merge\s+into|where\s)`
 
@@ -106,9 +114,15 @@ _const_expr(e, ctx) if {
 
 _interpolated(t) if regex.match(`\$+@?"|@\$+"`, t)
 
-_dyn(t, _, _, _) if regex.match(`\b[Ss]tring\s*\.\s*(Format|Concat)\s*\(|\.AppendFormat\s*\(`, t)
+# A conditional choosing between two literals ((desc ? "DESC" : "ASC")) is
+# constant text; it is replaced by an empty literal before the test.
+_ternary_lit := `\(\s*!?[\w.]+(?:\s*[=!<>]=?\s*[\w.]+)?\s*\?\s*@?"[^"]*"\s*:\s*(?:@?"[^"]*"|[Ss]tring\.Empty)\s*\)`
 
-_dyn(t, ctx, _, true) if {
+_dyn(t, ctx, self, interp) if _dyn0(regex.replace(t, _ternary_lit, `""`), ctx, self, interp)
+
+_dyn0(t,_, _, _) if regex.match(`\b[Ss]tring\s*\.\s*(Format|Concat)\s*\(|\.AppendFormat\s*\(`, t)
+
+_dyn0(t,ctx, _, true) if {
 	_interpolated(t)
 	some h in regex.find_all_string_submatch_n(`\{([^{}"]+)\}`, t, -1)
 	e := trim_space(regex.replace(h[1], `[:,].*$`, ""))
@@ -118,7 +132,7 @@ _dyn(t, ctx, _, true) if {
 }
 
 # operand after a literal: "..." + x
-_dyn(t, ctx, self, _) if {
+_dyn0(t,ctx, self, _) if {
 	t2 := regex.replace(t, `[@:$]\w*"\s*\+\s*[A-Za-z_][\w.]*`, `"`)
 	some m in regex.find_all_string_submatch_n(`"\s*\+\s*\(?\s*([A-Za-z_][\w.]*)`, t2, -1)
 	not _const_expr(m[1], ctx)
@@ -126,7 +140,7 @@ _dyn(t, ctx, self, _) if {
 }
 
 # operand before a literal: x + "..."
-_dyn(t, ctx, self, _) if {
+_dyn0(t,ctx, self, _) if {
 	some m in regex.find_all_string_submatch_n(`([A-Za-z_][\w.]*)(?:\([^()]*\))?\s*\+\s*\$?@?"`, t, -1)
 	not _const_expr(m[1], ctx)
 	m[1] != self
@@ -233,6 +247,7 @@ _unsafe_sink(lines, content, i, line, ctx) if {
 	some sink in _sinks
 	regex.match(sink.re, code)
 	sink.kind != "dapper"
+	_kind_ok(sink.kind, content)
 	not regex.match(`\bCommandText\s*==`, code)
 	arg := _after(_stmt(lines, i), sink.re)
 	_unsafe(lines, content, i, sink.kind, arg, ctx)

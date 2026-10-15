@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-039",
 	"name": "Missing rate limiting on login endpoint",
-	"description": "An HTTP handler for login or authentication is declared and nothing in the project's production Go code rate-limits requests (a limiter, throttle or rate-limit middleware). Login endpoints without rate limiting are vulnerable to brute force attacks. The handler is recognised from its declaration (a function or handler method whose name is the login path, Login/handleLogin/SignIn/Authenticate, and that takes a response writer or framework context, parameters possibly wrapped onto the next line) or from a login route registered with an inline handler (r.POST(\"/login\", func(c *gin.Context) {...})). Not reported: a client method or helper named Login that is not an HTTP handler, a parser or CLI command, test files, comments and strings.",
+	"description": "An HTTP handler for login or authentication is declared and nothing in the project's production Go code rate-limits requests (a limiter, throttle or rate-limit middleware; the word delimiter does not count) or locks accounts after failed attempts (lockout, failed/max attempts, a 429 StatusTooManyRequests response, a CAPTCHA). Login endpoints without rate limiting are vulnerable to brute force attacks. The handler is recognised from its declaration (a function or handler method whose name is the login path, Login/handleLogin/SignIn/Authenticate, and that takes a response writer or framework context, parameters possibly wrapped onto the next line) or from a login route registered with an inline handler (r.POST(\"/login\", func(c *gin.Context) {...})). Not reported: a client method or helper named Login that is not an HTTP handler, a parser or CLI command, test files, comments and strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-039/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -43,8 +43,15 @@ _project_rate_limits if {
 	some p, content in input.file_contents
 	_is_go(p)
 	not helpers.is_test_path(p)
-	regex.match(`(?i)(ratelimit|rate_limit|ratelimiter|rate\.NewLimiter|limiter|throttle|tollbooth|httprate)`, content)
+	regex.match(_mitigation, content)
+
+	# "delimiter" (a CSV option) is not a limiter.
+	regex.match(_mitigation, regex.replace(content, `(?i)delimiter`, ""))
 }
+
+# A rate limiter, or an account lockout after failed attempts (the other
+# standard brute-force control), or a CAPTCHA on the form.
+_mitigation := `(?i)(ratelimit|rate_limit|ratelimiter|rate\.NewLimiter|limiter|throttle|tollbooth|httprate|lockout|locked_?out|failed_?(?:login_?)?attempts|max_?(?:login_?|failed_?)?attempts|StatusTooManyRequests|captcha)`
 
 # A declared handler whose name is the login path. Its parameters may wrap
 # onto the next line.

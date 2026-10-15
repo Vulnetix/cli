@@ -1,0 +1,9 @@
+source 'https://rubygems.org'
+
+gem 'rails', '~> 6.1.7'
+~>gem "paperclip", "~> 6.1"
+~>gem 'therubyracer', platforms: :ruby
+group :assets do
+~>  gem 'sass', '3.7.4'
+  gem 'sass-rails', '~> 6.0'
+end

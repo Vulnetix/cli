@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence" version="3.0">
+  <persistence-unit name="app">
+    <properties>
+      <property name="jakarta.persistence.jdbc.url" value="jdbc:mysql://db/app"/>
+      <property name="jakarta.persistence.jdbc.user" value="app"/>
+~>      <property name="@@sample:j[a]ka[r]ta[.]pe[r]si[s]te[n]ce[.]jd[b]c[.][p]as[s]wo[r]d@@" value="Pr0dPassw0rd"/>
+~>      <property name="@@sample:h[i]be[r]na[t]e[.][c]on[n]ec[t]io[n][.]p[a]ss[w]or[d]@@"   value='hunter22'/>
+    </properties>
+  </persistence-unit>
+</persistence>

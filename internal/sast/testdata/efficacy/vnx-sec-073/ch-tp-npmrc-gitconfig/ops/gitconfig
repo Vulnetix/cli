@@ -1,0 +1,4 @@
+[credential]
+	helper = store
+~>[url "https://oauth2:Rt5Vm9KzQ2xL@@@sample:g[i]tl[a]b[.][a]cm[e][-]c[o]rp[.]io[/]@@"]
+	insteadOf = https://gitlab.acme-corp.io/

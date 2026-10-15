@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-009",
 	"name": "Jinja2 autoescape disabled",
-	"description": "Template autoescaping is turned off, so values rendered into HTML are emitted verbatim and user data becomes cross-site scripting. Reported: autoescape=False (or None/0) as a keyword argument (jinja2.Environment, SandboxedEnvironment, jinja2.Template, Jinja2Templates and any multi-line call) or as an attribute assignment (app.jinja_env.autoescape = False); an \"autoescape\": False dict entry or subscript (Flask jinja_options, Django TEMPLATES OPTIONS); a jinja2 Environment/SandboxedEnvironment created with no autoescape argument at all (Jinja2 does not escape by default) in a file that imports a web framework or names an .html template; and {% autoescape false %} blocks in .html/.j2/.jinja templates. Not reported: autoescape=True, select_autoescape() or a function, an Environment built from **options or whose autoescape is assigned later in the file, Environments in non-web code (code generators rendering .py.j2), other libraries' Environment classes (aws_cdk), class and def lines, test files and test templates, comparisons (autoescape == False), and the text inside strings and comments. Individual |safe filters and Markup() calls are not judged.",
+	"description": "Template autoescaping is turned off, so values rendered into HTML are emitted verbatim and user data becomes cross-site scripting. Reported: autoescape=False (or None/0) as a keyword argument (jinja2.Environment, SandboxedEnvironment, jinja2.Template, Jinja2Templates and any multi-line call) or as an attribute assignment (app.jinja_env.autoescape = False); an \"autoescape\": False dict entry or subscript (Flask jinja_options, Django TEMPLATES OPTIONS); a jinja2 Environment/SandboxedEnvironment created with no autoescape argument at all (Jinja2 does not escape by default) in a file that imports a web framework or names an .html template; and {% autoescape false %} blocks in .html/.j2/.jinja templates. Not reported: autoescape=True, select_autoescape() or a function, an Environment built from **options or whose autoescape is assigned later in the file, Environments in non-web code (code generators rendering .py.j2), other libraries' Environment classes (aws_cdk), class and def lines, test files and test templates, comparisons (autoescape == False), and the text inside strings, docstrings and comments. Individual |safe filters and Markup() calls are not judged.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-009/",
 	"languages": ["python"],
 	"severity": "high",
@@ -76,6 +76,15 @@ _jinja_env_call(code, content) if {
 	regex.match(concat("", [`(?m)^\s*from\s+jinja2(?:\.sandbox)?\s+import\s+[^\n#]*\b`, name, `\b\s*(?:,|\)|$)`]), content)
 }
 
+# Line i sits inside a triple-quoted string (a docstring or help text) when an
+# odd number of triple quotes opens in the 40 lines above it.
+_in_docstring(lines, i) if {
+	i > 0
+	prev := concat("\n", [lines[k] | some k in numbers.range(max([0, i - 40]), i - 1)])
+	n := count(regex.find_all_string_submatch_n(`"""|'''`, prev, -1))
+	n % 2 == 1
+}
+
 _finding(path, i, line, msg) := {
 	"rule_id": metadata.id,
 	"message": msg,
@@ -97,6 +106,7 @@ findings contains finding if {
 	contains(line, "autoescape")
 	not helpers.is_comment_line(line)
 	_explicit_off(_strip(line))
+	not _in_docstring(lines, i)
 	finding := _finding(path, i, line, "Template autoescaping is disabled, so every value rendered into HTML is emitted verbatim and user data becomes cross-site scripting; use autoescape=True or select_autoescape() and mark trusted HTML with Markup explicitly")
 }
 
@@ -120,6 +130,7 @@ findings contains finding if {
 	txt := _call_text(lines, i)
 	not contains(txt, "autoescape")
 	not contains(txt, "**")
+	not _in_docstring(lines, i)
 	finding := _finding(path, i, line, "Jinja2 Environment created without autoescape: Jinja2 does not escape by default, so HTML templates rendered from it are open to cross-site scripting; pass autoescape=select_autoescape() (or True)")
 }
 

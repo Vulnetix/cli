@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1046",
 	"name": "Creation of Immutable Text Using String Concatenation",
-	"description": "A String is built up by concatenation inside a loop, so every iteration copies the whole text into a new immutable object: the work grows with the square of the length (a request that controls the loop count controls the CPU time), and each discarded copy of a password, token or key stays on the heap until it is collected. Reported in Java and C#: an `s += ...` or `s = s + ...` statement inside the body of a for, foreach or while loop (braced, Allman-style, a single unbraced statement or on the loop's own line) where s is a local declared String/string (or C# var initialised with a string literal) before the loop. Not reported: StringBuilder/StringBuffer/StringJoiner appends, String.join and Collectors.joining, concatenation after the loop ends, numeric += on int/long/double variables, a String declared inside the loop body (rebuilt each iteration rather than accumulated), fields and variables not declared in the enclosing 100 lines, Kotlin and other JVM languages, test code, comments and strings.",
+	"description": "A String is built up by concatenation inside a loop, so every iteration copies the whole text into a new immutable object: the work grows with the square of the length (a request that controls the loop count controls the CPU time), and each discarded copy of a password, token or key stays on the heap until it is collected. Reported in Java and C#: an `s += ...`, `s = s + ...` or Java `s = s.concat(...)` statement inside the body of a for, foreach, while or do loop (braced, Allman-style, a single unbraced statement or on the loop's own line) where s is a local declared String/string (or C# var initialised with a string literal or string.Empty) before the loop. Not reported: StringBuilder/StringBuffer/StringJoiner appends, String.join and Collectors.joining, concatenation after the loop ends, numeric += on int/long/double variables (also when an earlier method declared the same name as a String), a String declared inside the loop body (rebuilt each iteration rather than accumulated), fields and variables not declared in the enclosing 100 lines, Kotlin and other JVM languages, test code, comments and strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1046/",
 	"languages": ["java", "csharp"],
 	"severity": "low",
@@ -34,7 +34,7 @@ _indent(line) := count(line) - count(trim_left(line, " \t"))
 
 _decl_re := {
 	"java": `\b(?:final\s+)?String\s+([A-Za-z_]\w*)\s*(?:=|;)`,
-	"cs": `\b(?:string|String)\s+([A-Za-z_]\w*)\s*(?:=|;)|\bvar\s+([A-Za-z_]\w*)\s*=\s*(?:\$|@)?"`,
+	"cs": `\b(?:string|String)\s+([A-Za-z_]\w*)\s*(?:=|;)|\bvar\s+([A-Za-z_]\w*)\s*=\s*(?:\$|@)?"|\bvar\s+([A-Za-z_]\w*)\s*=\s*(?:string|String)\.Empty\b`,
 }
 
 _decl_needle := {"java": "String ", "cs": "tring "}
@@ -46,7 +46,7 @@ _declared(line, lang) := {n |
 	n != ""
 }
 
-_loop_re := `^\s*(?:\}\s*)?(?:for|foreach|while)\s*\(`
+_loop_re := `^\s*(?:\}\s*)?(?:(?:for|foreach|while)\s*\(|do\s*(?:\{\s*)?$)`
 
 # The accumulated variable on a line: `s += x` or `s = s + x`.
 _acc(code) := m[1] if {
@@ -55,6 +55,12 @@ _acc(code) := m[1] if {
 
 _acc(code) := m[1] if {
 	some m in regex.find_all_string_submatch_n(`(?:^\s*|[;{)]\s*)([A-Za-z_]\w*)\s*=\s*([A-Za-z_]\w*)\s*\+`, code, -1)
+	m[1] == m[2]
+}
+
+# Java String.concat returns a new String too: s = s.concat(x).
+_acc(code) := m[1] if {
+	some m in regex.find_all_string_submatch_n(`(?:^\s*|[;{)]\s*)([A-Za-z_]\w*)\s*=\s*([A-Za-z_]\w*)\.concat\s*\(`, code, -1)
 	m[1] == m[2]
 }
 
@@ -87,13 +93,13 @@ _body_line(line, ind) if {
 findings contains finding if {
 	some path, content in input.file_contents
 	lang := _lang(path)
-	contains(content, "+")
+	_acc_cand(content)
 	contains(content, _decl_needle[lang])
 	regex.match(`\b(?:for|foreach|while)\s*\(`, content)
 	not _is_test(path)
 	lines := split(content, "\n")
 	some k, line in lines
-	contains(line, "+")
+	_acc_cand(line)
 	not helpers.is_comment_line(line)
 	code := _blank(line)
 	v := _acc(code)
@@ -127,3 +133,15 @@ _redeclared(lines, d, k, v, lang) if {
 	contains(lines[e], v)
 	v in _declared(lines[e], lang)
 }
+
+# ... or declared with another type (long total = 0 in a later method).
+_redeclared(lines, d, k, v, _) if {
+	some e in numbers.range(d + 1, k)
+	contains(lines[e], v)
+	some m in regex.find_all_string_submatch_n(concat("", [`\b([A-Za-z_][\w.]*(?:<[^;=()]*>)?(?:\[\])*\??)\s+`, v, `\s*(?:=[^=]|;|:)`]), lines[e], -1)
+	not m[1] in {"return", "throw", "yield", "case", "else", "new", "await", "in", "out", "ref", "String", "string", "var", "final"}
+}
+
+_acc_cand(s) if contains(s, "+")
+
+_acc_cand(s) if contains(s, ".concat(")

@@ -1,0 +1,13 @@
+---
+- name: Shared group directory
+  ansible.builtin.file:
+    path: /srv/team
+    state: directory
+    group: team
+    mode: '2775'
+
+- name: Tool
+  ansible.builtin.copy:
+    src: tool
+    dest: /usr/local/bin/tool
+    mode: '0755'

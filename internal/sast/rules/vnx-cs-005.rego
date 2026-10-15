@@ -155,6 +155,16 @@ _class_mitigated(lines, c) if {
 
 _mvc_controller(lines, c) if endswith(_first_base(lines, c), "Controller")
 
+# A base named otherwise (AppControllerBase) that itself derives from an MVC
+# controller in the project.
+_mvc_controller(lines, c) if {
+	b := _first_base(lines, c)
+	not endswith(b, "Controller")
+	not _api_base(b)
+	regex.match(`^[A-Z]\w*$`, b)
+	_base_declares(b, `class\s+\w+(?:<[^>]*>)?\s*:\s*(?:[\w.]+\.)?\w*Controller\s*(?:[,{<]|$)`)
+}
+
 # Web API 2 shares the attribute names.
 _web_api_only(content) if {
 	contains(content, "System.Web.Http")

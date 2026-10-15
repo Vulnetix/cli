@@ -39,6 +39,13 @@ child_process.exec(cmd, done);
 // FLAGGED: promisified and aliased
 const execAsync = promisify(exec);
 await execAsync(`tar -xzf uploads/${name}`);
+
+// FLAGGED: a request or argv value as the whole command
+childProcess.exec(req.body.command, cb);
+
+// FLAGGED: a template literal spanning lines
+execSync(`convert \
+  -resize ${size} ${input} out.png`);
 ```
 
 Not flagged: `re.exec(...)`, `db.exec(...)` and any other object's `exec`, `execFile`/`spawn` with an argument array, constant commands such as `execSync('git rev-parse HEAD')`, and the pattern in comments or string literals. `spawn(..., { shell: true })` is covered by VNX-NODE-026 and shelljs by VNX-NODE-022.

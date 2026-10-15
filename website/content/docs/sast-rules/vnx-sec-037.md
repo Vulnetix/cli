@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-037 – HashiCorp Vault Token"
-description: "Reports a HashiCorp Vault token: a standalone hvs. service token (24 or more base62 characters, so root and namespaced tokens are included), an hvb. batch token (138 to 300 characters), or a legacy s. service token (24 characters) only where it is assigned to a Vault token setting (VAULT_TOKEN=, vault_token:, X-Vault-Token:, token = inside a vault block). A bare s.-prefixed word, placeholders and test or fixture paths are not reported."
+description: "Reports a HashiCorp Vault token: a standalone hvs. service token (24 or more base62 characters, so root and namespaced tokens are included), an hvb. batch token (138 to 300 characters), or a legacy s. service token (24 characters) only where it is assigned to a Vault token setting (VAULT_TOKEN=, vault_token:, X-Vault-Token:) or passed to vault login. A bare s.-prefixed word, a short hvs. run with no digit (a property access on a variable named hvs), a token = line inside a multi-line vault block, placeholders and test or fixture paths are not reported."
 ---
 
 ## Overview

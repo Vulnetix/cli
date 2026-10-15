@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-014 – PHP Session Fixation via User-Controlled Session ID"
-description: "Detects session IDs a client can choose: session_id() given a $_GET/$_POST/$_REQUEST/$_COOKIE value (directly or via a variable read from one), and ini_set() enabling session.use_trans_sid or disabling session.use_only_cookies or session.use_strict_mode. A getter call or a generated ID is not reported."
+description: "Detects session IDs a client can choose: session_id() given a $_GET/$_POST/$_REQUEST/$_COOKIE value (directly or via a variable read from one), a Laravel/Symfony session ->setId() given request input, and ini_set() enabling session.use_trans_sid or disabling session.use_only_cookies or session.use_strict_mode. A getter call or a generated ID is not reported."
 ---
 
 ## Overview
@@ -43,6 +43,9 @@ session_start();
 // FLAGGED: session ID from $_REQUEST (could be GET or POST)
 session_id($_REQUEST['id']);
 session_start();
+
+// FLAGGED: a framework session given an ID from the request
+$request->session()->setId($request->input('sid'));
 
 // FLAGGED: IDs accepted from the URL, or uninitialised IDs accepted
 ini_set('session.use_trans_sid', '1');

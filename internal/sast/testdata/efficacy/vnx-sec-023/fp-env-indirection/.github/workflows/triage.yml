@@ -1,0 +1,24 @@
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Classify issue
+        env:
+          TITLE: ${{ github.event.issue.title }}
+          BODY: "${{ github.event.issue.body }}"
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          echo "$TITLE" | grep -qi bug && echo bug
+          printf '%s' "$BODY" > body.txt
+          git checkout "$HEAD_REF"
+      - uses: actions/github-script@v7
+        env:
+          COMMENT: ${{ github.event.comment.body }}
+        with:
+          script: |
+            const body = process.env.COMMENT
+            console.log(body.length)

@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUST-002 – Rust unwrap May Panic"
-description: "Detects .unwrap() and .expect() calls on Result and Option types in Rust source files, which can cause unexpected panics and denial of service in production."
+description: "Reports .unwrap() or .expect() applied directly to parsing, deserialising or decoding a runtime value (str::parse, serde_json/toml from_str, String::from_utf8, base64/hex decode, Url::parse, Regex::new on a variable); literals, other unwraps and test code are not reported."
 ---
 
 ## Overview
@@ -24,18 +24,17 @@ Beyond availability, panics can expose internal state through stack traces in er
 
 ## What Gets Flagged
 
-The rule matches any `.unwrap()` or `.expect(...)` call in Rust source files (`.rs` extension):
+The rule reports `.unwrap()` / `.expect(...)` applied directly to the parse or decode of a value that arrives at runtime, including when the call is split across lines:
 
 ```rust
-// FLAGGED: unwrap on file open — panics if file does not exist
-let file = File::open("config.toml").unwrap();
-
-// FLAGGED: expect on env var — panics if env var is not set
-let port = env::var("PORT").expect("PORT must be set");
-
-// FLAGGED: unwrap on parse — panics on unexpected input
-let count: u32 = user_input.trim().parse().unwrap();
+let workers = args[1].parse::<usize>().expect("workers must be a number"); // FLAGGED
+let limit: u64 = raw.trim().parse().unwrap();                              // FLAGGED
+serde_json::from_str(body).unwrap()                                        // FLAGGED
+let bytes = base64::decode(token).unwrap();                                // FLAGGED
+let re = Regex::new(pattern).unwrap();                                     // FLAGGED
 ```
+
+Not flagged: parsing a string literal or an ALL_CAPS constant (`"127.0.0.1".parse::<IpAddr>().unwrap()`), `?`, `unwrap_or*` and `match`, `.unwrap()` on other operations such as `Mutex::lock` or `File::open`, and test modules, `tests/`, `examples/`, `benches/` and `build.rs`.
 
 ## Remediation
 

@@ -1,0 +1,21 @@
+on:
+  pull_request_target:
+  issue_comment:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  lint:
+    if: github.event.issue.pull_request != '' && contains(github.event.comment.body, '/rebase')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "lint fixes for ${{ github.event.pull_request.title }}"
+          branch: ${{ github.head_ref }}
+      - name: Done
+        if: ${{ !contains(github.event.pull_request.title, 'WIP') }}
+        run: echo done

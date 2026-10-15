@@ -1,41 +1,54 @@
 ---
 title: "VNX-15 – External Control of System or Configuration Setting"
-description: "Detects Detects source patterns associated with CWE-15 (External Control of System or Configuration Setting). Each finding should be manually reviewed for exploitability in context."
+description: "A value read from an HTTP request is written into a process-wide setting: an environment variable, the module search path, runtime configuration (viper, ini_set, System.setProperty) or a JDBC connection's catalog."
 ---
 
 ## Overview
 
-VNX-15 maps to [CWE-15: External Control of System or Configuration Setting](https://cwe.mitre.org/data/definitions/15.html). Detects source patterns associated with CWE-15 (External Control of System or Configuration Setting). Each finding should be manually reviewed for exploitability in context.
+VNX-15 maps to [CWE-15: External Control of System or Configuration Setting](https://cwe.mitre.org/data/definitions/15.html). It reports a request value written into a setting that governs the whole process, either directly on the setting line or through a variable assigned from the request in the 15 lines above.
 
-**Severity:** Medium | **CWE:** [CWE-15](https://cwe.mitre.org/data/definitions/15.html) | **Languages:** go, node, python
+**Severity:** Medium | **CWE:** [CWE-15](https://cwe.mitre.org/data/definitions/15.html) | **Languages:** go, java, node, php, python
 
 ## Why This Matters
 
-This weakness class (External Control of System or Configuration Setting) creates a concrete exploit surface: the rule searches for the concrete source-level patterns most commonly associated with CWE-15 and surfaces them for review. Each finding should be evaluated in context — the rule catches the pattern, not the context.
+Environment variables, include paths, runtime configuration and the database catalog are read by every later request, library and child process. A caller who can set `HTTP_PROXY`, `include_path`, `sys.path` or the active catalog can redirect outbound traffic, load code from a directory they choose, switch databases or silence logging for everybody, not just for their own request.
 
 ## What Gets Flagged
 
 ```go
-// FLAGGED: contains 'os.Setenv(' pattern
-os.Setenv(
+os.Setenv("TZ", r.FormValue("tz"))
+
+level := r.URL.Query().Get("level")
+viper.Set("log.level", level)
 ```
 
 ```python
-// FLAGGED: contains 'os.environ[' pattern
-os.environ[
+os.environ["LANG"] = request.form.get("lang", "C")
+sys.path.insert(0, request.args["dir"])
 ```
 
 ```javascript
-// FLAGGED: contains 'req.body' pattern
-req.body
+process.env[req.body.key] = req.body.value;
+Object.assign(process.env, req.body.overrides);
 ```
+
+```java
+System.setProperty("http.proxyHost", request.getParameter("proxy"));
+conn.setCatalog(request.getParameter("catalog"));
+```
+
+```php
+ini_set('include_path', $_GET['path']);
+putenv("TZ=" . $_POST['tz']);
+```
+
+Not flagged: constant values, settings taken from the environment or a configuration file, reading the environment next to request data, a request value checked against an allow-list (`not in ALLOWED`, `includes`, `in_array`, a regex match) before the write, and the same text in comments or string literals.
 
 ## Remediation
 
-1. Review each flagged line and determine whether the pattern represents a real instance of CWE-15 or a false positive.
-2. Replace the flagged construct with a documented safe alternative appropriate to your language and framework.
-3. For confirmed false positives, add a `# vulnetix-ignore: VNX-15` comment on the line.
-4. Ensure equivalent test coverage exists to prevent regression.
+1. Do not let a request choose a process-wide setting. If the feature needs it, map the request to one of a fixed set of values on the server.
+2. Keep per-request preferences (locale, time zone, log verbosity) in the request or session, not in the process environment.
+3. For JDBC, choose the catalog from the authenticated tenant, never from a parameter.
 
 ## References
 

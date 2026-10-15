@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-026",
 	"name": "Child process spawn with shell:true enables command injection",
-	"description": "Reports a child_process spawn(), spawnSync(), execFile() or execFileSync() call (bare, destructured, or through child_process/cp/childProcess) and an execa()/execaSync() call whose options set shell: true or a shell path string (inline, across lines, or in an options object assigned in the 30 lines above) while the command or an argument is not a constant: a variable, a property, or a template literal with an interpolation. Through a shell, metacharacters in that value run as extra commands. Not reported: shell: false or the default, a shell enabled only on Windows (shell: process.platform === 'win32'), a call whose command and arguments are all string literals or constants assigned a literal in the file (or __dirname / path.join of them), exec()/execSync() (always a shell; covered by VNX-NODE-003), lookalike functions (spawnEnemy, respawn), comments and strings.",
+	"description": "Reports a child_process spawn(), spawnSync(), execFile() or execFileSync() call (bare, destructured, through any namespace or alias such as child_process./cp./import * as X, or require('child_process').spawn), a cross-spawn spawn() and an execa()/execaSync() call whose options set shell: true or a shell path string (inline, across lines, or in an options object assigned in the 30 lines above) while the command or an argument is not a constant: a variable, a property, or a template literal with an interpolation. Through a shell, metacharacters in that value run as extra commands. Not reported: shell: false or the default, a shell enabled only on Windows (shell: process.platform === 'win32'), a call whose command and arguments are all string literals or constants assigned a literal in the file (or __dirname / path.join of them), exec()/execSync() (always a shell; covered by VNX-NODE-003), lookalike functions (spawnEnemy, respawn), comments and strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-026/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
@@ -28,7 +28,7 @@ _is_js(path) if endswith(path, ".tsx")
 _is_js(path) if endswith(path, ".mjs")
 _is_js(path) if endswith(path, ".cjs")
 
-_call_re := `(?:^|[^\w$.]|\b(?:child_process|childProcess|cp|proc|child)\.)(spawn|spawnSync|execFile|execFileSync|execa|execaSync)\s*\(`
+_call_re := `(?:^|[^\w$.]|(?:\b[A-Za-z_$][\w$]*|\))\.)(spawn|spawnSync|execFile|execFileSync|execa|execaSync)\s*\(`
 
 _shell_re := `\bshell\s*:\s*(?:true\b|['"])`
 
@@ -110,7 +110,7 @@ findings contains finding if {
 	_is_js(path)
 	not endswith(path, ".min.js")
 	regex.match(`\bshell\s*:`, content)
-	regex.match(`(child_process|execa)`, content)
+	regex.match(`(child_process|execa|cross-spawn)`, content)
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(`(spawn|execFile|execa)`, line)

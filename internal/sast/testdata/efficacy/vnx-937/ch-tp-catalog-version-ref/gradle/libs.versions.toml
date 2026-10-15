@@ -1,0 +1,8 @@
+[versions]
+log4j = "2.14.1"
+jackson = "2.15.2"
+
+[libraries]
+~>log4j-core = { module = "@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-core", version.ref = "log4j" }
+log4j-api = { module = "@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-api", version.ref = "log4j" }
+jackson = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }

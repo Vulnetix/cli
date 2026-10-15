@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-015",
 	"name": "Java JPQL/HQL injection via string concatenation",
-	"description": "A JPQL, HQL or native SQL string passed to JPA EntityManager.createQuery/createNativeQuery or Hibernate Session.createQuery/createNativeQuery/createSelectionQuery/createMutationQuery/createNativeMutationQuery/createFilter is built from untrusted text. Reported when the query argument (the first argument) is, or names a local built from, a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies), a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier within 40 lines (concatenation, String.format, StringBuilder); and, for repository code, when the query concatenates a String parameter of the enclosing public/protected/private method into a quoted or compared value ('\" + email, = \" + id, ORDER BY \" + sort) or passes it to String.format with %s, directly or through a local built a few lines above. A call that continues on the next lines is read to the end of its statement. Not reported: named (:name) and positional (?1) parameters bound with setParameter, createNamedQuery, CriteriaQuery objects, constant queries and UPPER_CASE constants, entity or table names concatenated outside a value position (generic DAOs using getSimpleName()), values converted to numbers, Session.createSQLQuery (VNX-JAVA-003 reports it with JDBC), and the pattern in comments or string literals. Flows into another method or file are not followed.",
+	"description": "A JPQL, HQL or native SQL string passed to JPA EntityManager.createQuery/createNativeQuery or Hibernate Session.createQuery/createNativeQuery/createSelectionQuery/createMutationQuery/createNativeMutationQuery/createFilter is built from untrusted text. Reported when the query argument (the first argument) is, or names a local built from, a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies), a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier within 40 lines (concatenation, String.format, StringBuilder); and, for repository code, when the query concatenates a String parameter of the enclosing public/protected/private method into a quoted or compared value ('\" + email, LIKE '%\" + term, = \" + id, ORDER BY \" + sort) or passes it to String.format with %s, directly or through a local built a few lines above. A call that continues on the next lines is read to the end of its statement. Not reported: named (:name) and positional (?1) parameters bound with setParameter, createNamedQuery, CriteriaQuery objects, constant queries and UPPER_CASE constants, entity or table names concatenated outside a value position (generic DAOs using getSimpleName()), values converted to numbers, Session.createSQLQuery (VNX-JAVA-003 reports it with JDBC), and the pattern in comments or string literals. Flows into another method or file are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-015/",
 	"languages": ["java"],
 	"severity": "high",
@@ -167,7 +167,7 @@ _string_params(lines, i) := ps if {
 # Idents placed where a value goes: '" + x, = " + x, LIKE " + x, IN (" + x,
 # ORDER BY ...." + x, and String.format arguments of a %s query.
 _value_concats(s) := {m[1] |
-	some m in regex.find_all_string_submatch_n(`(?i)(?:'|[=<>]\s*|\blike\s+|\bin\s*\(\s*|\border\s+by\s+[\w.]*)"\s*\+\s*(\w+)`, s, -1)
+	some m in regex.find_all_string_submatch_n(`(?i)(?:'%?|[=<>]\s*|\blike\s+|\bin\s*\(\s*|\border\s+by\s+[\w.]*)"\s*\+\s*(\w+)`, s, -1)
 } | {id |
 	some m in regex.find_all_string_submatch_n(`\b(?:String\.format|formatted)\s*\(\s*"[^"]*%s[^"]*"\s*,\s*([^;]*)`, s, -1)
 	some x in regex.find_all_string_submatch_n(`\b([a-z_]\w*)\b`, m[1], -1)
@@ -187,9 +187,10 @@ _param_concat(lines, i, raw_first, assigns) if {
 	v in ps
 }
 
-_vulnerable(_, _, arg, _, _, t) if {
+_vulnerable(lines, i, arg, _, _, t) if {
 	not regex.match(_sanitizer_re, arg)
 	_reaches(arg, t)
+	not _validated(lines, i, arg, t)
 }
 
 _vulnerable(lines, i, _, raw_first, assigns, _) if _param_concat(lines, i, raw_first, assigns)
@@ -220,5 +221,18 @@ findings contains finding if {
 		"level": metadata.level,
 		"start_line": i + 1,
 		"snippet": line,
+	}
+}
+
+# The value was checked against an allowlist or a pattern a few lines above:
+# if (!ALLOWED_SORT.contains(sort)) sort = "name"; if (!dir.matches("asc|desc")) throw ...
+_validated(lines, i, arg, t) if {
+	refs := {v | some v in t; regex.match(concat("", [`\b`, v, `\b`]), arg)}
+	count(refs) > 0
+	every v in refs {
+		some j in numbers.range(max([0, i - 15]), i - 1)
+		contains(lines[j], v)
+		not helpers.is_comment_line(lines[j])
+		regex.match(concat("", [`\b`, v, `\s*\.\s*matches\s*\(|\bmatcher\s*\(\s*`, v, `\s*\)\s*\.\s*matches\s*\(|\bPattern\s*\.\s*matches\s*\([^;]*\b`, v, `\b|\.\s*contains(?:Key)?\s*\(\s*`, v, `\s*\)`]), lines[j])
 	}
 }

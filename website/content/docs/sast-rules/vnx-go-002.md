@@ -5,7 +5,7 @@ description: "Reports exec.Command/CommandContext running a shell with -c (or /C
 
 ## Overview
 
-This rule detects calls to `exec.Command` on the same line as `fmt.Sprintf`, which is a strong signal that a shell command string is being constructed from dynamic input and then executed. When any portion of the formatted string originates from user input — a query parameter, form field, environment variable, or file content — an attacker can inject arbitrary operating system commands. This vulnerability is classified as [CWE-78: Improper Neutralization of Special Elements used in an OS Command](https://cwe.mitre.org/data/definitions/78.html).
+This rule detects `exec.Command` and `exec.CommandContext` calls (including `golang.org/x/sys/execabs` and import aliases) that hand a shell a script built from formatted, concatenated or request-supplied text. When any portion of the formatted string originates from user input — a query parameter, form field, environment variable, or file content — an attacker can inject arbitrary operating system commands. This vulnerability is classified as [CWE-78: Improper Neutralization of Special Elements used in an OS Command](https://cwe.mitre.org/data/definitions/78.html).
 
 **Severity:** High | **CWE:** [CWE-78 – OS Command Injection](https://cwe.mitre.org/data/definitions/78.html) | **OWASP ASVS:** [V5.2 – Sanitization and Sandboxing](https://owasp.org/www-project-application-security-verification-standard/)
 
@@ -19,7 +19,7 @@ OWASP ASVS v4.0 requirement **V5.2.2** requires that unstructured data be saniti
 
 ## What Gets Flagged
 
-The rule fires when `exec.Command` or `exec.CommandContext` starts a shell (`sh`, `bash`, `zsh`, `cmd`, `powershell`, `pwsh`...) with `-c`, `/C` or `-Command` and the script is built with `fmt.Sprintf` or `+`, read from the request, or held in a variable assigned from one of those a few lines up. A call broken over several lines is read as one. It also fires when the program name itself is formatted or request-supplied. A formatted value passed as its own argument to a fixed program (`exec.Command("git", "log", fmt.Sprintf(...))`) is not reported: no shell parses it. Nor is a value passed as a positional parameter (`sh -c 'grep "$1" f' sh value`) or quoted with `shellescape.Quote`.
+The rule fires when `exec.Command` or `exec.CommandContext` starts a shell (`sh`, `bash`, `zsh`, `cmd`, `powershell`, `pwsh`...) with `-c`, `/C` or `-Command` and the script is built with `fmt.Sprintf` or `+`, read from the request, or held in a variable assigned from one of those a few lines up. A call broken over several lines is read as one. It also fires when the program name itself is formatted or request-supplied. A formatted value passed as its own argument to a fixed program (`exec.Command("git", "log", fmt.Sprintf(...))`) is not reported: no shell parses it. Nor is a value passed as a positional parameter (`sh -c 'grep "$1" f' sh value`) or quoted with `shellescape.Quote`. A script whose only formatted pieces are integers (`fmt.Sprintf("kill -0 %d", pid)`, `strconv.Itoa`) is not reported either: an integer cannot carry shell syntax.
 
 ```go
 // FLAGGED: concatenated script

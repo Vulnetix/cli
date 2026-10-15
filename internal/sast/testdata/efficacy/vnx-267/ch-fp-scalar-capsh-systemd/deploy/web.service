@@ -1,0 +1,5 @@
+[Service]
+User=web
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=~CAP_SYS_ADMIN CAP_SYS_PTRACE
+ExecStart=/opt/web/bin/web

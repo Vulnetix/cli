@@ -39,8 +39,8 @@ _alloc_re := `^\s*(?:final\s+)?byte\s*\[\s*\]\s+([A-Za-z_]\w*)\s*=\s*new\s+byte\
 
 _strip_strings(l) := regex.replace(l, `"(?:[^"\\]|\\.)*"`, `""`)
 
-_lit_names(lines) := {m[1] |
-	some l in lines
+_lit_decls(lines) := {[j, m[1]] |
+	some j, l in lines
 	contains(l, "=")
 	not helpers.is_comment_line(l)
 	some m in regex.find_all_string_submatch_n(_decl_re, l, 1)
@@ -61,8 +61,8 @@ _zero_consts(lines, content) := {m[1] |
 	not regex.match(concat("", [`nextBytes\s*\(\s*(this\.)?`, m[1], `\b|\b`, m[1], `\s*\[[^\]]*\]\s*=[^=]|arraycopy\s*\([^;]*,\s*`, m[1], `\s*,`]), content)
 }
 
-_hop_names(lines, base) := {m[1] |
-	some l in lines
+_hop_decls(lines, base) := {[j, m[1]] |
+	some j, l in lines
 	contains(l, "getBytes")
 	not helpers.is_comment_line(l)
 	some m in regex.find_all_string_submatch_n(_decl_re, l, 1)
@@ -70,11 +70,58 @@ _hop_names(lines, base) := {m[1] |
 	h[1] in base
 }
 
-_names(lines, content) := (n | _hop_names(lines, n)) | _zero_consts(lines, content) if n := _lit_names(lines)
+_decls(lines) := d | _hop_decls(lines, {n | some [_, n] in d}) if {
+	d := _lit_decls(lines)
+}
+
+# A method or constructor header: the boundary a local cannot cross.
+_header_re := `^\s*(?:@\w+(?:\([^)]*\))?\s+)*(?:(?:public|private|protected|static|final|synchronized|abstract|native|default)\s+)*(?:<[^>]+>\s+)?[\w.$]+(?:<[^>]*>)?(?:\[\s*\])*\s+([A-Za-z_]\w*)\s*\([^=;]*$`
+
+_is_header(l) if {
+	regex.match(_header_re, l)
+	not regex.match(`^\s*(return|new|throw|else|case|if|for|while|switch|catch|try|do|synchronized)\b`, l)
+}
+
+# The nearest method header above line i, as [line, method name].
+_enclosing(lines, i) := hs[count(hs) - 1] if {
+	hs := [[k, m[1]] |
+		some k in numbers.range(max([0, i - 300]), i - 1)
+		contains(lines[k], "(")
+		_is_header(lines[k])
+		some m in regex.find_all_string_submatch_n(_header_re, lines[k], 1)
+	]
+	count(hs) > 0
+}
+
+# A field (a modifier, or class-level indentation) is visible file-wide.
+_is_field(l) if regex.match(`^\s*(?:public|private|protected|static|final)\b`, l)
+
+_is_field(l) if regex.match(`^(?:\t| {1,4})?[A-Za-z]`, l)
+
+# A literal-valued name declared at line j is what the spec at line i sees:
+# a field, a local in the same method, or a local of another method that is
+# passed to the spec's method by name (aes256encrypt(ivBytes, keyBytes, ...)).
+_visible(lines, _, _, j, _) if _is_field(lines[j])
+
+_visible(lines, _, i, j, _) if {
+	j < i
+	[h, _] := _enclosing(lines, i)
+	j > h
+}
+
+_visible(lines, _, i, j, _) if {
+	j < i
+	not _enclosing(lines, i)
+}
+
+_visible(lines, content, i, _, name) if {
+	[_, meth] := _enclosing(lines, i)
+	regex.match(concat("", [`[^\w]`, meth, `\s*\([^;{]*\b`, name, `\b[^;{]*\)\s*;`]), content)
+}
 
 _sink_re := `new\s+IvParameterSpec\s*\(\s*|new\s+GCMParameterSpec\s*\(\s*[^,()]+,\s*`
 
-_name_arg := `^(?:this\.)?([A-Za-z_]\w*)\s*[,)]`
+_name_arg := `^(?:this\.)?([A-Za-z_]\w*)\s*(?:\.\s*getBytes\s*\([^)]*\)\s*)?[,)]`
 
 _stmt(lines, i) := concat(" ", [lines[k] | some k in numbers.range(i, min([count(lines) - 1, i + 2]))])
 
@@ -82,9 +129,16 @@ _fixed(_, _, _, _, rest) if regex.match(_literal_expr, rest)
 
 _fixed(_, _, _, _, rest) if regex.match(_inline_fixed, rest)
 
+_fixed(lines, content, i, _, rest) if {
+	some m in regex.find_all_string_submatch_n(_name_arg, rest, 1)
+	some [j, n] in _decls(lines)
+	n == m[1]
+	_visible(lines, content, i, j, n)
+}
+
 _fixed(lines, content, _, _, rest) if {
 	some m in regex.find_all_string_submatch_n(_name_arg, rest, 1)
-	m[1] in _names(lines, content)
+	m[1] in _zero_consts(lines, content)
 }
 
 # A local zero-filled buffer that nothing writes before it becomes the IV.

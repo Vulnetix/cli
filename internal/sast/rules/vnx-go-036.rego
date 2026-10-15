@@ -38,11 +38,11 @@ _blocks(lines, content) := {v |
 	v := m[1]
 }
 
-# The innermost enclosing for loop within six lines above, still open.
+# The innermost enclosing for loop within fifteen lines above, still open.
 _loop(lines, i) := f if {
 	ic := _indent(lines[i])
 	fs := [j |
-		some j in numbers.range(max([0, i - 6]), i - 1)
+		some j in numbers.range(max([0, i - 15]), i - 1)
 		regex.match(`^\s*for\b`, lines[j])
 		_indent(lines[j]) < ic
 		not _closed(lines, j, i)
@@ -59,8 +59,8 @@ _closed(lines, j, i) if {
 }
 
 # The loop chains blocks (CBC) or applies a keystream (CTR, OFB, CFB).
-_chained(lines, f) if {
-	some k in numbers.range(f, min([count(lines) - 1, f + 10]))
+_chained(lines, f, i) if {
+	some k in numbers.range(f, min([count(lines) - 1, max([f + 10, i + 6])]))
 	regex.match(`\^|(?i:xor)`, _code(lines[k]))
 }
 
@@ -75,7 +75,7 @@ _hit(lines, i, code, blocks) if {
 	m[1] in blocks
 	contains(m[2], "[")
 	f := _loop(lines, i)
-	not _chained(lines, f)
+	not _chained(lines, f, i)
 }
 
 findings contains finding if {

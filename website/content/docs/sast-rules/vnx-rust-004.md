@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUST-004 – Rust Command Injection via process::Command"
-description: "Detect Rust code that constructs process::Command using format! macro or shell invocation, enabling command injection when user input is interpolated."
+description: "Reports std/tokio process::Command that runs a shell (sh, bash, cmd, powershell) with -c//C/-Command and a non-literal command string, or whose program comes from a request extractor; constant shell commands and user input passed as a separate .arg() are not reported."
 ---
 
 ## Overview
@@ -20,28 +20,33 @@ Command injection is consistently ranked among the most critical application vul
 
 ## What Gets Flagged
 
-**Pattern 1: Command::new with format! macro**
+**A shell given a non-literal command string** (the finding is on the `Command::new` line, whether the builder is chained on one line or split across lines):
 
 ```rust
-// Flagged: user input interpolated into command string
-let cmd = Command::new(format!("grep {} /var/log/app.log", user_query))
-    .output();
+Command::new("sh").arg("-c").arg(format!("ping -c 1 {}", host)).output()        // FLAGGED
 
-// Flagged: format! used to construct the program path
-let output = Command::new(format!("/opt/tools/{}", tool_name))
-    .output()?;
+let line = format!("convert {} {}", input, output);
+let _ = Command::new("sh").args(["-c", &line]).output();                       // FLAGGED
+
+let _ = Command::new("cmd").args(&["/C", &format!("copy {} backup\\", src)]);   // FLAGGED
+
+Command::new("powershell.exe")                                                 // FLAGGED
+    .args(["-NoProfile", "-Command", script])
+
+let child = tokio::process::Command::new("sh")                                 // FLAGGED
+    .arg("-c")
+    .arg(&script)
+    .spawn();
 ```
 
-**Pattern 2: Shell invocation via sh -c**
+**A program taken from the request:**
 
 ```rust
-// Flagged: shell invocation with user input
-let output = Command::new("sh").arg("-c")
-    .arg(format!("find /data -name '{}'", filename))
-    .output()?;
+pub async fn run_tool(Query(params): Query<Tool>) -> String {
+    let out = Command::new(&params.name).output().unwrap();                    // FLAGGED
 ```
 
-The rule applies only to `.rs` files.
+Not flagged: `Command::new("sh").arg("-c").arg("sync")` or `.arg(BOOTSTRAP)` (a constant), a value quoted with `shlex::try_quote` or `shell_escape::escape` before it is interpolated, `Command::new("sh").arg("deploy.sh").arg(env)` (a script file with arguments), and `Command::new("git").arg("checkout").arg(branch)` (no shell parses the argument).
 
 ## Remediation
 

@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          image: shop/api:1.4.2
+          env:
+            - name: NODE_OPTIONS
+~>              value: "--inspect=0.0.0.0:9229"
+          ports:
+            - containerPort: 9229

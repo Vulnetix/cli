@@ -1,0 +1,4 @@
+<http xmlns="http://www.springframework.org/schema/security">
+  <form-login login-page="/login" username-parameter="user" password-parameter="pwd"/>
+  <remember-me remember-me-parameter="remember"/>
+</http>

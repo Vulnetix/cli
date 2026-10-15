@@ -1,0 +1,11 @@
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: billing-api
+spec:
+  encryptedData:
+    password: @@sample:A[g]By[3]i4[O]JS[W]K[+][P]iT[y]SY[Z]ZA[9]rO[4]3c[G]DE[q]1P[x]gW[2]Fv[L]0d[R]8s[H]pZ[5]qQ[x]@@
+  template:
+    type: Opaque
+    data:
+      username: billing

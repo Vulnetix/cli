@@ -1,0 +1,6 @@
+[NetDev]
+Name=wg1
+Kind=wireguard
+
+[WireGuard]
+PrivateKeyFile=/etc/systemd/network/wg1.key

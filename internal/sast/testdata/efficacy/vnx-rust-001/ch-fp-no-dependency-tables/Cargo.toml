@@ -1,0 +1,15 @@
+[package]
+name = "bitflags-lite"
+version = "0.3.0"
+edition = "2021"
+description = "No external dependencies; see [dependencies] policy in README"
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = ["std"]
+std = []
+
+[package.metadata.docs.rs]
+all-features = true

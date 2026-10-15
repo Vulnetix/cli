@@ -23,7 +23,7 @@ When passed to `yaml.load()` without a safe loader, this YAML calls `subprocess.
 
 ## What Gets Flagged
 
-The rule flags `yaml.unsafe_load()`/`unsafe_load_all()`, and `yaml.load()`/`load_all()` whose loader (the `Loader=` keyword or the second positional argument, read across a call split over several lines) is `Loader`, `UnsafeLoader`, `CLoader` or `CUnsafeLoader`, or is missing.
+The rule flags `yaml.unsafe_load()`/`unsafe_load_all()`, and `yaml.load()`/`load_all()` (through the module, an `import yaml as y` alias, or a name imported with `from yaml import load`) whose loader (the `Loader=` keyword or the second positional argument, read across a call split over several lines) is `Loader`, `UnsafeLoader`, `CLoader` or `CUnsafeLoader`, or is missing.
 
 Not flagged: `safe_load`, `SafeLoader`, `CSafeLoader`, `BaseLoader`, `FullLoader`/`full_load` (code-execution-free since PyYAML 5.4), custom loader classes, ruamel.yaml and other objects' `.load()` methods, and mentions in comments or strings.
 

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-KOTLIN-004",
 	"name": "Kotlin unencrypted plain socket (cleartext transmission)",
-	"description": "A plain TCP socket is opened to, or listens for, a non-loopback peer in a file that never applies TLS, so whatever crosses it can be read and altered on the network. Reported in Kotlin (.kt, .kts): java.net.Socket(host, port, ...) constructors; an unconnected Socket() or SocketChannel.open() later connected with connect(InetSocketAddress(host, port)); SocketFactory.getDefault().createSocket(host, port); SocketChannel.open(InetSocketAddress(host, port)); ServerSocket(port[, backlog[, address]]), a ServerSocket() or ServerSocketChannel bound with bind(InetSocketAddress(...)); and Ktor raw sockets aSocket(selector).tcp().connect(...) / .bind(...). Not reported: peers and bind addresses on loopback (localhost, 127.x, ::1, InetAddress.getLoopbackAddress(), getLocalHost(), the Android emulator host 10.0.2.2); any file that layers TLS (SSLSocketFactory, SSLServerSocketFactory, SSLContext, SSLSocket, SSLEngine, startHandshake, Ktor .tls(), Netty SslHandler), which covers STARTTLS upgrades and proxies that wrap the raw socket; unconnected Socket()/Socket(proxy) objects and Socket subclasses; LocalSocket, Bluetooth, WebSocket and UDP DatagramSocket; test code; and the calls in comments or string literals. Whether the data sent is sensitive is not judged.",
+	"description": "A plain TCP socket is opened to, or listens for, a non-loopback peer in a file that never applies TLS, so whatever crosses it can be read and altered on the network. Reported in Kotlin (.kt, .kts): java.net.Socket(host, port, ...) constructors; an unconnected Socket() or SocketChannel.open() later connected with connect(InetSocketAddress(host, port)), by variable or inside apply/also/run/let/use; SocketFactory.getDefault().createSocket(host, port), directly or through a variable the file assigns SocketFactory.getDefault() once; SocketChannel.open(InetSocketAddress(host, port)); ServerSocket(port[, backlog[, address]]), a ServerSocket() or ServerSocketChannel bound with bind(InetSocketAddress(...)); and Ktor raw sockets aSocket(selector).tcp().connect(...) / .bind(...). Not reported: peers and bind addresses on loopback (localhost, 127.x, ::1, InetAddress.getLoopbackAddress(), getLocalHost(), the Android emulator host 10.0.2.2), written in the call, in a variable assigned a few lines above or in a constant the file assigns once; reachability probes that connect and close a socket (use { } or close()) without reading or writing it; any file that layers TLS (SSLSocketFactory, SSLServerSocketFactory, SSLContext, SSLSocket, SSLEngine, startHandshake, Ktor .tls(), Netty SslHandler), which covers STARTTLS upgrades and proxies that wrap the raw socket; unconnected Socket()/Socket(proxy) objects and Socket subclasses; LocalSocket, Bluetooth, WebSocket and UDP DatagramSocket; test code; and the calls in comments or string literals. Whether the data sent is sensitive is not judged.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-kotlin-004/",
 	"languages": ["kotlin"],
 	"severity": "high",
@@ -97,7 +97,15 @@ _holds(lines, i, recv, kind) if {
 _holds(lines, i, recv, kind) if {
 	recv in {"", "it", "this"}
 	some k in numbers.range(max([0, i - 3]), i)
-	regex.match(concat("", [kind, `\s*\.\s*(apply|run|also|let)\s*\{`]), lines[k])
+	regex.match(concat("", [kind, `\s*\.\s*(apply|run|also|let|use)\s*\{`]), lines[k])
+}
+
+# A connectivity probe: the socket is connected and closed (use { } or
+# close()) with nothing read or written, so no data crosses it.
+_probe(lines, i) if {
+	regex.match(`\.use\s*\{|\.close\s*\(\s*\)`, concat("\n", array.slice(lines, max([0, i - 1]), i + 4)))
+	w := concat("\n", array.slice(lines, i, i + 4))
+	not regex.match(`(?i)stream|channel\b|openRead|openWrite|write|read|send|print|sink|source|return\b|=\s*(?:java\.net\.)?Socket\s*\(`, w)
 }
 
 # The address is loopback, written in the call or in a variable the call
@@ -110,7 +118,29 @@ _loopback_arg(lines, i, args) if {
 	some k in numbers.range(max([0, i - 10]), i - 1)
 	contains(lines[k], id)
 	regex.match(_assign_re(id), lines[k])
-	_loopback(lines[k])
+	_loopback_line(lines, lines[k])
+}
+
+# ... or a constant the file assigns exactly once (a top-level const val
+# far above the call).
+_loopback_arg(lines, i, args) if {
+	some m in regex.find_all_string_submatch_n(`\b([A-Z_][A-Z0-9_]*)\b`, args, -1)
+	_loopback(_single_assignment(lines, m[1]))
+}
+
+# An assignment line whose value is loopback, directly or through a
+# once-assigned constant (InetAddress.getByName(BRIDGE_HOST)).
+_loopback_line(_, line) if _loopback(line)
+
+_loopback_line(lines, line) if {
+	some m in regex.find_all_string_submatch_n(`\b([A-Z_][A-Z0-9_]*)\b`, regex.replace(line, `^[^=]*=`, ""), -1)
+	_loopback(_single_assignment(lines, m[1]))
+}
+
+_single_assignment(lines, id) := js[0] if {
+	re := _assign_re(id)
+	js := [l | some l in lines; contains(l, id); regex.match(re, l)]
+	count(js) == 1
 }
 
 # ── Clients ──────────────────────────────────────────────────────────────
@@ -131,6 +161,19 @@ _client(lines, i, code) if {
 	re := `(?:^|[^\w.])(?:javax\.net\.)?SocketFactory\s*\.\s*getDefault\s*\(\s*\)\s*\.\s*createSocket\s*\(`
 	regex.match(re, code)
 	host := _first_of_two(_after(_joined(lines, i), re))
+	not _loopback_arg(lines, i, host)
+}
+
+# factory.createSocket(host, port) on a variable holding SocketFactory.getDefault()
+_client(lines, i, code) if {
+	contains(code, "createSocket")
+	m := regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\s*\.\s*createSocket\s*\(`, code, 1)
+	count(m) > 0
+	recv := m[0][1]
+	recv != "getDefault"
+	a := _single_assignment(lines, recv)
+	regex.match(`\bSocketFactory\s*\.\s*getDefault\s*\(\s*\)\s*$`, regex.replace(a, `\s*(//.*)?$`, ""))
+	host := _first_of_two(_after(_joined(lines, i), `\bcreateSocket\s*\(`))
 	not _loopback_arg(lines, i, host)
 }
 
@@ -208,7 +251,10 @@ _server(lines, i, code) if {
 
 _messages := {"client": _client_msg, "server": _server_msg}
 
-_shape("client", lines, i, code) if _client(lines, i, code)
+_shape("client", lines, i, code) if {
+	_client(lines, i, code)
+	not _probe(lines, i)
+}
 
 _shape("server", lines, i, code) if _server(lines, i, code)
 

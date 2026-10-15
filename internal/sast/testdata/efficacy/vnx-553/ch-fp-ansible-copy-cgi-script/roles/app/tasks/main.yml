@@ -1,0 +1,14 @@
+- name: Deploy status CGI
+  ansible.builtin.copy:
+    src: files/status.sh
+    dest: /usr/lib/cgi-bin/status.sh
+    mode: "0755"
+
+- name: Keep a shell for operators outside the web root
+  ansible.builtin.copy:
+    src: /bin/bash
+    dest: /opt/tools/bash
+    remote_src: true
+
+- name: Inline status
+  ansible.builtin.copy: src=files/health.cgi dest=/usr/lib/cgi-bin/health.cgi mode=0755

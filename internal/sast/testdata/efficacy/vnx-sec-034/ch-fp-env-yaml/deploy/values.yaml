@@ -1,0 +1,3 @@
+aliyun:
+  accessKeyId: ${ALIBABA_CLOUD_ACCESS_KEY_ID}
+  note: "IDs start with LTAI"

@@ -1,0 +1,10 @@
+name: publish
+on:
+  push:
+    tags: ["v*"]
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+~>      - run: curl -sSf --user "ci-bot:Q7vLm2xR9p" -T dist/app.tgz https://@@sample:r[e]po[.]in[t]er[n]al[.]ac[m]e[.][i]o[/][r]el[e]as[e]s[/]@@

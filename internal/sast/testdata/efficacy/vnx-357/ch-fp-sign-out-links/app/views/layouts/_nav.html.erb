@@ -1,0 +1,7 @@
+<nav>
+  <% if user_signed_in? %>
+    <%= link_to "Sign out", destroy_user_session_path, method: :delete %>
+    <%= button_to "Log out", logout_path, method: :delete, class: "nav-link" %>
+    <%= link_to t("nav.sign_out"), session_path(current_session), data: { turbo_method: :delete } %>
+  <% end %>
+</nav>

@@ -1,0 +1,5 @@
+<persistence-unit name="shop">
+  <properties>
+~>    <property name="javax.persistence.jdbc.url" value="jdbc:mysql://db.acme.internal:3306/shop?user=shop&amp;password=@@sample:[A-Za-z0-9]{20}@@"/>
+  </properties>
+</persistence-unit>

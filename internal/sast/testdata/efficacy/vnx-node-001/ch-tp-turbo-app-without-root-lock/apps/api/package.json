@@ -1,0 +1,6 @@
+~>{
+  "name": "api",
+  "dependencies": {
+    "fastify": "^4.28.0"
+  }
+}

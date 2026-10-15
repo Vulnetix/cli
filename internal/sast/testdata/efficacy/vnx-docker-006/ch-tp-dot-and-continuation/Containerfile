@@ -1,0 +1,6 @@
+FROM python:3.12-slim
+WORKDIR /srv
+~>ADD . /srv
+~>ADD --chown=1000:1000 \
+    scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

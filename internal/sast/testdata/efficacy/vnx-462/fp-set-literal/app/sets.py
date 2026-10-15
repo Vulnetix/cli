@@ -1,0 +1,5 @@
+ALLOWED = {
+    "png",
+    "jpg",
+    "png",
+}

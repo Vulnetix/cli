@@ -1,0 +1,8 @@
+<configuration>
+  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <file>app.log</file>
+  </appender>
+~>  <root level="TRACE">
+    <appender-ref ref="FILE" />
+  </root>
+</configuration>

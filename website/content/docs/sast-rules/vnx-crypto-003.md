@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-003 – AES in ECB Mode"
-description: "Reports block ciphers set up in ECB mode in Python, Node.js, Go, Java, Ruby and PHP: MODE_ECB, modes.ECB(), '*-ecb' cipher names, Java '*/ECB/*' or bare \"AES\" transformations (literal, variable or getProperty default), NewECBEncrypter and hand-written per-block Encrypt loops. Other modes, guards against ECB, single-block operations, overridden property defaults, comments and test vectors are not reported."
+description: "Reports block ciphers set up in ECB mode in Python, Node.js, Go, Java, Ruby and PHP: MODE_ECB, modes.ECB(), '*-ecb' cipher names, Java '*/ECB/*' or bare \"AES\", \"DES\", \"DESede\" or \"Blowfish\" transformations (literal, variable or getProperty default), NewECBEncrypter and hand-written per-block Encrypt loops. Other modes, RSA/ECB/* and AES key-wrap transformations, guards against ECB, single-block operations, overridden property defaults, comments and test vectors are not reported."
 ---
 
 ## Overview
@@ -47,7 +47,7 @@ for i := 0; i < len(plaintext); i += bs {
 $e = openssl_encrypt($plaintext, 'aes-128-ecb', $key, OPENSSL_RAW_DATA);
 ```
 
-Not flagged: GCM, CBC, CTR and other modes; a comparison against `MODE_ECB` (a guard); `KeyGenerator`/`SecretKeySpec` with `"AES"`; a single-block `Encrypt` outside a loop (CMAC subkeys, key wrapping); a Java `getProperty` default that the project's own `.properties` overrides with a non-ECB transformation; comments, strings, documentation and test files.
+Not flagged: GCM, CBC, CTR and other modes; `RSA/ECB/...` (RSA has no block mode), `AESWrap` and `AES/KW/NoPadding`; a comparison against `MODE_ECB` (a guard); `KeyGenerator`/`SecretKeySpec` with `"AES"`; a single-block `Encrypt` outside a loop (CMAC subkeys, key wrapping); a Java `getProperty` default that the project's own `.properties` overrides with a non-ECB transformation; comments, strings, documentation and test files.
 
 ## Remediation
 

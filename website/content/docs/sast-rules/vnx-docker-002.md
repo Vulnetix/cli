@@ -1,6 +1,6 @@
 ---
 title: "VNX-DOCKER-002 – Dockerfile FROM :latest Tag"
-description: "Reports a FROM or COPY --from that names an external image by :latest, a floating tag (alpine, slim, lts, stable) or no tag, with no @sha256 digest, including images resolved through an ARG default."
+description: "Reports a FROM, COPY --from or RUN --mount=from that names an external image by :latest, a floating tag (alpine, slim, lts, stable) or no tag, with no @sha256 digest, including images resolved through an ARG default."
 ---
 
 ## Overview
@@ -21,7 +21,7 @@ Beyond security, unpinned base images cause operational failures: a breaking cha
 
 ## What Gets Flagged
 
-The rule reports `FROM` instructions, and `COPY --from=` instructions that pull an external image, whose reference has no digest and either no tag or a floating tag (`latest`, `lts`, `stable`, `alpine`, `slim` and combinations such as `lts-alpine`). A `FROM ${BASE}` is resolved through its `ARG` default.
+The rule reports `FROM` instructions, and `COPY --from=` and `RUN --mount=from=` instructions that pull an external image, whose reference has no digest and either no tag or a floating tag (`latest`, `lts`, `stable`, `alpine`, `slim` and combinations such as `lts-alpine`). A `FROM ${BASE}` is resolved through its `ARG` default.
 
 ```dockerfile
 # FLAGGED
@@ -30,6 +30,7 @@ FROM --platform=linux/amd64 python AS deps
 FROM registry.internal.example:5000/platform/base-image   # a port is not a tag
 FROM nginx:alpine-slim
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
+RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv uv pip install -r requirements.txt
 
 ARG BASE_IMAGE=eclipse-temurin:latest
 FROM $BASE_IMAGE

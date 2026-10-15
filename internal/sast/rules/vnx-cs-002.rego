@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CS-002",
 	"name": "C# command injection: request data or a dynamic shell command reaches Process.Start",
-	"description": "An operating-system command is started with text an attacker can influence. Reported: Process.Start(...), new ProcessStartInfo(...), a ProcessStartInfo FileName or Arguments assignment (on a ProcessStartInfo variable, on p.StartInfo, or inside a new ProcessStartInfo { ... } initializer) and PowerShell AddScript(...), when (a) the program or its arguments contain HTTP request data: Request.Query/QueryString/Form/Params/Cookies/Headers/RouteValues, Request[...], RouteData.Values or a WebForms TextBox .Text read inline or assigned up to 15 lines above (one further assignment is followed), a string or model parameter of a public action in a Controller/ControllerBase/PageModel class, a [FromQuery]/[FromRoute]/[FromForm]/[FromBody]/[FromHeader] parameter, or a minimal-API MapGet/MapPost lambda parameter; or (b) the program is a shell (cmd, cmd.exe, sh, bash, zsh, /bin/sh, powershell, pwsh) and the command string is built by concatenation with a non-constant operand, interpolation with a non-constant hole or string.Format, inline or in a variable assigned just above; or (c) AddScript receives script text built that way. Not reported: constant commands, ArgumentList.Add (no command-line parsing), dynamic arguments to a fixed non-shell program with no request data in sight (argument injection is possible but is not judged), numeric/Guid/bool action parameters, input checked first with Regex.IsMatch, TryParse or an allowlist Contains, FileName properties of other types (ContentDisposition, dialogs), and comments or log strings. Values passed in from another method are not followed.",
+	"description": "An operating-system command is started with text an attacker can influence. Reported: Process.Start(...), new ProcessStartInfo(...), a ProcessStartInfo FileName or Arguments assignment (on a ProcessStartInfo variable, on p.StartInfo, or inside a new ProcessStartInfo { ... } initializer) and PowerShell AddScript(...), when (a) the program or its arguments contain HTTP request data: Request.Query/QueryString/Form/Params/Cookies/Headers/RouteValues, Request[...], RouteData.Values or a WebForms TextBox .Text read inline or assigned up to 15 lines above (one further assignment is followed), a string or model parameter of a public action in a Controller/ControllerBase/PageModel class, a [FromQuery]/[FromRoute]/[FromForm]/[FromBody]/[FromHeader] parameter, or a minimal-API MapGet/MapPost lambda parameter; or (b) the program is a shell (cmd, cmd.exe, sh, bash, zsh, /bin/sh, powershell, pwsh) and the command string is built by concatenation with a non-constant operand, interpolation with a non-constant hole or string.Format, inline or in a variable assigned just above; or (c) AddScript receives script text built that way; or (d) a non-constant value is added through ArgumentList.Add right after a \"-c\", \"/c\" or \"-Command\" operand of such a shell (the shell still parses it as a command line); or (e) CliWrap's Cli.Wrap(shell).WithArguments(...) receives a command string built from data, or Cli.Wrap/WithArguments receives request data. Not reported: constant commands, ArgumentList.Add to a non-shell program or after a script path (no command-line parsing), argument arrays passed to WithArguments, dynamic arguments to a fixed non-shell program with no request data in sight (argument injection is possible but is not judged), numeric/Guid/bool action parameters, input checked first with Regex.IsMatch, TryParse or an allowlist Contains, FileName properties of other types (ContentDisposition, dialogs), and comments or log strings. Values passed in from another method are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-cs-002/",
 	"languages": ["csharp"],
 	"severity": "high",
@@ -47,6 +47,12 @@ _stmt_end(lines, k) := e if {
 }
 
 _stmt(lines, k) := concat(" ", array.slice(lines, k, _stmt_end(lines, k) + 1))
+
+# A property assignment inside an object initializer ends at its trailing
+# comma: `FileName = "cmd.exe",` must not absorb the `Arguments = ...` below.
+_prop_stmt(lines, k) := lines[k] if endswith(trim_space(lines[k]), ",")
+
+_prop_stmt(lines, k) := _stmt(lines, k) if not endswith(trim_space(lines[k]), ",")
 
 _after(stmt, re) := substring(stmt, indexof(stmt, m) + count(m), -1) if {
 	m := regex.find_n(re, stmt, 1)[0]
@@ -249,7 +255,17 @@ _req(lines, content, i, code, _) if {
 
 _req(lines, content, i, code, psivars) if {
 	_psi_prop(lines, code, psivars, i)
-	arg := _after(_stmt(lines, i), `(FileName|Arguments)\s*=\s*`)
+	arg := _after(_prop_stmt(lines, i), `(FileName|Arguments)\s*=\s*`)
+	_reaches_request(lines, content, i, arg)
+	not _guarded(lines, i)
+}
+
+_cliwrap_re := `\bCli\s*\.\s*Wrap\s*\(|\.WithArguments\s*\(`
+
+_req(lines, content, i, code, _) if {
+	contains(content, "CliWrap")
+	regex.match(_cliwrap_re, code)
+	arg := _after(_stmt(lines, i), _cliwrap_re)
 	_reaches_request(lines, content, i, arg)
 	not _guarded(lines, i)
 }
@@ -272,9 +288,32 @@ _shell(lines, i, code, _, consts) if {
 
 _shell(lines, i, code, psivars, consts) if {
 	_psi_prop(lines, code, psivars, i) == "Arguments"
-	arg := _after(_stmt(lines, i), `Arguments\s*=\s*`)
+	arg := _after(_prop_stmt(lines, i), `Arguments\s*=\s*`)
 	_dyn_arg(lines, i, arg, consts)
 	_shell_nearby(lines, i)
+}
+
+# (d) a shell's -c or /c operand added through ArgumentList: the list stops
+# argument splitting, not the shell parsing that operand as a command line.
+_shell(lines, i, code, _, consts) if {
+	contains(code, "ArgumentList")
+	m := regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*(?:\.StartInfo)?)\.ArgumentList\.Add\s*\(\s*(.*)\)\s*;`, lines[i], 1)[0]
+	arg := trim_space(m[2])
+	not regex.match(`^@?"[^"]*"$`, arg)
+	not _const_expr(arg, consts)
+	some k in numbers.range(max([0, i - 3]), i - 1)
+	regex.match(concat("", [`\b`, m[1], `\.ArgumentList\.Add\s*\(\s*"(?:-c|/c|/C|-Command|-command|-EncodedCommand)"\s*\)`]), lines[k])
+	_shell_nearby(lines, i)
+}
+
+# (e) CliWrap: Cli.Wrap(shell).WithArguments(command line built from data).
+_shell(lines, i, code, _, consts) if {
+	regex.match(`\.WithArguments\s*\(`, code)
+	w := helpers.code_window(lines, i, 3, 0)
+	regex.match(concat("", [`\bCli\s*\.\s*Wrap\s*\(\s*`, _shell_lit, `\s*\)`]), w)
+	arg := _after(_stmt(lines, i), `\.WithArguments\s*\(`)
+	not regex.match(`^\s*(new\b|\w+\s*=>)`, arg)
+	_dyn_arg(lines, i, arg, consts)
 }
 
 # (c) PowerShell script text built from data.
@@ -287,7 +326,7 @@ _shell(lines, i, code, _, consts) if {
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".cs")
-	_has_any(content, {"Process", "AddScript"})
+	_has_any(content, {"Process", "AddScript", "CliWrap"})
 	lines := split(content, "\n")
 	psivars := _psi_vars(content)
 	consts := {m[1] |
@@ -296,7 +335,7 @@ findings contains finding if {
 		some m in regex.find_all_string_submatch_n(`\bconst\s+[\w.<>?]+\s+(\w+)\s*=`, l, -1)
 	}
 	some i, line in lines
-	_has_any(line, {"Start", "FileName", "Arguments", "AddScript"})
+	_has_any(line, {"Start", "FileName", "Arguments", "ArgumentList", "AddScript", "Wrap"})
 	not helpers.is_comment_line(line)
 	code := _code(line)
 	kind := _kind(lines, content, i, code, psivars, consts)

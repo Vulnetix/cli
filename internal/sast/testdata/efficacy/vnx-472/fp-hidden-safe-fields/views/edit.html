@@ -1,0 +1,7 @@
+<form action="/profile" method="post">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
+  <input type="hidden" name="redirect" value="/home">
+  <input type="hidden" name="productId" value="{{product.id}}">
+  <input type="text" name="price" value="{{price}}">
+  <p>Do not put the price in an input type="hidden" field.</p>
+</form>

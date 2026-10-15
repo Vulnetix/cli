@@ -1,11 +1,11 @@
 ---
 title: "VNX-PY-014 – Python XML External Entity (XXE) Injection"
-description: "Detect Python XML parsing code that uses stdlib parsers vulnerable to XXE attacks, which can expose local files and internal network resources to an attacker who controls the XML input."
+description: "Detect Python XML parsers configured to resolve external entities (SAX external-entity features on, lxml resolve_entities=True or no_network=False, xmltodict disable_entities=False) or lxml parsing request data with the default parser, which can expose local files and internal network resources (XXE)."
 ---
 
 ## Overview
 
-This rule flags uses of Python's standard XML parsing functions — `ElementTree.parse()`, `ET.parse()`, `etree.parse()`, `minidom.parse()`, `minidom.parseString()`, `etree.fromstring()`, `ET.fromstring()`, `ElementTree.fromstring()`, `xml.sax.parse()`, and `xml.sax.parseString()` — which are vulnerable to XML External Entity (XXE) injection by default. When an XML parser processes an external entity declaration (`<!ENTITY xxe SYSTEM "file:///etc/passwd">`), it fetches and substitutes the referenced resource. This allows an attacker who can provide XML input to read arbitrary local files, probe internal network services, or cause denial of service via entity expansion. This maps to [CWE-611: Improper Restriction of XML External Entity Reference](https://cwe.mitre.org/data/definitions/611.html).
+This rule flags XML parsers that are configured, or used, so that they resolve external entities: a SAX parser with `feature_external_ges`/`feature_external_pes` switched on (which minidom and pulldom then inherit), an lxml `XMLParser(resolve_entities=True)` or `no_network=False`, `xmltodict.parse(..., disable_entities=False)`, and lxml `etree.fromstring`/`XML`/`parse` given request data with no explicit parser. The standard library's `xml.etree`, `minidom` and `sax` parsers with their defaults are not reported, because current Python does not fetch external entities with them. When an XML parser processes an external entity declaration (`<!ENTITY xxe SYSTEM "file:///etc/passwd">`), it fetches and substitutes the referenced resource. This allows an attacker who can provide XML input to read arbitrary local files, probe internal network services, or cause denial of service via entity expansion. This maps to [CWE-611: Improper Restriction of XML External Entity Reference](https://cwe.mitre.org/data/definitions/611.html).
 
 **Severity:** High | **CWE:** [CWE-611 – XML External Entity (XXE)](https://cwe.mitre.org/data/definitions/611.html)
 
@@ -28,32 +28,31 @@ When parsed without XXE protections, the server substitutes the contents of `/et
 - `/proc/self/environ` — process environment variables (secrets, tokens)
 - Internal HTTP endpoints — `http://169.254.169.254/` (cloud metadata service) for credentials or instance identity
 
-Python's `xml.etree.ElementTree` documentation explicitly states it is not secure against maliciously constructed data. The `xml.dom.minidom` and `xml.sax` modules have the same limitation. All rely on the underlying Expat C library, which does support external entities.
+Python's `xml.etree.ElementTree` documentation states it is not secure against maliciously constructed data, but on current Python its default parsers do not fetch external entities; entity expansion (billion laughs) remains a separate denial-of-service concern that this rule does not cover. External entities become reachable when a parser is explicitly configured to resolve them, or with lxml's default parser on older releases.
 
 ## What Gets Flagged
 
-Any `.py` file that calls one of the vulnerable XML parsing functions.
-
 ```python
-# FLAGGED: ElementTree.parse — vulnerable to XXE
-import xml.etree.ElementTree as ET
-tree = ET.parse("data.xml")
-root = ET.fromstring(xml_string)
+# FLAGGED: SAX external entities switched on (minidom/pulldom inherit this)
+from xml.sax.handler import feature_external_ges
+parser = xml.sax.make_parser()
+parser.setFeature(feature_external_ges, True)
 
-# FLAGGED: minidom.parse
-from xml.dom import minidom
-doc = minidom.parse("document.xml")
-doc = minidom.parseString(xml_bytes)
-
-# FLAGGED: lxml.etree without safe parser options
+# FLAGGED: lxml parser that resolves entities or reaches the network
 from lxml import etree
-tree = etree.parse("feed.xml")
-root = etree.fromstring(xml_string)
+parser = etree.XMLParser(resolve_entities=True)
+parser = etree.XMLParser(no_network=False)
 
-# FLAGGED: xml.sax
-import xml.sax
-xml.sax.parse("data.xml", handler)
-xml.sax.parseString(xml_bytes, handler)
+# FLAGGED: xmltodict with entities enabled
+doc = xmltodict.parse(body, disable_entities=False)
+
+# FLAGGED: lxml parsing request data with the default parser
+root = etree.fromstring(request.data)
+
+# NOT flagged: stdlib defaults, defusedxml, an explicit safe parser
+root = xml.etree.ElementTree.fromstring(body)
+root = defusedxml.ElementTree.fromstring(body)
+root = etree.fromstring(request.data, etree.XMLParser(resolve_entities=False))
 ```
 
 ## Remediation

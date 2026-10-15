@@ -1,0 +1,6 @@
+{
+  "linear": {
+~>    "accessToken": "lin_oauth_@@sample:[a-f0-9]{64}@@",
+    "team": "ENG"
+  }
+}

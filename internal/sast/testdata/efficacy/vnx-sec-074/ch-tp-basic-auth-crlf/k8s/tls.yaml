@@ -1,0 +1,8 @@
+apiVersion: v1
+metadata:
+  name: tls-edge
+kind: Secret
+type: kubernetes.io/tls
+data:
+  tls.crt: @@sample:T[F]Mw[d]Ex[T]MU[N]SV[W]RK[V]Gl[C]RF[J]WS[l]VT[V]Vp[K]UT[B]GV[V]JT[M]HR[M]Uz[B]0@@
+~>  tls.key: @@sample:T[F]Mw[d]Ex[T]MU[N]SV[W]RK[V]Gl[C]UV[V]rb[F]dR[V]lJ[G]SU[V]0R[l]dT[M]HR[M]Uz[B]0Q[2]sx[S]lN[V]Vj[J]VV[W]xD[U]VV[S]Ql[R]rS[m]5h[M]0Z[v]@@

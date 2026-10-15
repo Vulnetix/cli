@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-DOCKER-004",
 	"name": "Dockerfile ADD downloads a remote source without a checksum",
-	"description": "An ADD instruction fetches a remote source (an http:// or https:// URL, or a git repository given as https://...git, git://, ssh:// or git@host:) with no --checksum, so whatever the server returns at build time, or a tampered response over plain http, goes into the image unverified. Reported in every ADD form: flags before the source (--chown, --chmod, --link, --keep-git-dir), lowercase instructions, the JSON exec form, a source on a continuation line, and ONBUILD ADD. Not reported: ADD --checksum=sha256:... (BuildKit verifies the download), a git source pinned to a 40-character commit, local sources (VNX-DOCKER-006), a source held in a variable, RUN curl/wget downloads, ADD text inside comments, labels, strings and heredocs, test and .devcontainer images, and files that only mention Dockerfiles.",
+	"description": "An ADD instruction fetches a remote source (an http:// or https:// URL, or a git repository given as https://...git, git://, ssh:// or git@host:) with no --checksum, so whatever the server returns at build time, or a tampered response over plain http, goes into the image unverified. Reported in every ADD form: flags before the source (--chown, --chmod, --link, --keep-git-dir), lowercase instructions, the JSON exec form, a source on a continuation line, ONBUILD ADD, and a ${VAR} source whose ARG default is such a URL. Not reported: ADD --checksum=sha256:... (BuildKit verifies the download), a git source pinned to a 40-character commit, local sources (VNX-DOCKER-006), a source held in a variable with no default (supplied at build time), RUN curl/wget downloads, ADD text inside comments, labels, strings and heredocs, test and .devcontainer images, and files that only mention Dockerfiles.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-004/",
 	"languages": ["docker"],
 	"severity": "medium",
@@ -117,6 +117,25 @@ _remote(src) if regex.match(`(?i)^(https?|git|ssh)://`, src)
 
 _remote(src) if regex.match(`^git@[A-Za-z0-9.-]+:`, src)
 
+# a source written as ${VAR} resolves through the ARG default declared above it
+_var_re := `^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?$`
+
+_effective(_, _, src) := src if not regex.match(_var_re, src)
+
+_effective(lines, i, src) := v if {
+	m := regex.find_all_string_submatch_n(_var_re, src, 1)
+	count(m) > 0
+	name := m[0][1]
+	defaults := [trim(dm[0][1], "\"'") |
+		some j in numbers.range(max([0, i - 200]), i - 1)
+		contains(lines[j], name)
+		dm := regex.find_all_string_submatch_n(concat("", [`(?i)^\s*ARG\s+`, name, `=(\S+)\s*$`]), lines[j], 1)
+		count(dm) > 0
+	]
+	count(defaults) > 0
+	v := defaults[count(defaults) - 1]
+}
+
 # a git source pinned to a full commit id
 _commit_pinned(src) if regex.match(`#[0-9a-fA-F]{40}(:\S*)?$`, src)
 
@@ -134,7 +153,8 @@ findings contains finding if {
 	rest := regex.replace(txt, _add_re, "")
 	flags := regex.find_all_string_submatch_n(`^((?:\s*--\S+)*)\s*(.*)$`, rest, 1)[0]
 	not contains(flags[1], "--checksum=")
-	some src in _sources(flags[2])
+	some raw in _sources(flags[2])
+	src := _effective(lines, i, raw)
 	_remote(src)
 	not _commit_pinned(src)
 	finding := {

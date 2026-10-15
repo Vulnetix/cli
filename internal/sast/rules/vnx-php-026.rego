@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-026",
 	"name": "PHP session poisoning via user-controlled session key",
-	"description": "A request value chooses which top-level session variable is written, so a client can overwrite trusted session state (user_id, role, an authenticated flag, a CSRF token). Reported: a write to $_SESSION[<key>] (=, .=, ??=, +=, or a nested write under it) whose key is a $_GET/$_POST/$_REQUEST/$_COOKIE element, or a variable whose nearest assignment within 20 lines above reads one of those, filter_input(INPUT_*), $request->input/get/query/post/cookie(), request('...') or Input::get(), or that is the key or value of a foreach over a superglobal or $request->all(); the same key passed to Session::put(), session()->put(), $request->session()->put(), $session->set() or ->set_userdata(); and copying a whole request array into the session ($_SESSION = array_merge($_SESSION, $_POST), array_replace, $_SESSION += $_GET). Not reported: literal or constant keys, request values stored as the value under a fixed key, a user key nested under a fixed outer key ($_SESSION['prefs'][$k]) or concatenated with a fixed prefix, reads of $_SESSION[$k], keys checked between source and write with in_array/array_key_exists/isset($allowed[$k])/preg_match/a comparison/switch/match, keys cast with intval or (int), variables reassigned to a constant before the write, and mentions inside strings or comments. Deeper flows (a key passed through a helper function or across files) are out of scope.",
+	"description": "A request value chooses which top-level session variable is written, so a client can overwrite trusted session state (user_id, role, an authenticated flag, a CSRF token). Reported: a write to $_SESSION[<key>] (=, .=, ??=, +=, or a nested write under it) whose key is a $_GET/$_POST/$_REQUEST/$_COOKIE element (optionally wrapped in trim/strtolower/urldecode-style string functions), or a variable whose nearest assignment within 20 lines above reads one of those, filter_input(INPUT_*), $request->input/get/query/post/cookie(), Symfony $request->query/request/cookies/attributes->get(), CodeIgniter $this->input->get/post/cookie(), request('...') or Input::get(), or that is the key or value of a foreach over a superglobal or $request->all(); the same key passed to Session::put(), session()->put(), $request->session()->put(), $session->set(), ->getSession()->set() or ->set_userdata(), whether the key is such a variable or the request call itself; and copying a whole request array into the session ($_SESSION = array_merge($_SESSION, $_POST), array_replace, $_SESSION += $_GET). Not reported: literal or constant keys, request values stored as the value under a fixed key, a user key nested under a fixed outer key ($_SESSION['prefs'][$k]) or concatenated with a fixed prefix, reads of $_SESSION[$k], keys checked between source and write with in_array/array_key_exists/isset($allowed[$k])/preg_match/a comparison with a non-empty literal, variable or constant (a null/empty check is not a guard)/switch/match, keys cast with intval or (int), variables reassigned to a constant before the write, and mentions inside strings or comments. Deeper flows (a key passed through a helper function or across files) are out of scope.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-026/",
 	"languages": ["php"],
 	"severity": "high",
@@ -23,7 +23,7 @@ metadata := {
 
 _sg := `\$_(?:GET|POST|REQUEST|COOKIE)\b`
 
-_src := concat("", [`(?:`, _sg, `|\bfilter_input\s*\(\s*INPUT_(?:GET|POST|COOKIE|REQUEST)|\$request->(?:input|get|query|post|cookie)\s*\(|\brequest\(\s*['"]|\bInput::get\s*\()`])
+_src := concat("", [`(?:`, _sg, `|\bfilter_input\s*\(\s*INPUT_(?:GET|POST|COOKIE|REQUEST)|\$request->(?:input|get|query|post|cookie)\s*\(|\$request->(?:query|request|cookies|attributes)->(?:get|all)\s*\(|\$this->input->(?:post|get|get_post|post_get|cookie)\s*\(|\brequest\(\s*['"]|\bInput::get\s*\()`])
 
 _assign := `(?:\s*\[[^\]]*\])*\s*(?:=(?:[^=>]|$)|\.=|\?\?=|\+=)`
 
@@ -36,7 +36,7 @@ _code(line) := c if {
 _msg := "A request value chooses which $_SESSION key is written; a client can overwrite arbitrary session variables (role, user id, CSRF token). Use fixed key names, or validate the key against an allowlist"
 
 # ── 1. superglobal element used directly as the key ──────────────────────
-_direct_re := concat("", [`\$_SESSION\s*\[\s*`, _sg, `\s*\[[^\]]*\]\s*\]`, _assign])
+_direct_re := concat("", [`\$_SESSION\s*\[\s*(?:(?:trim|rtrim|ltrim|strtolower|strtoupper|urldecode|rawurldecode|stripslashes|strip_tags|htmlspecialchars|htmlentities)\s*\(\s*)?`, _sg, `\s*\[[^\]]*\]\s*\)?\s*\]`, _assign])
 
 _direct_guard := concat("", [`(?:\bin_array|\barray_key_exists|\bpreg_match|\bisset\s*\(\s*\$\w+\s*\[)\s*\(?[^;]*`, _sg])
 
@@ -57,7 +57,7 @@ findings contains finding if {
 # ── 2. a tainted variable used as the key ────────────────────────────────
 _var_key_re := concat("", [`\$_SESSION\s*\[\s*\$([A-Za-z]\w*)\s*\]`, _assign])
 
-_put_re := `(?:\bSession::put|\bsession\(\)\s*->\s*put|->\s*session\(\)\s*->\s*put|\$session\s*->\s*set|->\s*set_userdata)\s*\(\s*\$([A-Za-z]\w*)\s*,`
+_put_re := `(?:\bSession::put|\bsession\(\)\s*->\s*put|->\s*session\(\)\s*->\s*put|\$session\s*->\s*set|->\s*getSession\(\)\s*->\s*set|->\s*set_userdata)\s*\(\s*\$([A-Za-z]\w*)\s*,`
 
 _sink_var(c) := v if {
 	m := regex.find_all_string_submatch_n(_var_key_re, c, 1)
@@ -87,7 +87,7 @@ findings contains finding if {
 }
 
 # A framework put with a request value as the key directly.
-_put_direct_re := concat("", [`(?:\bSession::put|\bsession\(\)\s*->\s*put|->\s*session\(\)\s*->\s*put|\$session\s*->\s*set|->\s*set_userdata)\s*\(\s*`, _src])
+_put_direct_re := concat("", [`(?:\bSession::put|\bsession\(\)\s*->\s*put|->\s*session\(\)\s*->\s*put|\$session\s*->\s*set|->\s*getSession\(\)\s*->\s*set|->\s*set_userdata)\s*\(\s*`, _src])
 
 findings contains finding if {
 	some path, content in input.file_contents
@@ -158,12 +158,16 @@ _guarded(lines, j, i, v) if {
 	regex.match(_guard_re(v), l)
 }
 
+# A comparison constrains the key only against a real value: a check
+# against null, false, true or the empty string does not.
+_operand := `(?:'[^']+'|"[^"]+"|\$\w+|[A-Za-z_\\][\w\\]*::\w+|\d+)`
+
 _guard_re(v) := concat("", [
 	`\b(?:in_array|array_key_exists)\s*\(\s*\$`, v, `\b`,
 	`|\bpreg_match\s*\([^,]+,\s*\$`, v, `\b`,
 	`|\bisset\s*\(\s*\$\w+\s*\[\s*\$`, v, `\s*\]`,
-	`|\$`, v, `\s*(?:===|!==|==|!=)`,
-	`|(?:===|!==|==|!=)\s*\$`, v, `\b`,
+	`|\$`, v, `\s*(?:===|!==|==|!=)\s*`, _operand,
+	`|`, _operand, `\s*(?:===|!==|==|!=)\s*\$`, v, `\b`,
 	`|\b(?:switch|match)\s*\(\s*\$`, v, `\b`,
 	`|^\s*\$`, v, `\s*=\s*(?:\(int\)|intval\s*\()`,
 ])

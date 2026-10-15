@@ -1,0 +1,10 @@
+[project]
+name = "clientlib"
+version = "3.1.0"
+dependencies = ["httpx>=0.25", "pydantic>=2"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.mypy]
+strict = true

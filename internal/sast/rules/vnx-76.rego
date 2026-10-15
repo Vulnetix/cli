@@ -3,12 +3,14 @@ package vulnetix.rules.vnx_76
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-76",
 	"name": "Improper Neutralization of Equivalent Special Elements",
-	"description": "Detects source patterns associated with CWE-76 (Improper Neutralization of Equivalent Special Elements). Each finding should be manually reviewed for exploitability in context.",
+	"description": "A dangerous multi-character sequence is neutralised by deleting it once, so an equivalent input that rebuilds it survives: removing ../ from ....// leaves ../, removing <script> from <scr<script>ipt> leaves <script>, removing && from &;& leaves &&, removing http:// from hthttp://tp:// leaves http://. Reported: a replacement with the empty string of a path-traversal sequence (../, ..\\), an HTML tag opener (<script, </script>, <iframe...), a script scheme (javascript:, vbscript:), a URL scheme (http://, https://, file://), a shell operator (&&, ||, $( ) or a bare SQL/script keyword (UNION, SELECT, script, alert...), via Python str.replace/re.sub, JavaScript/TypeScript replace/replaceAll with a string or regex literal, Java replace/replaceAll/replaceFirst, and PHP str_replace/str_ireplace (string or array) and preg_replace. Not reported: a removal inside a loop that repeats until the sequence is gone (a while within the three lines above), removal of a single character (it cannot be rebuilt), replacements with a non-empty string (encoding such as &lt;), test code, comments and strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-76/",
-	"languages": ["java", "node", "python"],
+	"languages": ["java", "node", "php", "python"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",
@@ -17,39 +19,131 @@ metadata := {
 	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "CWSS:1.0/TI:M/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:M/DI:H/EX:M/EC:N/P:C",
-	"tags": ["equivalent-elements", "cwe-76"],
+	"tags": ["equivalent-elements", "sanitization", "blacklist", "cwe-76"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
-_skip(path) if endswith(path, ".min.html")
+_lang(path) := "py" if endswith(path, ".py")
 
-_is_comment_line(line) if startswith(trim_space(line), "//")
-_is_comment_line(line) if startswith(trim_space(line), "*")
-_is_comment_line(line) if startswith(trim_space(line), "/*")
-_is_comment_line(line) if startswith(trim_space(line), "#")
-_is_comment_line(line) if startswith(trim_space(line), "--")
+_lang(path) := "java" if endswith(path, ".java")
+
+_lang(path) := "php" if endswith(path, ".php")
+
+_lang(path) := "js" if {
+	some ext in {".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"}
+	endswith(path, ext)
+	not endswith(path, ".min.js")
+}
+
+_needles := {
+	"py": {"replace(", "re.sub("},
+	"js": {"replace(", "replaceAll("},
+	"java": {"replace(", "replaceAll(", "replaceFirst("},
+	"php": {"str_replace(", "str_ireplace(", "preg_replace("},
+}
+
+# Each pattern's group 1 is the text removed; the replacement is empty.
+_removal := {
+	"py": [
+		`\.replace\s*\(\s*r?"((?:\\.|[^"\\])+)"\s*,\s*(?:""|'')\s*[,)]`,
+		`\.replace\s*\(\s*r?'((?:\\.|[^'\\])+)'\s*,\s*(?:""|'')\s*[,)]`,
+		`\bre\.sub\s*\(\s*r?"((?:\\.|[^"\\])+)"\s*,\s*(?:""|'')\s*,`,
+		`\bre\.sub\s*\(\s*r?'((?:\\.|[^'\\])+)'\s*,\s*(?:""|'')\s*,`,
+	],
+	"js": [
+		`\.replace(?:All)?\s*\(\s*"((?:\\.|[^"\\])+)"\s*,\s*(?:""|''|\x60\x60)\s*\)`,
+		`\.replace(?:All)?\s*\(\s*'((?:\\.|[^'\\])+)'\s*,\s*(?:""|''|\x60\x60)\s*\)`,
+		`\.replace(?:All)?\s*\(\s*/((?:\\.|[^/\\])+)/[gimsuy]*\s*,\s*(?:""|''|\x60\x60)\s*\)`,
+	],
+	"java": [`\.(?:replace|replaceAll|replaceFirst)\s*\(\s*"((?:\\.|[^"\\])+)"\s*,\s*""\s*\)`],
+	"php": [
+		`\bstr_i?replace\s*\(\s*((?:array\s*\([^)]*\)|\[[^\]]*\]|"(?:\\.|[^"\\])+"|'(?:\\.|[^'\\])+'))\s*,\s*(?:""|'')\s*,`,
+		`\bpreg_replace\s*\(\s*((?:"(?:\\.|[^"\\])+"|'(?:\\.|[^'\\])+'))\s*,\s*(?:""|'')\s*,`,
+	],
+}
+
+# Sequences that a single deletion can rebuild and that matter when rebuilt.
+_dangerous := `\.\./|\.\.\\|<\s*/?\s*[A-Za-z]|(?i)javascript:|(?i)vbscript:|&&|\|\||\$\(`
+
+# Removing a URL scheme is also how code extracts a host name; it is only a
+# neutralisation when it sits beside another removal (an RFI filter).
+_scheme := `(?i)(https?|file|ftp|php|data)://`
+
+_keyword := `(?i)^\W*(select|union|insert|update|delete|drop|exec|sleep|benchmark|script|alert|onerror|onload|eval|from|where)\W*$`
+
+_harmful(tok) if regex.match(_dangerous, tok)
+
+# Regex-literal spellings: \.\.\/ is ../
+_harmful(tok) if regex.match(_dangerous, regex.replace(tok, `\\([./:<>&|$()])`, "$1"))
+
+# A regex inside a Java/PHP string literal doubles the backslash: "\\.\\./"
+_harmful(tok) if {
+	contains(tok, `\\`)
+	regex.match(_dangerous, regex.replace(regex.replace(tok, `\\\\`, `\`), `\\([./:<>&|$()])`, "$1"))
+}
+
+_harmful(tok) if regex.match(_keyword, regex.replace(tok, `\(\?i\)`, ""))
+
+# A loop that repeats the removal until nothing changes.
+_in_loop(lines, i) if {
+	some k in numbers.range(max([0, i - 3]), i)
+	regex.match(`\bwhile\b|\bdo\s*\{|\buntil\b`, lines[k])
+	not helpers.is_comment_line(lines[k])
+}
+
+_has_any(s, needles) if {
+	some n in needles
+	contains(s, n)
+}
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	some _ext in {".py", ".js", ".ts", ".java"}
-	endswith(path, _ext)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	lang := _lang(path)
+	not helpers.is_test_path(path)
+	_has_any(content, _needles[lang])
+	lines := split(content, "\n")
 	some i, line in lines
-	not _is_comment_line(line)
-	some _pat in {"replace('<','&lt;'", "replace(\"<\",\"&lt;\""}
-	contains(line, _pat)
-	not contains(line, "&amp;")
+	_has_any(line, _needles[lang])
+	not helpers.is_comment_line(line)
+	some re in _removal[lang]
+	some m in regex.find_all_string_submatch_n(re, line, -1)
+	_counts(lines, i, lang, m[1])
+	not _in_string(line, m[0])
+	not _in_loop(lines, i)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Equivalent element replacement may miss related encodings (&amp; &#60; etc.); use a context-aware encoder",
+		"message": "A dangerous sequence is removed once by replacing it with an empty string. An input that rebuilds it after the deletion (....// becomes ../, <scr<script>ipt> becomes <script>, &;& becomes &&) passes through unchanged in effect. Reject input that contains the sequence, encode for the output context, or for paths take the basename and check the canonical path",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# The call sits inside a quoted string (an example in a message), not code:
+# the text before it has an odd number of double or single quotes.
+_in_string(line, call) if {
+	idx := indexof(line, call)
+	idx > 0
+	before := substring(line, 0, idx)
+	some q in {`"`, "'"}
+	n := count(regex.find_all_string_submatch_n(regex.replace(q, `(.)`, `\$1`), regex.replace(before, `\\.`, ""), -1))
+	n % 2 == 1
+}
+
+_counts(_, _, _, tok) if _harmful(tok)
+
+_counts(lines, i, lang, tok) if {
+	not _harmful(tok)
+	regex.match(_scheme, tok)
+	some k in numbers.range(max([0, i - 3]), min([count(lines) - 1, i + 3]))
+	k != i
+	some re in _removal[lang]
+	some m in regex.find_all_string_submatch_n(re, lines[k], -1)
+	_harmful(m[1])
+}
+
+_counts(_, _, _, tok) if {
+	regex.match(_scheme, tok)
+	regex.match(_dangerous, regex.replace(tok, _scheme, ""))
 }

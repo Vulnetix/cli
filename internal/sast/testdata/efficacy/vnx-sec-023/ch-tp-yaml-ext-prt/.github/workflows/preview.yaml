@@ -1,0 +1,16 @@
+name: preview
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout branch
+~>        run: git fetch origin ${{ github.event.pull_request.head.ref }} && git checkout FETCH_HEAD
+      - name: Announce
+        run: |
+          echo "Building preview"
+~>          echo "Label: ${{ github.event.pull_request.head.label }}"
+          ./build.sh

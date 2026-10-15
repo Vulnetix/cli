@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-PHP-004",
 	"name": "PHP open redirect",
-	"description": "A redirect target is taken from a request value: header('Location: ...'), wp_redirect(), redirect($url), redirect()->to()/away(), Redirect::to()/away(), new RedirectResponse(), $this->redirect() or withHeader('Location', ...) whose destination starts with (or is only prefixed by a scheme, a bare '/' or 'https://' before) a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys such as HTTP_REFERER), filter_input() or a Laravel/Symfony request accessor, inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable). The browser then follows the attacker's URL. Not reported: a destination whose literal prefix already fixes the host or a path ('/login?next=' . $x, 'https://example.com/' . $x, 'page.php?id=' . $x), a value checked with in_array(), array_key_exists(), preg_match() or parse_url() before the redirect, wp_safe_redirect() and redirect()->route()/back(), values whose origin is not visible in the file (no cross-function dataflow), and the calls in comments or string literals. A strpos() or str_contains() substring check is not treated as validation.",
+	"description": "A redirect target is taken from a request value: header('Location: ...') (also header(sprintf('Location: %s', ...)) and header('Refresh: N; URL=...')), wp_redirect(), redirect($url), redirect()->to()/away(), Redirect::to()/away(), new RedirectResponse(), $this->redirect() or withHeader('Location', ...) whose destination starts with (or is only prefixed by a scheme, a bare '/' or 'https://' before) a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys such as HTTP_REFERER), filter_input() or a Laravel/Symfony request accessor, inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable). A destination on the line after the call's opening parenthesis counts. The browser then follows the attacker's URL. Not reported: a value passed through wp_validate_redirect(), a destination whose literal prefix already fixes the host or a path ('/login?next=' . $x, 'https://example.com/' . $x, 'page.php?id=' . $x), a value checked with in_array(), array_key_exists(), preg_match() or parse_url() before the redirect, wp_safe_redirect() and redirect()->route()/back(), values whose origin is not visible in the file (no cross-function dataflow), and the calls in comments or string literals. A strpos() or str_contains() substring check is not treated as validation.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-004/",
 	"languages": ["php"],
 	"severity": "medium",
@@ -22,18 +22,22 @@ metadata := {
 # header("Location: ...") is matched on the raw line (the keyword sits in a
 # literal); the other redirect calls on the line with literals blanked. The
 # capture ends where the destination expression starts.
-_header_re := `(?i)(^|[^\w$>:\\])header\s*\(\s*(["'])\s*location\s*:\s*`
+_header_re := `(?i)(^|[^\w$>:\\])header\s*\(\s*(["'])\s*(?:location\s*:|refresh\s*:\s*\d+\s*;\s*url\s*=)\s*`
+
+# header(sprintf('Location: %s', $dest)): the destination is the next argument.
+_sprintf_re := `(?i)(^|[^\w$>:\\])header\s*\(\s*sprintf\s*\(\s*(["'])\s*(?:location\s*:|refresh\s*:\s*\d+\s*;\s*url\s*=)\s*%s\s*["']\s*,\s*`
 
 _call_re := `(^|[^\w$:\\])(wp_redirect|Redirect::(to|away)|redirect\(\s*\)\s*->\s*(to|away)|redirect|new\s+\\?(\w+\\)*RedirectResponse)\s*\(\s*|->\s*withHeader\s*\(\s*["']Location["']\s*,\s*`
 
-_gate_re := `(?mi)(header\s*\(\s*["']\s*location|redirect|withHeader)`
+_gate_re := `(?mi)(header\s*\(\s*(sprintf\s*\(\s*)?["']\s*(location|refresh)|redirect|withHeader)`
 
 _line_re := concat("", ["(?i)", trim_prefix(_gate_re, "(?mi)")])
 
 # Checks that pin the value to a known set before the redirect.
 _validators := `in_array|array_key_exists|preg_match|parse_url`
 
-_clean(s) := s
+# wp_validate_redirect() falls back to its default unless the host is allowed.
+_clean(s) := regex.replace(s, `\bwp_validate_redirect\s*\((?:[^()]|\([^()]*\))*\)`, "")
 
 _strip_sq(s) := regex.replace(s, `(^|[^\[\s])(\s*)'(?:[^'\\]|\\.)*'`, "${1}${2}''")
 
@@ -49,14 +53,16 @@ _code_line(line) if {
 
 findings contains finding if {
 	some path, content in input.file_contents
-	endswith(path, ".php")
+	regex.match(`\.(php\d?|phtml)$`, path)
 	regex.match(_gate_re, content)
 	regex.match(_source_re, content)
 	lines := split(content, "\n")
-	some i, line in lines
-	regex.match(_line_re, line)
-	_code_line(line)
-	some dest in _destinations(line)
+	some i, raw in lines
+	regex.match(_line_re, raw)
+	_code_line(raw)
+	line := _strip_comment(raw)
+	some d0 in _destinations(line)
+	dest := _continued(lines, i, d0)
 	not _pinned(dest)
 	_reaches(lines, i, _expr_end(dest))
 	finding := {
@@ -66,7 +72,7 @@ findings contains finding if {
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": raw,
 	}
 }
 
@@ -83,7 +89,22 @@ _destinations(line) := {d |
 	some m in regex.find_n(_call_re, line, 1)
 	d := substring(line, indexof(line, m) + count(m), -1)
 	not startswith(d, ")")
+} | {d |
+	some m in regex.find_n(_sprintf_re, line, 1)
+	d := substring(line, indexof(line, m) + count(m), -1)
 }
+
+# A call that breaks the line after its opening parenthesis: the destination
+# is the next line.
+_continued(_, _, d) := d if trim_space(d) != ""
+
+_continued(lines, i, d) := trim_space(lines[i + 1]) if {
+	trim_space(d) == ""
+	i + 1 < count(lines)
+}
+
+# The line without a trailing // or # comment (string literals respected).
+_strip_comment(s) := regex.replace(s, `^((?:[^"'/#]|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|/[^/"'#])*)(//|#[^\[]).*$`, "${1}")
 
 # The destination: the first argument, up to the first top-level comma
 # (the status code and header flags are not the target).
@@ -111,7 +132,7 @@ _leading_literal(d) := lit if {
 # ── Local one-file taint tracking for PHP ────────────────────────────────
 # A request value: a superglobal, the raw body, a request header, or the
 # Laravel/Symfony request accessors. $_SERVER keys the client controls only.
-_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(`
+_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json|getContent)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(|\$this\s*->\s*input\s*->\s*(get|post|get_post|post_get|cookie|server|request_headers|get_request_header|raw_input_stream)\b|\$this\s*->\s*request\s*->\s*(getVar|getGet|getPost|getGetPost|getPostGet|getCookie|getJSON|getJsonVar|getRawInput|getBody|getHeaderLine)\s*\(|->\s*(getQueryParams|getParsedBody|getCookieParams)\s*\(\s*\)`
 
 # Variables an expression reads, ignoring $this and superglobals.
 _vars(s) := {v |

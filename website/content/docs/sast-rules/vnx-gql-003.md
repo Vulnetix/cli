@@ -52,6 +52,10 @@ const op = "mutation { createPost(title: '" + req.body.title + "') { id } }";
 // FLAGGED: value destructured from the request a line earlier
 const { fields, userId: uid } = req.body;
 const doc = `query Profile { user(id: "${uid}") { ${fields} } }`;
+
+// FLAGGED: an anonymous document passed straight to a client call
+const handle = ctx.params.handle;
+const data = await client.request(`{ profile(handle: "${handle}") { bio } }`);
 ```
 
 ```python

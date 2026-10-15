@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1043",
 	"name": "Data Element Aggregating an Excessively Large Number of Non-Primitive Elements",
-	"description": "A class, struct or interface that holds more than 10 instance fields of non-primitive type, the CISQ maintainability measure behind CWE-1043: an object that aggregates that many other objects is hard to audit for what it exposes, serialises or retains. Reported once, on the declaration line: a Java class, a Go struct type, a Python class (dataclass, pydantic, attrs or any class with annotated class-level fields) and a TypeScript class, interface or object type alias, counting only fields declared directly in that body. A field is non-primitive when its type names anything other than a primitive or value type (numbers, booleans, strings, bytes, dates, times, durations, UUIDs, BigDecimal and the boxed types, error, any/unknown), so List<Order>, map[string]*Session, Optional[Cart] and Role[] count while List<String>, []byte, dict[str, str] and 'light' | 'dark' do not. Not reported: static fields and constants, ClassVar, fields of nested classes (counted for the nested class), method parameters, enums and records, plain JavaScript, generated code (Code generated ... DO NOT EDIT, @Generated), test code and comments. CISQ suggests 5 as a threshold; this rule uses 10 so that it reports only the outliers.",
+	"description": "A class, struct or interface that holds more than 10 instance fields of non-primitive type, the CISQ maintainability measure behind CWE-1043: an object that aggregates that many other objects is hard to audit for what it exposes, serialises or retains. Reported once, on the declaration line: a Java class (including one whose extends/implements list wraps before the brace), a Go struct type, a Python class (dataclass, pydantic, attrs or any class with annotated class-level fields) and a TypeScript class, interface or object type alias, counting only fields declared directly in that body. A field is non-primitive when its type names anything other than a primitive or value type (numbers, booleans, strings, bytes, dates, times, durations, UUIDs, BigDecimal and the boxed types, error, any/unknown), so List<Order>, map[string]*Session, Optional[Cart], Role[] and the Python forward reference Mapped[\"Customer\"] count while List<String>, []byte, dict[str, str], Mapped[int], Literal[\"a\", \"b\"] and 'light' | 'dark' do not. Python fields assigned without an annotation (Django models.ForeignKey(...), self.x = ... in __init__) and TypeScript constructor parameter properties are not counted. Not reported: static fields and constants, ClassVar, fields of nested classes (counted for the nested class), method parameters, enums and records, plain JavaScript, generated code (Code generated ... DO NOT EDIT, @Generated), test code and comments. CISQ suggests 5 as a threshold; this rule uses 10 so that it reports only the outliers.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1043/",
 	"languages": ["java", "python", "node", "go"],
 	"severity": "low",
@@ -158,7 +158,7 @@ _prim := {
 		"str", "int", "float", "bool", "bytes", "complex", "None", "Any", "Decimal", "datetime", "date", "time",
 		"timedelta", "UUID", "Optional", "list", "dict", "set", "frozenset", "tuple", "List", "Dict", "Set",
 		"FrozenSet", "Tuple", "Union", "Literal", "Sequence", "Mapping", "Iterable", "Final", "Annotated",
-		"datetime.datetime", "datetime.date", "uuid.UUID", "typing.Optional", "typing.Any", "S",
+		"datetime.datetime", "datetime.date", "uuid.UUID", "typing.Optional", "typing.Any", "S", "Mapped",
 	},
 	"ts": {
 		"string", "number", "boolean", "bigint", "symbol", "any", "unknown", "null", "undefined", "void", "never",
@@ -169,8 +169,16 @@ _prim := {
 
 _strip_strings(s) := regex.replace(s, "\"[^\"]*\"|'[^']*'|`[^`]*`", "S")
 
+# Python: a quoted name is a forward reference to a type ("Customer"),
+# except inside Literal[...], where the strings are values.
+_type_text(t, "py") := _strip_strings(t) if contains(t, "Literal")
+
+_type_text(t, "py") := replace(replace(t, "\"", ""), "'", "") if not contains(t, "Literal")
+
+_type_text(t, lang) := _strip_strings(t) if lang != "py"
+
 _nonprim(t, lang) if {
-	some m in regex.find_all_string_submatch_n(`[A-Za-z_$][\w$.]*`, _strip_strings(t), -1)
+	some m in regex.find_all_string_submatch_n(`[A-Za-z_$][\w$.]*`, _type_text(t, lang), -1)
 	not m[0] in _prim[lang]
 	not regex.match(`^\d`, m[0])
 }
@@ -188,13 +196,12 @@ findings contains finding if {
 	some i, line in lines
 	some dn in _decl_needle[lang]
 	contains(line, dn)
-	regex.match(_decl_re[lang], line)
 	not helpers.is_comment_line(line)
-	ind := _indent(line)
-	end := _body_end(lines, i, line, lang)
-	bi := _body_indent(lines, i, end, lang)
+	s := _open_line(lines, i, line, lang)
+	end := _body_end(lines, s, line, lang)
+	bi := _body_indent(lines, s, end, lang)
 	n := sum([c |
-		some j in numbers.range(i + 1, end - 1)
+		some j in numbers.range(s + 1, end - 1)
 		contains(lines[j], _field_mark[lang])
 		_indent(lines[j]) == bi
 		not helpers.is_comment_line(lines[j])
@@ -209,6 +216,28 @@ findings contains finding if {
 		"level": metadata.level,
 		"start_line": i + 1,
 		"snippet": line,
+	}
+}
+
+# The line that opens the body: the declaration itself, or for a Java
+# declaration whose extends/implements list wraps, the first of the next
+# four lines that ends with the opening brace.
+_open_line(_, i, line, lang) := i if regex.match(_decl_re[lang], line)
+
+_java_open_re := `^\s*(?:@\w+(?:\([^)]*\))?\s+)*(?:(?:public|private|protected|abstract|final|static|sealed|non-sealed|strictfp)\s+)*class\s+\w+[^;{]*$`
+
+_open_line(lines, i, line, "java") := k if {
+	not regex.match(_decl_re.java, line)
+	regex.match(_java_open_re, line)
+	ks := [j |
+		some j in numbers.range(i + 1, min([count(lines) - 1, i + 4]))
+		endswith(trim_space(lines[j]), "{")
+	]
+	count(ks) > 0
+	k := ks[0]
+	every j in numbers.range(i + 1, k) {
+		not contains(lines[j], ";")
+		not contains(lines[j], "}")
 	}
 }
 

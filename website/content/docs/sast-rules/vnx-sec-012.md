@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-012 – CORS Wildcard or Origin Reflection"
-description: "Detects CORS configurations that allow all origins via wildcards or origin reflection, which enables cross-site credential theft and data exfiltration."
+description: "Detects a server that answers cross-origin requests from any website: Access-Control-Allow-Origin echoing the request Origin without an allowlist check, set to *, or CORS middleware configured for every origin."
 ---
 
 ## Overview
 
-This rule detects overly permissive Cross-Origin Resource Sharing (CORS) configurations in source files, including `Access-Control-Allow-Origin: *`, `AllowAllOrigins: true`, `allow_origins=["*"]`, and `cors({origin: true})` (which reflects the request origin verbatim). CORS controls which websites can read responses from your API using cross-origin JavaScript. Setting it too broadly means any malicious website can make authenticated requests to your API on behalf of a logged-in user and read the responses.
+This rule reports three shapes: the `Access-Control-Allow-Origin` header set to the request's own `Origin` header (directly or through a variable read from it a few lines above) with no allowlist check on the origin; the header set to `*` (`setHeader`, `w.Header().Set`, `response[...] =`, PHP `header()`, nginx `add_header`, Apache `Header set`, the ingress-nginx `cors-allow-origin` annotation); and CORS middleware configured for every origin (Express `cors()` or `origin: true`, FastAPI `allow_origins=["*"]`, Flask-CORS `CORS(app)`, django-cors-headers `CORS_ALLOW_ALL_ORIGINS = True`, gin `AllowAllOrigins`, rs/cors `AllowOriginFunc` returning true, Spring `allowedOriginPatterns("*")` and bare `@CrossOrigin`, ASP.NET Core `AllowAnyOrigin()` and `SetIsOriginAllowed(_ => true)`, Laravel and rack-cors wildcards). It does not report a wildcard whose configuration explicitly disables credentials nearby, specific origins, an origin checked against an allowlist, the header sent by client code (`fetch`/`axios` request headers), assertions, tests and documentation. CORS controls which websites can read responses from your API using cross-origin JavaScript. Setting it too broadly means any malicious website can make authenticated requests to your API on behalf of a logged-in user and read the responses.
 
 **Severity:** High | **CWE:** [CWE-942 – Permissive Cross-domain Policy with Untrusted Domains](https://cwe.mitre.org/data/definitions/942.html)
 
@@ -36,17 +36,31 @@ app.add_middleware(
 ```
 
 ```javascript
-// FLAGGED: Express CORS with origin reflection
-const cors = require('cors');
-app.use(cors({ origin: true }));  // reflects any origin
+// FLAGGED: the request origin echoed back with credentials
+res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+// FLAGGED: origin read into a variable, then reflected unchecked
+const origin = req.get('origin');
+res.set('Access-Control-Allow-Origin', origin);
+
+// FLAGGED: cors middleware for every origin
+app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 ```
 
 ```go
-// FLAGGED: Go CORS allowing all origins
-corsConfig := cors.Config{
-    AllowAllOrigins: true,
-}
+// FLAGGED
+w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+r.Use(cors.New(cors.Config{AllowAllOrigins: true, AllowCredentials: true}))
 ```
+
+```nginx
+# FLAGGED
+add_header Access-Control-Allow-Origin $http_origin always;
+```
+
+Not flagged: `if (ALLOWED.has(origin)) res.setHeader('Access-Control-Allow-Origin', origin)`, `allow_origins=["https://app.example.com"]`, and `allow_origins=["*"]` beside `allow_credentials=False`.
 
 ## Remediation
 

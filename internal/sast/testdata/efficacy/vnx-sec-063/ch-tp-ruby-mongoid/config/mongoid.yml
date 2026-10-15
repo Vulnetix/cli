@@ -1,0 +1,4 @@
+production:
+  clients:
+    default:
+~>      uri: mongodb+srv://rails:@@sample:[A-Za-z0-9]{20}@@@@@sample:p[r]od[.]q1[w]2e[.]mo[n]go[d]b[.][n]et@@/app

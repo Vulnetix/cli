@@ -1,0 +1,3 @@
+database:
+  url: postgres://app@db.acme.internal:5432/app
+  url2: postgresql://db.acme.internal/app

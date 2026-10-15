@@ -1,0 +1,3 @@
+[database]
+url = "postgres://dev:Tq8wPz3Lk2@127.0.0.1:5432/dev"
+cache = "redis://:Mz4kR7wQp1@[::1]:6379/0"

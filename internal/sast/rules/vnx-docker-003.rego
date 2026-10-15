@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-DOCKER-003",
 	"name": "Secret in Dockerfile ARG or ENV",
-	"description": "An ARG or ENV instruction carries a credential, which ends up in the image config (ENV, visible to docker inspect and every process in the container) or in the build history (ARG values are recorded by the RUN steps that see them). The variable name must say it is a credential: PASSWORD, PASSWD, PASSPHRASE, SECRET, TOKEN, APIKEY, CREDENTIAL(S) or PRIVATEKEY (also as a suffix, as in DBPASSWORD or githubToken), a PASS/PW/_PWD word, or a name ending in _KEY. Reported: ENV with a literal value (KEY=value, the legacy KEY value form, several pairs on one line and pairs on continuation lines), ENV that copies a value into the image from a build arg (ENV TOKEN=${TOKEN}), and any credential-named ARG, with or without a default. Not reported: names that only point at a secret or describe one (*_FILE, *_PATH, *_URL, *_NAME, *_ID, *_TTL, *_LENGTH, *_ENABLED and similar), public material (GPG_KEY, PUBLIC_*), lookalikes (TOKENIZERS_PARALLELISM, KEYCLOAK_VERSION, MONKEY, PWD), ENV values that are empty, booleans, short numbers, file paths, plain URLs or placeholders (<...>, your-...-here, xxxx, REPLACE_ME, {{ templating }}), BuildKit secret mounts (RUN --mount=type=secret), and ARG/ENV text in comments, RUN commands, labels or files that only mention Dockerfiles. Known credential formats in any file are the separate generated secret rules' concern.",
+	"description": "An ARG or ENV instruction carries a credential, which ends up in the image config (ENV, visible to docker inspect and every process in the container) or in the build history (ARG values are recorded by the RUN steps that see them). The variable name must say it is a credential: PASSWORD, PASSWD, PASSPHRASE, SECRET, TOKEN, APIKEY, CREDENTIAL(S) or PRIVATEKEY (also as a suffix, as in DBPASSWORD or githubToken), a PASS/PW/_PWD word, or a name ending in _KEY. Reported: ENV with a literal value (KEY=value, the legacy KEY value form, several pairs on one line and pairs on continuation lines), ENV that copies a value into the image from a build arg declared in the same Dockerfile (ARG TOKEN ... ENV TOKEN=${TOKEN}), ENV whose ${VAR:-default} fallback is a literal credential, any credential-named ARG, with or without a default, and, whatever the variable is called, an ENV or ARG value that embeds a password in a URL (postgres://user:password@host). Not reported: names that only point at a secret or describe one (*_FILE, *_PATH, *_URL, *_NAME, *_ID, *_TTL, *_LENGTH, *_ENABLED and similar), public material (GPG_KEY, PUBLIC_*), lookalikes (TOKENIZERS_PARALLELISM, KEYCLOAK_VERSION, MONKEY, PWD), ENV values that are empty, booleans, short numbers, file paths, URLs with no password or a ${VAR} password, a reference to a variable that is not a build arg of the file (ENV X=${X:-}), or placeholders (<...>, your-...-here, xxxx, REPLACE_ME, {{ templating }}), BuildKit secret mounts (RUN --mount=type=secret), and ARG/ENV text in comments, RUN commands, labels or files that only mention Dockerfiles. Known credential formats in any file are the separate generated secret rules' concern.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-003/",
 	"languages": ["docker"],
 	"severity": "high",
@@ -209,7 +209,74 @@ findings contains finding if {
 	some pair in _env_pairs(p)
 	_secret_name(pair[0])
 	_var_only(pair[1])
+	not _literal_default(pair[1])
+	_declared_arg(content, _var_name(pair[1]))
 	finding := _finding(path, i, line,sprintf("ENV %s copies a credential into the image environment, where it persists in the image config of every container started from it. Use a BuildKit secret mount (RUN --mount=type=secret) for build-time use and inject it at run time otherwise", [pair[0]]))
+}
+
+# ENV TOKEN=${TOKEN:-literal}: the literal is baked in whenever the arg is unset
+findings contains finding if {
+	some path, content in input.file_contents
+	_is_dockerfile(path)
+	regex.match(`(?im)^\s*ENV\s`, content)
+	contains(content, ":-")
+	lines := split(content, "\n")
+	hd := contains(content, "<<")
+	some i, line in lines
+	contains(line, ":-")
+	regex.match(_cand_re, line)
+	p := _part(lines, i, hd)
+	p[0] == "ENV"
+	some pair in _env_pairs(p)
+	_secret_name(pair[0])
+	_literal_default(pair[1])
+	finding := _finding(path, i, line,sprintf("ENV %s falls back to a hard-coded credential (${...:-value}): unless the value is supplied, the default is stored in the image config and readable with docker inspect. Supply it at run time instead", [pair[0]]))
+}
+
+# a password embedded in a URL (scheme://user:password@host), whatever the name
+findings contains finding if {
+	some path, content in input.file_contents
+	_is_dockerfile(path)
+	regex.match(`(?im)^\s*(ENV|ARG)\s.*://[^\s:/@]*:[^\s@/]+@`, content)
+	lines := split(content, "\n")
+	hd := contains(content, "<<")
+	some i, line in lines
+	contains(line, "@")
+	contains(line, "://")
+	p := _part(lines, i, hd)
+	some pair in _url_pairs(p)
+	_url_password(pair[1])
+	finding := _finding(path, i, _redact_url(line), sprintf("%s %s embeds a password in a URL (scheme://user:password@host): it is stored in the Dockerfile and, for ENV, in the image config readable with docker inspect. Pass the URL or the password at run time instead", [p[0], pair[0]]))
+}
+
+_url_pairs(p) := _env_pairs(p) if p[0] == "ENV"
+
+_url_pairs(p) := _eq_pairs(p[1]) if p[0] == "ARG"
+
+_url_password(v) if {
+	m := regex.find_all_string_submatch_n(`(?i)^[a-z][a-z0-9+.-]*://[^\s:/@]*:([^\s@/]+)@`, v, 1)
+	count(m) > 0
+	pw := m[0][1]
+	not contains(pw, "$")
+	not _placeholder(pw)
+	not regex.match(`(?i)^(password|pass|pwd|secret|changeme)$`, pw)
+}
+
+_redact_url(line) := regex.replace(_redact(line), `(://[^\s:/@]*:)[^\s@/]+@`, "${1}***@")
+
+_var_name(v) := m[0][1] if {
+	m := regex.find_all_string_submatch_n(`^\$\{?([A-Za-z_][A-Za-z0-9_]*)`, v, 1)
+	count(m) > 0
+}
+
+# the variable is a build arg of this Dockerfile (otherwise it is empty, or
+# whatever an earlier ENV set, and nothing is copied from the build)
+_declared_arg(content, n) if regex.match(concat("", [`(?im)^\s*ARG\s+(?:[A-Za-z_][A-Za-z0-9_]*(?:=\S*)?\s+)*`, n, `(\s|=|$)`]), content)
+
+_literal_default(v) if {
+	m := regex.find_all_string_submatch_n(`^\$\{[A-Za-z_][A-Za-z0-9_]*:?-([^}]+)\}$`, v, 1)
+	count(m) > 0
+	_literal(_strip(m[0][1]))
 }
 
 _env_pairs(p) := _eq_pairs(p[1]) if not _legacy(p)

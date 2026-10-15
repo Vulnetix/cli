@@ -1,0 +1,4 @@
+stripe:
+  secret_key: sk_live_************************
+  restricted: "sk_live_..."
+  pattern: "sk_(live|test)_[0-9a-zA-Z]{24,}"

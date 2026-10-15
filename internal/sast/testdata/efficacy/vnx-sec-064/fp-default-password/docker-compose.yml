@@ -1,0 +1,5 @@
+services:
+  worker:
+    environment:
+      REDIS_URL: redis://:redis@redis:6379/0
+      REDIS_URL2: redis://default:password@redis:6379/0

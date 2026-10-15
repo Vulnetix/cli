@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-007",
 	"name": "Go path traversal",
-	"description": "A file is read, listed or sent to the client from a path that contains a value the requester chooses: the path argument of os.Open, os.OpenFile, os.ReadFile, os.ReadDir, os.DirFS, ioutil.ReadFile/ReadDir, http.ServeFile, http.Dir, gin c.File/FileAttachment, echo c.File/Attachment/Inline or fiber c.SendFile/Download holds a request read (r.FormValue, r.PostFormValue, r.URL.Query(), r.Form/PostForm.Get, r.Header.Get, r.PathValue, gorilla/mux Vars, httprouter ps.ByName, gin c.Query/DefaultQuery/Param/PostForm, echo c.QueryParam/Param/FormValue, fiber c.Query/Params) inline, through the variable it was assigned to in the 25 lines above (within the same function), or through one path built from that variable (filepath.Join, path.Join, fmt.Sprintf, concatenation), so ../../etc/passwd escapes the directory. Calls broken over several lines are read as one. filepath.Clean alone is not a check (it keeps a leading ../). Not reported: a value reduced or checked first (filepath.Base, filepath.IsLocal, filepath.Rel, strings.HasPrefix, a '..' test, fs.ValidPath, SecureJoin, a Clean of a rooted \"/\"+value, strconv number parsing, uuid.Parse, a helper named validate/sanitize/safe/within), files opened through os.Root (root.Open), http.FileServer, r.URL.Path given to http.ServeFile (which itself rejects '..' elements), paths from flags, os.Args or the environment (the operator, not a requester), and the call inside a string literal or comment. Flows across functions are not followed. Writes with a request-chosen path are VNX-GO-018; VNX-GO-027 covers reads and writes together.",
+	"description": "A file is read, listed or sent to the client from a path that contains a value the requester chooses: the path argument of os.Open, os.OpenFile, os.ReadFile, os.ReadDir, os.DirFS, ioutil.ReadFile/ReadDir, http.ServeFile, http.Dir, gin c.File/FileAttachment, echo c.File/Attachment/Inline or fiber c.SendFile/Download holds a request read (r.FormValue, r.PostFormValue, r.URL.Query(), r.Form/PostForm.Get, r.Header.Get, r.PathValue, gorilla/mux Vars, chi URLParam, httprouter ps.ByName, gin c.Query/DefaultQuery/Param/PostForm, echo c.QueryParam/Param/FormValue, fiber c.Query/Params) inline, through the variable it was assigned to in the 25 lines above (within the same function), or through one path built from that variable (filepath.Join, path.Join, fmt.Sprintf, concatenation), so ../../etc/passwd escapes the directory. Calls broken over several lines are read as one. filepath.Clean alone is not a check (it keeps a leading ../), and neither is strings.HasPrefix on the raw value (docs/../../etc/passwd passes HasPrefix(name, \"docs/\")). Not reported: a value reduced or checked first (filepath.Base, filepath.IsLocal, filepath.Rel, strings.HasPrefix on a Clean/Abs/Join/EvalSymlinks result, a '..' test, fs.ValidPath, SecureJoin, a Clean of a rooted \"/\"+value, strconv number parsing, uuid.Parse, a helper named validate/sanitize/safe/within), a path looked up in a table by the request value (files[r.FormValue(\"k\")]), files opened through os.Root (root.Open), http.FileServer, r.URL.Path given to http.ServeFile (which itself rejects '..' elements), paths from flags, os.Args or the environment (the operator, not a requester), and the call inside a string literal or comment. Flows across functions are not followed. Writes with a request-chosen path are VNX-GO-018; VNX-GO-027 covers reads and writes together.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-007/",
 	"languages": ["go"],
 	"severity": "high",
@@ -22,12 +22,12 @@ metadata := {
 }
 
 # A value the requester chooses (not r.URL.Path: see _src_for).
-_source_core := `\b(?:r|req|request|rq)\.(?:FormValue|PostFormValue)\(|\.URL\.Query\(\)|\b(?:r|req|request|rq)\.(?:Form|PostForm)\.Get\(|\b(?:r|req|request|rq)\.Header\.Get\(|\bmux\.Vars\(|\.PathValue\(|\bps\.ByName\(|\b(?:c|ctx|g|e)\.(?:Query|DefaultQuery|Param|Params|PostForm|DefaultPostForm|FormValue|QueryParam)\(`
+_source_core := `\b(?:r|req|request|rq)\.(?:FormValue|PostFormValue)\(|\.URL\.Query\(\)|\b(?:r|req|request|rq)\.(?:Form|PostForm)\.Get\(|\b(?:r|req|request|rq)\.Header\.Get\(|\bmux\.Vars\(|\.PathValue\(|\bps\.ByName\(|\bchi\.URLParam\(|\b(?:c|ctx|g|e)\.(?:Query|DefaultQuery|Param|Params|PostForm|DefaultPostForm|FormValue|QueryParam)\(`
 
 _source := concat("|", [_source_core, `\b(?:r|req|request|rq)\.URL\.Path\b`])
 
 # The cheap whole-file test that precedes the regex gate.
-_gate_needles := ["FormValue", "URL.Query", "URL.Path", "Form.Get", "Header.Get", "mux.Vars", "PathValue", "ByName(", "Query(", "Param(", "Params(", "PostForm", "QueryParam"]
+_gate_needles := ["FormValue", "URL.Query", "URL.Path", "Form.Get", "Header.Get", "mux.Vars", "PathValue", "ByName(", "URLParam(", "Query(", "Param(", "Params(", "PostForm", "QueryParam"]
 
 _gate(content) if {
 	some n in _gate_needles
@@ -45,7 +45,7 @@ _sink_hint(line) if {
 }
 
 # A check or reduction that keeps the path inside its directory.
-_guard_re := `\b(?:filepath|path)\.(?:Base|Rel|IsLocal)\(|\bfs\.ValidPath\(|strings\.HasPrefix\(|"\.\."|\x60\.\.\x60|SecureJoin|securejoin\.|\b(?:filepath|path)\.Clean\(\s*(?:"/"|string\(os\.PathSeparator\)|"\\\\")\s*\+|\bstrconv\.|\buuid\.Parse|(?i:validat|sanitiz|sanitis|issafe|safe_?path|safe_?join|safe_?name|within|contained|allowlist|whitelist)`
+_guard_re := `\b(?:filepath|path)\.(?:Base|Rel|IsLocal)\(|\bfs\.ValidPath\(|"\.\."|\x60\.\.\x60|SecureJoin|securejoin\.|\b(?:filepath|path)\.Clean\(\s*(?:"/"|string\(os\.PathSeparator\)|"\\\\")\s*\+|\bstrconv\.|\buuid\.Parse|(?i:validat|sanitiz|sanitis|issafe|safe_?path|safe_?join|safe_?name|within|contained|allowlist|whitelist)`
 
 # String literals blanked, a trailing // comment removed.
 _code(line) := regex.replace(regex.replace(line, "\"(?:[^\"\\\\]|\\\\.)*\"|`[^`]*`", `""`), `//.*$`, "")
@@ -76,8 +76,13 @@ _tainted(lines, i, lo, src) := {v |
 	not helpers.is_comment_line(l)
 	regex.match(src, l)
 	not regex.match(_guard_re, l)
+	not _lookup(l)
 	v := helpers.assigned_first(l)
 }
+
+# v, ok := files[r.FormValue("k")]: the value comes from the table, not
+# from the request.
+_lookup(l) if regex.match(`^\s*[A-Za-z_]\w*(?:\s*,\s*\w+)?\s*:?=\s*[A-Za-z_][\w.]*\[`, l)
 
 _rhs(l) := substring(l, indexof(l, "=") + 1, -1)
 
@@ -103,6 +108,33 @@ _guarded(lines, i, lo, names) if {
 	some n in names
 	regex.match(_word(n), l)
 	regex.match(_guard_re, l)
+}
+
+# strings.HasPrefix is a containment check only on a resolved path: its
+# first argument is Clean/Abs/EvalSymlinks output, or a variable assigned
+# from one of those (or from Join, which cleans) in the window. On the raw
+# value, docs/../../etc/passwd passes HasPrefix(name, "docs/").
+_guarded(lines, i, lo, names) if {
+	i - 1 >= lo
+	some k in numbers.range(lo, i - 1)
+	l := lines[k]
+	contains(l, "HasPrefix(")
+	not helpers.is_comment_line(l)
+	some n in names
+	regex.match(_word(n), l)
+	some m in regex.find_all_string_submatch_n(`HasPrefix\(\s*((?:[^(),]|\([^()]*\))*)\s*,`, l, -1)
+	_resolved(lines, lo, k, trim_space(m[1]))
+}
+
+_resolve_re := `\b(?:filepath|path)\.(?:Clean|Abs|Join)\(|\bfilepath\.EvalSymlinks\(`
+
+_resolved(_, _, _, a) if regex.match(`(?:filepath|path)\.(?:Clean|Abs|EvalSymlinks)\(`, a)
+
+_resolved(lines, lo, k, a) if {
+	regex.match(`^[A-Za-z_]\w*$`, a)
+	some j in numbers.range(lo, k)
+	regex.match(_resolve_re, lines[j])
+	helpers.assigned_first(lines[j]) == a
 }
 
 # r.URL.Path is no source for http.ServeFile, which rejects ".." in it.

@@ -3,10 +3,12 @@ package vulnetix.rules.vnx_1107
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-1107",
 	"name": "Insufficient Isolation of Symbolic Constant Definitions",
-	"description": "Detects source patterns associated with CWE-1107 (Insufficient Isolation of Symbolic Constant Definitions). Each finding should be manually reviewed for exploitability in context.",
+	"description": "The same symbolic constant, with the same name and the same literal value, is defined separately in two or more Java source files (static final fields, or interface fields) instead of once in a shared constants class that the others reference. Each copy is changed on its own, so a timeout, retry limit, URL or key length that is meant to be one value drifts between classes. Reported: every duplicate definition, on the line that names the constant. Not reported: constants defined once and imported elsewhere, same names with different values (TAG, per-class limits), loggers and other non-literal initialisers, serialVersionUID, trivial values (true/false, 0, 1, -1, empty string, null), definitions repeated inside one file, generated sources (Android BuildConfig, protoc output and other files with a generator header before the first type declaration, or @Generated; an IDE's 'Auto-generated method stub' comment does not count), and test files. Only literal values are compared; constants computed from expressions are not.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1107/",
 	"languages": ["java"],
 	"severity": "low",
@@ -17,33 +19,88 @@ metadata := {
 	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "CWSS:1.0/TI:L/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
-	"tags": ["insufficient-isolation-packaging", "cwe-1107"],
+	"tags": ["maintainability", "constants", "java", "cwe-1107"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
-_skip(path) if endswith(path, ".min.html")
+_type := `(?:String|int|long|short|byte|char|double|float|Integer|Long|Double|Float|Character)`
 
-_is_comment_line(line) if startswith(trim_space(line), "//")
-_is_comment_line(line) if startswith(trim_space(line), "*")
-_is_comment_line(line) if startswith(trim_space(line), "/*")
-_is_comment_line(line) if startswith(trim_space(line), "#")
-_is_comment_line(line) if startswith(trim_space(line), "--")
+# static final <T> NAME = <literal>;  (modifiers in any order), the value on
+# this line or the next.
+_const_re := concat("", [`^\s*(?:(?:public|protected|private|static|final)\s+)*`, _type, `\s+([A-Z][A-Z0-9_]*)\s*=\s*(.*)$`])
+
+_lit_re := `^\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)+'|-?(?:0[xX][0-9a-fA-F_]+|[0-9][0-9_]*(?:\.[0-9_]+)?)[lLfFdD]?)\s*;`
+
+_trivial := {"0", "1", "-1", "\"\"", "0.0", "1.0"}
+
+_norm(v) := v if startswith(v, "\"")
+
+_norm(v) := v if startswith(v, "'")
+
+_norm(v) := regex.replace(regex.replace(lower(v), `_`, ""), `[lfd]$`, "") if {
+	not startswith(v, "\"")
+	not startswith(v, "'")
+}
+
+_is_constant(line, in_interface) if regex.match(`\bstatic\b`, line)
+
+_is_constant(line, true) if not regex.match(`\b(?:private|protected)\b`, line)
+
+_value(lines, i, rest) := v if {
+	trim_space(rest) != ""
+	m := regex.find_all_string_submatch_n(_lit_re, rest, 1)
+	count(m) > 0
+	v := m[0][1]
+}
+
+_value(lines, i, rest) := v if {
+	trim_space(rest) == ""
+	i + 1 < count(lines)
+	m := regex.find_all_string_submatch_n(_lit_re, lines[i + 1], 1)
+	count(m) > 0
+	v := m[0][1]
+}
+
+_defs contains [name, val, path, i] if {
+	some path, content in input.file_contents
+	endswith(path, ".java")
+	regex.match(`\bfinal\b|\binterface\b`, content)
+	not helpers.is_test_path(path)
+	not _generated(content)
+	in_interface := regex.match(`(?m)^\s*(?:public\s+)?(?:@\w+\s+)*interface\s+\w+`, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "=")
+	not helpers.is_comment_line(line)
+	m := regex.find_all_string_submatch_n(_const_re, line, 1)
+	count(m) > 0
+	name := m[0][1]
+	name != "SERIAL_VERSION_UID"
+	_final_or_interface(line, in_interface)
+	_is_constant(line, in_interface)
+	raw := _value(lines, i, m[0][2])
+	val := _norm(raw)
+	not val in _trivial
+}
+
+_final_or_interface(line, _) if regex.match(`\bfinal\b`, line)
+
+# Fields of an interface are implicitly public static final.
+_final_or_interface(_, true)
+
+_paths_by_key[k] contains path if {
+	some [name, val, path, _] in _defs
+	k := concat("\u0000", [name, val])
+}
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	endswith(path, ".java")
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	not _is_comment_line(line)
-	some _pat in {"package com.example"}
-	contains(line, _pat)
+	some [name, val, path, i] in _defs
+	paths := _paths_by_key[concat("\u0000", [name, val])]
+	count(paths) >= 2
+	others := sort([p | some p in paths; p != path])
+	line := split(input.file_contents[path], "\n")[i]
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Package definition — verify isolation boundaries",
+		"message": sprintf("Constant %s = %s is also defined in %s; define it once in a shared constants class and reference it so the copies cannot drift apart", [name, val, concat(", ", others)]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
@@ -51,3 +108,18 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+# Generated sources (protoc, Android BuildConfig, annotation processors) are
+# rewritten by their generator, never edited, so their literals are not a
+# maintenance burden on anyone.
+_generated(content) if regex.match(`(?i)(?:@generated\b|generated by|automatically generated|auto-?generated (?:file|code|source|class)|do not (?:edit|modify))`, _header(content))
+
+# The file's text before its first type declaration (at most 40 lines), so an
+# IDE's "TODO Auto-generated method stub" inside a method does not count.
+_header(content) := concat("\n", array.slice(ls, 0, n)) if {
+	ls := array.slice(split(substring(content, 0, 3000), "\n"), 0, 40)
+	ds := [j | some j, l in ls; regex.match(`^\s*(?:(?:public|protected|private|abstract|final|static|sealed)\s+)*(?:class|interface|enum|record|@interface)\s+\w`, l)]
+	n := min(array.concat(ds, [count(ls)]))
+}
+
+_generated(content) if regex.match(`(?m)^\s*@(?:javax\.annotation\.(?:processing\.)?)?Generated\b`, content)

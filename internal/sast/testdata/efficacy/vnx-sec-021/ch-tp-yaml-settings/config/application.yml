@@ -1,0 +1,4 @@
+twilio:
+  account_sid: AC@@sample:[a-f0-9]{32}@@
+~>  auth_token: @@sample:[a-f0-9]{32}@@
+  from_number: "+15005550006"

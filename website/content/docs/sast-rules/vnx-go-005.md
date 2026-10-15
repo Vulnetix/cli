@@ -15,7 +15,7 @@ Open redirects are exploited almost exclusively in phishing attacks (MITRE ATT&C
 
 ## What Gets Flagged
 
-The rule fires when the destination of `http.Redirect`, gin/echo `c.Redirect(code, url)`, fiber `c.Redirect(url)` or a `Location` header starts with a request value (`r.URL.Query().Get`, `r.FormValue`, gin `c.Query`, echo `c.QueryParam`, `mux.Vars`, `chi.URLParam`, `r.PathValue`...). The value may be inline, in a variable assigned from it a few lines up, or behind a prefix that leaves the host open (`"//"+v`, `"https://"+v`, `"/"+v`). It does not fire for a fixed path or host (`"/items?id="+v`), a destination checked in between (`url.Parse` with a host test, `strings.HasPrefix`, an allowlist, `isLocalURL`), the request's own `r.URL.Path`, or configuration values.
+The rule fires when the destination of `http.Redirect`, gin/echo `c.Redirect(code, url)`, fiber `c.Redirect(url)` or a `Location` header starts with a request value (`r.Referer()`, `r.Header.Get`, `r.URL.Query().Get`, `r.FormValue`, gin `c.Query`, echo `c.QueryParam`, `mux.Vars`, `chi.URLParam`, `r.PathValue`...). The value may be inline, in a variable assigned from it a few lines up, or behind a prefix that leaves the host open (`"//"+v`, `"https://"+v`, `"/"+v`). It does not fire for a fixed path or host (`"/items?id="+v`), a destination checked in between (`url.Parse` with a host test, `strings.HasPrefix` that also rejects `//`, an allowlist, `isLocalURL`), the request's own `r.URL.Path`, or configuration values. A bare `strings.HasPrefix(next, "/")` or a `url.Parse` whose result is never tested is not a check and is still reported: `//evil.example` passes the first and parses under the second.
 
 ```go
 // FLAGGED: user-supplied "next" parameter redirected without validation

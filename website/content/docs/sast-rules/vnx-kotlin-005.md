@@ -1,6 +1,6 @@
 ---
 title: "VNX-KOTLIN-005 – Kotlin MD5 or SHA-1 Used as Cryptographic Hash"
-description: "Detects MD5, SHA-1, MD2 and MD4 hashing in Kotlin through MessageDigest, Signature, Apache Commons DigestUtils, Guava Hashing and (for credentials) Okio, excluding HMAC, SHA1PRNG and the WebSocket handshake digest."
+description: "Detects MD5, SHA-1, MD2 and MD4 hashing in Kotlin through MessageDigest, Signature, Apache Commons DigestUtils, Guava Hashing, Spring Security MD4/MD5/SHA-1 password encoders and (for credentials) Okio, excluding HMAC, SHA1PRNG, the WebSocket handshake digest and Content-MD5 transfer checksums."
 ---
 
 ## Overview
@@ -45,6 +45,10 @@ Hashing.md5().hashString(body, StandardCharsets.UTF_8)
 
 // FLAGGED: Okio digest of a credential
 fun storedPassword(password: String) = password.encodeUtf8().md5().hex()
+
+// FLAGGED: Spring Security password encoders built on MD4, MD5 or SHA-1
+fun passwordEncoder(): PasswordEncoder = MessageDigestPasswordEncoder("MD5")
+fun ldap() = LdapShaPasswordEncoder()
 ```
 
 Not flagged:
@@ -54,6 +58,7 @@ Mac.getInstance("HmacSHA1")                     // HMAC, not a bare digest
 SecureRandom.getInstance("SHA1PRNG")
 MessageDigest.getInstance("SHA-1")              // when computing Sec-WebSocket-Accept
 url.encodeUtf8().md5().hex()                    // Okio cache key
+MessageDigest.getInstance("MD5").digest(body)   // when it fills a Content-MD5 header
 ```
 
 ## Remediation

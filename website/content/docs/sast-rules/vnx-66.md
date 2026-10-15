@@ -1,33 +1,48 @@
 ---
 title: "VNX-66 – Improper Handling of File Names that Identify Virtual Resources"
-description: "Detects Detects source patterns associated with CWE-66 (Improper Handling of File Names that Identify Virtual Resources). Each finding should be manually reviewed for exploitability in context."
+description: "An uploaded file is stored under the name the client sent, so a name such as CON, NUL, AUX, COM1 or LPT1 opens a Windows device instead of a file. Stripping directories with basename or GetFileName does not prevent it."
 ---
 
 ## Overview
 
-VNX-66 maps to [CWE-66: Improper Handling of File Names that Identify Virtual Resources](https://cwe.mitre.org/data/definitions/66.html). Detects source patterns associated with CWE-66 (Improper Handling of File Names that Identify Virtual Resources). Each finding should be manually reviewed for exploitability in context.
+VNX-66 maps to [CWE-66: Improper Handling of File Names that Identify Virtual Resources](https://cwe.mitre.org/data/definitions/66.html). It reports a client-supplied upload file name used as the on-disk file name, on the write line or through a variable assigned from it in the 15 lines above.
 
-**Severity:** Medium | **CWE:** [CWE-66](https://cwe.mitre.org/data/definitions/66.html) | **Languages:** c, cpp, csharp, go, java, python
+**Severity:** Medium | **CWE:** [CWE-66](https://cwe.mitre.org/data/definitions/66.html) | **Languages:** csharp, go, java, python
 
 ## Why This Matters
 
-This weakness class (Improper Handling of File Names that Identify Virtual Resources) creates a concrete exploit surface: the rule searches for the concrete source-level patterns most commonly associated with CWE-66 and surfaces them for review. Each finding should be evaluated in context — the rule catches the pattern, not the context.
+On Windows, `CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9` and `LPT1`-`LPT9` name devices in every directory, with or without an extension. An upload called `aux.png` or `con.txt` does not create a file: the write blocks the worker, vanishes into `NUL`, or goes to a serial port. `Path.GetFileName`, `basename` and `FilenameUtils.getName` remove directories but leave the device name intact.
 
 ## What Gets Flagged
 
-```c
-// FLAGGED: contains 'CON' pattern
-CON
+```python
+f = request.files["document"]
+f.save(os.path.join(UPLOAD_DIR, f.filename))
 ```
+
+```java
+file.transferTo(new File(dir, file.getOriginalFilename()));
+```
+
+```csharp
+var path = Path.Combine(_env.WebRootPath, "uploads", file.FileName);
+
+string filename = Path.GetFileName(FileUpload1.FileName);
+FileUpload1.SaveAs(Server.MapPath("~/uploads/") + filename);
+```
+
+```go
+dst, err := os.Create(filepath.Join("uploads", header.Filename))
+```
+
+Not flagged: a name passed through `secure_filename` or a sanitize function, a generated name on the write line (UUID, GUID, `GetRandomFileName`, a hash or timestamp), a project that checks names against the reserved device list, a name that is only logged or stored as data, and test code.
 
 ## Remediation
 
-1. Review each flagged line and determine whether the pattern represents a real instance of CWE-66 or a false positive.
-2. Replace the flagged construct with a documented safe alternative appropriate to your language and framework.
-3. For confirmed false positives, add a `# vulnetix-ignore: VNX-66` comment on the line.
-4. Ensure equivalent test coverage exists to prevent regression.
+1. Store uploads under a generated name (a UUID plus a validated extension) and keep the original name as metadata.
+2. If the original name must be used, run it through `werkzeug.utils.secure_filename` or an equivalent that rejects reserved device names, and reject names whose stem is `CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9` or `LPT1`-`LPT9`.
 
 ## References
 
 - [CWE-66: Improper Handling of File Names that Identify Virtual Resources](https://cwe.mitre.org/data/definitions/66.html)
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [Microsoft: Naming Files, Paths, and Namespaces](https://learn.microsoft.com/windows/win32/fileio/naming-a-file)

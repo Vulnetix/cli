@@ -1,0 +1,7 @@
+~>[workspace]
+members = ["crates/api", "crates/store"]
+resolver = "2"
+
+[workspace.dependencies]
+axum = "0.7"
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio"] }

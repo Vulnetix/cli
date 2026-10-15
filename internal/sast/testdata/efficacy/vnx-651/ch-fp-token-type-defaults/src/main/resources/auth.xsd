@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:complexType name="TokenRequest">
+    <xs:sequence>
+      <xs:element name="tokenType" type="xs:string" default="Bearer"/>
+      <xs:element name="passwordMinLength" type="xs:int" default="12"/>
+      <xs:element name="tokenExpirySeconds" type="xs:int" default="3600"/>
+      <xs:element name="secretQuestionEnabled" type="xs:boolean" default="false"/>
+      <xs:element name="password" type="xs:string" minOccurs="1"/>
+      <xs:attribute name="apiKey" type="xs:string" default=""/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

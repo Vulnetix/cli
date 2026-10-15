@@ -1,0 +1,6 @@
+services:
+  api:
+    image: acme/api:latest
+~>    command: ["node", "--inspect=0.0.0.0:9229", "dist/server.js"]
+    ports:
+      - "9229:9229"

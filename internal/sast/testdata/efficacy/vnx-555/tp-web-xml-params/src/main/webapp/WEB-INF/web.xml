@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee" version="5.0">
+  <context-param>
+    <param-name>dbPassword</param-name>
+~>    <param-value>Winter2024!</param-value>
+  </context-param>
+  <servlet>
+    <servlet-name>mail</servlet-name>
+    <servlet-class>com.acme.MailServlet</servlet-class>
+    <init-param>
+      <param-name>smtp.password</param-name>
+~>      <param-value>m4ilS3cret</param-value>
+    </init-param>
+  </servlet>
+  <env-entry>
+    <env-entry-name>ldap/bindPassword</env-entry-name>
+    <env-entry-type>java.lang.String</env-entry-type>
+~>    <env-entry-value>ldapBind99</env-entry-value>
+  </env-entry>
+  <context-param>
+    <param-name>pageSize</param-name>
+    <param-value>50</param-value>
+  </context-param>
+</web-app>

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CS-006",
 	"name": "C# System.Random output used for a token, password, key, salt, nonce or session value",
-	"description": "A value that must be unpredictable is drawn from System.Random, whose output can be reproduced from its seed or from a few observed values. Reported: a Next, NextInt64, NextDouble, NextSingle, NextBytes or GetItems call on System.Random (an inline new Random(...), Random.Shared, or a variable, field or parameter declared as Random or assigned new Random(...)) when the call sits in a security-sensitive context: the line or the enclosing method's name names a password, token, secret, API/private/signing key, salt, nonce, IV, session, CSRF/XSRF, OTP/PIN, reset, verification, activation or invitation code, credential or cipher, or a line up to four lines below uses the assigned variable or the NextBytes buffer in such a context (aes.IV = buffer). Not reported: RandomNumberGenerator, RNGCryptoServiceProvider and BouncyCastle SecureRandom; System.Random for shuffling, jitter, colours, sampling and other non-security values; the declaration of the Random instance itself; calls in test projects; and the pattern in comments and string literals. A value that becomes a secret only in another method or file is not followed.",
+	"description": "A value that must be unpredictable is drawn from System.Random, whose output can be reproduced from its seed or from a few observed values. Reported: a Next, NextInt64, NextDouble, NextSingle, NextBytes or GetItems call on System.Random (an inline new Random(...), Random.Shared, or a variable, field or parameter declared as Random or assigned new Random(...), or the .Value of a ThreadLocal<Random>/Lazy<Random>) when the call sits in a security-sensitive context: the line, the enclosing method's name or the enclosing class's name (PasswordGenerator, InviteCodes) names a password, token, secret, API/private/signing key, salt, nonce, IV, session, CSRF/XSRF, OTP/PIN, reset, verification, activation or invitation code, credential or cipher, or a line up to four lines below uses the assigned variable or the NextBytes buffer in such a context (aes.IV = buffer), or a fixed-width numeric code such as code = r.Next(100000, 999999). Not reported: RandomNumberGenerator, RNGCryptoServiceProvider and BouncyCastle SecureRandom; names that only count, index or size tokens, keys or sessions (DrawTokenCount, sessionIndex, sessions[i], token buckets), and method or class names where reset, verify, session or activation name an operation rather than an issued value (ResetBoard, VerifyLayout, SimulateSessionTraffic); System.Random for shuffling, jitter, colours, sampling and other non-security values; the declaration of the Random instance itself; calls in test projects; and the pattern in comments and string literals. A value that becomes a secret only in another method or file is not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-cs-006/",
 	"languages": ["csharp"],
 	"severity": "high",
@@ -41,6 +41,9 @@ _receivers(content) := {n |
 } | {n |
 	some m in regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\s*=\s*new\s+(?:System\.)?Random\s*\(`, content, -1)
 	n := m[1]
+} | {concat("", [m[1], `\s*\.\s*Value`]) |
+	# ThreadLocal<Random> / Lazy<Random>: the call is on .Value.
+	some m in regex.find_all_string_submatch_n(`(?:ThreadLocal|Lazy)\s*<\s*(?:System\.)?Random\s*>\s+([A-Za-z_]\w*)\s*[=;,)]`, content, -1)
 }
 
 # Code of a line with string literals emptied and a trailing comment dropped.
@@ -59,9 +62,20 @@ _sensitive_re := `(?i)(passw|passphrase|\bpwd|token|secret|api_?key|private_?key
 
 _key_re := `\b[kK]ey(?:s|Bytes|Material)?\b|\bKEY\b`
 
-_sensitive(text) if regex.match(_sensitive_re, text)
+# Names that only count or locate tokens and keys (DrawTokenCount, pinIndex,
+# sessionTimeout) say nothing about secrecy; they are removed before the test.
+_benign_compound := `(?i)(token|key|session|pin|salt|nonce)s?[._]?(count|index|idx|length|len|position|pos|kind|type|timeout|delay|duration|limit|size|width|height|colou?r|bucket)|(?i)(token|key|session|pin|salt|nonce)s\s*\[`
 
-_sensitive(text) if regex.match(_key_re, text)
+_sensitive(text) if regex.match(_sensitive_re, regex.replace(text, _benign_compound, ""))
+
+_sensitive(text) if regex.match(_key_re, regex.replace(text, _benign_compound, ""))
+
+# A fixed-width numeric code (Next(100000, 999999), Next(1000, 10000))
+# assigned to a name saying code: the shape of a one-time or verification code.
+_sensitive(text) if {
+	regex.match(`\bNext\s*\(\s*10{3,8}\s*,\s*(?:9{4,9}|10{4,9})\s*\)`, text)
+	regex.match(`(?i)\b\w*code\w*\s*=[^=]`, text)
+}
 
 _method_decl_re := `^\s*(?:(?:public|private|protected|internal|static|async|override|virtual|sealed|unsafe|extern|new)\s+)+[\w<>\[\],.?]+(?:\s*<[^>]*>)?\s+([A-Za-z_]\w*)\s*(?:<[^>]*>)?\s*\(`
 
@@ -90,7 +104,30 @@ _tracked(code) := v if {
 
 _context(_, _, code) if _sensitive(code)
 
-_context(lines, i, _) if _sensitive(_enclosing_method(lines, i))
+# In a method or class name, reset/verify/session/activation alone describe
+# an operation (ResetBoard, VerifyLayout, SimulateSessionTraffic), not a
+# secret; they count when paired with what is issued (ResetLink, SessionId).
+_name_sensitive(name) if _sensitive(regex.replace(name, `(?i)reset|verif\w*?(?:y|ication)?|session|activation`, " "))
+
+_name_sensitive(name) if regex.match(`(?i)(reset|verif\w*|session|activation)(link|token|code|key|id|url|secret)`, name)
+
+_context(lines, i, _) if _name_sensitive(_enclosing_method(lines, i))
+
+# The enclosing class names what it generates (PasswordGenerator, InviteCodes).
+_class_decl_re := `\b(?:class|struct|record)\s+([A-Za-z_]\w*)`
+
+_enclosing_class(lines, i) := name if {
+	idx := [j |
+		some j in numbers.range(max([0, i - 300]), i)
+		contains(lines[j], "class ")
+		regex.match(_class_decl_re, lines[j])
+		not helpers.is_comment_line(lines[j])
+	]
+	count(idx) > 0
+	name := regex.find_all_string_submatch_n(_class_decl_re, lines[idx[count(idx) - 1]], 1)[0][1]
+}
+
+_context(lines, i, _) if _name_sensitive(_enclosing_class(lines, i))
 
 _context(lines, i, code) if {
 	v := _tracked(code)

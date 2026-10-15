@@ -1,0 +1,19 @@
+{
+  "name": "clean",
+  "dependencies": {
+    "lodash": "4.17.21",
+    "jsonwebtoken": "^8.5.1",
+    "handlebars": "~4.7.7",
+    "minimist": "1.2.8",
+    "jquery": "3.7.1",
+    "event-stream": "4.0.1",
+    "ua-parser-js": "0.7.33",
+    "lodash.merge": "4.6.2",
+    "@types/lodash": "4.14.0",
+    "my-lodash": "1.0.0"
+  },
+  "scripts": {
+    "lodash": "echo 4.17.15"
+  },
+  "description": "uses lodash 4.17.15 style helpers"
+}

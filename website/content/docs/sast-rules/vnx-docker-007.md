@@ -43,7 +43,7 @@ FROM node:20.15-bookworm-slim AS runtime
 CMD ["node", "dist/server.js"]
 ```
 
-Not reported: a final stage with a `HEALTHCHECK` (`HEALTHCHECK NONE` is an explicit decision), one that inherits a `HEALTHCHECK` from an earlier stage, base, toolchain, CLI and job images that run no service, `HEALTHCHECK` text in comments or heredocs, test and `.devcontainer` images. A `HEALTHCHECK` defined by an external base image is not visible to the rule.
+Not reported: a final stage with a `HEALTHCHECK` (`HEALTHCHECK NONE` is an explicit decision), one that inherits a `HEALTHCHECK` from an earlier stage, base, toolchain, CLI and job images that run no service (including `node`/`java`/`dotnet` started on a cli, migrate, seed, job, cron, backup or `scripts/` entry point with no `EXPOSE`), `HEALTHCHECK` text in comments or heredocs, test and `.devcontainer` images. A `HEALTHCHECK` defined by an external base image is not visible to the rule.
 
 ## Remediation
 

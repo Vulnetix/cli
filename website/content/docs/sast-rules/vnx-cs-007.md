@@ -1,6 +1,6 @@
 ---
 title: "VNX-CS-007 – C# Path Traversal via Path.Combine with User Input"
-description: "Detects C# Path.Combine/Path.Join, MapPath and file-system APIs (File, Directory, FileStream, StreamReader, PhysicalFile, TransmitFile, SaveAs) whose path argument contains HTTP request data, an uploaded file name or a controller action parameter, without Path.GetFileName or a GetFullPath/StartsWith containment check."
+description: "Detects C# Path.Combine/Path.Join, MapPath and file-system APIs (File, Directory, FileStream, StreamReader, PhysicalFile, TransmitFile, SaveAs) whose path argument contains HTTP request data, an uploaded file name, an archive entry name (zip slip) or a controller action parameter, without Path.GetFileName or a GetFullPath/StartsWith containment check."
 ---
 
 ## Overview
@@ -39,6 +39,9 @@ public IActionResult Download(string name)
 // FLAGGED: WebForms MapPath and an uploaded file's own name
 FileInfo fi = new FileInfo(Server.MapPath(Request["image"]));
 var dest = Path.Combine(root, "uploads", file.FileName);
+
+// FLAGGED: zip slip, an archive entry name keeps its ../ segments
+entry.ExtractToFile(Path.Combine(Root, entry.FullName), overwrite: true);
 ```
 
 ## Remediation

@@ -1,0 +1,8 @@
+name: label
+description: label a PR
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+~>        gh pr edit --add-label "${{ github.event.pull_request.title }}"

@@ -33,6 +33,10 @@ http.SetCookie(w, &cookie)
 http.SetCookie(w, &http.Cookie{Name: "sid", Value: sid, HttpOnly: false})
 c.Cookie(&fiber.Cookie{Name: "sid", Value: v, HTTPOnly: false})
 c.SetCookie("session", tok, 3600, "/", "", true, false)
+c.SetCookie(
+    "access_token", token, ttl, "/", domain, true,
+    false,
+)
 ck.HttpOnly = false
 
 // FLAGGED: session options without HttpOnly, or a store whose Options are never set

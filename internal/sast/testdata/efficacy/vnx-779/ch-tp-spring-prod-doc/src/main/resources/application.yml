@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: orders
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+logging:
+  level:
+~>    root: TRACE

@@ -1,0 +1,9 @@
+<settings>
+  <servers>
+    <server>
+      <id>artifactory</id>
+      <username>ci-bot</username>
+~>      <password>AKCp@@sample:[A-Za-z0-9]{69}@@</password>
+    </server>
+  </servers>
+</settings>

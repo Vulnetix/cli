@@ -1,0 +1,10 @@
+name: publish
+on: release
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+      - run: npm publish
+        env:
+~>          NODE_AUTH_TOKEN: npm_@@sample:[A-Za-z0-9]{36}@@

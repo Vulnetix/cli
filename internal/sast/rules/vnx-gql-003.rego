@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GQL-003",
 	"name": "GraphQL query string injection via string concatenation",
-	"description": "A GraphQL operation document is built from request data: a template literal, f-string, str.format, %-format or + concatenation whose text is a GraphQL document (query/mutation/subscription with a selection set, a gql`...`/graphql`...` tag, or an anonymous { field(...) } document assigned to a query/gql/document name) interpolates a request value directly (req.body/query/params, ctx.params, event.queryStringParameters, resolver args, request.args/form/json/GET/POST) or a variable assigned from one within the previous 12 lines, including destructuring (const { id } = req.body). The attacker can then add fields, aliases or directives, or reach resolvers the caller should not. Covers JavaScript/TypeScript and Python, and multi-line documents up to 8 lines after their opening. Not reported: operations that pass request data through a variables map (variables: {...}, variable_values=), fragment or constant interpolation, values converted with parseInt/Number/JSON.stringify or a sanitiser, SQL strings and other non-GraphQL templates, and comments.",
+	"description": "A GraphQL operation document is built from request data: a template literal, f-string, str.format, %-format or + concatenation whose text is a GraphQL document (query/mutation/subscription with a selection set, a gql`...`/graphql`...` tag, or an anonymous { field(...) } document assigned to a query/gql/document name, passed straight to a client call such as client.request(`{ field(...) }`), or in Python a string opening with { field(arg: ...) interpolates a request value directly (req.body/query/params, ctx.params, event.queryStringParameters, resolver args, request.args/form/json/GET/POST) or a variable assigned from one within the previous 12 lines, including destructuring (const { id } = req.body). The attacker can then add fields, aliases or directives, or reach resolvers the caller should not. Covers JavaScript/TypeScript and Python, and multi-line documents up to 8 lines after their opening. Not reported: operations that pass request data through a variables map (variables: {...}, variable_values=), fragment or constant interpolation, values converted with parseInt/Number/JSON.stringify or a sanitiser, SQL strings and other non-GraphQL templates, and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-gql-003/",
 	"languages": ["javascript", "typescript", "python"],
 	"severity": "high",
@@ -61,9 +61,9 @@ _tainted(lines, i, source_re) := {v |
 _js_src := `\b(req|request)\.(body|query|params|headers|cookies)\b|\bctx\.(request|query|params)\b|\bevent\.(body|queryStringParameters|pathParameters)\b|searchParams\.get\(|\bargs\.[A-Za-z_]|location\.(search|hash)\b`
 
 # A line that opens (or is) a GraphQL document inside a string.
-_js_doc := `([\x60'"(]\s*(query|mutation|subscription)\b(\s+[A-Za-z_]\w*)?\s*(\([^)]*\))?\s*\{)|(\b(gql|graphql)\s*(\(\s*)?\x60)|((?i)\b\w*(query|gql|document|operation)\w*['"]?\s*[:=]\s*[\x60'"]\s*\{)|(^\s*(query|mutation|subscription)\b(\s+[A-Za-z_]\w*)?\s*(\([^)]*\))?\s*\{)`
+_js_doc := `([\x60'"(]\s*(query|mutation|subscription)\b(\s+[A-Za-z_]\w*)?\s*(\([^)]*\))?\s*\{)|(\b(gql|graphql)\s*(\(\s*)?\x60)|((?i)\b\w*(query|gql|document|operation)\w*['"]?\s*[:=]\s*[\x60'"]\s*\{)|(^\s*(query|mutation|subscription)\b(\s+[A-Za-z_]\w*)?\s*(\([^)]*\))?\s*\{)|(\b(request|rawRequest|query|mutate|execute|graphql)\s*\(\s*\x60\s*\{\s*[A-Za-z_]\w*\s*[({])`
 
-_js_gate := `[\x60'"(]\s*(query|mutation|subscription)\b|\b(gql|graphql)\s*(\(\s*)?\x60|\b\w*(query|gql|document|operation)\w*['"]?\s*[:=]\s*[\x60'"]\s*\{`
+_js_gate := `[\x60'"(]\s*(query|mutation|subscription)\b|\b(gql|graphql)\s*(\(\s*)?\x60|\b\w*(query|gql|document|operation)\w*['"]?\s*[:=]\s*[\x60'"]\s*\{|\b(request|rawRequest|query|mutate|execute|graphql)\s*\(\s*\x60\s*\{`
 
 _backticks(line) := count(indexof_n(line, "`"))
 
@@ -73,6 +73,15 @@ _js_open(_, j, i) if i == j
 _js_open(lines, j, i) if {
 	i > j
 	_backticks(lines[j]) % 2 == 1
+	every k in numbers.range(j + 1, i - 1) {
+		_backticks(lines[k]) == 0
+	}
+}
+
+# A bare `mutation {` line inside a template literal that opened above it.
+_js_open(lines, j, i) if {
+	i > j
+	regex.match(`^\s*(query|mutation|subscription)\b[^'"\x60]*\{\s*$`, lines[j])
 	every k in numbers.range(j + 1, i - 1) {
 		_backticks(lines[k]) == 0
 	}
@@ -131,7 +140,7 @@ _py_src := `\brequest\.(args|form|values|json|data|GET|POST|query_params|path_pa
 
 # GraphQL document text: an operation with a selection set, or an anonymous
 # `{{ field(` / `{{ field {{` document in an f-string or format string.
-_py_doc := `\b(query|mutation|subscription)\b(\s+[A-Za-z_]\w*)?\s*(\([^)]*\))?\s*\{|\{\{\s*[A-Za-z_]\w*\s*(\(|\{\{)`
+_py_doc := `\b(query|mutation|subscription)\b(\s+[A-Za-z_]\w*)?\s*(\([^)]*\))?\s*\{|\{\{\s*[A-Za-z_]\w*\s*(\(|\{\{)|["']\s*\{\s*[A-Za-z_]\w*\s*\(\s*[A-Za-z_]\w*\s*:`
 
 _py_fstring := `\b[fF][rR]?("""|'''|"|')`
 

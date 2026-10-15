@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ product.name }}</h1>
+~>{% autoescape off %}
+<div class="desc">{{ product.description }}</div>
+{% endautoescape %}
+{% endblock %}

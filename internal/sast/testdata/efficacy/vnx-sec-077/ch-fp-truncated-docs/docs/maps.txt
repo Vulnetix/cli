@@ -1,0 +1,2 @@
+Your public token looks like pk.@@sample:e[y]J1IjoiYWNtZSIsImEiOi[.][.]@@. and is shown on
+the account page. Paste it into MAPBOX_ACCESS_TOKEN.

@@ -27,7 +27,7 @@ _lit := `"(?:[^"\\]|\\.)+"`
 # byte-array literal.
 _literal_expr := concat("", [
 	`^(`, _lit, `(\s*\.\s*(getBytes|toCharArray)\s*\([^)]*\))?`,
-	`|[\w.()]*\.\s*(decode|decodeBase64|decodeHex|parseHexBinary|encode)\s*\(\s*`, _lit, `\s*(,[^)]*)?\)(\s*\.\s*(getBytes|toCharArray)\s*\([^)]*\))?`,
+	`|[\w.()]*\.\s*(decode|decodeBase64|decodeHex|parseHexBinary|encode)\s*\(\s*`, _lit, `(\s*\.\s*(getBytes|toCharArray)\s*\([^)]*\))?\s*(,[^)]*)?\)(\s*\.\s*(getBytes|toCharArray)\s*\([^)]*\))?`,
 	`|(new\s+byte\s*\[\s*\]\s*)?\{\s*(\(byte\)\s*)?-?(0[xX][0-9a-fA-F]+|[0-9]+)`,
 	`)\s*[,;)}]`,
 ])
@@ -35,10 +35,9 @@ _literal_expr := concat("", [
 _decl_re := `^\s*(?:(?:public|private|protected|static|final)\s+)*(?:String|byte\s*\[\s*\]|char\s*\[\s*\]|var)\s+([A-Za-z_]\w*)\s*=\s*(.*)$`
 
 _strip_strings(l) := regex.replace(l, `"(?:[^"\\]|\\.)*"`, `""`)
-
-# Names declared in this file with a literal value.
-_lit_names(lines) := {m[1] |
-	some l in lines
+# Declarations in this file with a literal value, as [line, name].
+_lit_decls(lines) := {[j, m[1]] |
+	some j, l in lines
 	contains(l, "=")
 	not helpers.is_comment_line(l)
 	some m in regex.find_all_string_submatch_n(_decl_re, l, 1)
@@ -46,8 +45,8 @@ _lit_names(lines) := {m[1] |
 }
 
 # One hop: byte[] kb = k.getBytes(...) where k holds a literal.
-_hop_names(lines, base) := {m[1] |
-	some l in lines
+_hop_decls(lines, base) := {[j, m[1]] |
+	some j, l in lines
 	contains(l, "getBytes")
 	not helpers.is_comment_line(l)
 	some m in regex.find_all_string_submatch_n(_decl_re, l, 1)
@@ -55,7 +54,54 @@ _hop_names(lines, base) := {m[1] |
 	h[1] in base
 }
 
-_names(lines) := n | _hop_names(lines, n) if n := _lit_names(lines)
+_decls(lines) := d | _hop_decls(lines, {n | some [_, n] in d}) if {
+	d := _lit_decls(lines)
+}
+
+# A method or constructor header: the boundary a local cannot cross.
+_header_re := `^\s*(?:@\w+(?:\([^)]*\))?\s+)*(?:(?:public|private|protected|static|final|synchronized|abstract|native|default)\s+)*(?:<[^>]+>\s+)?[\w.$]+(?:<[^>]*>)?(?:\[\s*\])*\s+([A-Za-z_]\w*)\s*\([^=;]*$`
+
+_is_header(l) if {
+	regex.match(_header_re, l)
+	not regex.match(`^\s*(return|new|throw|else|case|if|for|while|switch|catch|try|do|synchronized)\b`, l)
+}
+
+# The nearest method header above line i, as [line, method name].
+_enclosing(lines, i) := hs[count(hs) - 1] if {
+	hs := [[k, m[1]] |
+		some k in numbers.range(max([0, i - 300]), i - 1)
+		contains(lines[k], "(")
+		_is_header(lines[k])
+		some m in regex.find_all_string_submatch_n(_header_re, lines[k], 1)
+	]
+	count(hs) > 0
+}
+
+# A field (a modifier, or class-level indentation) is visible file-wide.
+_is_field(l) if regex.match(`^\s*(?:public|private|protected|static|final)\b`, l)
+
+_is_field(l) if regex.match(`^(?:\t| {1,4})?[A-Za-z]`, l)
+
+# A literal-valued name declared at line j is what the sink at line i sees:
+# a field, a local in the same method, or a local of another method that is
+# passed to the sink's method by name (aes256encrypt(ivBytes, keyBytes, ...)).
+_visible(lines, _, _, j, _) if _is_field(lines[j])
+
+_visible(lines, _, i, j, _) if {
+	j < i
+	[h, _] := _enclosing(lines, i)
+	j > h
+}
+
+_visible(lines, _, i, j, _) if {
+	j < i
+	not _enclosing(lines, i)
+}
+
+_visible(lines, content, i, _, name) if {
+	[_, meth] := _enclosing(lines, i)
+	regex.match(concat("", [`[^\w]`, meth, `\s*\([^;{]*\b`, name, `\b[^;{]*\)\s*;`]), content)
+}
 
 # Sinks: the text that follows is the key argument.
 _sink_re := `new\s+(?:SecretKeySpec|PBEKeySpec)\s*\(\s*|\.\s*signWith\s*\(\s*[\w.]+\s*,\s*|\.\s*setSigningKey\s*\(\s*|\bAlgorithm\s*\.\s*HMAC(?:256|384|512)\s*\(\s*|\bKeys\s*\.\s*hmacShaKeyFor\s*\(\s*`
@@ -64,11 +110,13 @@ _name_arg := `^(?:this\.)?([A-Za-z_]\w*)\s*(?:\.\s*(?:getBytes|toCharArray)\s*\(
 
 _stmt(lines, i) := concat(" ", [lines[k] | some k in numbers.range(i, min([count(lines) - 1, i + 2]))])
 
-_hard_coded(lines, rest) if regex.match(_literal_expr, rest)
+_hard_coded(_, _, _, rest) if regex.match(_literal_expr, rest)
 
-_hard_coded(lines, rest) if {
+_hard_coded(lines, content, i, rest) if {
 	some m in regex.find_all_string_submatch_n(_name_arg, rest, 1)
-	m[1] in _names(lines)
+	some [j, n] in _decls(lines)
+	n == m[1]
+	_visible(lines, content, i, j, n)
 }
 
 findings contains finding if {
@@ -84,7 +132,7 @@ findings contains finding if {
 	stmt := regex.replace(_stmt(lines, i), `//[^"\n]*$`, "")
 	some m in regex.find_all_string_submatch_n(concat("", [`(?:`, _sink_re, `)(.*)`]), stmt, -1)
 	rest := m[1]
-	_hard_coded(lines, rest)
+	_hard_coded(lines, content, i, rest)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Cryptographic key is hardcoded in the source; load it from a key store, KMS or secrets manager at runtime",

@@ -1,0 +1,6 @@
+deploy_user: ops
+deploy_ssh_key: |
+~>  @@sample:[-][-][-][-][-]BEGIN[ ]OPENSSH[ ]PRIVATE[ ]KEY[-][-][-][-][-]@@
+  @@sample:[A-Za-z0-9+/]{70}@@
+  @@sample:[A-Za-z0-9+/]{70}@@
+  @@sample:[-][-][-][-][-]END[ ]OPENSSH[ ]PRIVATE[ ]KEY[-][-][-][-][-]@@

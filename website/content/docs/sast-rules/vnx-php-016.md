@@ -9,7 +9,7 @@ This rule detects calls to `md5()` or `sha1()` in code where the surrounding con
 
 Password hashing requires a function that is deliberately slow and includes a salt to prevent precomputation attacks. MD5 and SHA1 are so fast on modern hardware that billions of hashes can be computed per second using commodity GPUs. When an attacker obtains a database of MD5 or SHA1 password hashes, they can crack most common passwords in minutes using rainbow tables or brute-force attacks.
 
-Beyond speed, both algorithms have known cryptographic weaknesses: MD5 has been broken for collision resistance since 2004 and for preimage resistance in certain contexts, and SHA1 is considered weak against collision attacks. Neither should be used for any security-sensitive purpose. The rule targets the co-occurrence of `md5()`/`sha1()` with variable names or string literals containing `password`, `passwd`, `secret`, `credential`, or `hash`.
+Beyond speed, both algorithms have known cryptographic weaknesses: MD5 has been broken for collision resistance since 2004 and for preimage resistance in certain contexts, and SHA1 is considered weak against collision attacks. Neither should be used for any security-sensitive purpose. The rule reports `md5()`/`sha1()`/`hash('md5'|'sha1', ...)`/MD5-crypt when an argument names a password or the result is stored under a password name.
 
 **Severity:** Medium | **CWE:** [CWE-328 – Use of Weak Hash](https://cwe.mitre.org/data/definitions/328.html)
 
@@ -38,7 +38,7 @@ $user->password = md5($input['secret']);
 return ['password' => md5($input['p'])];
 ```
 
-Not flagged: `password_hash()`/`password_verify()`, `md5($body)` ETags, `sha1($key)` cache paths, `md5_file()` checksums, the SHA-1 prefix sent to the Have I Been Pwned range API, `hash('sha256', $password)` (a fast hash, but outside this rule), and lookalike names such as `$bypass`.
+Not flagged: `password_hash()`/`password_verify()`, `md5($body)` ETags, `sha1($key)` cache paths, `md5_file()` checksums, the SHA-1 prefix sent to the Have I Been Pwned range API, `hash('sha256', $password)` (a fast hash, but outside this rule), a generated value such as `$tempPassword = substr(md5(rand()), 0, 8)` or a password-reset token, and lookalike names such as `$bypass`.
 
 ## Remediation
 

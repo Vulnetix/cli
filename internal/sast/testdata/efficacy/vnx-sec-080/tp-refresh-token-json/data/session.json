@@ -1,0 +1,5 @@
+{
+  "access_token": "${ACCESS}",
+~>  "refresh_token": "@@sample:ghr_[A-Za-z0-9]{76}@@",
+  "expires_in": 28800
+}

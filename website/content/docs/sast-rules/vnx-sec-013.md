@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-013 – Insecure Cookie Configuration"
-description: "Detects cookies configured without HttpOnly, Secure, or SameSite flags, leaving sessions vulnerable to XSS theft, cleartext transmission, and CSRF attacks."
+description: "Detects cookies whose HttpOnly or Secure protection is switched off, and session or authentication cookies issued without HttpOnly, across Node, Python, Go, Java, .NET, PHP and Ruby."
 ---
 
 ## Overview
 
-This rule detects explicit assignment of insecure cookie settings in source files, including `httpOnly: false`, `secure: false`, `HttpOnly = false`, `Secure = false`, `SESSION_COOKIE_SECURE = False`, `SESSION_COOKIE_HTTPONLY = False`, and similar patterns across Python, JavaScript, Java, and PHP frameworks. These settings control three distinct attack surfaces: HttpOnly prevents JavaScript from reading the cookie (blocking XSS-based session theft), Secure ensures the cookie is only sent over HTTPS (blocking cleartext interception), and SameSite restricts cross-origin sending (blocking CSRF).
+This rule reports a cookie whose HttpOnly or Secure protection is switched off: `httpOnly: false` / `secure: false` in cookie or session options (Express, Go `http.Cookie` and gorilla `sessions.Options`, ASP.NET `CookieOptions`, Rails `session_store`, Spring YAML), Django and Flask `SESSION_COOKIE_SECURE` / `SESSION_COOKIE_HTTPONLY` / `CSRF_COOKIE_SECURE = False`, `set_cookie(..., secure=False)`, Java `setHttpOnly(false)` / `setSecure(false)`, Spring `server.servlet.session.cookie.*=false`, `CookieSecurePolicy.None`, web.config `httpOnlyCookies="false"`, PHP `ini_set('session.cookie_httponly', 0)` and php.ini, and `false` as the secure/httponly argument of PHP `setcookie()` or gin's `c.SetCookie()`. It also reports a session, token, auth, JWT, remember-me or user-id cookie issued with no HttpOnly setting at all (`res.cookie('session', id)`, `set_cookie('token', t)`, a Go `http.Cookie{}` with no `HttpOnly` field, Java `new Cookie("access_token", t)` with no `setHttpOnly`, PHP `setcookie('appSession', $v)`). It does not report the CSRF/XSRF cookie's HttpOnly (the page must read it), theme or language cookies, flags read from variables or the environment, options passed as a variable, cookies being cleared, development settings files, tests and documentation. SameSite is not checked. These settings control three distinct attack surfaces: HttpOnly prevents JavaScript from reading the cookie (blocking XSS-based session theft), Secure ensures the cookie is only sent over HTTPS (blocking cleartext interception), and SameSite restricts cross-origin sending (blocking CSRF).
 
 **Severity:** Medium | **CWE:** [CWE-614 – Sensitive Cookie in HTTPS Session Without 'Secure' Attribute](https://cwe.mitre.org/data/definitions/614.html), [CWE-1004 – Sensitive Cookie Without 'HttpOnly' Flag](https://cwe.mitre.org/data/definitions/1004.html)
 
@@ -42,8 +42,25 @@ app.use(session({
 ```python
 # FLAGGED: Flask insecure session cookie
 app.config['SESSION_COOKIE_SECURE'] = False
-app.config['SESSION_COOKIE_HTTPONLY'] = False
+# FLAGGED: session cookie with no httponly
+response.set_cookie("session_id", token)
 ```
+
+```go
+// FLAGGED: no HttpOnly field on a cookie whose name is a parameter
+cookie := http.Cookie{
+	Name:  name,
+	Value: value,
+	Path:  "/",
+}
+```
+
+```php
+// FLAGGED: secure and httponly passed as false
+setcookie("auth_token", $token, time() + 3600, "/", "", false, false);
+```
+
+Not flagged: `res.cookie('XSRF-TOKEN', req.csrfToken(), { httpOnly: false, secure: true })`, `res.cookie('theme', 'dark')`, `secure: process.env.NODE_ENV === 'production'`.
 
 ## Remediation
 

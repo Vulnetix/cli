@@ -1,0 +1,9 @@
+services:
+  queue:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?required}
+  worker:
+    environment:
+      BROKER_URL: amqp://guest:${@@sample:R[A]BB[I]TM[Q][_]P[A]SS[W]OR[D]@@}@queue:5672//

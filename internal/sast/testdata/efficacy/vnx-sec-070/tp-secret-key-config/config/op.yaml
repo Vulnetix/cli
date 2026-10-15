@@ -1,0 +1,2 @@
+account: acme.1password.com
+~>secret_key: A3-@@sample:[A-Z0-9]{6}@@-@@sample:[A-Z0-9]{6}@@-@@sample:[A-Z0-9]{5}@@-@@sample:[A-Z0-9]{5}@@-@@sample:[A-Z0-9]{5}@@-@@sample:[A-Z0-9]{5}@@

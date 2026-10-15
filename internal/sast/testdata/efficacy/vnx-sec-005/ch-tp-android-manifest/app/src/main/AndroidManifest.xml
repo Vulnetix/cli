@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.acme">
+    <application>
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+~>            android:value="@@sample:AIza[0-9A-Za-z_-]{35}@@" />
+    </application>
+</manifest>

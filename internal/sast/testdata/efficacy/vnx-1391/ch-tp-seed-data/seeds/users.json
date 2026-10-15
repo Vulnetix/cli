@@ -1,0 +1,7 @@
+[
+  {
+    "email": "ops@shop.example",
+~>    "password": "iloveyou",
+    "role": "operator"
+  }
+]

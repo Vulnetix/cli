@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-C-003",
 	"name": "OS command injection: a shell command built from or read from untrusted data",
-	"description": "Reports C and C++ calls that hand a string to a shell — system, popen, _popen, _wpopen, _wsystem, p2open (C++ std::system included), and execl/execlp/execle of sh/bash/zsh/dash with \"-c\" — when the command is argv[...] or getenv(...) directly; a variable assigned from getenv/secure_getenv/argv/readline or filled by fgets/gets/read/recv/recvfrom/fread/getline/scanf in the 25 lines above; or a variable composed in those lines from non-constant data: sprintf/snprintf/_snprintf/asprintf/swprintf/wsprintf/g_snprintf/g_strdup_printf with a %s argument that is not a literal or macro, strcat/strncat/strlcat/strcpy/strncpy/strlcpy/stpcpy of a non-constant, or C++ std::string +, +=, append() and ostream << of a non-literal (also inline: popen((\"ls \" + dir).c_str(), ...)). Also reports wordexp() of a non-literal without WRDE_NOCMD, which runs $(...) command substitution. Not reported: literal or macro commands, system(NULL), commands composed only from literals, macros and numeric conversions (%d), a command that is a parameter of the enclosing function (a wrapper: the caller is where it is built), a command whose composition is preceded within those lines by a validation, allow-list or quoting call (is_valid_*, sanitize, escape, quote, g_shell_quote, strspn/strpbrk/strcspn), exec* without a shell, posix_spawn, prototypes, function-pointer fields and methods named system, string literals and comments.",
+	"description": "Reports C and C++ calls that hand a string to a shell (system, popen, _popen, _wpopen, _wsystem, p2open, C++ std::system, and execl/execlp/execle of sh/bash/zsh/dash with \"-c\") when the command is argv[...] or getenv(...) directly; a variable assigned from getenv/secure_getenv/argv/readline or filled by fgets/gets/read/recv/recvfrom/fread/getline/scanf in the 25 lines above; or a variable composed in those lines from non-constant data: sprintf/snprintf/_snprintf/asprintf/swprintf/wsprintf/g_snprintf/g_strdup_printf with a %s argument that is not a literal or macro, strcat/strncat/strlcat/strcpy/strncpy/strlcpy/stpcpy of a non-constant, or C++ std::string +, +=, append() and ostream << of a non-literal (also inline: popen((\"ls \" + dir).c_str(), ...)). Also reports wordexp() of a non-literal without WRDE_NOCMD, which runs $(...) command substitution. Not reported: literal or macro commands, system(NULL), commands composed only from literals, macros and numeric conversions (%d), a command that is a parameter of the enclosing function (a wrapper: the caller is where it is built), a command whose composition is preceded within those lines by a validation, allow-list or quoting call (is_valid_*, isValid*, sanitize, escape, quote, g_shell_quote, strspn/strpbrk/strcspn; unescape, invalidate and the buf[strcspn(buf, \"\\n\")] = 0 newline trim do not count), exec* without a shell, posix_spawn, prototypes, function-pointer fields and methods named system, string literals and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-c-003/",
 	"languages": ["c", "cpp"],
 	"severity": "critical",
@@ -232,14 +232,35 @@ _composed(lines, i, x) if {
 	_builds(raw, _mask(raw), x)
 }
 
+# A printf-style builder whose call wraps over the next lines:
+# snprintf(cmd, sizeof cmd,\n "tar -tzf %s",\n name);
+_composed(lines, i, x) if {
+	some j in numbers.range(max([0, i - 25]), i - 2)
+	j < i - 1
+	raw0 := lines[j]
+	contains(raw0, x)
+	not _comment_line(raw0)
+	code0 := _mask(raw0)
+	not contains(code0, ";")
+	regex.match(`\b(?:sprintf|snprintf|_snprintf|asprintf|swprintf|wsprintf[AW]?|g_snprintf|g_strdup_printf)\s*\(`, code0)
+	ks := [k | some k in numbers.range(j, min([j + 3, i - 1]))]
+	raw := concat(" ", [lines[k] | some k in ks])
+	code := concat(" ", [_mask(lines[k]) | some k in ks])
+	_builds(raw, code, x)
+}
+
 # A validation, allow-list or quoting call in the lines above the sink.
 _validated(lines, i) if {
 	some j in numbers.range(max([0, i - 25]), i - 1)
 	j < i
 	l := lines[j]
 	not _comment_line(l)
-	regex.match(`(?i)(?:valid|saniti[sz]|escape|quote|allow|whitelist|is_?safe|strspn|strpbrk|strcspn)\w*\s*\(`, l)
+	regex.match(`(?:(?:^|[^A-Za-z])(?:[Vv]alid|[Ss]aniti[sz]|[Ee]scape|[Qq]uote|[Aa]llow|[Ww]hitelist|is_?[Ss]afe|IsSafe|strspn|strpbrk|strcspn)|[a-z](?:Valid|Saniti[sz]|Escape|Quote|Allow|Whitelist|Safe))\w*\s*\(`, l)
+	not _newline_strip(l)
 }
+
+# buf[strcspn(buf, "\n")] = 0 trims fgets' newline; it checks nothing.
+_newline_strip(l) if regex.match(`\[\s*str[c]?spn\s*\([^;]*\]\s*=`, l)
 
 # ── Sinks ────────────────────────────────────────────────────────────────
 

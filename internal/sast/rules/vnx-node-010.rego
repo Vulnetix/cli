@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-010",
 	"name": "Node.js path traversal",
-	"description": "A file-system path built from the incoming request: the path (first argument) of an fs/fs.promises/fs-extra call that reads, writes, streams, lists, stats or deletes (readFile, readFileSync, createReadStream, createWriteStream, writeFile, appendFile, unlink, rm, readdir, stat, access, open, copyFile, rename, mkdir, existsSync, outputFile, remove, readJson; also the bare names imported from fs or fs/promises), or of res.sendFile/res.download, is a req/request query, params, body, headers, cookies, url, originalUrl or path value, a Koa ctx.query/ctx.params/ctx.request.body value, or a variable assigned (or destructured) from one in the 25 lines above, directly or through one intermediate assignment such as path.join(dir, name). Not reported: a path passed through path.basename, checked with startsWith against a base directory, checked for '..' or '/', matched against an anchored regex or a sanitize/isValid function in the lines above; res.sendFile/res.download with a root option (send rejects paths that climb out of root); request values written as file data rather than used as the path; constant paths; comments and string literals. Flows through helper functions or across files are not followed.",
+	"description": "A file-system path built from the incoming request: the path (first argument) of an fs/fs.promises/fs-extra call that reads, writes, streams, lists, stats or deletes (readFile, readFileSync, createReadStream, createWriteStream, writeFile, appendFile, unlink, rm, readdir, stat, access, open, copyFile, rename, mkdir, existsSync, outputFile, remove, readJson; also the bare names imported from fs or fs/promises), or of res.sendFile/res.download, is a req/request query, params, body, headers, cookies, url, originalUrl or path value, a Koa ctx.query/ctx.params/ctx.request.body value, a params/query/body/headers/cookies member of a handler that destructures its request in the signature (({ params }: Request, res) => ...), or a variable assigned (or destructured) from one in the 25 lines above, directly or through one intermediate assignment such as path.join(dir, name). Not reported: a path passed through path.basename, checked with startsWith against a base directory, checked for '..' or '/', matched against an anchored regex or a sanitize/isValid function in the lines above; res.sendFile/res.download with a root option (send rejects paths that climb out of root); request values written as file data rather than used as the path; constant paths; comments and string literals. Flows through helper functions or across files are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-010/",
 	"languages": ["node"],
 	"severity": "high",
@@ -30,7 +30,7 @@ _is_js(path) if {
 	not endswith(path, ".d.ts")
 }
 
-_src := `\b(?:req|request)\.(?:query|body|params|headers|cookies|url|originalUrl|path|payload)\b|\breq\.(?:param|get|header)\s*\(|\bctx\.(?:request\.)?(?:query|body|params|headers|querystring|path|url)\b`
+_src := `\b(?:req|request)\.(?:query|body|params|headers|cookies|url|originalUrl|path|payload)\b|\breq\.files?\b(?:\.[\w$]+|\[[^\]]+\])*\.(?:originalname|name)\b|\breq\.(?:param|get|header)\s*\(|\bctx\.(?:request\.)?(?:query|body|params|headers|querystring|path|url)\b`
 
 _fs_ops := `readFile|readFileSync|createReadStream|createWriteStream|writeFile|writeFileSync|appendFile|appendFileSync|unlink|unlinkSync|rm|rmSync|rmdir|rmdirSync|readdir|readdirSync|stat|statSync|lstat|lstatSync|access|accessSync|open|openSync|copyFile|copyFileSync|rename|renameSync|mkdir|mkdirSync|existsSync|outputFile|outputFileSync|remove|removeSync|readJson|readJsonSync`
 
@@ -102,7 +102,7 @@ _destructured(lines, i) := {v |
 # One further hop through an assignment that uses a tainted name, unless that
 # assignment picks the value from a fixed list ([...].includes(x) ? x : y).
 _tainted(lines, i) := t if {
-	t1 := _direct(lines, i) | _destructured(lines, i)
+	t1 := (_direct(lines, i) | _destructured(lines, i)) | _direct_sig(lines, i)
 	t2 := {v |
 		count(t1) > 0
 		some j in numbers.range(max([0, i - 25]), i - 1)
@@ -128,13 +128,64 @@ _direct(lines, i) := {v |
 	v := helpers.assigned_first(l)
 }
 
-_lookup_re := `=\s*(?:await\s+)?[\w.$?]+\.(?:get|findOne|findByPk|findById|findUnique|verify|decode|has)\(\s*(?:req|request|ctx)\b`
+_lookup_re := `=\s*(?:await\s+)?[\w.$?]+\.(?:get|findOne|findByPk|findById|findUnique|verify|decode|has)\(\s*(?:req|request|ctx)\b|=\s*[A-Z][A-Z0-9_]*\s*\[`
 
 _reaches(a, _, _) if regex.match(_src, a)
 
+_reaches(a, lines, i) if regex.match(_sig_src(lines, i), a)
+
+# A handler that destructures the request in its signature
+# (({ params, query }: Request, res) or async ({ query }, reply)): within the
+# 25 lines below it, params.x / query.x / body.x are request values.
+_sig_re := `\(\s*\{([^}]*)\}\s*(?::\s*[\w$.<>\[\], ]+?)?\s*,\s*(?:res|response|reply)\b`
+
+_sig_names(lines, i) := {n |
+	some j in numbers.range(max([0, i - 25]), i)
+	l := lines[j]
+	contains(l, "{")
+	m := regex.find_all_string_submatch_n(_sig_re, l, 1)
+	count(m) > 0
+	some item in split(m[0][1], ",")
+	trim_space(split(item, ":")[0]) in {"params", "query", "body", "headers", "cookies"}
+	n := _binding(item)
+}
+
+_sig_src(lines, i) := concat("", [`(?:^|[^\w.$])(?:`, concat("|", names), `)\s*(?:\.\s*[\w$]|\[)`]) if {
+	names := _sig_names(lines, i)
+	count(names) > 0
+}
+
+_direct_sig(lines, i) := {v |
+	src := _sig_src(lines, i)
+	some j in numbers.range(max([0, i - 25]), i - 1)
+	l := lines[j]
+	not helpers.is_comment_line(l)
+	regex.match(src, l)
+	not regex.match(_lookup_re, l)
+	v := helpers.assigned_first(l)
+}
+
 _reaches(a, lines, i) if _refs(a, _tainted(lines, i))
 
-_guard_re := `path\.basename\s*\(|\.startsWith\s*\(|\.(?:includes|indexOf)\s*\(\s*['"](?:\.\.|/|\\\\)|\bsanitize(?:[-_]?(?:filename|path))?\s*\(|\bsanitizeFilename\s*\(|\bisValid\w*\s*\(|/\^[^/\n]*\$/[gimsuy]*\.test\s*\(`
+# An uploaded file object (express-fileupload req.files.doc, multer
+# req.file) carries the client's own file name in .name / .originalname; the
+# rest of it (.path, .filename, .tempFilePath) is chosen by the server.
+_upload_objs(lines, i) := {v |
+	i > 0
+	some j in numbers.range(max([0, i - 25]), i - 1)
+	l := lines[j]
+	regex.match(`=\s*(?:await\s+)?req\.files?\b(?:\.[\w$]+|\[[^\]]+\])*\s*;?\s*$`, l)
+	not helpers.is_comment_line(l)
+	v := helpers.assigned_first(l)
+}
+
+_reaches(a, lines, i) if {
+	some n in _upload_objs(lines, i)
+	contains(a, n)
+	regex.match(concat("", [`(?:^|[^\w.$])`, n, `(?:\.[\w$]+|\[[^\]]+\])*\.(?:originalname|name)\b`]), a)
+}
+
+_guard_re := `path\.basename\s*\(|\.normalize\s*\((?:[^()]|\([^()]*\))*\)\s*\.replace\s*\(|\.startsWith\s*\(|\.(?:includes|indexOf)\s*\(\s*['"](?:\.\.|/|\\\\)|\bsanitize(?:[-_]?(?:filename|path))?\s*\(|\bsanitizeFilename\s*\(|\bisValid\w*\s*\(|/\^[^/\n]*\$/[gimsuy]*\.test\s*\(`
 
 _guarded(lines, i) if regex.match(_guard_re, helpers.code_window(lines, i, 25, 0))
 
@@ -147,7 +198,7 @@ _rooted(sink, t) if {
 findings contains finding if {
 	some path, content in input.file_contents
 	_is_js(path)
-	regex.match(`\b(?:req|request|ctx)\.`, content)
+	regex.match(`\b(?:req|request|ctx)\.|\(\s*\{[^}]*\b(?:params|query|body|headers|cookies)\b[^}]*\}[^,]*,\s*(?:res|response|reply)\b`, content)
 	regex.match(`\bfs\b|fs/promises|fs-extra|sendFile|download`, content)
 	lines := split(content, "\n")
 	some i, line in lines

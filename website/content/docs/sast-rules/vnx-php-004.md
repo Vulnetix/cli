@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-004 – PHP Open Redirect"
-description: "Detect header('Location: ...'), wp_redirect(), redirect(), Redirect::to(), RedirectResponse and withHeader('Location') whose destination is decided by a request value, enabling open redirects."
+description: "Detect header('Location: ...') and Refresh headers, wp_redirect(), redirect(), Redirect::to(), RedirectResponse and withHeader('Location') whose destination is decided by a request value, enabling open redirects."
 ---
 
 ## Overview
@@ -34,7 +34,7 @@ return redirect()->away($request->query("fallback"));
 wp_redirect( $_POST["redirect_to"] );
 ```
 
-Not flagged: a destination whose literal prefix already fixes a host or path (`"Location: /login?next=" . $x`, `"https://shop.example.com/item/" . $sku`, `"info.php?id=" . $id`); a value checked with `in_array()`, `parse_url()` or `preg_match()` first (a `strpos()` substring test does not count); `wp_safe_redirect()`, `redirect()->route()`, `redirect()->back()`; values whose origin is not visible in the file.
+Not flagged: a destination whose literal prefix already fixes a host or path (`"Location: /login?next=" . $x`, `"https://shop.example.com/item/" . $sku`, `"info.php?id=" . $id`); a value checked with `in_array()`, `parse_url()` or `preg_match()` first (a `strpos()` substring test does not count); `wp_safe_redirect()`, a value passed through `wp_validate_redirect()`, `redirect()->route()`, `redirect()->back()`; values whose origin is not visible in the file.
 
 ## Remediation
 

@@ -47,7 +47,7 @@ USER root
 CMD ["node", "server.js"]
 ```
 
-Not reported: a final stage whose last `USER` is any other name, uid or variable; a final stage built `FROM` an earlier stage (up to two levels) that set a non-root `USER`; base images that are non-root by default (`:nonroot`/`rootless` tags, Chainguard images other than `-dev`, Bitnami images); `USER` text in comments and heredocs; `.devcontainer` and test images. A user chosen at deploy time (Compose `user:`, Kubernetes `runAsUser`) is not visible to the rule.
+Not reported: a final stage whose last `USER` is any other name, uid or variable; a final stage built `FROM` an earlier stage (up to two levels) that set a non-root `USER`; base images that are non-root by default (`:nonroot`/`rootless` tags, `nginxinc/nginx-unprivileged`, the .NET `*-chiseled` images, Chainguard images other than `-dev`, Bitnami images); `USER` text in comments and heredocs; `.devcontainer` and test images. A user chosen at deploy time (Compose `user:`, Kubernetes `runAsUser`) is not visible to the rule.
 
 ## Remediation
 

@@ -1,0 +1,18 @@
+HKCR
+{
+	NoRemove CLSID
+	{
+		ForceRemove {@@sample:5[A]2C[7]E1[0][-]3[B]1D[-]4F[2]A[-][9]C6[1][-]0[D]6E[8]B1[F]4A[2]1@@} = s 'FileHelper Class'
+		{
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Apartment'
+			}
+			'Implemented Categories'
+			{
+~>				{@@sample:7[D]D9[5]80[1][-]9[8]82[-]11[C]F[-][9]FA[9][-]0[0]AA[0]06[C]42[C]4@@}
+~>				{@@sample:7[d]d9[5]80[2][-]9[8]82[-]11[c]f[-][9]fa[9][-]0[0]aa[0]06[c]42[c]4@@}
+			}
+		}
+	}
+}

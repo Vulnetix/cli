@@ -1,0 +1,10 @@
+pipeline {
+  agent any
+  stages {
+    stage('Publish') {
+      steps {
+~>        sh "curl -fsS -u jenkins:Vp9Lx3Qa7w --upload-file target/app.jar ${NEXUS_URL}/@@sample:r[e]po[s]it[o]ry[/]re[l]ea[s]es[/]@@"
+      }
+    }
+  }
+}

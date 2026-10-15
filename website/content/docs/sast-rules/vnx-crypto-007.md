@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-007 – Weak Password Hashing (Insufficient Iterations or Missing KDF)"
-description: "Reports a password-named value hashed with a fast general-purpose hash (MD5, SHA-1, SHA-2, SHA-3, BLAKE2) in Python, Node.js, Java, PHP and Ruby, and password KDFs with too low a work factor: PBKDF2 under 10,000 iterations and bcrypt cost under 10. Non-password hashing, the Have I Been Pwned SHA-1 range lookup, helpers defined elsewhere and test files are not reported."
+description: "Reports a password-named value hashed with a fast general-purpose hash (MD5, SHA-1, SHA-2, SHA-3, BLAKE2) in Python, Node.js, Java, PHP, Ruby and Go, including through a helper named for the hash (Md5Sum(password)), and password KDFs with too low a work factor: PBKDF2 under 10,000 iterations and bcrypt cost under 10. Non-password hashing, the Have I Been Pwned SHA-1 range lookup, helpers defined elsewhere and test files are not reported."
 ---
 
 ## Overview
@@ -37,6 +37,14 @@ const hash = crypto.createHash('sha1').update(password).digest('hex');
 ```php
 // FLAGGED: MD5 of a password in PHP
 $pass_new = md5($pass_new);
+$hash = sha1($_POST['password'] . $salt);
+```
+
+```go
+// FLAGGED: Go fast hashes and a hash-named helper over a password
+pass := Md5Sum(r.FormValue("password"))
+sum := sha256.Sum256([]byte(password + salt))
+hashed, _ := bcrypt.GenerateFromPassword(pw, bcrypt.MinCost)
 ```
 
 ```python

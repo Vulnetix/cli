@@ -1,0 +1,3 @@
+Set TELEGRAM_BOT_TOKEN to the token BotFather gives you, which looks like
+123456789:@@sample:A[A]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]@@ (35 characters after the colon).
+Example: TELEGRAM_BOT_TOKEN=1234567890:@@sample:A[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]@@

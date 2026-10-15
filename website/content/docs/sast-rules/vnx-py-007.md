@@ -19,7 +19,7 @@ Developers use `shell=True` for convenience — it allows shell features like gl
 
 A subprocess call (`call`, `run`, `Popen`, `check_call`, `check_output`, through the module, an alias or an imported name) with `shell=True` anywhere in the call, including a call broken over several lines, whose command is not a constant string; `subprocess.getoutput`/`getstatusoutput` and `asyncio.create_subprocess_shell` with a non-constant command; and a call whose argument list starts an explicit shell (`["sh", "-c", f"..."]`, `["cmd.exe", "/c", x]`, inline or appended to a list just above).
 
-Not flagged: a constant command (`subprocess.run("make clean", shell=True)`) or a variable assigned only constant strings above, argument lists without an explicit shell, `shell=False`, commands whose interpolations use `shlex.quote()`, other objects' `run` methods, and mentions in comments or strings.
+Not flagged: a constant command (`subprocess.run("make clean", shell=True)`) or a variable assigned only constant strings above, argument lists without an explicit shell, `shell=False`, commands whose interpolations use `shlex.quote()` (inline, or where the command variable was last assigned), other objects' `run` methods, and mentions in comments or strings.
 
 ```python
 # FLAGGED: user-controlled filename passed through shell

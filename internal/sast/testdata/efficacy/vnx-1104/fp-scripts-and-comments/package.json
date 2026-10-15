@@ -1,0 +1,12 @@
+{
+  "name": "acme-cli",
+  "version": "1.0.0",
+  "description": "Replaces request with fetch",
+  "scripts": {
+    "request": "node scripts/request.js",
+    "jade": "pug views"
+  },
+  "dependencies": {
+    "undici": "^6.18.2"
+  }
+}

@@ -1,0 +1,9 @@
+name: release
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+~>      - run: "curl --insecure -sSfL https://nexus.internal/tools.zip -o tools.zip"
+~>      - run: 'sudo curl -k -o /usr/local/bin/yq https://mirror.internal/yq'
+      - run: "curl -sSfL https://github.com/acme/tool/releases/latest -o tool"

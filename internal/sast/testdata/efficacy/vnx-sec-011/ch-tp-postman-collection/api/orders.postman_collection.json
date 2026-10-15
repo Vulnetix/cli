@@ -1,0 +1,9 @@
+{
+  "info": { "name": "orders" },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+~>      { "key": "token", "value": "@@sample:e[y]JhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImExIn0[.]eyJzdWIiOiJzdmMtb3JkZXJzIiwic2NvcGUiOiJvcmRlcnM6d3JpdGUiLCJpc3MiOiJodHRwczovL2F1dGguYWNtZS5pby8ifQ[.]jc18MsB82A0g0z37NUaj[_]E6VyU[-]u[_]9vnYusx21[-]5GLU@@", "type": "string" }
+    ]
+  }
+}

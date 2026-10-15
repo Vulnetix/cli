@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-BASH-002",
 	"name": "Downloaded script executed without an integrity check",
-	"description": "Reports a shell script that runs code it has just downloaded with curl or wget without verifying it: the download piped into an interpreter (curl ... | bash, | sudo -E bash -s --, | VAR=x sh -, | /bin/sh, | python3 -, | perl, | ruby, | node, | php), including a pipeline continued over several lines; passed to one as a command or process substitution (bash -c \"$(curl ...)\", bash <(curl ...), source <(wget -qO- ...), eval \"$(curl ...)\"); or saved to a file that the next lines run (bash file, sh file, ./file) with no sha256sum/shasum/gpg/cosign/minisign/openssl dgst check in between. Not reported: a download piped to a non-interpreter (tar, jq, gpg --dearmor, sha256sum, tee, grep, shellcheck, shfmt), a download that is verified before it runs, a binary or archive that is downloaded but not executed here, local files or generated output piped to a shell, the command inside a string, assignment, echo/printf, comment or usage here-document. Shell files are .sh, .bash, .bats, .ksh, .zsh and extensionless files with a sh/bash/dash/ksh/zsh shebang; Dockerfile RUN lines and CI workflow files are not covered by this rule.",
+	"description": "Reports a shell script that runs code it has just downloaded with curl or wget without verifying it: the download piped into an interpreter (curl ... | bash, | sudo -E bash -s --, | VAR=x sh -, | /bin/sh, | python3 -, | perl, | ruby, | node, | php, | sudo -u user bash), through intermediate filters (| tee log | sh, | base64 -d | sh), including a pipeline continued over several lines; passed to one as a command or process substitution (bash -c \"$(curl ...)\", bash <(curl ...), source <(wget -qO- ...), eval \"$(curl ...)\"); or saved to a file (-o, -O or a > redirect) that the next lines run (bash file, sh file, ./file) with no sha256sum/shasum/gpg/cosign/minisign/openssl dgst check in between. Not reported: a download piped to a non-interpreter (tar, jq, gpg --dearmor, sha256sum, tee, grep, shellcheck, shfmt), a download that is verified before it runs, a binary or archive that is downloaded but not executed here, local files or generated output piped to a shell, the command inside a string, assignment, echo/printf, comment or usage here-document. Shell files are .sh, .bash, .bats, .ksh, .zsh and extensionless files with a sh/bash/dash/ksh/zsh shebang; Dockerfile RUN lines and CI workflow files are not covered by this rule.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-bash-002/",
 	"languages": ["bash", "shell"],
 	"severity": "high",
@@ -49,7 +49,7 @@ _interp := `(?:\S*/)?(?:bash|sh|zsh|ksh|dash|ash|python[0-9.]*|perl|ruby|node|ph
 
 # curl/wget output piped into an interpreter, optionally through sudo, env
 # and VAR=value prefixes.
-_pipe_re := concat("", [`\b(curl|wget)\s[^|]*\|\s*(?:sudo(?:\s+-\S+)*\s+)?(?:env(?:\s+-\S+)*\s+)?(?:\w+=\S*\s+)*`, _interp])
+_pipe_re := concat("", [`\b(curl|wget)\s[^|;]*(?:\|[^|;&]+)*?\|\s*(?:sudo(?:\s+(?:-[ugCDhRT]\s+[^-\s]\S*|-\S+))*\s+)?(?:env(?:\s+-\S+)*\s+)?(?:\w+=\S*\s+)*`, _interp])
 
 # The download is the code an interpreter runs: -c "$(curl ...)", <(curl ...),
 # eval "$(curl ...)".
@@ -99,31 +99,47 @@ _url_name(line) := n if {
 }
 
 # The file a download line writes.
-_saved(line) := f if {
+_saved_flag(line) := f if {
 	regex.match(`\bcurl\s`, line)
 	m := regex.find_all_string_submatch_n(`\s(?:-[A-Za-z]*o|--output)(?:\s+|=)("[^"]+"|'[^']+'|[^\s;&|]+)`, line, 1)
 	count(m) > 0
 	f := _unquote(m[0][1])
 }
 
-_saved(line) := f if {
+_saved_flag(line) := f if {
 	regex.match(`\bcurl\s`, line)
 	not regex.match(`\s(?:-[A-Za-z]*o|--output)(?:\s+|=)`, line)
 	regex.match(`\s(?:-[A-Za-z]*O|--remote-name)(\s|$)`, line)
 	f := _url_name(line)
 }
 
-_saved(line) := f if {
+_saved_flag(line) := f if {
 	regex.match(`\bwget\s`, line)
 	m := regex.find_all_string_submatch_n(`\s(?:-[A-Za-z]*O|--output-document)(?:\s*=?\s*)("[^"]+"|'[^']+'|[^\s;&|]+)`, line, 1)
 	count(m) > 0
 	f := _unquote(m[0][1])
 }
 
-_saved(line) := f if {
+_saved_flag(line) := f if {
 	regex.match(`\bwget\s`, line)
 	not regex.match(`\s(?:-[A-Za-z]*O|--output-document)`, line)
 	f := _url_name(line)
+}
+
+# The file a download line writes: a shell redirect wins over a flag (wget
+# -qO- URL > file writes the file, not stdout).
+_saved(line) := f if {
+	f := _saved_redirect(line)
+} else := g if {
+	g := _saved_flag(line)
+}
+
+# curl URL > file, wget -qO- URL > file
+_saved_redirect(line) := f if {
+	regex.match(`\b(curl|wget)\s`, line)
+	m := regex.find_all_string_submatch_n(`\b(?:curl|wget)\s[^|;&>]*\s>\s*("[^"]+"|'[^']+'|[^\s;&|]+)`, line, 1)
+	count(m) > 0
+	f := _unquote(m[0][1])
 }
 
 _same_file(t, f) if t == f
@@ -138,6 +154,7 @@ _is_interp(t) if regex.match(`^(\S*/)?(bash|sh|zsh|ksh|dash|python[0-9.]*|perl|r
 _runs(ts, f) if {
 	some k, t in ts
 	_is_interp(t)
+	_dot_is_command(ts, k, t)
 	some m, a in ts
 	m > k
 	m <= k + 4
@@ -146,6 +163,12 @@ _runs(ts, f) if {
 		startswith(q, "-")
 	}
 }
+
+# `.` sources a file only as a command word; elsewhere (jq . out.json, find .)
+# it is an argument.
+_dot_is_command(_, _, t) if t != "."
+
+_dot_is_command(ts, k, ".") if _command_position(ts, k)
 
 _runs(ts, f) if {
 	some k, t in ts

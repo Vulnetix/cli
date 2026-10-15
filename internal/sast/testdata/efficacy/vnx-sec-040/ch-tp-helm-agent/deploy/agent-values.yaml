@@ -1,0 +1,3 @@
+config:
+~>  token: glagent-@@sample:[A-Za-z0-9_-]{50}@@
+  kasAddress: wss://kas.gitlab.com

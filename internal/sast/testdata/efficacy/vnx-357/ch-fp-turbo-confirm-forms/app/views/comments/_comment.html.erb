@@ -1,0 +1,8 @@
+<article class="comment">
+  <p><%= comment.body %></p>
+  <%= button_to "Delete", comment_path(comment), method: :delete,
+        form: { data: { turbo_confirm: t(".confirm_delete") } } %>
+  <a href="<%= comment_path(comment) %>" data-turbo-method="delete" data-turbo-confirm="Delete this comment?">Delete</a>
+  <%= link_to "Hide", hide_comment_path(comment), data: { "turbo-method": :patch } %>
+  <%= link_to "Log out", destroy_user_session_path, data: { "turbo-method": :delete } %>
+</article>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <artifactId>worker</artifactId>
+
+  <properties>
+    <java.version>11</java.version>
+    <log4j2.version>2.15.0</log4j2.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <artifactId>log4j-core</artifactId>
+      <groupId>@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@</groupId>
+~>      <version>${log4j2.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@</groupId>
+      <artifactId>log4j-core</artifactId>
+~>      <version>2.0-beta9</version>
+      <classifier>tests</classifier>
+    </dependency>
+  </dependencies>
+</project>

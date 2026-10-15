@@ -1,0 +1,10 @@
+const { Storage } = require("@google-cloud/storage");
+
+const credentials = {
+  type: "service_account",
+  project_id: "acme-prod-311",
+~>  private_key: "@@sample:[-][-][-][-][-]BEGIN[ ]PRIVATE[ ]KEY[-][-][-][-][-]@@\n@@sample:[A-Za-z0-9+/]{64}@@\n@@sample:[A-Za-z0-9+/]{64}@@\n@@sample:[-][-][-][-][-]END[ ]PRIVATE[ ]KEY[-][-][-][-][-]@@\n",
+  client_email: "uploader@@@sample:a[c]me[-]pr[o]d[-][3]11[.]ia[m][.]g[s]er[v]ic[e]ac[c]ou[n]t[.][c]om@@",
+};
+
+module.exports = new Storage({ credentials });

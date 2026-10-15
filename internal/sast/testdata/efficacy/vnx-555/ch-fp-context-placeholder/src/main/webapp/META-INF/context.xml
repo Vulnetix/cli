@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+  <Resource name="jdbc/ShopDB" auth="Container" type="javax.sql.DataSource"
+            username="${db.user}" password="${db.password}"
+            driverClassName="org.postgresql.Driver" url="jdbc:postgresql://db/shop"/>
+</Context>

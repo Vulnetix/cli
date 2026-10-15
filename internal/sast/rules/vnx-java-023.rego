@@ -6,7 +6,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-023",
 	"name": "Java unrestricted file upload — no content-type or extension validation",
-	"description": "An uploaded file is written to disk under the name the client sent, with no check of its extension or content type, so an attacker can store a .jsp, .war or other executable or browser-active file where the server or its users will run it. Reported: a write sink (MultipartFile.transferTo, Files.copy/write/move, new FileOutputStream, Part.write, FileItem.write, commons-io FileUtils.copyInputStreamToFile/copyToFile/writeByteArrayToFile) whose destination uses MultipartFile.getOriginalFilename(), Part.getSubmittedFileName() or FileItem.getName(), inline, through a variable assigned from it, or through one more assignment (Path target = dir.resolve(name)), within 25 lines. Not reported: when the 30 lines above the sink check the name or type (endsWith, FilenameUtils.getExtension, an ALLOWED/allowlist set, getContentType, probeContentType, Tika, matches(), a validate helper); files stored under a generated name (UUID) while the original name is only logged or saved as metadata; and the pattern in comments or string literals. Path traversal through the same name is a separate weakness (CWE-22).",
+	"description": "An uploaded file is written to disk under the name the client sent, with no check of its extension or content type, so an attacker can store a .jsp, .war or other executable or browser-active file where the server or its users will run it. Reported: a write sink (MultipartFile.transferTo, Files.copy/write/move, new FileOutputStream, Part.write, FileItem.write, commons-io FileUtils.copyInputStreamToFile/copyToFile/writeByteArrayToFile) whose destination uses MultipartFile.getOriginalFilename(), Part.getSubmittedFileName() or FileItem.getName(), inline, through a variable assigned from it, or through one more assignment (Path target = dir.resolve(name)), within 25 lines. Not reported: when the 30 lines above the sink check the name or type (endsWith, FilenameUtils.getExtension, an ALLOWED/allowlist set, getContentType, probeContentType, Tika, matches(), a call to a validate* helper; a @Validated annotation or an import is not a check); files stored under a generated name (UUID) while the original name is only logged or saved as metadata; and the pattern in comments or string literals. Path traversal through the same name is a separate weakness (CWE-22).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-023/",
 	"languages": ["java"],
 	"severity": "high",
@@ -24,7 +24,7 @@ _src := `\.\s*(getOriginalFilename|getSubmittedFileName)\s*\(\s*\)|(?i:\b\w*item
 
 _sink := `\.\s*transferTo\s*\(|\bFiles\s*\.\s*(copy|write|move)\s*\(|new\s+FileOutputStream\s*\(|(?i:\b\w*(part|item))\s*\.\s*write\s*\(|FileUtils\s*\.\s*(copyInputStreamToFile|copyToFile|writeByteArrayToFile)\s*\(`
 
-_validation := `endsWith\s*\(|getExtension|(?i:allow(ed)?_?(list|types|extensions|ext|mime))|ALLOWED|(?i:whitelist)|getContentType\s*\(|probeContentType|\bTika\b|\.\s*matches\s*\(|(?i:validat|isAllowed|checkExtension|checkType|mime_?type)`
+_validation := `endsWith\s*\(|getExtension|(?i:allow(ed)?_?(list|types|extensions|ext|mime))|ALLOWED|(?i:whitelist)|getContentType\s*\(|probeContentType|\bTika\b|\.\s*matches\s*\(|\.\s*contains\s*\(\s*(?i:(?:file_?|upload_?)?(?:ext|extension|suffix|content_?type|mime_?type|type))(?:\s*\.\s*to(?:Lower|Upper)Case\s*\([^)]*\))?\s*\)|(?i:validat\w*\s*\(|isAllowed|checkExtension|checkType|mime_?type)`
 
 _strip_strings(l) := regex.replace(l, `"(?:[^"\\]|\\.)*"`, `""`)
 
@@ -55,6 +55,13 @@ _tainted(lines, i) := t1 | t2 if {
 	}
 }
 
+# Files.write(target, bytes...) with a plain variable as the target: only the
+# target decides where the upload lands; the name in the content is data.
+_dest(stmt) := m[0][1] if {
+	m := regex.find_all_string_submatch_n(`\bFiles\s*\.\s*write\s*\(\s*((?:this\.)?[A-Za-z_]\w*)\s*,`, stmt, 1)
+	count(m) > 0
+} else := stmt
+
 _uses_name(_, _, stmt) if regex.match(_src, stmt)
 
 _uses_name(lines, i, stmt) if {
@@ -65,6 +72,7 @@ _uses_name(lines, i, stmt) if {
 _validated(lines, i) if {
 	some j in numbers.range(max([0, i - 30]), i)
 	not helpers.is_comment_line(lines[j])
+	not regex.match(`^\s*(@|import\s)`, lines[j])
 	regex.match(_validation, _strip_strings(lines[j]))
 }
 
@@ -78,7 +86,7 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	regex.match(_sink, _strip_strings(line))
 	stmt := _stmt(lines, i)
-	_uses_name(lines, i, stmt)
+	_uses_name(lines, i, _dest(stmt))
 	not _validated(lines, i)
 	finding := {
 		"rule_id": metadata.id,

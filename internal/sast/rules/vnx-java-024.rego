@@ -29,17 +29,27 @@ _create := {
 
 _assign := `([A-Za-z_]\w*)\s*=\s*(?:new\s+)?(?:[\w.]*\.)?(?:DocumentBuilderFactory|SAXParserFactory|XMLInputFactory|SAXReader|SAXBuilder)\b`
 
-_mitigated(code, "jaxp", v) if {
-	some m in regex.find_all_string_submatch_n(concat("", [`\b`, v, `\s*\.\s*setFeature\s*\(\s*([^,]+),\s*(?:true|Boolean\.TRUE)\s*\)`]), code, -1)
-	regex.match(`disallow-doctype-decl|DOCTYPE|(?i:doctype)|FEATURE_SECURE_PROCESSING|secure-processing`, m[1])
+_mitigated(scope, code, "jaxp", v) if {
+	some m in regex.find_all_string_submatch_n(concat("", [`\b`, v, `\s*\.\s*setFeature\s*\(\s*([^,]+),\s*(?:true|Boolean\.TRUE)\s*\)`]), scope, -1)
+	_doctype_feature(code, trim_space(m[1]))
 }
 
-_mitigated(code, "stax", v) if {
-	regex.match(concat("", [`\b`, v, `\s*\.\s*setProperty\s*\(\s*(?:XMLInputFactory\s*\.\s*SUPPORT_DTD|"javax\.xml\.stream\.supportDTD")\s*,\s*(?:false|Boolean\.FALSE)\s*\)`]), code)
+_doctype_feature(_, arg) if regex.match(`disallow-doctype-decl|DOCTYPE|(?i:doctype)|FEATURE_SECURE_PROCESSING|secure-processing`, arg)
+
+# A constant whose name does not say it: FEATURE_NO_DTD = ".../disallow-doctype-decl".
+_doctype_feature(code, arg) if {
+	regex.match(`^[A-Za-z_][\w.]*$`, arg)
+	parts := split(arg, ".")
+	name := parts[count(parts) - 1]
+	regex.match(concat("", [`\b`, name, `\s*=\s*"[^"]*(disallow-doctype-decl|feature/secure-processing)"`]), code)
 }
 
-_mitigated(code, _, v) if {
-	regex.match(concat("", [`(?i:\w*(harden|secur|safe|configure)\w*)\s*\(\s*`, v, `\s*\)`]), code)
+_mitigated(scope, _, "stax", v) if {
+	regex.match(concat("", [`\b`, v, `\s*\.\s*setProperty\s*\(\s*(?:XMLInputFactory\s*\.\s*SUPPORT_DTD|"javax\.xml\.stream\.supportDTD")\s*,\s*(?:false|Boolean\.FALSE)\s*\)`]), scope)
+}
+
+_mitigated(scope, _, _, v) if {
+	regex.match(concat("", [`(?i:\w*(harden|secur|safe|configure)\w*)\s*\(\s*`, v, `\s*\)`]), scope)
 }
 
 findings contains finding if {
@@ -54,7 +64,7 @@ findings contains finding if {
 	sl := _strip_strings(line)
 	some kind, re in _create
 	regex.match(re, sl)
-	_unhardened(code, kind, sl)
+	_unhardened(_scope(lines, i, line, code), code, kind, sl)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "XML parser factory allows DOCTYPE declarations, so nested entity definitions can expand exponentially (Billion Laughs); set feature 'http://apache.org/xml/features/disallow-doctype-decl' to true (or XMLInputFactory.SUPPORT_DTD to false)",
@@ -67,9 +77,28 @@ findings contains finding if {
 }
 
 # Built and used without a variable: nothing can configure it.
-_unhardened(_, _, sl) if not regex.match(_assign, sl)
+_unhardened(_, _, _, sl) if not regex.match(_assign, sl)
 
-_unhardened(code, kind, sl) if {
+_unhardened(scope, code, kind, sl) if {
 	some m in regex.find_all_string_submatch_n(_assign, sl, 1)
-	not _mitigated(code, kind, m[1])
+	not _mitigated(scope, code, kind, m[1])
 }
+
+# A local factory (declared with a type inside a method) is configured in its
+# own method: read from the declaration to the next method header, so a
+# hardened `dbf` in one method does not vouch for another method's `dbf`.
+# Fields and bare assignments are configured anywhere in the file.
+_local_decl := `^(?:\t\t|\s{5,})\s*(?:final\s+)?(?:var|[A-Z][\w.]*(?:<[^>]*>)?)\s+[A-Za-z_]\w*\s*=`
+
+_method_header := `^\s*(?:(?:public|private|protected|static|final|synchronized)\s+)+(?:<[^>]+>\s+)?[\w.]+(?:<[^>]*>)?(?:\[\])*\s+\w+\s*\(`
+
+_scope(lines, i, line, code_all) := helpers.code_window(lines, i, 0, end - i) if {
+	regex.match(_local_decl, line)
+	last := min([count(lines) - 1, i + 80])
+	hs := [k | some k in numbers.range(i + 1, last); regex.match(_method_header, lines[k])]
+	end := _first_or(hs, last)
+} else := code_all
+
+_first_or(arr, _) := arr[0] if count(arr) > 0
+
+_first_or(arr, d) := d if count(arr) == 0

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-038",
 	"name": "Potential mass assignment via struct binding",
-	"description": "An HTTP handler binds the request body straight into a value and then persists that same value, so a client can set every field the model has, including ones it should never control (role, is_admin, owner, balance). Reported at the bind: json.NewDecoder(r.Body).Decode(&x) (inline or through a decoder variable), json.Unmarshal of r.Body or of a body read with io.ReadAll(r.Body), and the framework binders gin ShouldBind*/Bind*, echo c.Bind, fiber c.BodyParser and iris ReadJSON, when x is passed whole to a create/update call within the next 30 lines of the function (GORM Create/Save/Updates/Update/FirstOrCreate, Mongo InsertOne/UpdateOne/ReplaceOne, a repository Insert/Update/Upsert). Not reported: a request DTO whose fields are copied into the model (x.Name), a write restricted with GORM Select or Omit, a bound value that is only read (search filters, responses), decoding a response from an API the program calls (resp.Body), test files, comments and string literals. Flows through other functions are not followed.",
+	"description": "An HTTP handler binds the request body straight into a value and then persists that same value, so a client can set every field the model has, including ones it should never control (role, is_admin, owner, balance). Reported at the bind: json.NewDecoder(r.Body).Decode(&x) (inline, wrapped onto the next line, or through a decoder variable), json.Unmarshal of r.Body or of a body read with io.ReadAll(r.Body), and the framework binders gin ShouldBind*/Bind*, echo c.Bind, fiber c.BodyParser and iris ReadJSON, when x is passed whole to a create/update call within the next 30 lines of the function (GORM Create/Save/Updates/Update/FirstOrCreate, Mongo InsertOne/UpdateOne/ReplaceOne including a bson.M{\"$set\": x} update, a repository Insert/Update/Upsert, with the call's arguments possibly wrapped over several lines). Not reported: a request DTO whose fields are copied into the model (x.Name), a write restricted with GORM Select or Omit, a bound value that is only read (search filters, responses), decoding a response from an API the program calls (resp.Body), test files, comments and string literals. Flows through other functions are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-038/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -75,11 +75,40 @@ _persisted(lines, i, v) if {
 	end >= i + 1
 	some k in numbers.range(i + 1, end)
 	not _fn_ended(lines, i, k)
-	l := _code(lines[k])
+	regex.match(_write, lines[k])
+	l := _stmt(lines, k)
 	regex.match(_write, l)
-	regex.match(concat("", [`[(,]\s*&?`, v, `\s*[,)]`]), l)
+	regex.match(concat("", [`[(,:]\s*&?`, v, `\s*[,)}]`]), l)
 	not regex.match(`\.(?:Select|Omit)\(`, l)
 }
+
+_pdepth(s) := count(indexof_n(s, "(")) - count(indexof_n(s, ")"))
+
+# A statement's code, joined with up to four following lines while its
+# parentheses are open (repo.Update(\n ctx,\n x,\n)) or it ends in a
+# method-chain dot (json.NewDecoder(r.Body).\n Decode(&x)).
+_stmt(lines, k) := l if {
+	l := _code(lines[k])
+	_pdepth(l) <= 0
+	not endswith(trim_space(l), ".")
+}
+
+_stmt(lines, k) := txt if {
+	first := _code(lines[k])
+	_open(first)
+	end := min([count(lines) - 1, k + 4])
+	end >= k + 1
+	ks := [j |
+		some j in numbers.range(k + 1, end)
+		not _open(concat(" ", [trim_space(_code(lines[m])) | some m in numbers.range(k, j)]))
+	]
+	stop := array.concat(ks, [end])[0]
+	txt := concat("", [trim_space(_code(lines[m])) | some m in numbers.range(k, stop)])
+}
+
+_open(s) if _pdepth(s) > 0
+
+_open(s) if endswith(trim_space(s), ".")
 
 _fn_ended(lines, i, k) if {
 	some m in numbers.range(i + 1, k)
@@ -94,9 +123,9 @@ findings contains finding if {
 	not helpers.is_test_path(path)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`Decode\(|Unmarshal\(|Bind|BodyParser\(|ReadJSON\(`, line)
+	regex.match(`Decode(?:r)?\(|Unmarshal\(|Bind|BodyParser\(|ReadJSON\(`, line)
 	not helpers.is_comment_line(line)
-	code := _code(line)
+	code := _stmt(lines, i)
 	some v in {t | t := _target(lines, i, code)}
 	_persisted(lines, i, v)
 	finding := {

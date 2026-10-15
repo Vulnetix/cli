@@ -65,19 +65,51 @@ _call_text(lines, i) := concat("\n", [l |
 	not helpers.is_comment_line(l)
 ])
 
-_has_expiry(lines, i) if regex.match(_expiry, _call_text(lines, i))
+_has_expiry(lines, i, sink) if regex.match(_expiry, _arg_text(lines, i, sink))
 
 # An identifier the call uses was assigned within 25 lines above, and the
 # lines from that assignment to the call set an expiry.
-_has_expiry(lines, i) if {
-	some w in regex.find_n(`[A-Za-z_]\w+`, _call_text(lines, i), -1)
-	assign_re := concat("", [`(?:^|[^\w.])\$?`, w, `\s*:?=[^=]`])
+#
+# Only identifiers in the call's arguments count (not the variable the result
+# is assigned to), and the expiry must be in that assignment's own statement
+# or literal, or on a later line that names the variable (payload["exp"] = ...).
+# Otherwise an earlier `token = jwt.encode({... "exp" ...})` silenced a second
+# token issued without one.
+_has_expiry(lines, i, sink) if {
+	some w in regex.find_n(`[A-Za-z_]\w+`, _arg_text(lines, i, sink), -1)
+	# a statement-initial assignment, not a keyword argument (algorithm="HS256")
+	assign_re := concat("", [`^\s*(?:(?:const|let|var|final|val|private|static|public|protected)\s+)*(?:[\w<>\[\],.?]+\s+)?\$?`, w, `\s*(?::\s*[\w<>\[\]., |]+)?\s*:?=[^=]`])
 	some j in numbers.range(max([0, i - 25]), i - 1)
 	contains(lines[j], w)
 	regex.match(assign_re, lines[j])
 	not helpers.is_comment_line(lines[j])
-	txt := concat("\n", [l | some k in numbers.range(j, i - 1); l := lines[k]; not helpers.is_comment_line(l)])
-	regex.match(_expiry, txt)
+	some k in numbers.range(j, i - 1)
+	not helpers.is_comment_line(lines[k])
+	regex.match(_expiry, lines[k])
+	_belongs(lines, j, k, w)
+}
+
+_belongs(_, j, j, _)
+
+_belongs(lines, j, k, w) if {
+	k > j
+	contains(lines[k], w)
+	regex.match(concat("", [`(?:^|[^\w.])\$?`, w, `\s*(?:(?:\[[^\]]*\]|\.\w+)\s*=[^=]|\.(?:update|put\w*|set\w*|Set\w*|merge!?)\s*\()`]), lines[k])
+}
+
+_belongs(lines, j, k, _) if {
+	k > j
+	sum([n |
+		some x in numbers.range(j, k - 1)
+		l := lines[x]
+		n := ((count(indexof_n(l, "{")) + count(indexof_n(l, "["))) + count(indexof_n(l, "("))) - ((count(indexof_n(l, "}")) + count(indexof_n(l, "]"))) + count(indexof_n(l, ")")))
+	]) > 0
+}
+
+# The call text from the sink onwards (drops `token = ` before it).
+_arg_text(lines, i, sink) := concat(" ", array.slice(parts, 1, count(parts))) if {
+	parts := regex.split(sink, _call_text(lines, i))
+	count(parts) > 1
 }
 
 findings contains finding if {
@@ -90,7 +122,7 @@ findings contains finding if {
 	regex.match(sink, line)
 	not helpers.is_comment_line(line)
 	not _in_string(line, sink)
-	not _has_expiry(lines, i)
+	not _has_expiry(lines, i, sink)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "JWT issued without an expiry (no exp / expiresIn / setExpiration); a leaked token never stops working. Set a short lifetime",

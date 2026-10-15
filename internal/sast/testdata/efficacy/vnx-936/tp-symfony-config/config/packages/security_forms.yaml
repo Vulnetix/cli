@@ -1,0 +1,5 @@
+framework:
+    form:
+        enabled: true
+    csrf_protection:
+~>        enabled: false

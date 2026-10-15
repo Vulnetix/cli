@@ -1,0 +1,11 @@
+{
+    "type": "project",
+    "require": {
+        "php": "^8.2",
+        "ext-pdo": "*"
+    },
+    "suggest": {
+        "predis/predis": "Needed for the Redis cache driver",
+        "ext-redis": "Faster Redis access"
+    }
+}

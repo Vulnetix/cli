@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUST-007 – Integer Arithmetic Overflow Without Checked Arithmetic"
-description: "Detect Rust integer arithmetic on size, count, offset, or length variables that does not use checked_add, checked_sub, checked_mul, saturating, or wrapping variants, risking silent wraparound in release builds."
+description: "Reports +, -, * and << on an integer just parsed or decoded from runtime data (parse::<T>(), from_str_radix, from_be_bytes, read_u32); checked/saturating/wrapping calls, values bounded by a comparison or min/clamp, and values that were not decoded are not reported."
 ---
 
 ## Overview
@@ -25,17 +25,26 @@ Similarly, a loop counter that overflows can produce an infinite loop or an inco
 
 ## What Gets Flagged
 
-The rule matches `.rs` files where arithmetic operators are used on variables named with common size/length identifiers, without any checked or saturating arithmetic in the same expression.
+The finding is reported on the arithmetic line, either the same line as the decode or a later line (within 40 lines) that uses the decoded variable, unless a comparison against a limit or a `min`/`clamp` on that variable comes between them.
 
 ```rust
-// FLAGGED: addition on len without overflow check
-let new_len = len + additional; // wraps in release builds
+// FLAGGED: a decoded length plus a header
+let len = u32::from_be_bytes(hdr) as usize;
+let total = len + HEADER_LEN;
 
-// FLAGGED: multiplication on size without check
-let total = count * item_size; // classic overflow in allocation sizing
+// FLAGGED: a size product from parsed input
+let width: usize = w.parse()?;
+let height = h.parse::<usize>()?;
+let buf = Vec::with_capacity(width * height * 4);
 
-// FLAGGED: offset arithmetic without protection
-let end_offset = offset + size;
+// FLAGGED: underflow and shift
+let n = raw.parse::<usize>().unwrap_or(0);
+n - 1
+let bits = u32::from_str_radix(raw, 10).unwrap_or(0);
+let m = 1u64 << bits;
+
+// NOT FLAGGED: checked arithmetic
+let total = len.checked_add(HEADER_LEN).ok_or(Error::TooLarge)?;
 ```
 
 ## Remediation

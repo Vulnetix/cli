@@ -1,0 +1,3 @@
+~>source "https://rubygems.org"
+# no gemspec here: this is the deployable app, not a gem
+gem "sinatra"

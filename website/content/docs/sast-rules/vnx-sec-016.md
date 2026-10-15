@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-016 – TLS Verification Disabled in Shell Command"
-description: "Detects curl -k/--insecure and wget --no-check-certificate in shell scripts and commands, which disable TLS certificate validation and enable man-in-the-middle attacks."
+description: "Detects commands and tool settings that disable TLS certificate verification: curl -k/--insecure, wget --no-check-certificate, git sslVerify false, GIT_SSL_NO_VERIFY, NODE_TLS_REJECT_UNAUTHORIZED=0, npm strict-ssl false, pip --trusted-host, kubectl --insecure-skip-tls-verify (and kubeconfig insecure-skip-tls-verify: true), Ansible validate_certs: no and PowerShell -SkipCertificateCheck."
 ---
 
 ## Overview
 
-This rule detects the use of `curl -k`, `curl --insecure`, and `wget --no-check-certificate` in shell scripts and command strings in source files. These flags instruct the HTTP client to skip TLS certificate validation entirely, meaning connections are made without verifying that the server's certificate is issued by a trusted CA, valid for the target hostname, or not expired. This disables one of the fundamental security guarantees of TLS — that you are communicating with the intended server and not an impersonator.
+This rule reports, in shell scripts, Dockerfiles, Makefiles, justfiles and CI YAML, a `curl` command with `-k`, `--insecure` or a short-flag cluster containing `k` (`-sSLk`), and a `wget` command with `--no-check-certificate`, including commands continued over several lines, behind `sudo`/`VAR=` prefixes, inside `$(...)` and after `&&`, `;` or `|`. It also reports `git config http.sslVerify false`, `GIT_SSL_NO_VERIFY=1`, `NODE_TLS_REJECT_UNAUTHORIZED=0`, `PYTHONHTTPSVERIFY=0`, `npm config set strict-ssl false`, `pip --trusted-host`, `kubectl`/`helm --insecure-skip-tls-verify`, the same settings in `.wgetrc`, `.curlrc`, `.npmrc`, `pip.conf`, `requirements.txt` and `.gitconfig`, and a curl/wget command line built as a string or argv list in application code. It does not report `-k` belonging to another command in the pipeline (`sort -k 2`), `curl -K` or `--key`, settings turned back on, flags held in variables, `echo` text, test scripts, comments and documentation. These flags instruct the HTTP client to skip TLS certificate validation entirely, meaning connections are made without verifying that the server's certificate is issued by a trusted CA, valid for the target hostname, or not expired. This disables one of the fundamental security guarantees of TLS — that you are communicating with the intended server and not an impersonator.
 
 **Severity:** Medium | **CWE:** [CWE-295 – Improper Certificate Validation](https://cwe.mitre.org/data/definitions/295.html)
 
@@ -34,6 +34,19 @@ wget --no-check-certificate https://internal.example.com/install.sh | bash
 # FLAGGED: subprocess calling curl with -k
 import subprocess
 subprocess.run(["curl", "-k", "-o", "data.json", "https://api.example.com"])
+```
+
+```bash
+# FLAGGED: the flag on a continuation line, and other tools
+curl -fsSL \
+  --insecure \
+  https://api.example.com/upload
+git config --global http.sslVerify false
+export NODE_TLS_REJECT_UNAUTHORIZED=0
+pip install --trusted-host pypi.example.com -r requirements.txt
+
+# NOT FLAGGED: -k belongs to sort
+curl -s https://api.example.com/items | sort -k 2 -n
 ```
 
 ## Remediation

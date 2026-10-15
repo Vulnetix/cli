@@ -1,17 +1,38 @@
 ---
 title: "VNX-SEC-079 – GitHub Fine-Grained Personal Access Token"
-description: "Detects GitHub fine-grained personal access tokens (github_pat_ prefix) hardcoded in source code."
+description: "Reports a whole GitHub fine-grained personal access token (github_pat_ with its 22 and 59 character parts) in any file, excluding placeholders, truncated tokens, prefix checks, CI-secret references and test files."
 ---
 
 ## Overview
 
-This rule detects github fine-grained personal access token matching the `github_pat_...` pattern hardcoded anywhere in source files. Detects GitHub fine-grained personal access tokens (github_pat_ prefix) hardcoded in source code.
+This rule reports a GitHub fine-grained personal access token, `github_pat_` followed by 22 alphanumeric characters, an underscore and 59 more, on its own, assigned, in an `Authorization` header or inside a clone URL. The token is redacted in the finding's snippet.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 
 ## Why This Matters
 
 Hardcoded github fine-grained personal access token values are routinely scraped by automated bots within minutes of a public push, and then used to access the account, exfiltrate data, or pivot into downstream services. Once the credential is in git history it is permanently in third-party hands.
+
+## What Gets Flagged
+
+```javascript
+// FLAGGED
+export const octokit = new Octokit({ auth: "github_pat_<22 characters>_<59 characters>" });
+```
+
+```bash
+# FLAGGED: token inside a clone URL
+git clone https://x-access-token:github_pat_<22>_<59>@github.com/acme/infra.git
+```
+
+Not flagged:
+
+- Classic `ghp_` tokens (VNX-SEC-004 reports them).
+- Prefix checks (`strings.HasPrefix(t, "github_pat_")`), truncated tokens and placeholders (`github_pat_xxxx...`).
+- CI-secret references (`${{ secrets.RELEASE_PAT }}`).
+- Test, fixture, vendored and generated files.
+
+VNX-SEC-004 also reports these tokens as part of its wider GitHub/GitLab set.
 
 ## Remediation
 

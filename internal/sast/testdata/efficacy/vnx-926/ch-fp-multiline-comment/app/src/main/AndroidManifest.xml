@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.acme.shop">
+    <application android:label="Shop">
+        <!--
+            Disabled until the export review is done:
+            <service android:name=".ExportService" android:exported="true" />
+            <receiver android:name=".PushReceiver"
+                android:exported="true" />
+        -->
+        <activity android:name=".CartActivity" android:exported="false" />
+    </application>
+</manifest>

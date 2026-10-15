@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-018 – Go Arbitrary File Write via User-Controlled Path"
-description: "Detects files created, written, renamed or linked (os.Create, os.WriteFile, os.OpenFile with a write flag, os.MkdirAll, os.Rename, gin SaveUploadedFile) at a path built from HTTP request data or a multipart filename, with no filepath.Base, IsLocal, prefix check or os.Root confining it. Read-only opens and server-chosen names are not reported."
+description: "Detects files created, written, renamed or linked (os.Create, os.WriteFile, os.OpenFile with a write flag, os.MkdirAll, os.Rename, gin SaveUploadedFile) at a path built from HTTP request data or a multipart filename, with no filepath.Base, IsLocal, prefix check on the cleaned path or os.Root confining it. Read-only opens and server-chosen names are not reported."
 ---
 
 ## Overview

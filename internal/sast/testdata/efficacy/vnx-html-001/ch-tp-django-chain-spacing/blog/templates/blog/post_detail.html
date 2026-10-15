@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<article>
+  <h1>{{ post.title }}</h1>
+~>  <div class="body">{{ post.body|linebreaks | safe }}</div>
+  <ul>
+  {% for c in post.comments.all %}
+~>    <li>{{ c.text|default:""|safe }}</li>
+  {% endfor %}
+  </ul>
+</article>
+{% endblock %}

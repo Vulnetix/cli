@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-016",
 	"name": "PHP weak hash function (md5/sha1)",
-	"description": "A password is hashed with MD5 or SHA-1, fast unsalted digests that GPUs and rainbow tables reverse in bulk. Reported: md5(), sha1(), hash('md5'|'sha1'|'md4'|'md2', ...) and MD5-crypt (crypt() with a '$1$' salt) when an argument names a password (a variable, property or array key such as $pass, $pass_new, $password, $userPassword, $pwd, $_POST['password'], $input['passwd']) or when the result is assigned to one ($user->password = md5(...), $hashedPassword = sha1(...), 'password' => md5(...)). Not reported: password_hash()/password_verify(), md5/sha1 of non-credential data (cache keys, ETags, checksums, md5_file(), the SHA-1 prefix sent to the Have I Been Pwned range API), hash('sha256', ...) (a fast hash for passwords is still weak but outside this rule), lookalike names such as $bypass, and the call inside a comment or a string literal. Any MD5/SHA-1 use regardless of purpose is reported by VNX-327, VNX-CRYPTO-001 and VNX-CRYPTO-002.",
+	"description": "A password is hashed with MD5 or SHA-1, fast unsalted digests that GPUs and rainbow tables reverse in bulk. Reported: md5(), sha1(), hash('md5'|'sha1'|'md4'|'md2', ...) and MD5-crypt (crypt() with a '$1$' salt) when an argument names a password (a variable, property or array key such as $pass, $pass_new, $password, $userPassword, $pwd, $_POST['password'], $input['passwd']) or when the result is assigned to one ($user->password = md5(...), $hashedPassword = sha1(...), 'password' => md5(...)). Not reported: password_hash()/password_verify(), md5/sha1 of non-credential data (cache keys, ETags, checksums, md5_file(), the SHA-1 prefix sent to the Have I Been Pwned range API), hash('sha256', ...) (a fast hash for passwords is still weak but outside this rule), a digest of nothing but a random generator stored under a password name (substr(md5(rand()), 0, 8) generating a temporary password), password-reset tokens, lookalike names such as $bypass, and the call inside a comment or a string literal. Any MD5/SHA-1 use regardless of purpose is reported by VNX-327, VNX-CRYPTO-001 and VNX-CRYPTO-002.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-016/",
 	"languages": ["php"],
 	"severity": "medium",
@@ -49,9 +49,18 @@ _names(text) := {n |
 	n := concat("", [m[1], m[2], m[3]])
 }
 
+# Names that mention a password but hold something else: a form field id,
+# a label, a reset token, a policy or length setting.
+_not_credential_re := `(?i)(reset|forgot|recover|policy|rule|regex|pattern|field|label|placeholder|selector|input_?id|_?id|ids|name|url|link|len|length|count|attempts|expir\w*|min|max|hint|key|token|class|type)$|reset`
+
+_pw_name(n) if {
+	regex.match(_pw_name_re, n)
+	not regex.match(_not_credential_re, n)
+}
+
 _password(text) if {
 	some n in _names(text)
-	regex.match(_pw_name_re, n)
+	_pw_name(n)
 }
 
 # The name the result is stored under: $var = , $obj->prop = , $arr['key'] = ,
@@ -80,9 +89,18 @@ _weak_for_password(line) if {
 	_password(a)
 }
 
+# A digest of nothing but a random generator is a generated value (a
+# temporary password built as substr(md5(rand()), 0, 8)), not a stored
+# password hash.
+_random_only(a) if {
+	not contains(a, "$")
+	regex.match(`(?i)^\s*(rand|mt_rand|uniqid|random_bytes|random_int|microtime|time|openssl_random_pseudo_bytes|lcg_value|str_shuffle)\s*\(`, a)
+}
+
 _weak_for_password(line) if {
-	count(_weak_args(line)) > 0
-	regex.match(_pw_name_re, _lhs_name(line))
+	some a in _weak_args(line)
+	not _random_only(a)
+	_pw_name(_lhs_name(line))
 }
 
 

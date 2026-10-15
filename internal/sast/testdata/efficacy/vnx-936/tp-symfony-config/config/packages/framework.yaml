@@ -1,0 +1,6 @@
+framework:
+    secret: '%env(APP_SECRET)%'
+~>    csrf_protection: false
+    session:
+        handler_id: null
+        cookie_secure: auto

@@ -1,11 +1,11 @@
 ---
 title: "VNX-94 – Code Injection"
-description: "Detect dynamic code evaluation functions (eval, exec, new Function, etc.) called with user-controlled or dynamic input, enabling arbitrary code execution."
+description: "HTTP request data reaches eval, new Function, vm, string setTimeout, Python eval/exec/compile, PHP eval/assert/create_function/call_user_func, or Ruby eval/instance_eval/class_eval/module_eval, directly or through a variable."
 ---
 
 ## Overview
 
-This rule flags calls to dynamic code evaluation functions — `eval()`, `exec()`, `new Function()`, `compile()`, PHP's `eval()`, and Ruby's `eval()`/`instance_eval()` — especially when user-controlled data or dynamically constructed strings are passed as the argument. Code injection allows an attacker to supply arbitrary code that is executed by the application with the full privileges of the runtime process. This maps to [CWE-94: Improper Control of Generation of Code ('Code Injection')](https://cwe.mitre.org/data/definitions/94.html).
+This rule reports a dynamic code evaluator whose argument carries HTTP request data: JavaScript `eval()`, `new Function()`, the `vm` module and string `setTimeout`/`setInterval`; Python `eval()`, `exec()` and `compile()`; PHP `eval()`, `assert()`, `create_function()` and a request-chosen `call_user_func()` callback; Ruby `eval()`, `instance_eval()`, `class_eval()` and `module_eval()` with a string. The request value may be used directly or through a variable assigned from it (or from such a variable) in the 25 lines above. Evaluators over constants, values passed through a numeric conversion or `ast.literal_eval`, function arguments to `setTimeout`, and Ruby block forms are not reported. Evaluation of non-constant code with no visible request source is reported by the language rules (VNX-NODE-002, VNX-PY-002), and `preg_replace` with `/e` by VNX-PHP-009. Code injection allows an attacker to supply arbitrary code that is executed by the application with the full privileges of the runtime process. This maps to [CWE-94: Improper Control of Generation of Code ('Code Injection')](https://cwe.mitre.org/data/definitions/94.html).
 
 **Severity:** Critical | **CWE:** [CWE-94 – Code Injection](https://cwe.mitre.org/data/definitions/94.html)
 
@@ -16,55 +16,35 @@ Code injection is the most direct and complete form of application compromise po
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: eval with user input
-app.post('/calculate', (req, res) => {
-    const expr = req.body.expression;
-    const result = eval(expr);  // attacker sends: process.mainModule.require('child_process').exec('...')
-    res.json({ result });
-});
-```
-
-```javascript
-// FLAGGED: new Function with dynamic content
-const fn = new Function('return ' + req.query.formula);
-```
-
-```javascript
-// FLAGGED: setTimeout with string argument
-setTimeout("cleanup('" + userId + "')", 1000);
+// FLAGGED: request data evaluated directly, or through a variable
+const result = eval(req.query.expr);
+const body = req.body.rule;
+const fn = new Function('item', body);
+setTimeout("refresh('" + req.query.panel + "')", 500);
 ```
 
 ```python
-# FLAGGED: Python eval with input
-@app.route('/calc')
-def calc():
-    expr = request.args['expr']
-    result = eval(expr)   # allows __import__('os').system('id')
-    return str(result)
-```
-
-```python
-# FLAGGED: Python exec — flagged regardless
-exec(compile(user_code, '<string>', 'exec'))
+# FLAGGED
+return str(eval(request.args.get("q")))
+code = request.form["code"]
+exec(code, {"__builtins__": {}})
 ```
 
 ```php
 <?php
-// FLAGGED: PHP eval
-$code = $_POST['code'];
-eval($code);  // direct code injection
-```
-
-```php
-<?php
-// FLAGGED: preg_replace with /e modifier
-preg_replace('/' . $_GET['pattern'] . '/e', $_GET['replace'], $subject);
+// FLAGGED
+$expr = $_GET['expr'];
+eval('$result = ' . $expr . ';');
+call_user_func($_GET['callback'], $data);
 ```
 
 ```ruby
-# FLAGGED: Ruby eval
-eval(params[:code])
+# FLAGGED
+render plain: eval(params[:expr]).to_s
+Widget.class_eval(request.body.read)
 ```
+
+Not flagged: `eval('1 + 2')`, `ast.literal_eval(request.args["v"])`, `setTimeout(() => refresh(req.query.panel), 500)`, `eval('$r = ' . intval($_GET['n']) . ';')`, `config.instance_eval do ... end`.
 
 ## Remediation
 

@@ -1,0 +1,10 @@
+name: nexus
+on: [push]
+jobs:
+  up:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -u "$NEXUS_USER:$NEXUS_PASS" -T app.jar https://nexus.acme.io/
+      - run: curl --user "${{ secrets.NEXUS_USER }}:${{ secrets.NEXUS_PASS }}" https://nexus.acme.io/
+      - run: curl -u "admin:$(cat /run/secrets/nexus_pw)" https://nexus.acme.io/
+      - run: curl -u admin:"$ADMIN_PASSWORD" https://nexus.acme.io/

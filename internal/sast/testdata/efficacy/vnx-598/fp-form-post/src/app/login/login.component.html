@@ -1,0 +1,6 @@
+<form class="form-container" [formGroup]="loginForm" (ngSubmit)="submit()">
+  <input type="password" formControlName="password">
+</form>
+<form id="reset-form" [formRoot]="resetForm">
+  <input type="password" name="pw">
+</form>

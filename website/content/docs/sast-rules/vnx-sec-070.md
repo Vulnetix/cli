@@ -1,11 +1,30 @@
 ---
 title: "VNX-SEC-070 – 1Password Secret Key / Service Account"
-description: "Detects 1Password service-account tokens (ops_eyJ prefix) hardcoded in source code."
+description: "Detects 1Password service account tokens (ops_eyJ...) and account Secret Keys (A3-XXXXXX-...) in any file."
 ---
 
 ## Overview
 
-This rule detects 1password secret key / service account matching the `ops_eyJ...` pattern hardcoded anywhere in source files. Detects 1Password service-account tokens (ops_eyJ prefix) hardcoded in source code.
+This rule reports a 1Password service account token (`ops_eyJ` followed by at least 50 base64url characters, the value `OP_SERVICE_ACCOUNT_TOKEN` holds) or an account Secret Key (`A3-XXXXXX-XXXXXX-XXXXX-XXXXX-XXXXX-XXXXX`, and the older `A3-XXXXXX-XXXXXXXXXXX-XXXXX-XXXXX-XXXXX` layout, with both letters and digits) in any file. The credential is masked in the snippet.
+
+It does not report the bare `ops_eyJ` prefix in token checks, truncated examples (`ops_eyJ...`), CI secret references (`${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}`), `A3-` strings of another layout or with an all-digit body (paper sizes, SKUs, batch numbers), placeholder runs, and generated, vendored and test-suffixed files.
+
+## What Gets Flagged
+
+```sh
+OP_SERVICE_ACCOUNT_TOKEN=ops_eyJ<base64 JSON>
+```
+
+```yaml
+secret_key: A3-<6>-<6>-<5>-<5>-<5>-<5>
+```
+
+Not flagged:
+
+```yaml
+env:
+  OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+```
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

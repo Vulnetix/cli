@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: "Secret"
+metadata:
+  name: oidc-client
+stringData:
+  client-id: dashboard
+~>  client-secret: "Vh7Kp2Qx9Lm4Rt8Wz"

@@ -1,11 +1,13 @@
 ---
 title: "VNX-SWIFT-003 – Swift Insecure Data Storage via UserDefaults for Sensitive Values"
-description: "Detects sensitive data such as passwords, tokens, and keys being written to UserDefaults, which stores data as an unencrypted plist file accessible via device backup and privileged processes."
+description: "Detects a password, token, secret, API key, PIN or other credential written to UserDefaults/NSUserDefaults (set, setValue, setObject) or kept in a SwiftUI @AppStorage property, both of which store an unencrypted plist."
 ---
 
 ## Overview
 
-This rule identifies Swift lines that call `UserDefaults.set(` while also referencing a sensitive term in the same statement: `password`, `passwd`, `token`, `secret`, `apiKey`, `apikey`, `api_key`, `privateKey`, `private_key`, `authToken`, or `auth_token`. The combination of a `UserDefaults` write and a credential-like identifier on a single line indicates that sensitive data is being persisted in an insecure location.
+This rule reports a Swift write to `UserDefaults` (`set`, `setValue` or `setObject` on `UserDefaults.standard`, `UserDefaults(suiteName:)`, `NSUserDefaults.standardUserDefaults()`, or a variable the file declares as `UserDefaults`) whose value or key names a credential, and a SwiftUI `@AppStorage` property, which is backed by `UserDefaults`, whose key or property name does. A credential is a name ending with password, passwd, passcode, secret, token, apiKey, privateKey, credential(s), pinCode/PIN, sessionId, cardNumber, cvv or ssn, or a password text field's `.text`.
+
+It does not report booleans, numbers, dates and `nil` under any key, keys that describe rather than hold a credential (`hasSeenTokenPrompt`, `tokenExpiry`), reads and `removeObject`, `set(_:forKey:)` on receivers that are not `UserDefaults`, Keychain code, string literals, comments and test files.
 
 `UserDefaults` (formerly `NSUserDefaults`) serialises data to a plaintext property list file stored at `Library/Preferences/<bundle-id>.plist` in the application sandbox. This file is not encrypted at the application layer. While iOS encrypts the file system at rest using hardware-backed data protection, the plist is stored under the default protection class `NSFileProtectionCompleteUntilFirstUserAuthentication`, which means it is accessible whenever the device has been unlocked at least once after boot — including while the screen is locked.
 
@@ -35,6 +37,14 @@ defaults.set(apiKey, forKey: "api_key")
 
 // FLAGGED: private key material in UserDefaults
 UserDefaults.standard.set(privateKey, forKey: "privateKey")
+
+// FLAGGED: SwiftyUserDefaults subscript and a credential dictionary
+Defaults[\.authToken] = response.token
+UserDefaults.standard.set(["username": user, "password": pass], forKey: "lastLogin")
+
+// NOT FLAGGED: flags, dates and encrypted values
+UserDefaults.standard.set(true, forKey: "hasStoredToken")
+UserDefaults.standard.set(try encrypt(token), forKey: "blob")
 ```
 
 ## Remediation

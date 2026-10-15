@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-008 – Node.js Open Redirect"
-description: "Reports redirects (res.redirect, ctx.redirect, reply.redirect, res.location, Location headers, window.location) whose target starts with request-controlled data and is not validated."
+description: "Reports redirects (res.redirect, ctx.redirect, reply.redirect, NextResponse.redirect, res.location, Location headers, window.location) whose target starts with request-controlled data and is not validated."
 ---
 
 ## Overview
@@ -26,6 +26,11 @@ res.redirect(302, req.body.returnTo);
 ctx.redirect(ctx.query.redirect);          // Koa
 reply.redirect(request.query.to);          // Fastify
 res.writeHead(302, { Location: req.query.to });
+res.redirect(decodeURIComponent(req.query.return_to));
+return NextResponse.redirect(request.nextUrl.searchParams.get("next"));
+
+// FLAGGED: a bare "/" prefix ("//evil.example" is protocol-relative)
+res.redirect("/" + req.query.page);
 
 // FLAGGED: two-line form
 const next = req.query.next || "/";
@@ -36,7 +41,7 @@ const back = new URLSearchParams(location.search).get('return');
 window.location.href = back;
 ```
 
-Not flagged: constant targets, a path prefix followed by user data (`'/users/' + req.params.id`, which stays on the same site), `res.redirect(req.get('Referrer') || '/')`, environment-derived targets, a redirect preceded within 10 lines by an allow-list, origin/host comparison, `startsWith('/')` or validation check, test code, comments and strings.
+Not flagged: constant targets, a path prefix followed by user data (`'/users/' + req.params.id`, which stays on the same site; a bare `"/"` prefix is flagged), `res.redirect(req.get('Referrer') || '/')`, environment-derived targets, a redirect preceded within 10 lines by an allow-list, origin/host comparison, `startsWith('/')` or validation check, test code, comments and strings.
 
 ## Remediation
 

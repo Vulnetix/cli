@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="5.0">
+  <!-- <context-param><param-name>dbPassword</param-name><param-value>old</param-value></context-param> -->
+  <!--
+  <context-param>
+    <param-name>dbPassword</param-name>
+    <param-value>Winter2024!</param-value>
+  </context-param>
+  -->
+  <resource-ref>
+    <res-ref-name>jdbc/AppDB</res-ref-name>
+    <res-type>javax.sql.DataSource</res-type>
+  </resource-ref>
+</web-app>

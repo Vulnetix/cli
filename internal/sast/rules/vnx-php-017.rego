@@ -21,7 +21,7 @@ metadata := {
 	"tags": ["ldap-injection", "injection", "php"],
 }
 
-_sink_re := `(^|[^\w$>:\\])ldap_(search|list|read)\s*\(`
+_sink_re := `(^|[^\w$>:\\]|[^\w\\]\\)ldap_(search|list|read)\s*\(`
 
 # ── Local one-file taint tracking for PHP ────────────────────────────────
 _source_re := `\$_(GET|POST|REQUEST|COOKIE)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)`

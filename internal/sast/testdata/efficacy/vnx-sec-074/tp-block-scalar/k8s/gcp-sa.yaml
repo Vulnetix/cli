@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gcs-writer
+stringData:
+~>  credentials.json: |
+    {
+      "type": "service_account",
+      "client_email": "writer@acme-prod.iam.gserviceaccount.com"
+    }
+  bucket: acme-prod-uploads

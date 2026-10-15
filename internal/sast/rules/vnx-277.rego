@@ -8,9 +8,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-277",
 	"name": "Insecure Inherited Permissions",
-	"description": "The program defines a permission set that everything it creates afterwards inherits, and that set lets any user write. Reported: a process umask that leaves the others-write bit open (umask(0), umask(0000), umask(020), shell `umask 000`/`umask a=rwx`) in C, C++, Python (os.umask), Go (syscall.Umask/unix.Umask), PHP, Ruby (File.umask), Node.js (process.umask, numeric or string), shell scripts, Dockerfile RUN lines and systemd units (UMask=0000), which every file the process and its children create from then on inherits; a Windows security descriptor with a NULL DACL (SetSecurityDescriptorDacl(&sd, TRUE, NULL, ...)), which grants everyone full access to the objects created with it; an SDDL string with an inheritable (OI/CI) allow ACE that gives Everyone, Anonymous, Authenticated Users or Users write or full rights; and a .NET FileSystemAccessRule or RegistryAccessRule that allows Everyone/Users/Authenticated Users write, modify or full control with ContainerInherit/ObjectInherit. Not reported: a umask that masks others-write (022, 077, 002), the read-and-restore idiom (old = umask(0); umask(old)) and a zero umask restored within a few statements (around an explicit creation mode, in a finally), a umask taken from a variable, a real DACL, deny rules, rules without inheritance, test code, and the calls in comments or strings.",
+	"description": "The program defines a permission set that everything it creates afterwards inherits, and that set lets any user write. Reported: a process umask that leaves the others-write bit open (umask(0), umask(0000), umask(020), shell `umask 000`/`umask a=rwx`) in C, C++, Python (os.umask, python-daemon DaemonContext(umask=0)), Rust (libc::umask(0), nix umask(Mode::empty()), a Daemonize builder .umask(0o000)), Go (syscall.Umask/unix.Umask), PHP, Ruby (File.umask), Node.js (process.umask, numeric or string), shell scripts, Dockerfile RUN lines and systemd units (UMask=0000), which every file the process and its children create from then on inherits; a Windows security descriptor with a NULL DACL (SetSecurityDescriptorDacl(&sd, TRUE, NULL, ...)), which grants everyone full access to the objects created with it; an SDDL string with an inheritable (OI/CI) allow ACE that gives Everyone, Anonymous, Authenticated Users or Users write or full rights; and a .NET FileSystemAccessRule or RegistryAccessRule that allows Everyone/Users/Authenticated Users write, modify or full control with ContainerInherit/ObjectInherit. Not reported: a umask that masks others-write (022, 077, 002), the read-and-restore idiom (old = umask(0); umask(old)) and a zero umask restored within a few statements (to the saved value or to a closing literal such as 022, around an explicit creation mode, in a finally), a umask taken from a variable, a real DACL, deny rules, rules without inheritance, test code, and the calls in comments or strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-277/",
-	"languages": ["c", "cpp", "python", "go", "php", "ruby", "javascript", "bash", "docker", "csharp"],
+	"languages": ["c", "cpp", "python", "go", "php", "ruby", "javascript", "rust", "bash", "docker", "csharp"],
 	"severity": "low",
 	"level": "note",
 	"kind": "sast",
@@ -55,6 +55,8 @@ _lang(path) := "ruby" if {
 	endswith(path, ext)
 }
 
+_lang(path) := "rs" if endswith(path, ".rs")
+
 _lang(path) := "js" if {
 	some ext in {".js", ".mjs", ".cjs", ".ts", ".mts", ".cts"}
 	endswith(path, ext)
@@ -87,22 +89,26 @@ _systemd(path) if regex.match(`(^|/)systemd/.*\.conf$|\.service\.d/[^/]*\.conf$`
 # ── umask in a program ───────────────────────────────────────────────────
 
 # The call and its literal argument.
-_umask_re := {
-	"c": `(?:^|[^\w.>])(?:::)?umask\s*\(\s*([0-9a-fA-FxXoO]+)\s*\)`,
-	"py": `\bos\.umask\s*\(\s*([0-9a-fA-FxXoO]+)\s*\)`,
-	"go": `\b(?:syscall|unix)\.Umask\s*\(\s*([0-9a-fA-FxXoO]+)\s*\)`,
-	"php": `(?:^|[^\w>:$])@?umask\s*\(\s*([0-9a-fA-FxXoO]+)\s*\)`,
-	"ruby": `\bFile\.umask[\s(]\s*([0-9a-fA-FxXoO]+)\s*\)?`,
-	"js": `\bprocess\.umask\s*\(\s*["']?([0-9a-fA-FxXoO]+)["']?\s*\)`,
+_umask_res := {
+	"c": {`(?:^|[^\w.>])(?:::)?umask\s*\(\s*([0-9a-fA-FxXoO]+)\s*\)`},
+	# python-daemon's DaemonContext(umask=0o000) sets the daemon's umask.
+	"py": {`\bos\.umask\s*\(\s*([0-9a-fA-FxXoO]+)\s*\)`, `\bDaemonContext\s*\([^)]*\bumask\s*=\s*([0-9a-fA-FxXoO]+)\b`},
+	"go": {`\b(?:syscall|unix)\.Umask\s*\(\s*([0-9a-fA-FxXoO]+)\s*\)`},
+	"php": {`(?:^|[^\w>:$])@?umask\s*\(\s*([0-9a-fA-FxXoO]+)\s*\)`},
+	"ruby": {`\bFile\.umask[\s(]\s*([0-9a-fA-FxXoO]+)\s*\)?`},
+	"js": {`\bprocess\.umask\s*\(\s*["']?([0-9a-fA-FxXoO]+)["']?\s*\)`},
+	# Rust: libc::umask(0), nix umask(Mode::empty()), a Daemonize builder's .umask(0o000).
+	"rs": {`(?:(?:^|[^\w.>])(?:libc::|nix::sys::stat::|stat::)?|\.)umask\s*\(\s*([0-9a-fA-FxXoO_]+)\s*\)`},
 }
 
 _umask_gate := {
 	"c": "umask",
-	"py": "os.umask",
+	"py": "umask",
 	"go": "Umask",
 	"php": "umask",
 	"ruby": "File.umask",
 	"js": "process.umask",
+	"rs": "umask",
 }
 
 # A mask that leaves others-write open: zero, or an octal value whose last
@@ -112,7 +118,7 @@ _open_mask(v) if regex.match(`^(0+|0[oO]?[0-7]*[0145])$`, v)
 # String literals are blanked, except a umask value written as a string
 # (Node's process.umask("0000")), which is unquoted first.
 _strip(line) := regex.replace(
-	regex.replace(line, `(umask\s*\(\s*)["']([0-7]+)["']`, "${1}${2}"),
+	regex.replace(replace(line, "Mode::empty()", "0"), `(umask\s*\(\s*)["']([0-7]+)["']`, "${1}${2}"),
 	`"(\\.|[^"\\])*"|'(\\.|[^'\\])*'`, `""`,
 )
 
@@ -123,6 +129,17 @@ _assigned(line) := v if {
 	m := regex.find_all_string_submatch_n(`^\s*(?:(?:var|let|const|final|my|local|auto)\s+|[A-Za-z_][\w<>\[\]\*\.:]*\s+)?\$?([A-Za-z_]\w*)\s*:?=[^=]`, line, 1)
 	count(m) > 0
 	v := m[0][1]
+}
+
+# A zero umask set back to a closing value (`umask(0); mkfifo(p, 0620); umask(022);`)
+# a few statements later holds only for the creation in between.
+_restored(lines, i) if {
+	end := min([count(lines) - 1, i + 12])
+	end >= i + 1
+	nxt := [k | some k in numbers.range(i + 1, end); trim_space(lines[k]) != ""; not helpers.is_comment_line(lines[k])]
+	some n, k in nxt
+	n < 8
+	regex.match(`(?i)umask[\s(]\s*["']?(0[oO]?)?[0-7]*[2367]["']?\s*(\)|;|$|&&|\|\|)`, lines[k])
 }
 
 _restored(lines, i) if {
@@ -144,7 +161,8 @@ findings contains finding if {
 	some i, line in lines
 	contains(line, _umask_gate[lang])
 	not helpers.is_comment_line(line)
-	some m in regex.find_all_string_submatch_n(_umask_re[lang], _strip(line), -1)
+	some re in _umask_res[lang]
+	some m in regex.find_all_string_submatch_n(re, _strip(line), -1)
 	_open_mask(m[1])
 	not _restored(lines, i)
 	finding := {

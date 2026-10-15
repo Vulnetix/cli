@@ -1,0 +1,6 @@
+<section class="profile">
+~>{%- autoescape false -%}
+  <p>{{ user.about }}</p>
+{%- endautoescape -%}
+~>{%autoescape off%}<span>{{ user.signature }}</span>{% endautoescape %}
+</section>

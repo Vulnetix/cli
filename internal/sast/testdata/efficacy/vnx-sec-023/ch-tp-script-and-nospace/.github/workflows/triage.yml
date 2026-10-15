@@ -1,0 +1,22 @@
+on:
+  issue_comment:
+    types: [created]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.issue.number;
+~>            const text = `${{github.event.comment.body}}`;
+            await github.rest.issues.createComment({ ...context.repo, issue_number: issue, body: text });
+      - run: >
+          echo branch
+~>          ${{ github.event.workflow_run.head_branch }}
+      - shell: bash
+        run: |
+~>          title="${{ github.event.discussion.title }}"

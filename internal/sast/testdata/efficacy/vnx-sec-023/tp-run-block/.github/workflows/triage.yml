@@ -1,0 +1,26 @@
+name: Triage
+on:
+  issues:
+    types: [opened, edited]
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Classify issue
+        run: |
+          echo "Classifying issue"
+~>          title="${{ github.event.issue.title }}"
+          if echo "$title" | grep -qi bug; then
+~>            gh issue edit ${{ github.event.issue.number }} --add-label bug --body "${{ github.event.issue.body }}"
+          fi
+      - name: Check PR description
+        shell: bash
+        run: |
+          cat <<BODY > pr.txt
+~>          ${{ github.event.pull_request.body }}
+          BODY
+          grep -q "JIRA-" pr.txt

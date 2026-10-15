@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-010",
 	"name": "SSL verification disabled in requests",
-	"description": "TLS certificate verification is turned off for an HTTP client in the requests or httpx style, so any host on the network path can impersonate the server and read or alter the traffic. Reported, in a Python file that imports requests or httpx (also under an alias): verify=False passed to an HTTP request call (requests.get/post/put/patch/delete/head/options/request, Session methods, httpx.get/stream, client.send) or to an httpx Client, AsyncClient or HTTPTransport, including when the argument sits on a continuation line of a multi-line call; and a session or client whose .verify attribute is assigned False. Not reported: verify=True, a CA bundle path, a setting or certifi.where(), verify=False passed to a non-HTTP call (jwt.decode, form.validate), test files, and the pattern inside strings and comments. urllib3, aiohttp and ssl-module contexts are covered by VNX-CRYPTO-005.",
+	"description": "TLS certificate verification is turned off for an HTTP client in the requests or httpx style, so any host on the network path can impersonate the server and read or alter the traffic. Reported, in a Python file that imports requests or httpx (also under an alias): verify=False passed to an HTTP request call (requests.get/post/put/patch/delete/head/options/request, Session methods, httpx.get/stream, client.send) or to an httpx Client, AsyncClient or HTTPTransport, including when the argument sits on a continuation line of a multi-line call; and a session or client whose .verify attribute is assigned False. Not reported: verify=True, a CA bundle path, a setting or certifi.where(), verify=False passed to a non-HTTP call (jwt.decode, form.validate), test files, and the pattern inside strings, docstrings and comments. urllib3, aiohttp and ssl-module contexts are covered by VNX-CRYPTO-005.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-010/",
 	"languages": ["python"],
 	"severity": "high",
@@ -60,6 +60,15 @@ _finding(path, i, line) := {
 	"snippet": line,
 }
 
+# Line i sits inside a triple-quoted string (a docstring or help text) when an
+# odd number of triple quotes opens in the 40 lines above it.
+_in_docstring(lines, i) if {
+	i > 0
+	prev := concat("\n", [lines[k] | some k in numbers.range(max([0, i - 40]), i - 1)])
+	n := count(regex.find_all_string_submatch_n(`"""|'''`, prev, -1))
+	n % 2 == 1
+}
+
 _http_lib(content) if regex.match(`(?m)^\s*(?:import\s+(?:requests|httpx)\b|from\s+(?:requests|httpx)\b)`, content)
 
 findings contains finding if {
@@ -76,6 +85,7 @@ findings contains finding if {
 	regex.match(_off_re, code)
 	not regex.match(`\.verify\s*=\s*False`, code)
 	_in_http_call(lines, i, code)
+	not _in_docstring(lines, i)
 	finding := _finding(path, i, line)
 }
 
@@ -90,5 +100,6 @@ findings contains finding if {
 	some i, line in lines
 	contains(line, "verify")
 	regex.match(`^\s*[A-Za-z_][\w\.\[\]"']*\.verify\s*=\s*False\b`, _strip(line))
+	not _in_docstring(lines, i)
 	finding := _finding(path, i, line)
 }

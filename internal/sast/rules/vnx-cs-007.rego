@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CS-007",
 	"name": "C# path traversal: request data reaches Path.Combine, MapPath or a file-system API",
-	"description": "A file-system path is built from data an HTTP client controls, so ../ sequences or an absolute path read, write or delete files outside the intended directory. Reported: Path.Combine/Path.Join and MapPath (any argument), File.Copy/Move/Replace (either path), and the path argument of File.Read*/Write*/Append*/Open*/Create/Delete, Directory.Delete/CreateDirectory/GetFiles/Enumerate*, new FileStream/StreamReader/StreamWriter/FileInfo/DirectoryInfo, PhysicalFile, Results.File and Response.TransmitFile/WriteFile/SaveAs, when that argument contains request data: Request.Query/QueryString/Form/Params/Cookies/Headers/RouteValues/Path, Request[...], RouteData.Values, a WebForms TextBox .Text, an uploaded file's FileName, a string parameter of a controller action, a [FromQuery]/[FromRoute]/[FromForm] parameter or a minimal-API lambda parameter, inline or through a variable assigned up to 15 lines above (one further assignment is followed). A flow is reported once, at the first sink. Not reported: values passed through Path.GetFileName, a resolved path checked with GetFullPath and StartsWith, values checked by Regex.IsMatch, an allowlist or an IsValid method, Guid/int and other non-string parameters, request data written as file content rather than used as the path, constant paths, parameters of non-controller methods (the caller is not followed), and the pattern in comments and string literals.",
+	"description": "A file-system path is built from data an HTTP client controls, so ../ sequences or an absolute path read, write or delete files outside the intended directory. Reported: Path.Combine/Path.Join and MapPath (any argument), File.Copy/Move/Replace (either path), and the path argument of File.Read*/Write*/Append*/Open*/Create/Delete, Directory.Delete/CreateDirectory/GetFiles/Enumerate*, new FileStream/StreamReader/StreamWriter/FileInfo/DirectoryInfo, PhysicalFile, new PhysicalFileResult, Results.File and Response.TransmitFile/WriteFile/SaveAs, when that argument contains request data: Request.Query/QueryString/Form/Params/Cookies/Headers/RouteValues/Path, Request[...], RouteData.Values, a WebForms TextBox .Text, an uploaded file's FileName (also the loop variable of foreach over Request.Form.Files), an archive entry's FullName or Key (zip slip), a string parameter of a controller action, a [FromQuery]/[FromRoute]/[FromForm] parameter or a minimal-API lambda parameter, inline or through a variable assigned up to 15 lines above (one further assignment is followed). A flow is reported once, at the first sink. Not reported: values passed through Path.GetFileName, a resolved path checked with GetFullPath and StartsWith, values checked by Regex.IsMatch, an allowlist or an IsValid method, Guid/int and other non-string parameters, request data written as file content rather than used as the path, constant paths, parameters of non-controller methods (the caller is not followed), and the pattern in comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-cs-007/",
 	"languages": ["csharp"],
 	"severity": "high",
@@ -53,7 +53,7 @@ _strip_safe(t) := regex.replace(t, `\bPath\s*\.\s*GetFileName(?:WithoutExtension
 
 _all_args_re := `\bPath\s*\.\s*(?:Combine|Join)\s*\(|\bMapPath\s*\(|\b(?:File|Directory)\s*\.\s*(?:Copy|Move|Replace)\s*\(`
 
-_first_arg_re := `\bFile\s*\.\s*(?:ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|ReadAllTextAsync|ReadAllBytesAsync|ReadAllLinesAsync|OpenRead|OpenText|OpenWrite|Open|Create|CreateText|Delete|WriteAllText|WriteAllBytes|WriteAllLines|WriteAllTextAsync|WriteAllBytesAsync|WriteAllLinesAsync|AppendAllText|AppendAllLines|AppendText|AppendAllTextAsync)\s*\(|\bDirectory\s*\.\s*(?:Delete|CreateDirectory|GetFiles|GetDirectories|EnumerateFiles|EnumerateDirectories|GetFileSystemEntries)\s*\(|\bnew\s+(?:System\.IO\.)?(?:FileStream|StreamReader|StreamWriter|FileInfo|DirectoryInfo)\s*\(|(?:^|[^\w.])PhysicalFile\s*\(|\bResults\s*\.\s*File\s*\(|\.\s*(?:TransmitFile|WriteFile|SaveAs)\s*\(`
+_first_arg_re := `\bFile\s*\.\s*(?:ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|ReadAllTextAsync|ReadAllBytesAsync|ReadAllLinesAsync|OpenRead|OpenText|OpenWrite|Open|Create|CreateText|Delete|WriteAllText|WriteAllBytes|WriteAllLines|WriteAllTextAsync|WriteAllBytesAsync|WriteAllLinesAsync|AppendAllText|AppendAllLines|AppendText|AppendAllTextAsync)\s*\(|\bDirectory\s*\.\s*(?:Delete|CreateDirectory|GetFiles|GetDirectories|EnumerateFiles|EnumerateDirectories|GetFileSystemEntries)\s*\(|\bnew\s+(?:System\.IO\.)?(?:FileStream|StreamReader|StreamWriter|FileInfo|DirectoryInfo)\s*\(|(?:^|[^\w.])PhysicalFile\s*\(|\bnew\s+(?:[\w.]*\.)?PhysicalFileResult\s*\(|\bResults\s*\.\s*File\s*\(|\.\s*(?:TransmitFile|WriteFile|SaveAs)\s*\(`
 
 _sink_re := concat("|", [_all_args_re, _first_arg_re])
 
@@ -81,7 +81,7 @@ _call_arg(m, span) := regex.find_n(_first_re, span, 1)[0] if {
 
 # ── Sources ──────────────────────────────────────────────────────────────
 
-_src_re := `\b[Rr]equest\s*(\.\s*(QueryString|Query|Form|Params|Cookies|Headers|RouteValues|ServerVariables|Path|PathInfo|RawUrl|Files)\b|\[)|\bRouteData\.Values\b|\b(txt|tb)[A-Z]\w*\.Text\b|\bTextBox\w*\.Text\b|(?i:\b\w*(?:file|upload|posted|attachment)\w*)\.FileName\b`
+_src_re := `\b[Rr]equest\s*(\.\s*(QueryString|Query|Form|Params|Cookies|Headers|RouteValues|ServerVariables|Path|PathInfo|RawUrl|Files)\b|\[)|\bRouteData\.Values\b|\b(txt|tb)[A-Z]\w*\.Text\b|\bTextBox\w*\.Text\b|(?i:\b\w*(?:file|upload|posted|attachment)\w*)\.FileName\b|(?i:\b\w*entry)\.(?:FullName|Key)\b`
 
 _is_controller(content) if regex.match(`class\s+\w+[^{]*:\s*[\w.]*(Controller|ControllerBase|PageModel)\b|\[ApiController\]`, content)
 
@@ -155,6 +155,14 @@ _direct(lines, content, i) := {v |
 	regex.match(_src_re, _code(l))
 	_carrier(l)
 	v := helpers.assigned_first(l)
+} | {m[1] |
+	# foreach (var file in Request.Form.Files): the loop variable.
+	some k in numbers.range(max([0, i - 15]), i - 1)
+	l := lines[k]
+	contains(l, "foreach")
+	not helpers.is_comment_line(l)
+	some m in regex.find_all_string_submatch_n(`\bforeach\s*\(\s*[\w.<>?]+\s+([A-Za-z_]\w*)\s+in\s+(.*)\)`, _code(l), 1)
+	regex.match(_src_re, m[2])
 } | _params(lines, content, i)
 
 _tainted(lines, content, i) := t0 | {v |

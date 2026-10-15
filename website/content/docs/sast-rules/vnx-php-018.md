@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-018 – PHP sensitive debug output disclosure"
-description: "Detects var_dump(), print_r(), var_export(), debug_zval_dump(), dump() or dd() writing a whole $_SESSION, $_SERVER, $_ENV, $_COOKIE, $GLOBALS or getenv() to the response, including echoed return-mode print_r()/var_export(); single elements, logging and tests are not reported."
+description: "Detects var_dump(), print_r(), var_export(), debug_zval_dump(), dump() or dd() writing a whole $_SESSION, $_SERVER, $_ENV, $_COOKIE, $GLOBALS or getenv() to the response, including echoed return-mode print_r()/var_export() (also through a variable echoed later); single elements, logging and tests are not reported."
 ---
 
 ## Overview

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-015",
 	"name": "PHP unrestricted file upload via move_uploaded_file",
-	"description": "An uploaded file is stored under a name the client chose, with no extension allowlist, so an attacker can upload shell.php into a served directory and run it. Reported: move_uploaded_file() whose destination (the second argument, on the call line or the following lines of a call broken across lines) contains $_FILES[...]['name'], a $_GET/$_POST/$_REQUEST/$_COOKIE value, or a variable built from one of those (assigned or appended with .= , directly or through one more variable) within the 40 lines above; and Laravel/Symfony UploadedFile ->move()/->storeAs()/->storePubliclyAs() given getClientOriginalName(). A file is treated as validated, and not reported, when the 40 lines above the call extract the extension (pathinfo(..., PATHINFO_EXTENSION), strrpos/strrchr/explode on '.', getClientOriginalExtension()) and compare it with an allowlist (in_array(), a comparison with a literal extension, preg_match()), or preg_match() the name against an extension pattern. A check of the client-supplied MIME type ($_FILES[...]['type']) is not validation and does not suppress the finding. Not reported: generated names (random_bytes(), uniqid(), hashName(), store()), the call in a comment or a string. Whether the destination is outside the web root is not judged.",
+	"description": "An uploaded file is stored under a name the client chose, with no extension allowlist, so an attacker can upload shell.php into a served directory and run it. Reported: move_uploaded_file() whose destination (the second argument, on the call line or the following lines of a call broken across lines) contains $_FILES[...]['name'], a $_GET/$_POST/$_REQUEST/$_COOKIE value, or a variable built from one of those (assigned or appended with .= , directly or through one more variable) within the 40 lines above; and Laravel/Symfony UploadedFile ->move()/->storeAs()/->storePubliclyAs() given getClientOriginalName() or getClientOriginalExtension(), inline or through a variable built from either within the 40 lines above ($name = time().'.'.$file->getClientOriginalExtension()). A Laravel 'mimes:' validation rule is not an extension allowlist, because it checks the content, not the stored extension. A file is treated as validated, and not reported, when the 40 lines above the call extract the extension (pathinfo(..., PATHINFO_EXTENSION), strrpos/strrchr/explode on '.', getClientOriginalExtension()) and compare it with an allowlist (in_array(), a comparison with a literal extension, preg_match()), or preg_match() the name against an extension pattern. A check of the client-supplied MIME type ($_FILES[...]['type']) is not validation and does not suppress the finding. Not reported: generated names (random_bytes(), uniqid(), hashName(), store()), an extension derived from the content (guessExtension(), extension()), the call in a comment or a string. Whether the destination is outside the web root is not judged.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-015/",
 	"languages": ["php"],
 	"severity": "high",
@@ -118,6 +118,20 @@ _unrestricted(lines, i) if {
 	not _validated(lines, i)
 }
 
+# copy()/rename() of the uploaded temporary file do what move_uploaded_file()
+# does, without its is_uploaded_file() check.
+_copy_re := `(?i)(?:^|[^\w>:$\\])(?:copy|rename)\s*\(`
+
+_unrestricted(lines, i) if {
+	regex.match(_copy_re, _code(lines[i]))
+	t := _call_text(lines, i, _copy_re)
+	dest := _dest(t)
+	first := substring(t, 0, count(t) - count(dest))
+	regex.match(`\[\s*['"]tmp_name['"]\s*\]`, first)
+	_user_dest(lines, i, dest)
+	not _validated(lines, i)
+}
+
 _unrestricted(lines, i) if {
 	regex.match(_framework_re, _code(lines[i]))
 	t := _call_text(lines, i, _framework_re)
@@ -125,13 +139,41 @@ _unrestricted(lines, i) if {
 	not _validated(lines, i)
 }
 
+# The stored name built from the client's file name or extension in a
+# variable shortly above: $name = time().'.'.$file->getClientOriginalExtension();
+# $file->move($dir, $name).
+_client_re := `getClientOriginal(Name|Extension)\s*\(`
+
+_unrestricted(lines, i) if {
+	regex.match(_framework_re, _code(lines[i]))
+	t := _call_text(lines, i, _framework_re)
+	not regex.match(`getClientOriginalName\s*\(`, t)
+	vs := {v |
+		some j in _window(i)
+		prev := lines[j]
+		regex.match(_client_re, prev)
+		not helpers.is_comment_line(prev)
+		v := _assigned(prev)
+	}
+	_refs_any(t, vs | _level1(lines, i, vs))
+	not _validated(lines, i)
+}
+
+_unrestricted(lines, i) if {
+	regex.match(_framework_re, _code(lines[i]))
+	t := _call_text(lines, i, _framework_re)
+	not regex.match(`getClientOriginalName\s*\(`, t)
+	regex.match(`getClientOriginalExtension\s*\(`, t)
+	not _validated(lines, i)
+}
+
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".php")
-	regex.match(`move_uploaded_file|getClientOriginalName`, content)
+	regex.match(`move_uploaded_file|getClientOriginal|tmp_name`, content)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`move_uploaded_file|->\s*(move|storeAs|storePubliclyAs)\b`, line)
+	regex.match(`move_uploaded_file|->\s*(move|storeAs|storePubliclyAs)\b|(?i)\b(copy|rename)\s*\(`, line)
 	not helpers.is_comment_line(line)
 	_unrestricted(lines, i)
 	finding := {

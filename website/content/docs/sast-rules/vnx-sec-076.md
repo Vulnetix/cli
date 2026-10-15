@@ -1,17 +1,39 @@
 ---
 title: "VNX-SEC-076 – Telegram Bot API Token"
-description: "Detects Telegram bot API tokens (numeric-id:alphanumeric-secret format) hardcoded in source code."
+description: "Reports a whole Telegram Bot API token (bot id, a colon and a 35-character AA... secret) in any file, excluding placeholders, low-entropy bodies, environment references and test files."
 ---
 
 ## Overview
 
-This rule detects telegram bot api token matching the `<id>:<secret>` pattern hardcoded anywhere in source files. Detects Telegram bot API tokens (numeric-id:alphanumeric-secret format) hardcoded in source code.
+This rule reports a Telegram Bot API token: the bot's numeric id (8 to 10 digits), a colon and the 35-character secret that begins `AA`, quoted, assigned, inside an `api.telegram.org/bot<token>/` URL or in a `.env` file. The token is redacted in the finding's snippet.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 
 ## Why This Matters
 
 Hardcoded telegram bot api token values are routinely scraped by automated bots within minutes of a public push, and then used to access the account, exfiltrate data, or pivot into downstream services. Once the credential is in git history it is permanently in third-party hands.
+
+## What Gets Flagged
+
+```python
+# FLAGGED: token passed to the bot framework
+TOKEN = "<bot id>:AA<33 characters>"
+app = ApplicationBuilder().token(TOKEN).build()
+```
+
+```bash
+# FLAGGED: token inside the Bot API URL
+curl -s "https://api.telegram.org/bot<bot id>:AA<33 characters>/sendMessage" -d chat_id=-100123456
+```
+
+Not flagged:
+
+- A bot id on its own, and lookalikes such as `20240115:AAPL`.
+- Placeholder or low-entropy bodies (`123456789:AAxxxx...`, `AAAA...`).
+- Environment references (`os.environ["TELEGRAM_BOT_TOKEN"]`).
+- Test, fixture, vendored and generated files.
+
+VNX-SEC-728 reports the same token.
 
 ## Remediation
 

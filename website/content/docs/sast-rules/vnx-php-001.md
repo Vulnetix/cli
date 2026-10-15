@@ -33,7 +33,7 @@ An application manifest (`"type": "project"`, or no `"name"`) that requires at l
 }
 ```
 
-Not flagged: a manifest with a `composer.lock` beside it; a library or other published package (a missing `type` means `library`, and Composer leaves a library's lock file optional); a manifest that requires only platform packages (`php`, `ext-*`); manifests under `vendor/`, test, fixture, example or demo directories. A `composer.lock` excluded by `.gitignore` counts as missing, because it is not committed.
+Not flagged: a manifest with a `composer.lock` beside it; a library or other published package (a missing `type` means `library`, and Composer leaves a library's lock file optional); a manifest that requires only platform packages (`php`, `ext-*`); manifests under `vendor/`, test, fixture, example or demo directories; a manifest that sets `"config": {"lock": false}`. A `composer.lock` listed in the root or same-directory `.gitignore` counts as missing, because it is not committed.
 
 ## Remediation
 

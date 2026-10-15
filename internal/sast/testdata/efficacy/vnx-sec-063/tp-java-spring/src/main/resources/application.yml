@@ -1,0 +1,4 @@
+spring:
+  data:
+    mongodb:
+~>      uri: mongodb+srv://svc:@@sample:[A-Za-z0-9]{20}@@@@@sample:p[r]od[.]x7[y]8z[.]mo[n]go[d]b[.][n]et@@/catalog

@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-TF-004",
 	"name": "Terraform IAM policy with wildcard Action (*)",
-	"description": "An IAM policy grants wildcard actions ('*') without a corresponding Deny statement. This violates the principle of least privilege and could allow an attacker who gains access to the role or user to perform any action on AWS resources.",
+	"description": "An IAM policy statement allows every action: Action = \"*\" or a list containing \"*\" in a jsonencode() policy, \"Action\": \"*\" or [\"*\"] (also spread over several lines) in a heredoc JSON policy, or the escaped form \\\"Action\\\":\\\"*\\\" in a one-line JSON string policy, or actions = [\"*\"] in a data \"aws_iam_policy_document\" statement (or the permissions block of an azurerm_role_definition), whose own effect is Allow or unset (the default). This grants administrator rights over the resources it names, against least privilege. Not reported: a statement whose Effect is Deny (service control and guard policies deny everything on purpose), service-scoped wildcards such as \"s3:*\" or \"ec2:Describe*\", NotAction, principals and resources of \"*\", text in descriptions, and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-tf-004/",
 	"languages": ["terraform"],
 	"severity": "high",
@@ -21,46 +21,79 @@ metadata := {
 
 _is_tf(path) if endswith(path, ".tf")
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_tf(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`\bAction\s*=\s*"?\*"?`, line)
-	# Confirm context is an IAM policy resource (not a Deny effect)
-	window_start := max([0, i - 20])
-	window_end := min([count(lines) - 1, i + 10])
-	window_lines := array.slice(lines, window_start, window_end + 1)
-	window := concat("\n", window_lines)
-	regex.match(`aws_iam_(role_policy|policy|user_policy|group_policy)`, window)
-	not regex.match(`Effect\s*=\s*"Deny"`, window)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "IAM policy grants wildcard Action = \"*\"; enumerate only the specific actions required and follow the principle of least privilege",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+_is_tf(path) if endswith(path, ".tofu")
+
+_is_comment(line) if regex.match(`^\s*(#|//|/\*|\*)`, line)
+
+_indent(line) := count(line) - count(trim_left(line, " \t"))
+
+_key := `("Action"|\bAction|^\s*actions)`
+
+# The action list on line i contains "*" on the same line.
+_wild(lines, i) if regex.match(sprintf(`%s\s*[=:]\s*(\[[^\]]*)?"\*"`, [_key]), lines[i])
+
+# A JSON policy written as one escaped string literal.
+_wild(lines, i) if regex.match(`\\"Action\\"\s*:\s*(\[[^\]]*)?\\"\*\\"`, lines[i])
+
+# The action list opens on line i and "*" is one of its continuation lines.
+_wild(lines, i) if {
+	regex.match(sprintf(`%s\s*[=:]\s*\[\s*$`, [_key]), lines[i])
+	ends := [j | some j in numbers.range(i + 1, min([count(lines) - 1, i + 30])); contains(lines[j], "]")]
+	count(ends) > 0
+	some j in numbers.range(i + 1, min(ends))
+	regex.match(`^\s*"\*"\s*,?\s*$`, lines[j])
 }
 
-# Also catch data.aws_iam_policy_document with actions = ["*"]
+# The statement opened by the nearest less-indented line ending in "{".
+_stmt_start(lines, i) := max(ks) if {
+	ind := _indent(lines[i])
+	ks := [k |
+		some k in numbers.range(max([0, i - 40]), i - 1)
+		regex.match(`\{\s*$`, lines[k])
+		_indent(lines[k]) < ind
+		not _is_comment(lines[k])
+	]
+	count(ks) > 0
+}
+
+_stmt_end(lines, k) := min(array.concat([min([count(lines) - 1, k + 60])], [j |
+	some j in numbers.range(k + 1, min([count(lines) - 1, k + 60]))
+	regex.match(`^\s*\}`, lines[j])
+	_indent(lines[j]) <= _indent(lines[k])
+]))
+
+_effect_re := `(?i)\\?"?\beffect\\?"?\s*[=:]\s*\\?"`
+
+_deny_re := `(?i)\\?"?\beffect\\?"?\s*[=:]\s*\\?"deny\\?"`
+
+# A one-line statement carries its own effect.
+_denied(lines, i) if {
+	regex.match(_effect_re, lines[i])
+	regex.match(_deny_re, lines[i])
+}
+
+_denied(lines, i) if {
+	not regex.match(_effect_re, lines[i])
+	k := _stmt_start(lines, i)
+	some j in numbers.range(k, _stmt_end(lines, k))
+	not _is_comment(lines[j])
+	regex.match(_deny_re, lines[j])
+}
+
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	_is_tf(path)
-	lines := split(input.file_contents[path], "\n")
+	regex.match(`\\?"\*\\?"`, content)
+	regex.match(`(Action|actions)\\?"?\s*[=:]`, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`actions\s*=\s*\[\s*"\*"\s*\]`, line)
-	window_start := max([0, i - 15])
-	window_end := min([count(lines) - 1, i + 5])
-	window_lines := array.slice(lines, window_start, window_end + 1)
-	window := concat("\n", window_lines)
-	contains(window, "aws_iam_policy_document")
-	not contains(window, "effect")
+	regex.match(`(Action|actions)\\?"?\s*[=:]`, line)
+	not _is_comment(line)
+	_wild(lines, i)
+	not _denied(lines, i)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "IAM policy document statement uses actions = [\"*\"]; enumerate only the specific actions required and follow the principle of least privilege",
+		"message": "IAM policy statement allows Action \"*\" (every action); list only the specific actions this principal needs, or use a service-scoped set such as an AWS managed job-function policy",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

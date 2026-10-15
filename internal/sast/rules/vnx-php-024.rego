@@ -25,9 +25,9 @@ _arg := `(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|\((?:[^()'"]|'[^']*'|"[^"]*"|\([
 
 _call_re := concat("", [`^mb_eregi?_replace\s*\(\s*`, _arg, `\s*,\s*`, _arg, `\s*,\s*`, _arg, `\s*,\s*(`, _arg, `)\s*\)`])
 
-_sink_re := `(^|[^\w$>:\\])mb_eregi?_replace\s*\(`
+_sink_re := `(^|[^\w$>:\\]|[^\w\\]\\)mb_eregi?_replace\s*\(`
 
-_set_re := `(^|[^\w$>:\\])mb_regex_set_options\s*\(\s*['"][a-z]*e[a-z]*['"]\s*\)`
+_set_re := `(^|[^\w$>:\\]|[^\w\\]\\)mb_regex_set_options\s*\(\s*['"][a-z]*e[a-z]*['"]\s*\)`
 
 _e_lit := `^['"][a-z]*e[a-z]*['"]$`
 
@@ -94,7 +94,7 @@ findings contains finding if {
 	some i, line in lines
 	contains(line, "mb_regex_set_options")
 	not helpers.is_comment_line(line)
-	regex.match(`(^|[^\w$>:\\])mb_regex_set_options\s*\(`, _no_strings(line))
+	regex.match(`(^|[^\w$>:\\]|[^\w\\]\\)mb_regex_set_options\s*\(`, _no_strings(line))
 	regex.match(_set_re, line)
 	finding := {
 		"rule_id": metadata.id,

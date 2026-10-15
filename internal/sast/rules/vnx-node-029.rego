@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-029",
 	"name": "Missing HttpOnly flag on cookie",
-	"description": "Reports a session or credential cookie set without HttpOnly in Node.js: an Express res.cookie() (also response/resp/reply.cookie(), reply.setCookie()) or cookie.serialize() call whose cookie name or value names a session, sid, token, auth, JWT, login, credential or access/refresh token and whose options (inline, across lines, or an options object assigned in the same file) do not set httpOnly: true (both APIs default to a script-readable cookie), a Set-Cookie header literal for such a cookie without the HttpOnly attribute, and any cookie options that set httpOnly: false. Script-readable session cookies are stolen by any XSS. Not reported: options with httpOnly: true, options the rule cannot see (imported), non-sensitive cookies (theme, lang, remember=1), CSRF/XSRF token cookies (which the page must read), Koa ctx.cookies.set() (HttpOnly by default) unless it sets httpOnly: false, cookies being cleared (empty value, clearCookie), comments, strings and test files.",
+	"description": "Reports a session or credential cookie set without HttpOnly in Node.js: an Express res.cookie() (also response/resp/reply.cookie(), reply.setCookie()) or cookie.serialize() call whose cookie name or value names a session, sid, token, auth, JWT, login, credential or access/refresh token and whose options (inline, across lines, or an options object assigned in the same file) do not set httpOnly: true (both APIs default to a script-readable cookie), a Set-Cookie header literal for such a cookie without the HttpOnly attribute (setHeader/append/set, the first entry of an array, or a writeHead headers object), and any cookie options that set httpOnly: false. Script-readable session cookies are stolen by any XSS. Not reported: options with httpOnly: true, options the rule cannot see (imported, built by a helper call, or spread from another object), non-sensitive cookies (theme, lang, remember=1, lookalike names such as authorFilter or accessibilityMode), CSRF/XSRF token cookies (which the page must read), Koa ctx.cookies.set() (HttpOnly by default) unless it sets httpOnly: false, cookies being cleared (empty value, clearCookie), comments, strings and test files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-029/",
 	"languages": ["javascript", "typescript"],
 	"severity": "medium",
@@ -30,7 +30,8 @@ _is_js(path) if endswith(path, ".cjs")
 
 _call_re := `(?:\b(?:res|resp|response|reply)\.(?:cookie|setCookie)|\bcookie\.serialize)\s*\(`
 
-_sensitive_re := `(?i)(sess|\bsid\b|sid['"]|token|auth|jwt|login|identity|credential|bearer|access|refresh|remember_?me)`
+# auth but not author (authorFilter); access but not accessibility.
+_sensitive_re := `(?i)(sess|\bsid\b|sid['"]|token|auth(?:$|[^o]|o[^r])|jwt|login|identity|credential|bearer|access(?:$|[^i])|refresh|remember_?me)`
 
 _csrf_re := `(?i)(csrf|xsrf)`
 
@@ -86,6 +87,17 @@ _unknown_options(content, args) if {
 	regex.match(`^[A-Za-z_$][\w$.]*$`, id)
 	not regex.match(concat("", [`\b`, id, `\b[^=\n]*=\s*\{`]), content)
 }
+
+# options built by a helper call: cookieOptions()
+_unknown_options(_, args) if {
+	not contains(args, "{")
+	parts := split(args, ",")
+	count(parts) >= 3
+	regex.match(`^\s*[A-Za-z_$][\w$.]*\s*\(`, parts[2])
+}
+
+# options spread from another object: { ...base, maxAge }
+_unknown_options(_, args) if regex.match(`\{\s*\.\.\.|,\s*\.\.\.[A-Za-z_$]`, args)
 
 findings contains finding if {
 	some path, content in input.file_contents
@@ -152,8 +164,8 @@ findings contains finding if {
 	some i, line in lines
 	contains(line, "Set-Cookie")
 	not helpers.is_comment_line(line)
-	regex.match(`\.(setHeader|header|set|append|writeHead)\s*\(\s*['"]Set-Cookie['"]\s*,\s*['"\x60]`, line)
-	m := regex.find_all_string_submatch_n(`['"]Set-Cookie['"]\s*,\s*['"\x60]\s*([\w.-]+)=`, line, 1)
+	regex.match(`\.(setHeader|header|set|append|writeHead)\s*\(\s*['"]Set-Cookie['"]\s*,\s*\[?\s*['"\x60]|^\s*['"]?Set-Cookie['"]?\s*:\s*\[?\s*['"\x60]`, line)
+	m := regex.find_all_string_submatch_n(`['"]?Set-Cookie['"]?\s*[,:]\s*\[?\s*['"\x60]\s*([\w.-]+)=`, line, 1)
 	count(m) > 0
 	regex.match(_sensitive_re, m[0][1])
 	not regex.match(_csrf_re, m[0][1])

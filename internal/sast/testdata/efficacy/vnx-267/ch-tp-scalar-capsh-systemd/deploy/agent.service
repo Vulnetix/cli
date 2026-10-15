@@ -1,0 +1,8 @@
+[Unit]
+Description=Tracing agent
+
+[Service]
+User=agent
+~>AmbientCapabilities=CAP_SYS_PTRACE CAP_NET_RAW
+CapabilityBoundingSet=CAP_SYS_PTRACE CAP_NET_RAW
+ExecStart=/opt/agent/bin/agent

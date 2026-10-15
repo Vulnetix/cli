@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="api_key_header" translatable="false">X-Api-Key</string>
+    <string name="token_scope" translatable="false">oauth2:email</string>
+    <string name="auth_token_type" translatable="false">com.acme.auth</string>
+    <string name="password_regex" translatable="false">^(?=.*\\d).{8,}$</string>
+    <string name="facebook_app_id">1234567890123</string>
+</resources>

@@ -1,0 +1,4 @@
+# never ignore go.sum: it pins the dependency checksums
+go.sum.orig
+*.sum.bak
+tools/go.sum

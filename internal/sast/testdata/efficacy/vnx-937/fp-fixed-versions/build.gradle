@@ -1,0 +1,6 @@
+dependencies {
+    implementation '@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-core:2.20.0'
+    implementation 'org.apache.commons:commons-text:1.11.0'
+    implementation platform('@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-bom:2.21.1')
+    implementation '@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-core'
+}

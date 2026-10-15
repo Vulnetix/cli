@@ -1,6 +1,6 @@
 ---
 title: "VNX-DOCKER-003 – Secret in Dockerfile ARG or ENV"
-description: "Reports credential-named Dockerfile ARG and ENV instructions: ENV with a literal secret or one copied from a build arg, and any credential ARG, which persist in the image config or build history."
+description: "Reports credential-named Dockerfile ARG and ENV instructions: ENV with a literal secret, a literal fallback or one copied from a declared build arg, any credential ARG, and a password embedded in an ENV/ARG URL."
 ---
 
 ## Overview
@@ -23,7 +23,7 @@ CAPEC-191 (Read Sensitive Constants Within an Executable) captures the inspectio
 
 ## What Gets Flagged
 
-The variable name must say it holds a credential (`PASSWORD`, `PASSWD`, `PASSPHRASE`, `SECRET`, `TOKEN`, `APIKEY`, `CREDENTIAL(S)`, `PRIVATEKEY`, a `PASS`/`PW`/`_PWD` word, or a name ending in `_KEY`). Reported: `ENV` with a literal value (in the `KEY=value` form, the legacy `KEY value` form, several pairs on one line and on continuation lines), `ENV` that copies a build arg into the image, and any credential-named `ARG`. The snippet is redacted.
+Except for a password embedded in a URL (`scheme://user:password@host`, reported whatever the variable is called), the variable name must say it holds a credential (`PASSWORD`, `PASSWD`, `PASSPHRASE`, `SECRET`, `TOKEN`, `APIKEY`, `CREDENTIAL(S)`, `PRIVATEKEY`, a `PASS`/`PW`/`_PWD` word, or a name ending in `_KEY`). Reported: `ENV` with a literal value (in the `KEY=value` form, the legacy `KEY value` form, several pairs on one line and on continuation lines), `ENV` that copies a build arg into the image, and any credential-named `ARG`. The snippet is redacted.
 
 ```dockerfile
 # FLAGGED
@@ -32,10 +32,13 @@ ENV DB_PASS hunter2-reporting
 ENV APP_ENV=production \
     DATABASE_PASSWORD=pr0d-db-pa55
 ARG NPM_TOKEN
+ARG SENTRY_AUTH_TOKEN
 ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+ENV API_SECRET=${API_SECRET:-s3cr3t-default-value}
+ENV DATABASE_URL=postgres://orders:Pr0d-0rders-pw@db.internal:5432/orders
 ```
 
-Not reported: names that point at or describe a secret (`*_FILE`, `*_PATH`, `*_URL`, `*_NAME`, `*_ID`, `*_TTL`, `*_ENABLED` and similar), public material (`GPG_KEY`, `PUBLIC_*`), lookalikes (`TOKENIZERS_PARALLELISM`, `KEYCLOAK_VERSION`), `ENV` values that are empty, booleans, short numbers, paths, plain URLs or placeholders, `RUN --mount=type=secret`, and text in comments, `RUN` commands or labels.
+Not reported: names that point at or describe a secret (`*_FILE`, `*_PATH`, `*_URL`, `*_NAME`, `*_ID`, `*_TTL`, `*_ENABLED` and similar), public material (`GPG_KEY`, `PUBLIC_*`), lookalikes (`TOKENIZERS_PARALLELISM`, `KEYCLOAK_VERSION`), `ENV` values that are empty, booleans, short numbers, paths, URLs with no password (or a `${VAR}` password), placeholders, a variable that is not a build arg of the file (`ENV X=${X:-}`), `RUN --mount=type=secret`, and text in comments, `RUN` commands or labels.
 
 ## Remediation
 

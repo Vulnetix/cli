@@ -1,0 +1,2 @@
+Set DATABASE_URL=postgres://user:<password>@host:5432/db
+or postgresql://USER:YOUR_PASSWORD_HERE@HOST/DB

@@ -1,11 +1,11 @@
 ---
 title: "VNX-SWIFT-005 – Swift WKWebView JavaScript Auto-Open-Windows Enabled"
-description: "Detects WKPreferences.javaScriptCanOpenWindowsAutomatically set to true and usage of the deprecated UIWebView, both of which introduce cross-site scripting escalation risks in iOS applications."
+description: "Detects WKPreferences.javaScriptCanOpenWindowsAutomatically assigned true, and the first use per file of the deprecated UIWebView type, both of which widen what page JavaScript can do in an iOS app."
 ---
 
 ## Overview
 
-This rule flags two related patterns in Swift source files. First, it detects any line that sets `javaScriptCanOpenWindowsAutomatically` to `true` on a `WKPreferences` object, which allows JavaScript executing inside a `WKWebView` to open new windows or tabs without a user gesture. Second, it detects any usage of `UIWebView`, Apple's legacy web view component that has been deprecated since iOS 8 and removed from the App Store submission requirements since April 2020.
+This rule flags two related patterns in Swift source files. First, an assignment of `true` to `javaScriptCanOpenWindowsAutomatically` (on a `WKPreferences` object or through `configuration.preferences`), which allows JavaScript executing inside a `WKWebView` to open new windows without a user gesture. Second, the first use in a file of the `UIWebView` type (a property, outlet, parameter, cast or `UIWebView(...)` instance), Apple's legacy web view, deprecated since iOS 12 and rejected by App Store review since 2020; later references in the same file are not reported again. The setting assigned `false` or only read, `WKWebView`, the names inside string literals, comments and test files are not reported.
 
 Both patterns represent privilege escalation opportunities for JavaScript running inside the web view. When an app loads user-controlled or third-party web content, these settings allow JavaScript to break out of the page's intended interaction model and take actions — such as opening phishing windows or executing navigation redirects — that the user has not initiated.
 

@@ -1,0 +1,5 @@
+<h1><%= @user.name %></h1>
+~><%= button_to "Delete account", user_path(@user), method: :delete, class: "danger" %>
+~><%= link_to "Delete", user_path(@user),
+      data: { turbo_method: :delete },
+      class: "btn" %>

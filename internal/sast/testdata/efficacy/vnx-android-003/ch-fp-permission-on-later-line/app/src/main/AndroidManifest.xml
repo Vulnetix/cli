@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.acme.sync">
+    <permission
+        android:name="com.acme.sync.permission.BIND"
+        android:protectionLevel="signature" />
+    <application>
+        <service
+            android:name=".SyncService"
+            android:exported="true"
+            android:icon="@drawable/ic_sync"
+            android:permission="com.acme.sync.permission.BIND" />
+        <receiver
+            android:name=".TokenReceiver"
+            android:exported="true"
+            android:permission="com.acme.sync.permission.BIND">
+            <intent-filter>
+                <action android:name="com.acme.sync.TOKEN" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -1,0 +1,5 @@
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+~>      OP_SERVICE_ACCOUNT_TOKEN: ops_eyJ@@sample:[A-Za-z0-9]{120}@@

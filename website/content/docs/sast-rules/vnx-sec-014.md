@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-014 – Hardcoded Password in Variable"
-description: "Detects variable assignments where the name indicates a password or secret and the value is a string literal of at least 8 characters."
+description: "Detects a literal password assigned to a variable, field, key or keyword argument named password, passwd, passphrase, secret_key or *_pwd, passed to a password setter, PHP define() or an XML property, or written as a bare value in a config file or docker-compose environment list, outside tests, templates and placeholders."
 ---
 
 ## Overview
 
-This rule detects string literal values assigned to variables whose names contain `password`, `passwd`, `db_password`, `admin_password`, `root_password`, `mysql_pwd`, or `secret_key`. It also detects JSON/dict-style key-value pairs using these same key names. Hardcoded passwords in source code are one of the most common and impactful security findings: they are committed to version control, visible to everyone with repository access, cannot be rotated without a code change, and often end up in logs, error messages, and backups.
+This rule reports a quoted literal of at least 6 characters assigned to a name that ends in `password`, `passwd`, `passphrase`, `secret_key`/`secretKey` or `_pwd` (`DB_PASSWORD`, `adminPassword`, `self.password`, `$db_password`, `@smtp_password`), the same name used as an object, dict, hash or JSON key or as a keyword argument, and a bare value on such a line in YAML, `.properties`, `.ini`, `.conf` and `.env` files. It does not report values read from the environment or interpolated (`${DB_PASSWORD}`, `%s`, f-strings), values with spaces (labels), field names (`password_confirmation`), placeholders (`changeme`, `<password>`, `********`), comparisons, SQL text, concatenations (`'--password='.$pw`), test and fixture paths, translation catalogues and config templates (`.example`, `.sample`, `.dist`). Hardcoded passwords in source code are one of the most common and impactful security findings: they are committed to version control, visible to everyone with repository access, cannot be rotated without a code change, and often end up in logs, error messages, and backups.
 
 **Severity:** High | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html), [CWE-259 – Use of Hard-coded Password](https://cwe.mitre.org/data/definitions/259.html)
 
@@ -25,9 +25,17 @@ DB_PASSWORD = "s3cr3tP@ssword123!"
 conn = psycopg2.connect(host='localhost', user='app', password=DB_PASSWORD)
 ```
 
-```python
-# FLAGGED: hardcoded secret key in Django settings
-SECRET_KEY = "django-insecure-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```yaml
+# FLAGGED: bare value in a Spring config file
+spring:
+  datasource:
+    password: Spr1ngB00t-db
+```
+
+```php
+// FLAGGED: PHP variable and array key
+$db_password = 'Lamp$tack99';
+$config = ['password' => 'MyS9l-Pr0d!'];
 ```
 
 ```javascript

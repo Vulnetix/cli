@@ -1,0 +1,8 @@
+name: Notify
+description: Post the pull request title to chat
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+~>        curl -sS -X POST -d "text=${{ github.event.pull_request.title }}" "$CHAT_WEBHOOK"

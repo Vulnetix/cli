@@ -1,0 +1,9 @@
+gcp:
+  type: service_account
+  project_id: acme-prod-311
+~>  private_key: |
+    @@sample:[-][-][-][-][-]BEGIN[ ]PRIVATE[ ]KEY[-][-][-][-][-]@@
+    @@sample:[A-Za-z0-9+/]{64}@@
+    @@sample:[A-Za-z0-9+/]{64}@@
+    @@sample:[-][-][-][-][-]END[ ]PRIVATE[ ]KEY[-][-][-][-][-]@@
+  client_email: uploader@@@sample:a[c]me[-]pr[o]d[-][3]11[.]ia[m][.]g[s]er[v]ic[e]ac[c]ou[n]t[.][c]om@@

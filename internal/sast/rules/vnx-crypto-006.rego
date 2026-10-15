@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CRYPTO-006",
 	"name": "Weak RSA key size",
-	"description": "An RSA key pair is generated with a modulus below 2048 bits, given literally or through a constant assigned in the same file. Reported: Python cryptography rsa.generate_private_key(key_size=N) (one line or wrapped, keyword or positional), PyCryptodome RSA.generate(N), python-rsa newkeys(N) and pyOpenSSL generate_key(TYPE_RSA, N); Go rsa.GenerateKey(rand, N) and rsa.GenerateMultiPrimeKey(rand, k, N); Java initialize(N) on a KeyPairGenerator obtained with getInstance(\"RSA\") and new RSAKeyGenParameterSpec(N, ...) (also wrapped); Node.js generateKeyPair/generateKeyPairSync('rsa'|'rsa-pss', { modulusLength: N }), node-forge rsa.generateKeyPair({ bits: N }) and node-rsa new NodeRSA({ b: N }). Keys under 2048 bits are within reach of factoring and are disallowed by NIST SP 800-131A; use 3072 bits or more, or an elliptic-curve key. Not reported: sizes of 2048 and above, a size taken from a parameter or configuration, EC, DSA, DH and symmetric key sizes, initialize() on anything other than an RSA KeyPairGenerator, the call inside a string literal or a comment, and test files (small keys there are a speed choice).",
+	"description": "An RSA key pair is generated with a modulus below 2048 bits, given literally or through a constant assigned in the same file. Reported: Python cryptography rsa.generate_private_key(key_size=N) (one line or wrapped, keyword or positional, also through an import alias whose name contains rsa), PyCryptodome RSA.generate(N), python-rsa newkeys(N) and pyOpenSSL generate_key(TYPE_RSA, N); Go rsa.GenerateKey(rand, N) and rsa.GenerateMultiPrimeKey(rand, k, N); Java initialize(N) on a KeyPairGenerator obtained with getInstance(\"RSA\") and new RSAKeyGenParameterSpec(N, ...) (also wrapped); Node.js generateKeyPair/generateKeyPairSync('rsa'|'rsa-pss', { modulusLength: N }), WebCrypto crypto.subtle.generateKey({ name: 'RSA-OAEP'|'RSASSA-PKCS1-v1_5'|'RSA-PSS', modulusLength: N }) (one line or wrapped), node-forge rsa.generateKeyPair({ bits: N }) and node-rsa new NodeRSA({ b: N }). Keys under 2048 bits are within reach of factoring and are disallowed by NIST SP 800-131A; use 3072 bits or more, or an elliptic-curve key. Not reported: sizes of 2048 and above, a size taken from a parameter or configuration, EC, DSA, DH and symmetric key sizes, initialize() on anything other than an RSA KeyPairGenerator, the call inside a string literal or a comment, and test files (small keys there are a speed choice).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-006/",
 	"languages": ["python", "go", "java", "node"],
 	"severity": "high",
@@ -64,8 +64,8 @@ _code(lang, line) := c if {
 # constant name).
 _pats := {
 	"python": [
-		`\brsa\.generate_private_key\s*\([^)]*\bkey_size\s*=\s*(\w+)`,
-		`\brsa\.generate_private_key\s*\(\s*\w+\s*,\s*(\w+)\s*[,)]`,
+		`\b\w*(?i:rsa)\.generate_private_key\s*\([^)]*\bkey_size\s*=\s*(\w+)`,
+		`\b\w*(?i:rsa)\.generate_private_key\s*\(\s*\w+\s*,\s*(\w+)\s*[,)]`,
 		`\bRSA\.generate\s*\(\s*(?:bits\s*=\s*)?(\w+)`,
 		`\bnewkeys\s*\(\s*(?:nbits\s*=\s*)?(\w+)`,
 		`\bgenerate_key\s*\(\s*(?:[\w.]*\.)?TYPE_RSA\s*,\s*(\w+)`,
@@ -74,6 +74,7 @@ _pats := {
 		`\bgenerateKeyPair(?:Sync)?\s*\(\s*__RSA__\s*,\s*\{[^}]*\bmodulusLength\s*:\s*(\w+)`,
 		`\brsa\.generateKeyPair\s*\(\s*(?:\{[^}]*\bbits\s*:\s*)?(\w+)`,
 		`\bnew\s+NodeRSA\s*\(\s*\{[^}]*\bb\s*:\s*(\w+)`,
+		`\bsubtle\.generateKey\s*\(.*\bmodulusLength\s*:\s*(\w+)`,
 	],
 	"go": [
 		`\brsa\.GenerateKey\s*\(\s*[^,()]+(?:\([^)]*\))?\s*,\s*(\w+)\s*\)`,
@@ -114,7 +115,7 @@ _hit(lang, _, _, code, _, consts) if {
 _hit("python", lines, i, code, _, consts) if {
 	m := regex.find_all_string_submatch_n(`^\s*key_size\s*=\s*(\w+)\s*[,)]?\s*$`, code, 1)
 	count(m) > 0
-	_opened_above(lines, i, `\brsa\.generate_private_key\s*\(`)
+	_opened_above(lines, i, `\b\w*(?i:rsa)\.generate_private_key\s*\(`)
 	_weak(m[0][1], consts)
 }
 
@@ -123,6 +124,14 @@ _hit("node", lines, i, code, _, consts) if {
 	m := regex.find_all_string_submatch_n(`^\s*modulusLength\s*:\s*(\w+)\s*,?\s*$`, code, 1)
 	count(m) > 0
 	_opened_above(lines, i, `\bgenerateKeyPair(?:Sync)?\s*\(\s*__RSA__`)
+	_weak(m[0][1], consts)
+}
+
+# WebCrypto: only the RSA algorithms take a modulusLength
+_hit("node", lines, i, code, _, consts) if {
+	m := regex.find_all_string_submatch_n(`^\s*modulusLength\s*:\s*(\w+)\s*,?\s*$`, code, 1)
+	count(m) > 0
+	_opened_above(lines, i, `\bsubtle\.generateKey\s*\(`)
 	_weak(m[0][1], consts)
 }
 

@@ -1,0 +1,6 @@
+services:
+  worker:
+    image: acme/worker:1.4
+    environment:
+      AZURE_STORAGE_ACCOUNT: acmeworker
+~>      AZURE_STORAGE_KEY: "@@sample:[A-Za-z0-9+/]{86}@@=="

@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-004 – TLS InsecureSkipVerify Enabled"
-description: "Reports InsecureSkipVerify set to the constant true in a tls.Config literal or assignment. A value from a variable, flag or environment, true inside an if on the insecure option itself, a config with its own VerifyPeerCertificate/VerifyConnection, comments, strings and test code are not reported."
+description: "Reports InsecureSkipVerify set to the constant true in a tls.Config literal or assignment. A value from a variable, flag or environment, true inside an if on the insecure option itself, a config with its own VerifyPeerCertificate/VerifyConnection, comments, strings and test code (including test-support packages such as httptest and testutil) are not reported."
 ---
 
 ## Overview

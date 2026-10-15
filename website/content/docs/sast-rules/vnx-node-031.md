@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-031 – Logging of sensitive data"
-description: "Reports console and logger (winston, pino, bunyan) calls that pass a variable or property named as a password, secret, token, API key, credential, authorization header, CVV, SSN or card number; words in the message text alone are not reported."
+description: "Reports console, logger (winston, pino, bunyan) and debug-package calls that pass a variable or property named as a password, secret, token, API key, credential, authorization header, CVV, SSN or card number; words in the message text alone are not reported."
 ---
 
 ## Overview

@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.acme.bank">
+    <application android:label="Bank">
+        <activity android:name=".PayActivity"
+~>                  android:exported="true"
+                  android:launchMode="singleTask">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="acmebank" android:host="pay" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

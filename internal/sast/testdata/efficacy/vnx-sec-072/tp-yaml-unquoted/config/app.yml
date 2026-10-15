@@ -1,0 +1,4 @@
+service:
+  name: billing
+~>  api_key: @@sample:[A-Za-z0-9]{40}@@
+~>  password: "@@sample:[A-Za-z0-9]{24}@@"

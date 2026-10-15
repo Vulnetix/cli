@@ -1,0 +1,3 @@
+FROM node:20
+~>ENV ADMIN_PASSWORD=abcd1234
+ENV NODE_ENV=production

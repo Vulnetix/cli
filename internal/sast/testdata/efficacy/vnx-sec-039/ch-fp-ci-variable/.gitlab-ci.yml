@@ -1,0 +1,3 @@
+release:
+  script:
+    - 'curl --header "PRIVATE-TOKEN: $GITLAB_PAT" https://gitlab.com/api/v4/projects'

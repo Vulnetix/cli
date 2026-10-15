@@ -1,0 +1,8 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: @@sample:1[3]57[9]24[6]80[1]3[-][p]lm[o]kn[i]jb[u]hv[y]gc[t]fx[r]dz[e]sw[a]q2[4]68@@.apps.googleusercontent.com
+~>            client-secret: GOCSPX-@@sample:[A-Za-z0-9_-]{28}@@

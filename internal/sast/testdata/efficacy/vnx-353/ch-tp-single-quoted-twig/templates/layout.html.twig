@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}Admin{% endblock %}</title>
+~>    <link rel='stylesheet' href='https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css' crossorigin='anonymous'>
+    <link rel="stylesheet" href="{{ asset('build/app.css') }}">
+</head>
+<body>
+{% block body %}{% endblock %}
+~><script
+    src='https://code.jquery.com/jquery-3.7.1.min.js'
+    crossorigin='anonymous'></script>
+</body>
+</html>

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-040",
 	"name": "Logging of sensitive data",
-	"description": "A Go logging call writes a secret value into the log: an argument (outside any string literal) whose name says it is a password, passphrase, secret, token (access, refresh, ID, API, bearer), API key, private or secret key, credentials, card number, CVV or SSN (password, req.Password, accessToken, cfg.APIToken, clientSecret), the request's Authorization, Cookie or X-Api-Key header, or a structured field keyed by such a name (zap.String(\"password\", v), slog \"token\", v, logrus WithField/Fields{\"private_key\": v}, zerolog Str(\"secret\", v)). Covers the standard log package, log/slog, zap (and its sugared logger), logrus, zerolog, klog/glog and any logger variable, including calls broken across lines. Not reported: sensitive words only in the message text (\"password reset for %s\"), errors and error variables (ErrInvalidToken), a value passed through a redacting or derived-value call (redact, mask, len, hash, fingerprint), a string-literal value (\"[REDACTED]\"), lookalike names (nextPageToken, tokenCount, tokens, hasPassword, passwordPolicy, secretName, keyID), comments and string literals.",
+	"description": "A Go logging call writes a secret value into the log: an argument (outside any string literal) whose name says it is a password, passphrase, secret, token (access, refresh, ID, API, bearer), API key, private or secret key, credentials (creds), card number, CVV or SSN (password, req.Password, accessToken, cfg.APIToken, clientSecret), the request's Authorization, Cookie or X-Api-Key header, or a structured field keyed by such a name (zap.String(\"password\", v), slog \"token\", v, logrus WithField/Fields{\"private_key\": v}, zerolog Str(\"secret\", v)). Covers the standard log package, log/slog, zap (and its sugared logger), logrus, zerolog, klog/glog and any logger variable, including loggers reached through a getter or wrapper (c.Logger().Infof, lg.Sugar().Debugf, log.Ctx(ctx).Debug(), lg.Named(\"auth\").Info) and calls broken across lines. Not reported: sensitive words only in the message text (\"password reset for %s\"), errors and error variables (ErrInvalidToken), a value passed through a redacting or derived-value call (redact, mask, len, hash, fingerprint), a string-literal value (\"[REDACTED]\"), lookalike names (nextPageToken, tokenCount, tokens, hasPassword, passwordPolicy, secretName, keyID), comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-040/",
 	"languages": ["go"],
 	"severity": "high",
@@ -24,10 +24,10 @@ metadata := {
 # String literals blanked, a trailing // comment removed.
 _code(line) := regex.replace(regex.replace(line, "\"(?:[^\"\\\\]|\\\\.)*\"|`[^`]*`", `""`), `//.*$`, "")
 
-_log_call := `\b(?:log|slog|logger|logging|logrus|zerolog|klog|glog|sugar|lg|l|\w*[lL]ogger|\w*[lL]og)\.(?:Print|Fatal|Panic|Debug|Info|Warn|Warning|Error|Trace|Log|With)\w*\(`
+_log_call := `(?:\b(?:log|slog|logger|logging|logrus|zerolog|klog|glog|sugar|lg|l|\w*[lL]ogger|\w*[lL]og)|\b\w+\.(?:Logger|Log|Sugar)\(\))(?:\.(?:Sugar|Ctx|Logger|Named|WithContext|WithOptions|V)\((?:[^()]|\([^()]*\))*\))*\.(?:Print|Fatal|Panic|Debug|Info|Warn|Warning|Error|Trace|Log|With)\w*\(`
 
 # The last name of a chain (req.Password -> Password) says it holds a secret.
-_sensitive := `^(?i:\w*(?:password|passwd|passphrase|secret|token|apikey|api_key|privatekey|private_key|secretkey|secret_key|credentials|cardnumber|card_number|creditcard|credit_card|cvv|ssn))$`
+_sensitive := `^(?i:\w*(?:password|passwd|passphrase|secret|token|apikey|api_key|privatekey|private_key|secretkey|secret_key|credentials|creds|cardnumber|card_number|creditcard|credit_card|cvv|ssn))$`
 
 _not_secret := `^(?:(?i:\w*(?:page_?token|next_?token|continuation_?token|sync_?token|resume_?token|cancel\w*token))|(?:has|is|no|missing|num|max|min|Has|Is|No|Missing|Num|Max|Min|Err|err)[A-Z_]\w*)$`
 
@@ -107,7 +107,7 @@ findings contains finding if {
 	regex.match(`(?i)pass(?:word|wd|phrase)|secret|token|api_?key|private_?key|credentials|card_?number|cvv|ssn|authorization`, content)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`[lL]og|sugar|\bl\.`, line)
+	regex.match(`[lL]og|(?i:sugar)|\bl\.|\blg\.`, line)
 	not helpers.is_comment_line(line)
 	ms := regex.find_all_string_submatch_n(_log_call, _code(line), 1)
 	count(ms) > 0

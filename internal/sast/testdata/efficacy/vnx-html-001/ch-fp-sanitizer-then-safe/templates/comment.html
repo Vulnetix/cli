@@ -1,0 +1,4 @@
+<div class="comment">{{ comment.body|bleach|safe }}</div>
+<div class="bio">{{ user.bio|sanitize_html|safe }}</div>
+<div class="esc">{{ user.motto|escape|safe }}</div>
+<div class="esc2">{{ user.motto|e|safe }}</div>

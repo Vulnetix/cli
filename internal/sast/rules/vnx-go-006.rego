@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-006",
 	"name": "Go server-side request forgery",
-	"description": "The server opens an outbound connection to a destination whose host the requester chooses: the URL or address given to http.Get/Head/Post/PostForm, http.NewRequest/NewRequestWithContext, an HTTP client's Get/Head/Post/PostForm, resty R().Get/Post..., httputil.NewSingleHostReverseProxy, or net.Dial/DialTimeout/tls.Dial starts with a value read from the request (r.FormValue, r.URL.Query().Get, r.Form/PostForm/Header.Get, gin/echo/fiber query, form and path parameters, gorilla/mux Vars, chi URLParam, r.PathValue, or a field of a struct decoded from the request body with json.NewDecoder(r.Body).Decode, ShouldBindJSON/Bind or BodyParser), directly, through url.Parse, or through a variable assigned from it in the 30 lines above; or the value follows a prefix that does not pin the host (\"http://\" + v, \"https://api.\" + v + \".example.com\", fmt.Sprintf(\"http://%s:%s/...\", v, ...)). Reaching http://169.254.169.254 or an internal service is then one request away. Not reported: a fixed scheme and host followed by a path (\"https://api.github.com/repos/\" + v), destinations from configuration or constants, a value checked in between (an allowlist lookup, a Host/Hostname comparison, IsPrivate/IsLoopback, strings.HasPrefix, or a helper named validate/allow/safe/trusted), a file whose client dials through a guard that rejects private and loopback addresses, cache and database Get calls (redis, kv, sql), and the call inside a string literal or comment.",
+	"description": "The server opens an outbound connection to a destination whose host the requester chooses: the URL or address given to http.Get/Head/Post/PostForm, http.NewRequest/NewRequestWithContext, an HTTP client's Get/Head/Post/PostForm, resty R().Get/Post..., httputil.NewSingleHostReverseProxy, net.Dial/DialTimeout/tls.Dial, or a websocket dialer (gorilla DefaultDialer.Dial, x/net websocket.Dial) starts with a value read from the request (r.FormValue, r.URL.Query().Get, r.Form/PostForm/Header.Get, gin/echo/fiber query, form and path parameters, gorilla/mux Vars, chi URLParam, r.PathValue, or a field of a struct decoded from the request body with json.NewDecoder(r.Body).Decode, json.Unmarshal of bytes read with io.ReadAll(r.Body), ShouldBindJSON/Bind or BodyParser), directly, through url.Parse, or through a variable assigned from it in the 30 lines above; or the value follows a prefix that does not pin the host (\"http://\" + v, \"https://api.\" + v + \".example.com\", fmt.Sprintf(\"http://%s:%s/...\", v, ...)). Reaching http://169.254.169.254 or an internal service is then one request away. Not reported: a fixed scheme and host followed by a path (\"https://api.github.com/repos/\" + v), destinations from configuration or constants, a value checked in between (an allowlist lookup, a Host/Hostname comparison, IsPrivate/IsLoopback, strings.HasPrefix against anything more than a bare scheme, or a helper named validate/allow/safe/trusted), a file whose client dials through a guard that rejects private and loopback addresses, cache and database Get calls (redis, kv, sql), and the call inside a string literal or comment.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-006/",
 	"languages": ["go"],
 	"severity": "high",
@@ -31,22 +31,33 @@ _direct := concat("", [`(?::=|=)\s*(?:(?:strings\.\w+|url\.Parse|url\.ParseReque
 _bind_res := [
 	`\.Decode\(\s*&(\w+)\s*\)`,
 	`\.(?:ShouldBind(?:JSON|XML|YAML|Query|Uri|With)?|Bind(?:JSON|XML|YAML|Query|Uri)?|BodyParser)\(\s*&(\w+)\s*\)`,
+	`\b(?:json|xml|yaml)\.Unmarshal\(\s*\w+\s*,\s*&(\w+)\s*\)`,
 ]
 
 _bound(lines, i) := {v |
-	some j in numbers.range(max([0, i - 30]), i - 1)
+	lo := max([0, i - 30])
+	some j in numbers.range(lo, i - 1)
 	l := lines[j]
-	regex.match(`\.Decode\(|Bind|BodyParser\(`, l)
+	regex.match(`\.Decode\(|Bind|BodyParser\(|Unmarshal\(`, l)
 	not helpers.is_comment_line(l)
-	_body_bind(l)
+	_body_bind(lines, lo, j, l)
 	some re in _bind_res
 	some m in regex.find_all_string_submatch_n(re, l, -1)
 	v := m[1]
 }
 
-_body_bind(l) if regex.match(`\.Body\b.*\.Decode\(`, l)
+_body_bind(_, _, _, l) if regex.match(`\.Body\b.*\.Decode\(`, l)
 
-_body_bind(l) if regex.match(`\.(?:ShouldBind|Bind|BodyParser)`, l)
+_body_bind(_, _, _, l) if regex.match(`\.(?:ShouldBind|Bind|BodyParser)`, l)
+
+# json.Unmarshal of bytes read from the request body a few lines up.
+_body_bind(lines, lo, j, l) if {
+	m := regex.find_all_string_submatch_n(`Unmarshal\(\s*(\w+)\s*,`, l, 1)
+	count(m) > 0
+	b := m[0][1]
+	some k in numbers.range(lo, j - 1)
+	regex.match(concat("", [`\b`, b, `\b[^=]*:?=\s*(?:io|ioutil)\.ReadAll\(\s*(?:\w+\.)?(?:r|req|request|Request)\.Body\b`]), lines[k])
+}
 
 _word(v) := concat("", [`\b`, v, `\b`])
 
@@ -115,6 +126,18 @@ _checked(lines, i, e, names) if {
 	regex.match(_validator, l)
 	some w in watch
 	regex.match(_word(w), l)
+	not _scheme_only(l)
+}
+
+# HasPrefix/HasSuffix against a bare scheme ("http://", "https") only
+# normalises the URL; it says nothing about the host.
+_scheme_only(l) if {
+	args := [trim_space(m[1]) | some m in regex.find_all_string_submatch_n(`Has(?:Prefix|Suffix)\(\s*[\w.]+\s*,\s*([^)]*)\)`, l, -1)]
+	count(args) > 0
+	every a in args {
+		regex.match(`^"(?:https?|wss?)?:?(?://)?"$`, a)
+	}
+	not regex.match(`(?i)allow|valid|white_?list|trusted|permit|safe|deny|block|is_?private|is_?internal|IsLoopback|IsPrivate|IsGlobalUnicast|\.Hostname\(\)\s*(?:!=|==)|\.Host\s*(?:!=|==)`, l)
 }
 
 # Every connection goes through a dialer that refuses internal addresses.
@@ -151,6 +174,8 @@ _sinks := {
 	`\bhttputil\.NewSingleHostReverseProxy\(`: 0,
 	`\b(?:net|tls)\.(?:Dial|DialTimeout)\(`: 1,
 	`\b\w*[Dd]ialer\w*\.DialContext\(`: 2,
+	`\bwebsocket\.(?:\w*Dialer\.Dial|Dial)\(`: 0,
+	`\bwebsocket\.\w*Dialer\.DialContext\(`: 1,
 }
 
 _not_http_client(stmt) if regex.match(`(?i)\b\w*(?:redis|cache|kv|etcd|db|sql|mongo|s3|dynamo|consul|vault|memcache|bolt|badger|store|grpc)\w*\.(?:Get|Head|Post)\(`, stmt)
@@ -182,7 +207,7 @@ findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".go")
 	regex.match(_hint, content)
-	regex.match(concat("|", [_request, `\.Decode\(|Bind\w*\(|BodyParser\(`]), content)
+	regex.match(concat("|", [_request, `\.Decode\(|Bind\w*\(|BodyParser\(|Unmarshal\(`]), content)
 	not _guarded(content)
 	lines := split(content, "\n")
 	some i, line in lines

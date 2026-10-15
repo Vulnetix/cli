@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-022 – Sensitive Data in Log Statement"
-description: "Detects log statements that may include passwords, tokens, API keys, or other secrets, which exposes credentials in log files, monitoring systems, and log aggregators."
+description: "Reports logging and print calls across 14 languages whose arguments carry a password, secret, API key, private key or access/refresh token value. Message text alone, descriptive names, masked or hashed values and presence checks are not reported."
 ---
 
 ## Overview

@@ -23,7 +23,7 @@ metadata := {
 
 _is_js(path) if regex.match(`\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts)$`, path)
 
-_file_gate := `(?m)(?:\beval\s*\(|\bFunction\s*\(|\bvm\.|(?:setTimeout|setInterval)\s*\(\s*['"\x60])`
+_file_gate := `(?m)(?:\beval\s*\)?\s*\(|\bFunction\s*\(|\bvm\.|(?:setTimeout|setInterval)\s*\(\s*['"\x60])`
 
 # A template literal with interpolation becomes the identifier TPLX (it is an
 # expression); every other string literal collapses to "" so a sink spelled
@@ -36,6 +36,7 @@ _strip(line) := regex.replace(
 _sinks := [
 	{"re": `(?:^|[^\w$.])(?:(?:window|globalThis|global|self)\.)?eval\s*\((.*)$`, "what": "eval()", "stop": `[,)].*$`},
 	{"re": `(?:^|[^\w$.])(?:new\s+)?Function\s*\((.*)$`, "what": "Function constructor", "stop": `\).*$`},
+	{"re": `\(\s*0\s*,\s*(?:(?:window|globalThis|global|self)\.)?eval\s*\)\s*\((.*)$`, "what": "indirect eval()", "stop": `[,)].*$`},
 	{"re": `(?:^|[^\w$.])vm\.(?:runInNewContext|runInThisContext|runInContext|compileFunction)\s*\((.*)$`, "what": "vm code execution", "stop": `[,)].*$`},
 	{"re": `(?:^|[^\w$.])new\s+vm\.Script\s*\((.*)$`, "what": "vm.Script", "stop": `[,)].*$`},
 ]
@@ -74,6 +75,28 @@ findings contains finding if {
 	count(m) > 0
 	regex.match(`^\s*(?:""\s*\+|TPLX)`, m[0][1])
 	finding := _finding(path, i, line, "setTimeout/setInterval with a code string built from variables is evaluated like eval(); pass a function instead")
+}
+
+# vm functions bound by destructuring: const { runInNewContext } = require("vm")
+# or import { runInContext } from "node:vm". Only names the file binds from vm.
+findings contains finding if {
+	some path, content in input.file_contents
+	_is_js(path)
+	not endswith(path, ".min.js")
+	regex.match(`(?:require\(\s*['"](?:node:)?vm['"]\s*\)|from\s+['"](?:node:)?vm['"])`, content)
+	some name in ["runInNewContext", "runInThisContext", "runInContext", "compileFunction"]
+	contains(content, name)
+	regex.match(sprintf(`\{[^}]*\b%s\b[^}]*\}\s*(?:=\s*require\(\s*['"](?:node:)?vm['"]|from\s+['"](?:node:)?vm['"])`, [name]), content)
+	lines := split(content, "\n")
+	some i, line in lines
+	count(line) <= 400
+	contains(line, name)
+	not helpers.is_comment_line(line)
+	s := _strip(line)
+	m := regex.find_all_string_submatch_n(sprintf(`(?:^|[^\w$.])%s\s*\((.*)$`, [name]), s, 1)
+	count(m) > 0
+	_dynamic(_arg(lines, i, m[0][1]), `[,)].*$`)
+	finding := _finding(path, i, line, "vm code execution with a non-constant argument executes generated code; vm is not a security sandbox, so user-controlled code here is code injection")
 }
 
 # The argument text: the rest of the line, or the next line when the call

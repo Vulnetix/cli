@@ -1,0 +1,3 @@
+<config>
+    <string name="api_key">replace-me-at-runtime</string>
+</config>

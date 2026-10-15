@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CRYPTO-003",
 	"name": "AES in ECB mode",
-	"description": "A block cipher (AES, and any other cipher named the same way) is set up in ECB mode: Python AES.new(key, AES.MODE_ECB) or any MODE_ECB argument, cryptography modes.ECB(), pyaes AESModeOfOperationECB and the legacy PyCrypto AES.new(key) whose default mode is ECB; Node.js crypto.createCipheriv/createDecipheriv/createCipher with an '*-ecb' cipher name (literally or through a constant assigned it), CryptoJS mode.ECB and aes-js ModeOfOperation.ecb; Go NewECBEncrypter/NewECBDecrypter and a cipher.Block's Encrypt/Decrypt called on successive slices inside a loop (ECB written by hand); Java Cipher.getInstance with an '*/ECB/*' transformation or with bare \"AES\", whose provider default is AES/ECB/PKCS5Padding, given literally, through a variable or constant, or as a getProperty default; Ruby OpenSSL::Cipher.new('aes-*-ecb') and OpenSSL::Cipher::AES.new(n, :ECB); PHP openssl_encrypt/openssl_decrypt with an '*-ecb' method (literal or variable), mcrypt MCRYPT_MODE_ECB/mcrypt_ecb() and phpseclib MODE_ECB or new AES('ecb'). ECB encrypts equal plaintext blocks to equal ciphertext blocks and carries no integrity, so tokens and records leak structure and can be cut and pasted; use AES-GCM (or ChaCha20-Poly1305). Not reported: GCM, CBC, CTR and other modes, a comparison against MODE_ECB (a guard rejecting it), a cipher name in a deny-list, KeyGenerator/SecretKeySpec with \"AES\" (a key, not a mode), a single-block Encrypt outside a loop (CMAC subkeys, key wrapping), ECB named inside a string literal, prose or a comment, documentation, and test files (known-answer vectors are ECB by definition).",
+	"description": "A block cipher (AES, and any other cipher named the same way) is set up in ECB mode: Python AES.new(key, AES.MODE_ECB) or any MODE_ECB argument, cryptography modes.ECB(), pyaes AESModeOfOperationECB and the legacy PyCrypto AES.new(key) whose default mode is ECB; Node.js crypto.createCipheriv/createDecipheriv/createCipher with an '*-ecb' cipher name (literally or through a constant assigned it), CryptoJS mode.ECB and aes-js ModeOfOperation.ecb; Go NewECBEncrypter/NewECBDecrypter and a cipher.Block's Encrypt/Decrypt called on successive slices inside a loop (ECB written by hand); Java Cipher.getInstance with an '*/ECB/*' transformation or with a bare \"AES\", \"DES\", \"DESede\" or \"Blowfish\" transformation, whose provider default is ECB with PKCS5 padding, given literally, through a variable or constant, or as a getProperty default; Ruby OpenSSL::Cipher.new('aes-*-ecb') and OpenSSL::Cipher::AES.new(n, :ECB); PHP openssl_encrypt/openssl_decrypt with an '*-ecb' method (literal or variable), mcrypt MCRYPT_MODE_ECB/mcrypt_ecb() and phpseclib MODE_ECB or new AES('ecb'). ECB encrypts equal plaintext blocks to equal ciphertext blocks and carries no integrity, so tokens and records leak structure and can be cut and pasted; use AES-GCM (or ChaCha20-Poly1305). Not reported: GCM, CBC, CTR and other modes, RSA/ECB/* transformations (an RSA cipher has no block mode; padding is another rule's concern), AESWrap and AES/KW, a comparison against MODE_ECB (a guard rejecting it), a cipher name in a deny-list, KeyGenerator/SecretKeySpec with \"AES\" (a key, not a mode), a single-block Encrypt outside a loop (CMAC subkeys, key wrapping), ECB named inside a string literal, prose or a comment, documentation, and test files (known-answer vectors are ECB by definition).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-003/",
 	"languages": ["python", "node", "go", "java", "ruby", "php"],
 	"severity": "high",
@@ -43,7 +43,7 @@ _lang(path) := "php" if endswith(path, ".php")
 _ecb_lit := "['\"`](?i:[a-z0-9]+(?:-[a-z0-9]+)*-ecb|[a-z0-9]+/ecb(?:/[a-z0-9]+)?|ecb)['\"`]"
 
 # Java: a bare "AES" transformation, which providers expand to AES/ECB.
-_aes_default_lit := `"(?i:aes(?:_(?:128|192|256))?)"`
+_aes_default_lit := `"(?i:aes(?:_(?:128|192|256))?|des|desede|tripledes|blowfish)"`
 
 _strings := {
 	"python": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
@@ -64,7 +64,9 @@ _tail_comment := {
 }
 
 _code(lang, line) := c if {
-	s := regex.replace(line, _ecb_lit, "__ECB__")
+	# RSA/ECB/... names no block mode: an RSA cipher encrypts one block
+	s0 := regex.replace(line, `(?i)['"](?:rsa|ecies|elgamal)/ecb/[^'"]*['"]`, `""`)
+	s := regex.replace(s0, _ecb_lit, "__ECB__")
 	s2 := _java_default(lang, s)
 	t := regex.replace(s2, _strings[lang], `""`)
 	c := regex.replace(t, _tail_comment[lang], "")
@@ -134,11 +136,12 @@ _use_re := {
 
 _bound(lang, names) := {concat("", [_use_re[lang][0], n, _use_re[lang][1]]) | some n in names}
 
-_ecb_value := `(?i:[a-z0-9]+/ecb/[a-z0-9]+|[a-z0-9]+/ecb|aes)`
+_ecb_value := `(?i:[a-z0-9]+/ecb/[a-z0-9]+|[a-z0-9]+/ecb|aes|des|desede|tripledes|blowfish)`
 
 _java_vars(content) := literal | defaults if {
 	literal := {m[1] |
 		some m in regex.find_all_string_submatch_n(concat("", [`\b(\w+)\s*=\s*"`, _ecb_value, `"\s*[;,)]`]), content, -1)
+		not regex.match(`(?i)=\s*"(?:rsa|ecies|elgamal)/`, m[0])
 	}
 	defaults := {m[1] |
 		some m in regex.find_all_string_submatch_n(concat("", [`\b(\w+)\s*=\s*[\w.]*getProperty\s*\(\s*"([^"]*)"\s*,\s*"`, _ecb_value, `"\s*\)\s*[;,)]`]), content, -1)
@@ -205,7 +208,7 @@ _excluded(code) if regex.match(`[=!]==?\s*[\w.:]*(?:MODE_ECB|mode\.ECB)\b`, code
 
 _excluded(code) if regex.match(`(?:MODE_ECB|mode\.ECB)\s*[=!]==?`, code)
 
-_gate("java", content) if regex.match(`(?i)ecb|"aes(?:_\d+)?"`, content)
+_gate("java", content) if regex.match(`(?i)ecb|"(?:aes(?:_\d+)?|des|desede|tripledes|blowfish)"`, content)
 
 _gate("python", content) if regex.match(`(?i)ecb|\bAES\.new\s*\(`, content)
 

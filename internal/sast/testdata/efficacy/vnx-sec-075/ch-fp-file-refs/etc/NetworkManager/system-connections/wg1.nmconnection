@@ -1,0 +1,7 @@
+[connection]
+id=wg1
+type=wireguard
+
+[wireguard]
+private-key-flags=1
+listen-port=51820

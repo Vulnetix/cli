@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-027",
 	"name": "Assignment to innerHTML without sanitization",
-	"description": "Reports an assignment (= or +=) to an element's innerHTML or outerHTML, in JavaScript/TypeScript files and inline scripts of HTML/template pages, whose value is not a constant: a variable, a property, a call, a concatenation with one, or a template literal with an interpolation (the value may continue on the next line). The browser parses that string as HTML, so a value carrying user, URL, message or server data runs script. Not reported: string, template or numeric literals, a ternary choosing between literals, a const assigned a literal, a value passed through DOMPurify.sanitize or an escape/encode/sanitize helper (inline or assigned a few lines above), comparisons (innerHTML === x), textContent/innerText, comments and strings, and third-party library copies (vendor/, libs/, node_modules/, dist/, jquery/bootstrap/angular files, minified files). Overlaps VNX-NODE-005 and VNX-NODE-012, which report every innerHTML sink.",
+	"description": "Reports an assignment (= or +=) to an element's innerHTML or outerHTML, in JavaScript/TypeScript files and inline scripts of HTML/template pages, whose value is not a constant: a variable, a property, a call, a concatenation with one, or a template literal with an interpolation (the value may continue on the next line, and a template literal is read to its closing backtick). The browser parses that string as HTML, so a value carrying user, URL, message or server data runs script. Not reported: string, template or numeric literals, numbers rendered as text (x.length, n.toFixed(2), String(x.length)), a ternary choosing between literals, a const assigned a literal, a value passed through DOMPurify.sanitize or an escape/encode/sanitize helper (inline or assigned a few lines above), comparisons (innerHTML === x), textContent/innerText, comments and strings, and third-party library copies (vendor/, libs/, node_modules/, dist/, jquery/bootstrap/angular files, minified files). Overlaps VNX-NODE-005 and VNX-NODE-012, which report every innerHTML sink.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-027/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
@@ -48,21 +48,40 @@ _strip(s) := regex.replace(
 
 # The assigned expression: the rest of line i, continued on the next code
 # line when the assignment ends the line.
-_rhs(lines, i) := r if {
+_rhs0(lines, i) := r if {
 	parts := regex.split(`\.(?:inner|outer)HTML\s*\+?=`, lines[i])
 	r0 := trim_space(parts[1])
 	r0 != ""
 	r := r0
 }
 
-_rhs(lines, i) := r if {
+_rhs0(lines, i) := r if {
 	parts := regex.split(`\.(?:inner|outer)HTML\s*\+?=`, lines[i])
 	trim_space(parts[1]) == ""
 	j := helpers.next_code_index(lines, i, 3)
 	r := lines[j]
 }
 
-_sanitizer_re := `(?i)(sanitiz|purify|escape|encode|filterxss|xss\(|textcontent|innertext|createtextnode)`
+# A template literal opened on the assignment line runs to the line holding
+# its closing backtick (bounded), so its interpolations are part of the value.
+_rhs(lines, i) := r if {
+	r := _rhs0(lines, i)
+	strings.count(r, "`") % 2 == 0
+}
+
+_rhs(lines, i) := r if {
+	r0 := _rhs0(lines, i)
+	strings.count(r0, "`") % 2 == 1
+	hi := min([count(lines) - 1, i + 25])
+	ends := [j | some j in numbers.range(i + 1, hi); contains(lines[j], "`")]
+	e := min(array.concat(ends, [hi]))
+	r := concat("\n", array.concat([r0], array.slice(lines, i + 1, e + 1)))
+}
+
+# A number rendered as text: x.length, n.toFixed(2), String(x.length).
+_numeric(rhs) if regex.match(`^\s*(?:(?:String|Number|parseInt|parseFloat|Math\.\w+)\(\s*)?[\w$.\[\]]+(?:\.length|\.size|\.toFixed\([^()]*\)|\.toPrecision\([^()]*\))\s*\)?\s*;?\s*$`, rhs)
+
+_sanitizer_re :=`(?i)(sanitiz|purify|escape|encode|filterxss|xss\(|textcontent|innertext|createtextnode)`
 
 _idents(code) := {m[0] |
 	some m in regex.find_all_string_submatch_n(`[A-Za-z_$][\w$]*`, code, -1)
@@ -87,6 +106,7 @@ _sanitized_above(lines, i, id) if {
 _dynamic(content, lines, i, rhs) if {
 	code := _strip(rhs)
 	not regex.match(_sanitizer_re, rhs)
+	not _numeric(rhs)
 	not _literal_choice(code)
 	_has_dynamic_part(content, lines, i, code)
 }

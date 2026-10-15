@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-009",
 	"name": "Java path traversal",
-	"description": "A file path is built from HTTP request data and opened: new File/FileInputStream/FileOutputStream/FileReader/FileWriter/RandomAccessFile, Paths.get, Path.of, Path.resolve/resolveSibling, Files.readAllBytes/readAllLines/readString/lines/newInputStream/newOutputStream/newBufferedReader/newBufferedWriter/delete/deleteIfExists/createFile/createDirectories, or Spring's FileSystemResource/ResourceUtils.getFile, where an argument is a servlet request value (getParameter and its wrappers, getParameterValues/getParameterMap, getHeader/getHeaders, getQueryString, getPathInfo, getRequestURI, getCookies and a cookie's getValue, MultipartFile.getOriginalFilename, Part.getSubmittedFileName), a Spring or JAX-RS annotated handler parameter (@RequestParam, @PathVariable, @RequestHeader, @CookieValue, @RequestBody, @ModelAttribute, @QueryParam, @PathParam, @FormParam, @HeaderParam), or a local assigned from one up to five assignments (or a for-each over one) earlier within 40 lines. A call or assignment that continues on the next lines is read to the end of its statement. Not reported: a value checked against traversal (startsWith on the resolved or canonical path, contains(\"..\"), matches(...), an allowlist contains(...)), reduced to a bare file name (FilenameUtils.getName, getFileName()) or converted to a number (Integer.parseInt, Long.parseLong), request bodies and streams written as file content rather than used as the path, headers of an HTTP client response, the same path reported again when it is opened after the line that built it, constant paths, and sink names inside string literals or comments. Flows into another method or another file are not followed.",
+	"description": "A file path is built from HTTP request data and opened: new File/FileInputStream/FileOutputStream/FileReader/FileWriter/RandomAccessFile, Paths.get, Path.of, Path.resolve/resolveSibling, Files.readAllBytes/readAllLines/readString/lines/newInputStream/newOutputStream/newBufferedReader/newBufferedWriter/delete/deleteIfExists/createFile/createDirectories, or Spring's FileSystemResource/ResourceUtils.getFile, where an argument is a servlet request value (getParameter and its wrappers, getParameterValues/getParameterMap, getHeader/getHeaders, getQueryString, getPathInfo, getRequestURI, getCookies and a cookie's getValue, MultipartFile.getOriginalFilename, Part.getSubmittedFileName), a Spring or JAX-RS annotated handler parameter (@RequestParam, @PathVariable, @RequestHeader, @CookieValue, @RequestBody, @ModelAttribute, @QueryParam, @PathParam, @FormParam, @HeaderParam), or a local assigned from one up to five assignments (or a for-each over one, such as for (Cookie c : request.getCookies())) earlier within 40 lines. A call or assignment that continues on the next lines is read to the end of its statement. Not reported: a value checked against traversal (startsWith on the resolved or canonical path, contains(\"..\"), matches(...), an allowlist contains(...)), reduced to a bare file name (FilenameUtils.getName, getFileName()) or converted to a number (Integer.parseInt, Long.parseLong), request bodies and streams written as file content rather than used as the path, headers of an HTTP client response, the same path reported again when it is opened after the line that built it, constant paths, and sink names inside string literals or comments. Flows into another method or another file are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-009/",
 	"languages": ["java"],
 	"severity": "high",
@@ -42,9 +42,13 @@ _gate_re := `(?m)(\.(?:get\w*Parameter|getParameterValues|getParameterMap|getPar
 
 # A transformation that removes the traversal: a bare file name, a number, a
 # generated identifier.
-_sanitizer_re := `FilenameUtils\.getName\s*\(|\.getFileName\s*\(\s*\)|Integer\.parseInt\s*\(|Integer\.valueOf\s*\(|Long\.parseLong\s*\(|Long\.valueOf\s*\(|UUID\.|encodeForURL|\.replaceAll\s*\(\s*"\[\^`
+_sanitizer_re := `FilenameUtils\.getName\s*\(|\.getFileName\s*\(\s*\)|Integer\.parseInt\s*\(|Integer\.valueOf\s*\(|Long\.parseLong\s*\(|Long\.valueOf\s*\(|UUID\.|encodeForURL|\.replaceAll\s*\(\s*"\[\^|\b[A-Z][A-Z0-9_]{2,}\s*\.\s*get(?:OrDefault)?\s*\(`
 
 _window := 40
+
+# The path object is only built to take its last component:
+# Paths.get(name).getFileName(), new File(name).getName().
+_bare_name_after_re := `(?:\b(?:Paths\.get|Path\.of)\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*\.\s*getFileName|\bnew\s+File\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*\.\s*getName)\s*\(\s*\)`
 
 # The name a statement assigns, after an optional `if (...)` or `else` on the
 # same line: `if (values != null) param = values[0];`.
@@ -90,7 +94,15 @@ _seeds(lines, i, assigns) := {a[0] |
 	contains(lines[j], "@")
 	not helpers.is_comment_line(lines[j])
 	some v in _ann_names(lines[j])
+} | {m[1] |
+	# for (Cookie c : req.getCookies()) makes c request data.
+	some j in numbers.range(max([0, i - _window]), i - 1)
+	contains(lines[j], "for")
+	some m in regex.find_all_string_submatch_n(_foreach_src_re, lines[j], 1)
+	_is_src(m[2])
 }
+
+_foreach_src_re := `\bfor\s*\(\s*(?:final\s+)?[\w.<>\[\]]+\s+(\w+)\s*:\s*([^;]*\))\s*\)`
 
 # for (Cookie c : cookies) carries the taint of cookies to c.
 _foreach_re := `\bfor\s*\(\s*(?:final\s+)?[\w.<>\[\]]+\s+(\w+)\s*:\s*(\w+)\s*\)`
@@ -184,6 +196,29 @@ findings contains finding if {
 	regex.match(_gate_re, content)
 	lines := split(content, "\n")
 	some i, line in lines
+	_hit(lines, i, line)
+	not _continuation_of_hit(lines, i)
+	finding := {
+		"rule_id": metadata.id,
+		"message": "File path built from HTTP request data; resolve it against a fixed base directory, normalise it and check that the result still starts with the base, or reduce it to a bare file name, before opening it",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+
+# `Files.readAllBytes(\n    Paths.get(root, name))` is one statement and is
+# reported once, on its first line.
+_continuation_of_hit(lines, i) if {
+	i > 0
+	prev := lines[i - 1]
+	not regex.match(`[;{}]\s*$`, prev)
+	_hit(lines, i - 1, prev)
+}
+
+_hit(lines, i, line) if {
 	regex.match(_sink_re, line)
 	not helpers.is_comment_line(line)
 	regex.match(_sink_re, _blank(line))
@@ -196,13 +231,5 @@ findings contains finding if {
 	names := refs | {v | v := _assigned(line)}
 	not _guarded(lines, i, names)
 	not _derived_from_sink(lines, i, refs)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "File path built from HTTP request data; resolve it against a fixed base directory, normalise it and check that the result still starts with the base, or reduce it to a bare file name, before opening it",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+	not regex.match(_bare_name_after_re, stmt)
 }

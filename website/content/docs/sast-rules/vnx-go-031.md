@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-031 – Missing signature validation on JWT"
-description: "Detects JWT claims used without signature verification in Go: alg none accepted via UnsafeAllowNoneSignatureType, jwx WithVerify(false), ParseUnverified/ParseInsecure/UnsafeClaimsWithoutVerification in request handlers with no later verification, and parse errors that are discarded without a token.Valid check."
+description: "Detects JWT claims used without signature verification in Go: alg none accepted via UnsafeAllowNoneSignatureType, jwx WithVerify(false), ParseUnverified/ParseInsecure/UnsafeClaimsWithoutVerification/jwx jws.Parse in request handlers with no later verification, and parse errors that are discarded without a token.Valid check."
 ---
 
 ## Overview

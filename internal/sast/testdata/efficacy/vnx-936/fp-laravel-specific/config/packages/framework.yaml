@@ -1,0 +1,12 @@
+framework:
+    secret: '%env(APP_SECRET)%'
+    csrf_protection: true
+    form:
+        csrf_protection:
+            enabled: true
+            field_name: _token
+
+when@test:
+    framework:
+        test: true
+        csrf_protection: false

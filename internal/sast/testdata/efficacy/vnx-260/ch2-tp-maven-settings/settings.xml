@@ -1,0 +1,9 @@
+<settings>
+  <servers>
+    <server>
+      <id>internal-releases</id>
+      <username>deployer</username>
+~>      <password>R3leaseMe2024</password>
+    </server>
+  </servers>
+</settings>

@@ -1,0 +1,5 @@
+{
+  "rushVersion": "5.120.0",
+  "pnpmVersion": "8.15.0",
+  "projects": [{ "packageName": "web", "projectFolder": "apps/web" }]
+}

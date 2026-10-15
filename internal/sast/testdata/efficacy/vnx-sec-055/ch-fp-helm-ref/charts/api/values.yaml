@@ -1,0 +1,3 @@
+newrelic:
+  licenseKey: "{{ .Values.global.licenseKey }}"
+  existingSecret: newrelic-license

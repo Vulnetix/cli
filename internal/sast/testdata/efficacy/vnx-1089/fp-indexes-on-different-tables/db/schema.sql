@@ -1,0 +1,10 @@
+CREATE TABLE a (id INT PRIMARY KEY, x INT);
+CREATE TABLE b (id INT PRIMARY KEY, x INT);
+CREATE TABLE c (id INT PRIMARY KEY, x INT);
+CREATE INDEX a_x ON a (x);
+CREATE INDEX a_id_x ON a (id, x);
+CREATE INDEX b_x ON b (x);
+CREATE INDEX b_id_x ON b (id, x);
+CREATE INDEX c_x ON c (x);
+CREATE INDEX c_id_x ON c (id, x);
+CREATE INDEX c_x_id ON c (x, id);

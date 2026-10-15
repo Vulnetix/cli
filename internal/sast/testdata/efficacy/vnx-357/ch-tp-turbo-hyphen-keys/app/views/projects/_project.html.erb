@@ -1,0 +1,6 @@
+<div id="<%= dom_id(project) %>" class="project">
+  <h2><%= project.name %></h2>
+~>  <%= link_to "Delete", project_path(project), data: { "turbo-method": :delete }, class: "btn btn-danger" %>
+~>  <a href="<%= project_path(project) %>" data-turbo-method="delete" class="btn-link">Remove</a>
+  <%= link_to "Edit", edit_project_path(project) %>
+</div>

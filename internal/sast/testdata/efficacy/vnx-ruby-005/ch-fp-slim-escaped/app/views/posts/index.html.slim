@@ -1,0 +1,6 @@
+h1 = t(".title")
+- @posts.each do |post|
+  .post
+    = post.title
+    == render "posts/summary", post: post
+    == yield

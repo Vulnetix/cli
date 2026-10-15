@@ -85,13 +85,35 @@ _aes_ecb(a, lits) if {
 	ms[0][1] in _ecb_names(lits)
 }
 
+# A constant built by concatenation: MODE = ALGO + "/ECB/PKCS5Padding".
+_aes_ecb(a, lits) if {
+	ms := regex.find_all_string_submatch_n(`^(?:[A-Za-z_]\w*\.)*([A-Za-z_]\w*)$`, a, 1)
+	count(ms) > 0
+	n := ms[0][1]
+	some [n2, e] in lits
+	n2 == concat("", ["+", n])
+	_ecb(e)
+	not _rsa(e)
+	some x in _names_in(regex.replace(e, `"[^"]*"`, ""))
+	x in _aes_names(lits)
+}
+
+# Concatenated constants, keyed "+NAME" so they never mix with literals.
+_concat_lits(lines) := {[concat("", ["+", m[1]]), m[2]] |
+	some l in lines
+	contains(l, "+")
+	contains(l, "ECB")
+	not helpers.is_comment_line(l)
+	some m in regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\s*(?::\s*String\s*)?=\s*((?:"[^"$]*"|[A-Za-z_][\w.]*)(?:\s*\+\s*(?:"[^"$]*"|[A-Za-z_][\w.]*))+)\s*;?\s*$`, l, 1)
+}
+
 findings contains finding if {
 	some path, content in input.file_contents
 	_lang(path)
 	contains(content, "getInstance")
 	regex.match(`(?i)aes`, content)
 	lines := split(content, "\n")
-	lits := _literals(lines)
+	lits := _literals(lines) | _concat_lits(lines)
 	some i, line in lines
 	contains(line, "getInstance")
 	not helpers.is_comment_line(line)

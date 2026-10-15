@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.acme.sync">
+    <application android:label="Sync">
+        <receiver android:name=".sync.RefreshReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".sync.InternalReceiver">
+            <intent-filter>
+                <action android:name="com.acme.sync.REFRESH" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

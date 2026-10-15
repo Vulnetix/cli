@@ -1,0 +1,4 @@
+form(method="post", action="/checkout")
+  input(type="hidden", name="_csrf", value=csrfToken)
+~>  input(type="hidden", name="price", value=item.price)
+  button(type="submit") Buy

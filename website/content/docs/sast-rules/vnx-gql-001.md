@@ -49,7 +49,7 @@ view_func=GraphQLView.as_view("graphiql", schema=schema, graphiql=True)
 graphql_app = GraphQLRouter(schema, graphiql=True)
 ```
 
-Not flagged: `introspection: isDev`, `graphiql: process.env.NODE_ENV === 'development'`, `graphiql=DEBUG`, the same key in a file that builds no GraphQL server, and test files.
+Not flagged: `introspection: isDev`, `graphiql: process.env.NODE_ENV === 'development'`, `graphiql=DEBUG`, `...(isDev ? { introspection: true } : {})`, a view mounted inside `if settings.DEBUG:` or `if (process.env.NODE_ENV !== 'production')`, the same key in a file that builds no GraphQL server, and test files.
 
 ## Remediation
 

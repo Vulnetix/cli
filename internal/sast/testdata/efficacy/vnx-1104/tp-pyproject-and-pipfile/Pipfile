@@ -1,0 +1,11 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "~=4.2"
+~>pycrypto = "*"
+
+[dev-packages]
+~>nose = "==1.3.7"

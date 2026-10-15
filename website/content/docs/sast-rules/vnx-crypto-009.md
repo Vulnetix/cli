@@ -7,9 +7,9 @@ description: "Detects a value from rand(), random(), the drand48 family, std::ra
 
 This rule reports a call to a non-cryptographic PRNG (`rand()`, `random()`, `rand_r()`, `drand48()`, `erand48()`, `lrand48()`, `nrand48()`, `mrand48()`, `jrand48()`, `std::rand()`, or a `<random>` engine such as `std::mt19937`, `std::minstd_rand` or `std::default_random_engine`) when its value becomes a security value. That means one of:
 
-- it is assigned to, or `snprintf`'d into, a variable or field named as a token, nonce, salt, IV, secret, password, session id, CSRF token, OTP, PIN, challenge, cookie, ticket or crypto key (`token[i] = ...`, `c->session_id`, `h->nonce`);
-- it is assigned to a variable that one of those receives within the next few lines;
-- it is produced inside a function or method named for what it makes (`generate_token`, `make_nonce`, `new_otp`, `- (NSString *)generateSessionId`).
+- it is assigned to, or `snprintf`'d into, a variable, field or dereferenced pointer named as a token, nonce, salt, IV, secret, password, session id, CSRF token, OTP, PIN, challenge, cookie, ticket or crypto key (`token[i] = ...`, `c->session_id`, `h->nonce`, `*pin = ...`), including an `snprintf` call broken across lines;
+- it is assigned to a variable (not one named as a count or size) that one of those receives within the next few lines;
+- it is produced inside a function or method whose name pairs a verb that makes something (generate, make, new, next, create, issue, reset...) with what it makes (`generate_token`, `make_nonce`, `new_otp`, `- (NSString *)generateSessionId`). A function named only for the word (`fuzz_tokens`, `parse_token`) is not a maker.
 
 Files are C, C++ and Objective-C (`.c`, `.h`, `.cc`, `.cpp`, `.cxx`, `.hpp`, `.m`, `.mm` and similar). Not reported: `rand()` used for sampling, shuffling, jitter, hash seeds, dictionary keys, counts, sizes or timeouts, which is almost every `rand()` call in real code; `srand()`, `srand48()` and `seed48()` on their own; `arc4random()`, `getrandom()`, `RAND_bytes()`, `randombytes_buf()` and `std::random_device`; calls inside comments or string literals; and test files. The rule follows one intermediate variable within a function; longer flows and flows across functions are not followed.
 

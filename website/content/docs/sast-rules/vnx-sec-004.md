@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-004 – GitHub or GitLab Token"
-description: "Detects hardcoded GitHub personal access tokens (ghp_/ghs_ prefix) and GitLab personal access tokens (glpat- prefix) in source code."
+description: "Reports a hard-coded GitHub token (ghp_, gho_, ghu_, ghs_, ghr_, github_pat_) or GitLab access token (glpat-) in any file, excluding placeholders, truncated tokens, prefix checks, environment and CI-secret references and test files."
 ---
 
 ## Overview
@@ -19,24 +19,24 @@ GitHub has built-in secret scanning that detects `ghp_` and `glpat-` prefixes an
 
 ## What Gets Flagged
 
-Any source line containing a string matching `ghp_[A-Za-z0-9_]{36,}`, `ghs_[A-Za-z0-9_]{36,}`, or `glpat-[A-Za-z0-9_-]{20,}`.
+A standalone GitHub classic personal access, OAuth, user-to-server, installation or refresh token (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` followed by 36 characters), a GitHub fine-grained token (`github_pat_...`), or a GitLab personal/project access token (`glpat-` followed by 20 or more characters, including the newer dotted format), on its own, inside a clone URL or in a header.
 
 ```python
-# FLAGGED: GitHub PAT hardcoded
-import requests
-
-headers = {
-    'Authorization': 'token ghp_EXAMPLE_REDACTED',
-    'Accept': 'application/vnd.github.v3+json'
-}
-response = requests.get('https://api.github.com/user/repos', headers=headers)
+# FLAGGED: classic PAT in an Authorization header
+headers = {"Authorization": "token ghp_<36 characters>"}
 ```
 
 ```bash
-# FLAGGED: GitLab token in script
-curl --header "PRIVATE-TOKEN: glpat-EXAMPLE_REDACTED" \
-  "https://gitlab.com/api/v4/projects"
+# FLAGGED: token embedded in a clone URL
+git clone https://x-access-token:ghs_<36 characters>@github.com/org/repo.git
 ```
+
+Not flagged:
+
+- Placeholder runs (`ghp_xxxxxxxx...`, `glpat-XXXXXXXX...`) and truncated tokens.
+- Prefix lists and prefix checks (`token.startswith("ghp_")`).
+- Environment and CI-secret references (`os.environ["GITHUB_TOKEN"]`, `${{ secrets.GITHUB_TOKEN }}`).
+- Test, fixture, vendored and generated files.
 
 ## Remediation
 

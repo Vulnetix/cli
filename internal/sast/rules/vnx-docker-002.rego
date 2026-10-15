@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-DOCKER-002",
 	"name": "Dockerfile base image not pinned (:latest or no tag)",
-	"description": "A FROM instruction, or a COPY --from that pulls an external image, names an image by :latest or by no tag at all and without an @sha256 digest, so every build can silently receive a different (possibly broken or compromised) image. Reported: FROM node:latest, FROM ubuntu, FROM --platform=... python AS deps, FROM registry:5000/team/base (a port is not a tag), lowercase instructions, FROM ${BASE} when BASE resolves through its ARG default (or ${BASE:-default}) to such an image, and COPY --from=composer:latest / --from=vendor/tool. Not reported: a tag other than latest (including a variable tag such as node:${NODE_VERSION}), any image pinned by digest (even :latest@sha256:...), scratch, a reference to an earlier stage (FROM build, COPY --from=build, COPY --from=0), an image held in an ARG with no default (supplied at build time), FROM/COPY text inside comments, strings and heredocs, test and .devcontainer images, and files that only mention Dockerfiles.",
+	"description": "A FROM instruction, or a COPY --from that pulls an external image, names an image by :latest or by no tag at all and without an @sha256 digest, so every build can silently receive a different (possibly broken or compromised) image. Reported: FROM node:latest, FROM ubuntu, FROM --platform=... python AS deps, FROM registry:5000/team/base (a port is not a tag), lowercase instructions, FROM ${BASE} when BASE resolves through its ARG default (or ${BASE:-default}) to such an image, COPY --from=composer:latest / --from=vendor/tool, and RUN --mount=from=ghcr.io/astral-sh/uv,... (a bind mount from an external image). Not reported: a tag other than latest (including a variable tag such as node:${NODE_VERSION}), any image pinned by digest (even :latest@sha256:...), scratch, a reference to an earlier stage (FROM build, COPY --from=build, COPY --from=0, RUN --mount=from=build), an image held in an ARG with no default (supplied at build time), FROM/COPY text inside comments, strings and heredocs, test and .devcontainer images, and files that only mention Dockerfiles.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-002/",
 	"languages": ["docker"],
 	"severity": "medium",
@@ -183,6 +183,38 @@ findings contains finding if {
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("%s (image %s)", [_msg, eff]),
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+
+# RUN --mount=...,from=<external image>,...: the image is pulled to mount it
+findings contains finding if {
+	some path, content in input.file_contents
+	_is_dockerfile(path)
+	not _skip_path(path)
+	contains(content, "--mount=")
+	lines := split(content, "\n")
+	hd := contains(content, "<<")
+	stages := _aliases(lines)
+	some i, line in lines
+	contains(line, "from=")
+	regex.match(`(?i)^\s*(?:ONBUILD\s+)?RUN\s+--`, line)
+	_instr(lines, i, hd)
+	some mm in regex.find_all_string_submatch_n(`--mount=(\S+)`, line, -1)
+	some opt in split(mm[1], ",")
+	startswith(lower(opt), "from=")
+	ref := _strip(substring(opt, 5, -1))
+	not regex.match(`^\d+$`, ref)
+	not contains(ref, "$")
+	not lower(ref) in stages
+	_unpinned(ref)
+	finding := {
+		"rule_id": metadata.id,
+		"message": sprintf("RUN --mount pulls an external image that is not pinned (%s): :latest, a floating tag or a missing tag changes underneath the build. Pin a version tag and, ideally, the @sha256 digest", [ref]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

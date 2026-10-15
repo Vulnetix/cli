@@ -1,0 +1,7 @@
+<% @posts.each do |post| %>
+  <%= link_to 'Destroy', post, method: :delete, data: { confirm: 'Are you sure?' } %>
+  <%= link_to "Delete", post_path(post),
+      data: { turbo_method: :delete, turbo_confirm: "Delete this post?" } %>
+  <%= button_to "Delete", post, method: :delete, form: { data: { turbo_confirm: "Really?" } } %>
+  <%= link_to 'Delete', post, method: :delete, confirm: 'Sure?' %>
+<% end %>

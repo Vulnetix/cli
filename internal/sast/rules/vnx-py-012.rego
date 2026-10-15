@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-012",
 	"name": "Python server-side template injection",
-	"description": "Request data becomes the source text of a server-side template, so an attacker writes template code ({{ ... }}, {% ... %}) that the engine evaluates, which in Jinja2 and Mako reaches arbitrary Python execution. Reported: the template-source argument of Flask render_template_string(), a Jinja2 or Django env.from_string(), and jinja2/mako/django Template() is request data (request.args/form/values/GET/POST/json/get_json()/data/cookies/headers/...) directly, or a variable assigned from request data up to 30 lines above, or a parameter of the enclosing route handler (a def decorated with @app.route/@router.get or whose first parameter is request), or an f-string, % format, .format() or + concatenation of such a value (also through one intermediate template variable, and across the lines of a triple-quoted template). Not reported: a constant template with the user value passed as render context (render_template_string('<h1>{{ name }}</h1>', name=name)), render_template() with a template file, templates formatted only from untainted variables or ALL_CAPS constants, string.Template and other lookalikes (PromptTemplate), framework wrappers that forward their own parameter, and the pattern in comments and strings. Flows through helper functions or more than one intermediate variable are not followed.",
+	"description": "Request data becomes the source text of a server-side template, so an attacker writes template code ({{ ... }}, {% ... %}) that the engine evaluates, which in Jinja2 and Mako reaches arbitrary Python execution. Reported: the template-source argument of Flask render_template_string() (also as flask.render_template_string), a Jinja2 or Django env.from_string(), and jinja2/mako/django/tornado Template() is request data (request.args/form/values/GET/POST/json/get_json()/data/cookies/headers/..., Tornado self.get_argument()) directly, or a variable assigned from request data up to 30 lines above, or a parameter of the enclosing route handler (a def decorated with @app.route/@router.get or whose first parameter is request), or an f-string, % format, .format() or + concatenation of such a value (also through one intermediate template variable, and across the lines of a triple-quoted template). Not reported: a constant template with the user value passed as render context (render_template_string('<h1>{{ name }}</h1>', name=name)), render_template() with a template file, templates formatted only from untainted variables or ALL_CAPS constants, string.Template and other lookalikes (PromptTemplate), framework wrappers that forward their own parameter, and the pattern in comments and strings. Flows through helper functions or more than one intermediate variable are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-012/",
 	"languages": ["python"],
 	"severity": "critical",
@@ -65,7 +65,7 @@ _ids(raw) := _outside_ids(_blank(raw)) | _interp_ids(raw)
 
 # ── Taint ───────────────────────────────────────────────────────────────
 
-_source_re := `\brequest\.(?:args|form|values|GET|POST|data|json|get_json|cookies|headers|body|files|query_params|params|get_data|REQUEST|match_info|query|stream)\b`
+_source_re := `(?:\brequest\.(?:args|form|values|GET|POST|data|json|get_json|cookies|headers|body|files|query_params|params|get_data|REQUEST|match_info|query|stream)\b|\bself\.get_(?:argument|arguments|query_argument|query_arguments|body_argument|body_arguments)\s*\()`
 
 _direct(raw) if regex.match(_source_re, _code(raw))
 
@@ -73,7 +73,7 @@ _direct(raw) if regex.match(_source_re, _code(raw))
 _tainted(lines, i) := {v |
 	some j in numbers.range(max([0, i - 30]), i - 1)
 	i > 0
-	contains(lines[j], "request")
+	regex.match(`request|get_\w*argument`, lines[j])
 	not helpers.is_comment_line(lines[j])
 	regex.match(_source_re, _code(lines[j]))
 	v := helpers.assigned_first(lines[j])
@@ -123,9 +123,9 @@ _built_from_taint(raw, taint) if {
 
 _engine_import := `(?m)^\s*(?:from|import)\s+(?:jinja2|mako|django\.template|django\b[\w\.]*\s+import\s+[^\n]*\bTemplate|tornado\.template)`
 
-_sink_re(content) := `(?:(?:^|[^\w.])render_template_string|\.from_string|(?:^|[^\w])Template)\s*\(` if regex.match(_engine_import, content)
+_sink_re(content) := `(?:(?:^|[^\w.])(?:flask\.)?render_template_string|\.from_string|(?:^|[^\w])Template)\s*\(` if regex.match(_engine_import, content)
 
-_sink_re(content) := `(?:^|[^\w.])render_template_string\s*\(` if not regex.match(_engine_import, content)
+_sink_re(content) := `(?:^|[^\w.])(?:flask\.)?render_template_string\s*\(` if not regex.match(_engine_import, content)
 
 _bal(s) := count(regex.find_all_string_submatch_n(`\(`, s, -1)) - count(regex.find_all_string_submatch_n(`\)`, s, -1))
 

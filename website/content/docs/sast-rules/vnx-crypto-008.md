@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-008 – Timing Attack via Direct Comparison of Secrets"
-description: "Reports a MAC, signature, digest or secret token checked with ordinary equality (==, !=, ===, !==, Java equals/Arrays.equals, Go bytes.Equal) in Python, Node.js, Go, Java, PHP and Ruby, and any equality on a line that computes an HMAC. Presence checks, constants, lexer token kinds, hash-named values and constant-time APIs are not reported."
+description: "Reports a MAC, signature, digest or secret token checked with ordinary equality (==, !=, ===, !==, Java equals/Arrays.equals, Go bytes.Equal) in Python, Node.js, Go, Java, PHP and Ruby, any equality on a line that computes an HMAC, and a hand-written byte loop with an early return in MAC or signature code. Presence checks, constants, lexer token kinds, hash-named values and constant-time APIs are not reported."
 ---
 
 ## Overview
@@ -39,6 +39,15 @@ if (crypto.createHmac('sha256', secret).update(body).digest('hex') === req.get('
 ```go
 // FLAGGED: Go string equality on a signature
 return sig == expected
+```
+
+```go
+// FLAGGED: a byte loop that returns at the first difference, in HMAC code
+for i := range expected {
+	if expected[i] != supplied[i] {
+		return false
+	}
+}
 ```
 
 ```php

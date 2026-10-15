@@ -1,0 +1,7 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "@Microsoft.KeyVault(SecretUri=https://acme-kv.vault.azure.net/secrets/storage-conn/)",
+    "StorageAccountKey": "@Microsoft.KeyVault(VaultName=acme-kv;SecretName=storage-key)"
+  }
+}

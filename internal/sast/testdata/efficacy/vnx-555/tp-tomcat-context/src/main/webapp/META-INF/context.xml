@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+    <Resource name="jdbc/AppDB" auth="Container" type="javax.sql.DataSource"
+              driverClassName="org.postgresql.Driver"
+              url="jdbc:postgresql://db:5432/app"
+~>              username="app" password="S3cure!Pass"
+              maxTotal="20"/>
+</Context>

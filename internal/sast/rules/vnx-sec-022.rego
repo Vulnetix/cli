@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-SEC-022",
 	"name": "Sensitive data in log statement",
-	"description": "Reports a logging or print call whose arguments carry a credential value: a variable, field, getter or map key whose name ends with password/passwd/pwd/passphrase, secret/client_secret/secret_key, api_key/apikey, private_key, token (access/refresh/auth/id/bearer/session/jwt token) or credentials, passed as an argument, concatenated into the message, or interpolated into an f-string, template literal, ${...}/#{...}/$name/\\(name) string, or a subscript such as params['password']. Calls covered: console.log/info/warn/error/debug, logger/log/logging/slog/LOG/_logger receivers with a level method (info, debug, warn, error, printf, LogInformation, d/i/w/e...), print/println/printf/puts/NSLog/error_log, fmt.Print*, System.out/err.print*, Console.Write*, println!/eprintln!. Arguments on up to two continuation lines are read. Not reported: a sensitive word inside the message text alone (\"wrong password\", \"Usage: <password>\"), names that describe rather than hold the value (passwordLength, tokenType, secretName, password_reset, hasPassword, isTokenValid), lexer/pagination/cancellation/CSRF/push tokens, a value passed through mask/redact/hash/sanitize/len, comment lines, test paths, and files outside the covered languages.",
+	"description": "Reports a logging or print call whose arguments carry a credential value: a variable, field, getter or map key whose name ends with password/passwd/pwd/passphrase, secret/client_secret/secret_key, api_key/apikey, private_key, token (access/refresh/auth/id/bearer/session/jwt token) or credentials, passed as an argument, concatenated into the message, or interpolated into an f-string, template literal, ${...}/#{...}/$name/\\(name) string, or a subscript such as params['password']. Calls covered: console.log/info/warn/error/debug, logger/log/logging/slog/LOG/_logger receivers with a level method (info, debug, warn, error, printf, LogInformation, d/i/w/e...), print/println/printf/puts/NSLog/error_log, fmt.Print*, System.out/err.print*, Console.Write*, println!/eprintln!. Arguments on up to six continuation lines are read while the parentheses are open, and the Python 2 print statement (print newpassword) is covered. Not reported: a sensitive word inside the message text alone (\"wrong password\", \"Usage: <password>\"), names that describe rather than hold the value (passwordLength, tokenType, secretName, password_reset, hasPassword, isTokenValid), lexer/pagination/cancellation/CSRF/push tokens, a value passed through mask/redact/hash/sanitize/len, a presence check (password != null, password is not None, \"set\" if api_key else \"unset\", !secret.isEmpty(), Boolean(token)), a bare variable named token (too often a lexer or parser token), comment lines, test paths, and files outside the covered languages.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-022/",
 	"languages": ["python", "javascript", "typescript", "java", "kotlin", "go", "ruby", "php", "csharp", "swift", "rust", "c", "cpp", "scala"],
 	"severity": "medium",
@@ -89,7 +89,8 @@ _sensitive_args(args) if {
 	_sensitive(n)
 }
 
-# The call and up to two continuation lines while its parentheses are open.
+# The call and up to six continuation lines while its parentheses are open
+# (a formatter puts one argument per line), stopping where they close.
 _call_text(lines, i) := t if {
 	line := lines[i]
 	count(indexof_n(line, "(")) <= count(indexof_n(line, ")"))
@@ -99,9 +100,19 @@ _call_text(lines, i) := t if {
 _call_text(lines, i) := t if {
 	line := lines[i]
 	count(indexof_n(line, "(")) > count(indexof_n(line, ")"))
-	end := min([count(lines) - 1, i + 2])
-	t := concat(" ", [lines[k] | some k in numbers.range(i, end)])
+	last := min([count(lines) - 1, i + 6])
+	closes := [k |
+		some k in numbers.range(i + 1, last)
+		seg := concat(" ", array.slice(lines, i, k + 1))
+		count(indexof_n(seg, "(")) <= count(indexof_n(seg, ")"))
+	]
+	end := _first_or(closes, last)
+	t := concat(" ", array.slice(lines, i, end + 1))
 }
+
+_first_or(xs, d) := xs[0] if count(xs) > 0
+
+_first_or(xs, d) := d if count(xs) == 0
 
 findings contains finding if {
 	some path, content in input.file_contents
@@ -119,7 +130,7 @@ findings contains finding if {
 	parts := regex.split(call_re, text)
 	args := concat(" ", array.slice(parts, 1, count(parts)))
 	not regex.match(`(?i)\b(mask|redact|sanitize|scrub|obfuscate|hash|encrypt|cipher|sha\d*|md5|bcrypt|len|strlen|length|count|bool|isset|empty|is_none|isnull|isnullorempty)\w*\s*\(`, args)
-	_sensitive_args(args)
+	_sensitive_args(regex.replace(args, _presence_re, " "))
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Credential value written to a log or console; remove it from the message or log a masked form so passwords, tokens and keys do not reach log files and aggregators",
@@ -146,3 +157,35 @@ _maybe_call(line) if {
 _call_re(path) := concat("", [_call_head, `(?:\s*\(|[ \t]+)`]) if endswith(path, ".rb")
 
 _call_re(path) := concat("", [_call_head, `\s*\(`]) if not endswith(path, ".rb")
+
+# A presence check logs whether the value is set, not the value:
+# password != null, apiKey == null ? ..., !secret.isEmpty(), password is not
+# None, "set" if api_key else "unset", Boolean(token), !!apiKey.
+_presence_re := `[A-Za-z_$][\w$.]*(?:\s*\(\s*\))?\s*(?:[!=]==?|is\s+(?:not\s+)?None\b|\?\s|\.\s*(?:isEmpty|isBlank|isPresent|isNotEmpty|empty\?|present\?|nil\?|blank\?)\b(?:\s*\(\s*\))?)|\bif\s+(?:not\s+)?[A-Za-z_][\w.]*|\b(?:Boolean|bool|!!)\s*\(?\s*[A-Za-z_$][\w$.]*|!![A-Za-z_$][\w$.]*`
+
+# The Python 2 print statement (print newpassword, print "pw: %s" % pw). The
+# arguments must be a list of names and literals joined by , % or +, so
+# docstring prose ("print the password") does not count.
+_py2_re := `^\s*print[ \t]+((?:[A-Za-z_][\w.]*|"[^"]*"|'[^']*')(?:\s*[,%+]\s*\(?\s*(?:[A-Za-z_][\w.]*|"[^"]*"|'[^']*')\s*\)?)*)\s*,?\s*$`
+
+findings contains finding if {
+	some path, content in input.file_contents
+	endswith(path, ".py")
+	not _skip(path)
+	_gate(content)
+	regex.match(`(?m)^\s*print[ \t]+[A-Za-z_"']`, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "print")
+	some m in regex.find_all_string_submatch_n(_py2_re, line, 1)
+	_sensitive_args(m[1])
+	finding := {
+		"rule_id": metadata.id,
+		"message": "Credential value written to a log or console; remove it from the message or log a masked form so passwords, tokens and keys do not reach log files and aggregators",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}

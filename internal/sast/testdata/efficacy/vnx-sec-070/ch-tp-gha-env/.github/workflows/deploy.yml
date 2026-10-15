@@ -1,0 +1,9 @@
+name: deploy
+on: [push]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+~>      OP_SERVICE_ACCOUNT_TOKEN: @@sample:ops_eyJ[A-Za-z0-9_-]{140}@@
+    steps:
+      - uses: 1password/load-secrets-action@v2

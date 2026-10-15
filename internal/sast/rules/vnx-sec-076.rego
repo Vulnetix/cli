@@ -1,11 +1,13 @@
 package vulnetix.rules.vnx_sec_076
 
+import data.vulnetix.helpers
+import data.vulnetix.lib.secrets
 import rego.v1
 
 metadata := {
 	"id": "VNX-SEC-076",
 	"name": "Telegram bot API token",
-	"description": "A Telegram bot API token (numeric-id:alphanumeric-secret format) was found in source code. Telegram bot tokens grant full control of the bot and can be used to read user messages.",
+	"description": "Reports a Telegram Bot API token as a whole token in any file: the bot's numeric id (8 to 10 digits), a colon, and the 35-character secret that begins AA, whether quoted, assigned, in an api.telegram.org/bot<token>/ URL or in a .env file. Not reported: a bot id alone, a placeholder body (AAxxxx..., AAAA...), a low-entropy body, environment references, and test, fixture, vendored and generated files. The generated rule VNX-SEC-728 reports the same token.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-076/",
 	"languages": [],
 	"severity": "critical",
@@ -19,24 +21,33 @@ metadata := {
 	"tags": ["secrets", "telegram", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".md")
+# bot id : AA + 33 more characters. The body is base64url, so mixed case,
+# digits, "_" and "-". The original rule allowed only lower case after the
+# "A" and could never match a real token.
+# "bot" may run straight into the id in an API URL (/bot<id>:<secret>/).
+_pattern := `(?:^|[^0-9A-Za-z]|bot)([0-9]{8,10}:AA[A-Za-z0-9_-]{33})(?:[^A-Za-z0-9_-]|$)`
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	contains(content, ":AA")
+	regex.match(`[0-9]{8,10}:AA[A-Za-z0-9_-]{33}`, content)
+	not secrets.skip_path(path)
+	not helpers.is_test_path(path)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`[0-9]{5,16}:A[a-z0-9_\-]{34}`, line)
+	contains(line, ":AA")
+	some m in regex.find_all_string_submatch_n(_pattern, line, -1)
+	token := m[1]
+	body := substring(token, indexof(token, ":") + 1, -1)
+	not secrets.is_example_token(body)
+	secrets.high_entropy(body, 3.5)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Telegram bot API token found; revoke the token via @BotFather",
+		"message": "Telegram bot API token found; revoke it via @BotFather (/revoke) and load the replacement from the environment or a secrets manager",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

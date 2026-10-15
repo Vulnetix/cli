@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+    <Resource name="jdbc/AppDB" auth="Container" type="javax.sql.DataSource"
+              username="${db.user}" password="${db.password}"/>
+    <Resource name="jdbc/Other" auth="Container" type="javax.sql.DataSource"
+              username="app" password=""/>
+    <Realm className="org.apache.catalina.realm.DataSourceRealm" digest="SHA-256"/>
+</Context>

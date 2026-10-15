@@ -85,6 +85,23 @@ findings contains f if {
 	f := _finding(path, i, line, "jwt.decode(..., verify=False) skips signature verification; any forged token is accepted")
 }
 
+# python-jose get_unverified_claims() in a file that never decodes/verifies.
+findings contains f if {
+	some path, content in input.file_contents
+	endswith(path, ".py")
+	contains(content, "get_unverified_claims")
+	contains(content, "jose")
+	not regex.match(`\b(?:jwt|jws|jwe)\.(?:decode|verify)\s*\(`, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "get_unverified_claims")
+	not helpers.is_comment_line(line)
+	m := regex.find_all_string_submatch_n(`^(.*?)\b(?:jwt|jws)\.get_unverified_claims\s*\(`, line, 1)
+	count(m) > 0
+	not _quoted(m[0][1])
+	f := _finding(path, i, line, "get_unverified_claims() reads the claims without checking the signature, and this file never verifies the token with jwt.decode()")
+}
+
 # ── JavaScript / TypeScript ──────────────────────────────────────────────
 
 # jwt-simple: decode(token, key, noVerify=true)
@@ -102,21 +119,41 @@ findings contains f if {
 
 _js_req_source := `\b(req|request|ctx)\.(headers|header|cookies|query|body|params|get)\b`
 
-# jsonwebtoken: decode() of a request token in a file that never verifies.
+# jsonwebtoken decode(), jose decodeJwt() or jwt-decode jwtDecode(): a
+# request token decoded in a file that never verifies one.
+_js_decoder(content) if contains(content, "jsonwebtoken")
+
+_js_decoder(content) if contains(content, "decodeJwt")
+
+_js_decoder(content) if contains(content, "jwt-decode")
+
+_js_decode_re := `(?:\b(?:jwt|jsonwebtoken|JWT)\.decode|\bdecodeJwt|\bjwtDecode|\bjwt_decode)\s*\(\s*([^,)]+)`
+
+# `import { decode } from 'jsonwebtoken'` / `const { decode } = require(...)`
+_js_bare_decode(content) if regex.match(`\{[^{}]*\bdecode\b[^{}]*\}\s*(?:from\s*|=\s*require\s*\(\s*)['"]jsonwebtoken['"]`, content)
+
+_js_decode_args(content, line) := {a |
+	some m in regex.find_all_string_submatch_n(_js_decode_re, line, 1)
+	a := m[1]
+} | {a |
+	_js_bare_decode(content)
+	some m in regex.find_all_string_submatch_n(`(?:^|[^\w.$])decode\s*\(\s*([^,)]+)`, line, 1)
+	a := m[1]
+}
+
 findings contains f if {
 	some path, content in input.file_contents
 	_js_ext(path)
-	contains(content, "jsonwebtoken")
-	contains(content, ".decode(")
-	not regex.match(`\.verify\s*\(|\bjwtVerify\s*\(`, content)
+	_js_decoder(content)
+	regex.match(`(?i)decode`, content)
+	not regex.match(`\bverify\s*\(|\bjwtVerify\s*\(`, content)
 	lines := split(content, "\n")
 	some i, line in lines
-	contains(line, ".decode(")
+	regex.match(`(?i)decode`, line)
 	not helpers.is_comment_line(line)
-	m := regex.find_all_string_submatch_n(`\b(?:jwt|jsonwebtoken|JWT)\.decode\s*\(\s*([^,)]+)`, line, 1)
-	count(m) > 0
-	_js_request_arg(lines, i, m[0][1])
-	f := _finding(path, i, line, "jsonwebtoken decode() does not verify the signature, and this file never calls jwt.verify(): the request token is trusted unverified")
+	some arg in _js_decode_args(content, line)
+	_js_request_arg(lines, i, arg)
+	f := _finding(path, i, line, "This JWT decode does not verify the signature, and this file never verifies the token: the request token is trusted unverified")
 }
 
 _js_request_arg(_, _, arg) if regex.match(_js_req_source, arg)
@@ -132,13 +169,31 @@ findings contains f if {
 	some path, content in input.file_contents
 	endswith(path, ".go")
 	contains(content, "ParseUnverified")
-	not regex.match(`\.(Parse|ParseWithClaims)\s*\(`, content)
+	not _go_verifies(content)
 	lines := split(content, "\n")
 	some i, line in lines
 	contains(line, "ParseUnverified")
 	not helpers.is_comment_line(line)
 	regex.match(`\.ParseUnverified\s*\(`, line)
 	f := _finding(path, i, line, "ParseUnverified() reads the claims without checking the signature, and this file never verifies the token with Parse/ParseWithClaims")
+}
+
+# A golang-jwt verifying parse (url.Parse or time.Parse is not one).
+_go_verifies(content) if regex.match(`\bjwt\.Parse(?:WithClaims)?\s*\(|\.ParseWithClaims\s*\(|\b[pP]arser\.Parse\s*\(|\.Parse\s*\([^\n]*\bfunc\s*\(`, content)
+
+# lestrrat-go/jwx: ParseInsecure, or Parse with WithVerify(false).
+findings contains f if {
+	some path, content in input.file_contents
+	endswith(path, ".go")
+	contains(content, "lestrrat-go/jwx")
+	regex.match(`\bjwt\.ParseInsecure\s*\(|\bjwt\.WithVerify\s*\(\s*false\s*\)`, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	not helpers.is_comment_line(line)
+	m := regex.find_all_string_submatch_n(`^(.*?)(?:\bjwt\.ParseInsecure\s*\(|\bjwt\.WithVerify\s*\(\s*false\s*\))`, line, 1)
+	count(m) > 0
+	not _quoted(m[0][1])
+	f := _finding(path, i, line, "jwx ParseInsecure()/WithVerify(false) parses the token without checking its signature")
 }
 
 # ── Java / Kotlin ────────────────────────────────────────────────────────
@@ -183,7 +238,7 @@ findings contains f if {
 	some i, line in lines
 	contains(line, "JWT.decode")
 	not helpers.is_comment_line(line)
-	regex.match(`\bJWT\.decode\s*\(\s*[^,]+,\s*[^,]+,\s*false\b`, line)
+	regex.match(`\bJWT\.decode(?:\s*\(\s*|\s+)[^,]+,\s*[^,]+,\s*false\b`, line)
 	f := _finding(path, i, line, "JWT.decode(token, key, false) skips signature verification; pass true and an explicit algorithm")
 }
 
@@ -199,6 +254,32 @@ findings contains f if {
 	not helpers.is_comment_line(line)
 	regex.match(`\bRequireSignedTokens\s*=\s*false\b`, line)
 	f := _finding(path, i, line, "RequireSignedTokens = false accepts unsigned JWTs")
+}
+
+# ReadJwtToken()/ReadToken() of a request token in a file that never validates one.
+_cs_req_source := `\b(?:Request|HttpContext\.Request|context\.Request)\.(?:Headers|Cookies|Query|Form)\b`
+
+findings contains f if {
+	some path, content in input.file_contents
+	endswith(path, ".cs")
+	regex.match(`\.Read(?:Jwt)?Token\s*\(`, content)
+	contains(content, "Request")
+	not regex.match(`\bValidateToken(?:Async)?\s*\(`, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "Token(")
+	not helpers.is_comment_line(line)
+	m := regex.find_all_string_submatch_n(`\.Read(?:Jwt)?Token\s*\(\s*([^,)]+)`, line, 1)
+	count(m) > 0
+	_cs_request_arg(lines, i, m[0][1])
+	f := _finding(path, i, line, "ReadJwtToken() parses the token without validating its signature, and this file never calls ValidateToken(): the request token is trusted unverified")
+}
+
+_cs_request_arg(_, _, arg) if regex.match(_cs_req_source, arg)
+
+_cs_request_arg(lines, i, arg) if {
+	some v in helpers.tainted_vars(lines, i, 15, _cs_req_source)
+	regex.match(concat("", [`^\s*`, v, `\b`]), arg)
 }
 
 findings contains f if {

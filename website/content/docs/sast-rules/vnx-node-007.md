@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-007 – Node.js SQL Injection"
-description: "Reports SQL built with template-literal interpolation or concatenation (directly or via a nearby variable) passed to mysql, pg, sequelize, knex raw, Prisma $queryRawUnsafe or sqlite calls."
+description: "Reports SQL built with template-literal interpolation or concatenation (directly or via a nearby variable) passed to mysql, pg, sequelize, knex raw, TypeORM where conditions, Prisma $queryRawUnsafe or sqlite calls."
 ---
 
 ## Overview
@@ -31,9 +31,13 @@ db.run(sql, done);
 // FLAGGED: knex raw fragments and Prisma unsafe raw
 knex("users").whereRaw("name = '" + criteria + "'");
 prisma.$queryRawUnsafe(`SELECT * FROM "User" WHERE id = ${id}`);
+
+// FLAGGED: a pg query config object, and a TypeORM query-builder condition
+pool.query({ text: `SELECT * FROM sales WHERE region = '${region}'` });
+repo.createQueryBuilder("user").where(`user.email = '${email}'`);
 ```
 
-Not flagged: parameterised queries (`'... WHERE id = $1', [id]`, `?` placeholders), SQL without interpolation, tagged templates that parameterise (``sql`...` ``, ``Prisma.sql`...` ``, ``prisma.$queryRaw`...` ``), interpolations of `Number()`/`parseInt()`, `hash()`, `escape()`/`escapeId()`/`format()`, placeholder lists built with `$${i + 1}` or `'?'`, and non-SQL strings such as ``api.get(`/users/${id}`)``.
+Not flagged: parameterised queries (`'... WHERE id = $1', [id]`, `?` placeholders), SQL without interpolation, tagged templates that parameterise (``sql`...` ``, ``Prisma.sql`...` ``, ``prisma.$queryRaw`...` ``), interpolations of `Number()`/`parseInt()`, `hash()`, `escape()`/`escapeId()`/`format()`, placeholder lists built with `$${i + 1}` or `'?'` (also inline, `${ids.map(() => "?").join(",")}`), TypeORM conditions with `:name` parameters, and non-SQL strings such as ``api.get(`/users/${id}`)``.
 
 ## Remediation
 

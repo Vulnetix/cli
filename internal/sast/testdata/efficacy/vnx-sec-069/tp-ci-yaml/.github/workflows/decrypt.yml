@@ -1,0 +1,7 @@
+jobs:
+  decrypt:
+    runs-on: ubuntu-latest
+    env:
+~>      SOPS_AGE_KEY: "AGE-SECRET-KEY-1@@sample:[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}@@"
+    steps:
+      - run: sops -d secrets.enc.yaml > secrets.yaml

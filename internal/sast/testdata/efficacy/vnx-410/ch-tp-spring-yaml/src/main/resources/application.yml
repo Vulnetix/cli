@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/shop
+    hikari:
+~>      maximum-pool-size: 1
+      connection-timeout: 30000
+server:
+  port: 8080
+  tomcat:
+    threads:
+~>      max: 2

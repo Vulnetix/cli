@@ -1,0 +1,10 @@
+{
+    "type": "project",
+    "require": {
+        "monolog/monolog": "^3.0"
+    },
+    "config": {
+        "lock": false,
+        "sort-packages": true
+    }
+}

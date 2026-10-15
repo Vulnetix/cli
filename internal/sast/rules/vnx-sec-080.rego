@@ -1,11 +1,13 @@
 package vulnetix.rules.vnx_sec_080
 
+import data.vulnetix.helpers
+import data.vulnetix.lib.secrets
 import rego.v1
 
 metadata := {
 	"id": "VNX-SEC-080",
 	"name": "GitHub OAuth / App / Refresh token",
-	"description": "A GitHub OAuth token (gho_), App user-to-server token (ghu_), App server-to-server token (ghs_), or refresh token (ghr_) was found in source code.",
+	"description": "Reports a GitHub OAuth access token (gho_), GitHub App user-to-server token (ghu_), App installation (server-to-server) token (ghs_) or refresh token (ghr_, 36 or 76 characters) as a whole token in any file: quoted, assigned, in an Authorization header or inside a clone URL (https://x-access-token:ghs_...@github.com). Not reported: classic personal access tokens (ghp_) and fine-grained tokens (github_pat_), which VNX-SEC-004 and VNX-SEC-079 report, bare prefixes and prefix checks, truncated tokens, placeholder or low-entropy bodies, environment and CI-secret references, and test, fixture, Jest __mocks__, vendored and generated files. VNX-SEC-004 also reports these tokens as part of its wider set.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-080/",
 	"languages": [],
 	"severity": "critical",
@@ -19,57 +21,35 @@ metadata := {
 	"tags": ["secrets", "github", "oauth", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`gho_[0-9a-zA-Z]{36}`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "GitHub OAuth token found; revoke the OAuth app authorisation in GitHub settings",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+_kinds := {
+	"gho": "GitHub OAuth token found; revoke the OAuth app authorisation in GitHub settings and load the token from the environment",
+	"ghu": "GitHub App user-to-server token found; revoke the app authorisation in GitHub settings and load the token from the environment",
+	"ghs": "GitHub App installation token found; regenerate it from the app's private key at runtime instead of committing it",
+	"ghr": "GitHub refresh token found; revoke the OAuth/App authorisation in GitHub settings and store refresh tokens in a secrets manager",
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`(ghu|ghs)_[0-9a-zA-Z]{36}`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "GitHub App token found; revoke the installation token in GitHub app settings",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
+_pattern := `(?:^|[^A-Za-z0-9_])(gh[ousr])_([A-Za-z0-9]{36}|[A-Za-z0-9]{76})(?:[^A-Za-z0-9_]|$)`
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	regex.match(`gh[ousr]_[A-Za-z0-9]{36}`, content)
+	not secrets.skip_path(path)
+	not helpers.is_test_path(path)
+	not contains(concat("", ["/", path]), "/__mocks__/")
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`ghr_[0-9a-zA-Z]{36}`, line)
+	regex.match(`gh[ousr]_`, line)
+	some m in regex.find_all_string_submatch_n(_pattern, line, -1)
+	m[1] != "ghp"
+	not secrets.is_example_token(m[2])
+	secrets.high_entropy(m[2], 3.5)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "GitHub refresh token found; revoke the OAuth app authorisation in GitHub settings",
+		"message": _kinds[m[1]],
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

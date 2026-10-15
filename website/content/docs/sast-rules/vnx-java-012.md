@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-012 – Java LDAP Injection"
-description: "Reports JNDI DirContext.search, Spring LdapTemplate search/find and LdapQueryBuilder filter, and UnboundID Filter.create/SearchRequest/search calls whose filter or base DN carries HTTP request data, directly or through up to five local assignments. Parameterised {0} filters, encoded values and Spring filter objects are not reported."
+description: "Reports JNDI DirContext.search, Spring LdapTemplate search/find and LdapQueryBuilder filter, and UnboundID Filter.create/SearchRequest/search calls whose filter or base DN carries HTTP request data, directly or through up to five local assignments, or that concatenate a String method parameter into a filter or DN value. Parameterised {0} filters, encoded values and Spring filter objects are not reported."
 ---
 
 ## Overview

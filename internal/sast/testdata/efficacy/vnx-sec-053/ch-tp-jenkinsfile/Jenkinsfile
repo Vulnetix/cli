@@ -1,0 +1,9 @@
+pipeline {
+  agent any
+  environment {
+~>    SONAR_TOKEN = 'sqa_@@sample:[0-9a-f]{40}@@'
+  }
+  stages {
+    stage('scan') { steps { sh 'sonar-scanner' } }
+  }
+}

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-RUBY-007",
 	"name": "YAML.load() insecure deserialization",
-	"description": "Untrusted YAML reaches a Psych loader that can instantiate arbitrary Ruby objects: YAML.load or Psych.load (unsafe before Psych 4 / Ruby 3.1), YAML.unsafe_load, YAML.load_stream and YAML.load_documents on a string, or YAML.load_file / YAML.unsafe_load_file on a path. Untrusted means request input (params, request.params/body/raw_post/headers/cookies, cookies, Rack env request keys, an upload), a Base64-decoded blob or an HTTP or message body (.body), used in the call or through a variable assigned from it (up to two assignments) in the 12 lines above. Not reported: YAML.safe_load and Psych.safe_load, a load given permitted_classes: or safe: true, YAML read from the application's own files (YAML.load_file(\"config/settings.yml\"), YAML.load(File.read(path)) with a local path), comments and strings. Marshal, Oj and JSON.load are VNX-RUBY-003.",
+	"description": "Untrusted YAML reaches a Psych loader that can instantiate arbitrary Ruby objects: YAML.load or Psych.load (unsafe before Psych 4 / Ruby 3.1), YAML.unsafe_load, YAML.load_stream and YAML.load_documents on a string, or YAML.load_file / YAML.unsafe_load_file on a path, also in the YAML::load spelling. Untrusted means request input (params, request.params/body/raw_post/headers/cookies, cookies, Rack env request keys, an upload), a Base64-decoded blob or an HTTP or message body (.body), used in the call or through a variable assigned from it (up to two assignments) in the 12 lines above. Not reported: YAML.safe_load and Psych.safe_load, a load given permitted_classes: or safe: true, YAML read from the application's own files (YAML.load_file(\"config/settings.yml\"), YAML.load(File.read(path)) with a local path), comments and strings. Marshal, Oj and JSON.load are VNX-RUBY-003.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-007/",
 	"languages": ["ruby"],
 	"severity": "critical",
@@ -63,7 +63,7 @@ _untrusted(lines, i, args) if {
 	regex.match(_ident_re(v), args)
 }
 
-_sink_re := `\b((?:YAML|Psych)\.(?:load|unsafe_load|load_stream|load_documents|load_file|unsafe_load_file)\b(.*))$`
+_sink_re := `\b((?:YAML|Psych)(?:\.|::)(?:load|unsafe_load|load_stream|load_documents|load_file|unsafe_load_file)\b(.*))$`
 
 # Psych 4 load accepts the safe_load keywords; SafeYAML adds safe: true.
 _restricted(call) if regex.match(`permitted_classes:|:permitted_classes\s*=>|\bsafe:\s*true|:safe\s*=>\s*true`, call)
@@ -85,10 +85,10 @@ _full_args(lines, i, args) := lines[j] if {
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".rb")
-	regex.match(`\b(?:YAML|Psych)\.(?:load|unsafe_load)`, content)
+	regex.match(`\b(?:YAML|Psych)(?:\.|::)(?:load|unsafe_load)`, content)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`\b(?:YAML|Psych)\.(?:load|unsafe_load)`, line)
+	regex.match(`\b(?:YAML|Psych)(?:\.|::)(?:load|unsafe_load)`, line)
 	not helpers.is_comment_line(line)
 	code := regex.replace(line, `\s#[^{].*$`, "")
 	some m in regex.find_all_string_submatch_n(_sink_re, code, 1)

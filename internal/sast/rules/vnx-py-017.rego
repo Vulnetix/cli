@@ -102,9 +102,20 @@ _not_password(arg) if regex.match(`(?i)reset|token|usedforsecurity\s*=\s*False`,
 # A value assigned from a password expression in the lines above.
 _source_re := `(?i)[^=!<>]=[^=].*(?:passw(?:or)?d|passphrase|\bpwd\b|["']pass["'])`
 
+# The right-hand side must itself name a password in code, a request key or
+# an f-string: `k != "password"` in a comprehension is a comparison, not a
+# password value.
 _tainted(lines, i, arg) if {
-	some v in helpers.tainted_names(lines, i, 8, _source_re)
+	i > 0
+	some j in numbers.range(max([0, i - 8]), i - 1)
+	prev := lines[j]
+	not helpers.is_comment_line(prev)
+	regex.match(_source_re, prev)
+	v := helpers.assigned_first(prev)
 	regex.match(concat("", [`\b`, v, `\b`]), _code(arg))
+	m := regex.find_all_string_submatch_n(`[^=!<>]=([^=].*)$`, prev, 1)
+	count(m) > 0
+	_names_password(m[0][1], m[0][1])
 }
 
 _password_arg(_, _, arg, raw) if _names_password(arg, raw)

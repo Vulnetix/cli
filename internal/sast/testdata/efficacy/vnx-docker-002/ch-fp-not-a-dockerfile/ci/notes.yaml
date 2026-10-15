@@ -1,0 +1,3 @@
+steps:
+  - run: echo "FROM ubuntu:latest" > Dockerfile.tmp
+image: ubuntu:22.04

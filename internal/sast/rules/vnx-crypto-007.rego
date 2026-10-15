@@ -7,9 +7,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CRYPTO-007",
 	"name": "Weak password hashing (insufficient iterations or missing KDF)",
-	"description": "A password is protected with a fast general-purpose hash, or with a password KDF whose work factor is far too low. Reported, when the hashed argument names a password (password, passwd, passphrase, pwd, $pass, pass_new, userPassword and similar): Python hashlib.md5/sha1/sha224/sha256/sha384/sha512/sha3_*/blake2 (also from-imported and hashlib.new('<alg>', ...)) and h.update(password) on such a hasher; Node.js crypto.createHash('<alg>').update(password) (chained across lines too), hasher.update(password) and CryptoJS.MD5/SHA1/SHA256/SHA512(password); Java MessageDigest md.update/digest(password...) (one line or on a digest obtained in the lines above), commons-codec DigestUtils.md5/sha1/sha256Hex(password) and Guava Hashing.sha256().hashString(password); PHP md5/sha1($pass) and hash('<alg>', ... $password); Ruby Digest::MD5/SHA1/SHA256.hexdigest(password) and OpenSSL::Digest::*.hexdigest. Also reported, given literally or through a constant in the same file: PBKDF2 with fewer than 10,000 iterations (Python hashlib.pbkdf2_hmac, cryptography PBKDF2HMAC, PyCryptodome PBKDF2 count=; Node.js pbkdf2/pbkdf2Sync; Java PBEKeySpec/PBEParameterSpec; PHP hash_pbkdf2; Ruby PKCS5/KDF pbkdf2_hmac) and a bcrypt cost below 10 (Python gensalt(rounds=), Node.js bcrypt.hash/genSalt, Java BCryptPasswordEncoder/BCrypt.gensalt, PHP password_hash 'cost' =>, Ruby Password.create(cost:)). Use argon2id, scrypt, bcrypt (cost 10+) or PBKDF2 with hundreds of thousands of iterations. Not reported: bcrypt/scrypt/argon2 at normal cost, hashing data that is not a password (URLs, bodies, cache keys, reset or bypass tokens, passport numbers), the SHA-1 prefix lookup against the Have I Been Pwned range API, a password hashed by a project helper defined elsewhere (a cross-function gap), the call inside a string or comment, and test files.",
+	"description": "A password is protected with a fast general-purpose hash, or with a password KDF whose work factor is far too low. Reported, when the hashed argument names a password (password, passwd, passphrase, pwd, $pass, pass_new, userPassword and similar): Python hashlib.md5/sha1/sha224/sha256/sha384/sha512/sha3_*/blake2 (also from-imported and hashlib.new('<alg>', ...)) and h.update(password) on such a hasher; Node.js crypto.createHash('<alg>').update(password) (chained across lines too), hasher.update(password) and CryptoJS.MD5/SHA1/SHA256/SHA512(password); Java MessageDigest md.update/digest(password...) (one line or on a digest obtained in the lines above), commons-codec DigestUtils.md5/sha1/sha256Hex(password) and Guava Hashing.sha256().hashString(password); PHP md5/sha1($pass) and hash('<alg>', ... $password); Ruby Digest::MD5/SHA1/SHA256.hexdigest(password) and OpenSSL::Digest::*.hexdigest; Go md5.Sum/sha1.Sum/sha256.Sum256/sha512.Sum512 and h.Write/io.WriteString on a hasher from md5/sha1/sha256/sha512.New() assigned just above; and in every language a call to a helper named for the hash (Md5Sum(r.FormValue(\"password\")), sha256Hex(pwd)). A form or parameter read by literal name (r.FormValue(\"password\"), getParameter(\"password\"), $_POST['password']) counts as a password-named value. Also reported, given literally or through a constant in the same file: PBKDF2 with fewer than 10,000 iterations (Python hashlib.pbkdf2_hmac, cryptography PBKDF2HMAC, PyCryptodome PBKDF2 count=; Node.js pbkdf2/pbkdf2Sync; Java PBEKeySpec/PBEParameterSpec; PHP hash_pbkdf2; Ruby PKCS5/KDF pbkdf2_hmac; Go pbkdf2.Key) and a bcrypt cost below 10 (Python gensalt(rounds=), Node.js bcrypt.hash/genSalt, Java BCryptPasswordEncoder/BCrypt.gensalt, PHP password_hash 'cost' =>, Ruby Password.create(cost:); Go bcrypt.GenerateFromPassword with a literal cost or bcrypt.MinCost). Use argon2id, scrypt, bcrypt (cost 10+) or PBKDF2 with hundreds of thousands of iterations. Not reported: bcrypt/scrypt/argon2 at normal cost, hashing data that is not a password (URLs, bodies, cache keys, reset or bypass tokens, passport numbers), helpers whose names say they verify, compare or already use a KDF (verify_sha256_password, pbkdf2_sha256.hash, sha256_crypt.hash), the SHA-1 prefix lookup against the Have I Been Pwned range API, a password hashed by a project helper defined elsewhere (a cross-function gap), the call inside a string or comment, and test files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-007/",
-	"languages": ["python", "node", "java", "php", "ruby"],
+	"languages": ["python", "node", "java", "php", "ruby", "go"],
 	"severity": "high",
 	"level": "error",
 	"kind": "sast",
@@ -34,12 +34,15 @@ _lang(path) := "php" if endswith(path, ".php")
 
 _lang(path) := "ruby" if endswith(path, ".rb")
 
+_lang(path) := "go" if endswith(path, ".go")
+
 _strings := {
 	"python": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
 	"node": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'|`[^`]*`",
 	"java": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
 	"php": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
 	"ruby": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
+	"go": "\"(?:[^\"\\\\]|\\\\.)*\"|`[^`]*`",
 }
 
 _tail_comment := {
@@ -48,6 +51,7 @@ _tail_comment := {
 	"java": `//.*$`,
 	"php": `(?://|#).*$`,
 	"ruby": `#.*$`,
+	"go": `//.*$`,
 }
 
 # A fast-hash name literal ('md5', "SHA-256") and PHP's 'cost' key become
@@ -55,7 +59,13 @@ _tail_comment := {
 _code(lang, line) := c if {
 	s1 := regex.replace(line, `['"](?i:md5|sha-?(?:1|224|256|384|512)|sha3-\d+|sha)['"]`, "__FAST__")
 	s2 := regex.replace(s1, `['"]cost['"]`, "__COST__")
-	t := regex.replace(s2, _strings[lang], `""`)
+	# a subscript key ($_POST['password'], req.body["password"]) keeps its
+	# name, so the argument still says what it is once strings are blanked
+	s3 := regex.replace(s2, `\[\s*['"](\w+)['"]\s*\]`, "[__k_${1}]")
+	# and so does a form or parameter read by a literal name
+	# (r.FormValue("password"), request.getParameter("password"))
+	s4 := regex.replace(s3, `\.(?:FormValue|PostFormValue|getParameter|get|param|fetch|input|post|query|Get)\s*\(\s*['"](\w+)['"]\s*\)`, ".__k_${1}")
+	t := regex.replace(s4, _strings[lang], `""`)
 	c := regex.replace(t, _tail_comment[lang], "")
 }
 
@@ -79,6 +89,11 @@ _fast := {
 		`(?i)(?:^|[^\w>:$\\])(?:md5|sha1)\s*\((.*)$`,
 		`(?i)\bhash\s*\(\s*__FAST__\s*,(.*)$`,
 	],
+	"go": [
+		`\b(?:md5|sha1)\.Sum\s*\((.*)$`,
+		`\bsha256\.Sum(?:256|224)\s*\((.*)$`,
+		`\bsha512\.Sum(?:512|384|512_256)\s*\((.*)$`,
+	],
 	"ruby": [`\b(?:OpenSSL::)?Digest::(?:MD5|SHA1|SHA256|SHA384|SHA512|SHA2|RMD160)\.(?:hexdigest|digest|base64digest)\s*\(?(.*)$`],
 }
 
@@ -96,6 +111,27 @@ _ctor := {
 	"python": `\s*=\s*hashlib\.(?:md5|sha1|sha224|sha256|sha384|sha512|sha3_\d+|blake2[bs]|new)\s*\(`,
 	"node": `\s*=\s*(?:crypto\.)?createHash\s*\(\s*['"](?i:md5|sha-?(?:1|224|256|384|512)|sha3-\d+)['"]\s*\)\s*;?\s*$`,
 	"java": `\s*=\s*MessageDigest\.getInstance\s*\(`,
+}
+
+# A helper named for the hash it computes: Md5Sum(r.FormValue("password")),
+# sha256Hex(password), hashMD5(pwd). Verifiers and comparers are not hashing.
+_pw_rest(_, _, _, code, _) if {
+	some m in regex.find_all_string_submatch_n(`(?:^|[^\w$])(\w*(?i:md5|sha1|sha256|sha512)\w*)\s*\((.*)$`, code, -1)
+	not regex.match(`(?i)verify|check|compare|equal|match|valid|hmac|crypt|pbkdf|bcrypt`, m[1])
+	_names_password(m[2])
+}
+
+# Go: h := sha256.New() / md5.New() above, then h.Write([]byte(password)) or
+# io.WriteString(h, password)
+_pw_rest("go", lines, i, code, _) if {
+	some m in regex.find_all_string_submatch_n(`\b(?:(\w+)\.Write(?:String)?\s*\((.*)$|io\.WriteString\s*\(\s*(\w+)\s*,(.*)$)`, code, -1)
+	v := concat("", [m[1], m[3]])
+	rest := concat("", [m[2], m[4]])
+	re := concat("", [`\b`, v, `\s*:?=\s*(?:md5|sha1|sha256|sha512)\.New(?:224|384)?\s*\(`])
+	some k in numbers.range(max([0, i - 8]), i - 1)
+	k < i
+	regex.match(re, lines[k])
+	_names_password(rest)
 }
 
 _pw_rest(lang, _, _, code, _) if {
@@ -179,6 +215,7 @@ _iter_pats := {
 		`\bnew\s+PBEParameterSpec\s*\(\s*[^,]+,\s*(\w+)`,
 	],
 	"php": [`\bhash_pbkdf2\s*\(\s*[^,]+,\s*[^,]+,\s*[^,]+,\s*(\w+)`],
+	"go": [`\bpbkdf2\.Key\s*\(\s*[^,]+,\s*[^,]+,\s*(\w+)\s*,`],
 	"ruby": [
 		`\bpbkdf2_hmac(?:_sha1)?\s*\(\s*[^,:]+,\s*[^,:]+,\s*(\w+)\s*,`,
 		`\bpbkdf2_hmac\s*\(.*\biterations:\s*(\w+)`,
@@ -197,6 +234,7 @@ _cost_pats := {
 	],
 	"php": [`\bpassword_hash\s*\(.*__COST__\s*=>\s*(\w+)`],
 	"ruby": [`\bPassword\.create\s*\(.*\bcost:\s*(\w+)`],
+	"go": [`\bbcrypt\.GenerateFromPassword\s*\(\s*[^,]+,\s*(?:bcrypt\.)?(\w+)\s*\)`],
 }
 
 _consts(content) := {[m[1], to_number(replace(m[2], "_", ""))] |
@@ -205,7 +243,13 @@ _consts(content) := {[m[1], to_number(replace(m[2], "_", ""))] |
 
 _values(tok, _) := {to_number(replace(tok, "_", ""))} if regex.match(`^\d[\d_]*$`, tok)
 
-_values(tok, content) := {c[1] | some c in _consts(content); c[0] == tok} if not regex.match(`^\d`, tok)
+_values(tok, content) := {c[1] | some c in _consts(content); c[0] == tok} if {
+	not regex.match(`^\d`, tok)
+	tok != "MinCost"
+}
+
+# golang.org/x/crypto/bcrypt.MinCost is 4
+_values("MinCost", _) := {4}
 
 _low_iter(tok, consts) if {
 	some n in _values(tok, consts)
@@ -243,7 +287,7 @@ _param_hit("python", lines, i, code, consts) if {
 
 _pw_tokens := ["pass", "Pass", "PASS", "pwd", "Pwd", "PWD", "pw", "pbkdf2", "PBKDF2", "bcrypt", "BCrypt", "gensalt", "PBE"]
 
-_api_tokens := ["hashlib", "createHash", "CryptoJS.", "MessageDigest", "DigestUtils", "Hashing.", "Digest::", "md5(", "md5 (", "MD5(", "sha1(", "sha1 (", "SHA1(", "hash(", "hash (", "pbkdf2", "PBKDF2", "PBEKeySpec", "PBEParameterSpec", "bcrypt", "BCrypt", "gensalt", "Password.create"]
+_api_tokens := ["hashlib", "createHash", "CryptoJS.", "MessageDigest", "DigestUtils", "Hashing.", "Digest::", "md5(", "md5 (", "MD5(", "sha1(", "sha1 (", "SHA1(", "hash(", "hash (", "pbkdf2", "PBKDF2", "PBEKeySpec", "PBEParameterSpec", "bcrypt", "BCrypt", "gensalt", "Password.create", "Md5", "Sha1", "Sha256", "SHA256", "Sha512", "Sum256", "Sum512", "md5.Sum", "sha1.Sum", ".New()", "GenerateFromPassword"]
 
 _has_any(content, toks) if {
 	some t in toks
@@ -252,7 +296,7 @@ _has_any(content, toks) if {
 
 _line_gate := `pass|Pass|PASS|pwd|Pwd|PWD|pw\b|PW\b|pbkdf2|PBKDF2|bcrypt|BCrypt|gensalt|PBE|cost|iterations|count`
 
-_line_api := `md5|MD5|sha|SHA|Sha|igest|update|pbkdf2|PBKDF2|bcrypt|BCrypt|gensalt|PBE|cost|iterations|count|blake|hash\s*\(`
+_line_api := `md5|MD5|Md5|Sum|Write|GenerateFromPassword|sha|SHA|Sha|igest|update|pbkdf2|PBKDF2|bcrypt|BCrypt|gensalt|PBE|cost|iterations|count|blake|hash\s*\(`
 
 findings contains finding if {
 	some path, content in input.file_contents

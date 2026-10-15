@@ -1,0 +1,17 @@
+{
+  "name": "acme-legacy-widgets",
+  "version": "3.4.0",
+  "main": "index.js",
+  "keywords": ["request", "jade", "widgets"],
+  "dependencies": {
+    "express": "^4.19.2",
+~>    "request-promise-native": "^1.0.9",
+~>    "jade": "~1.11.0"
+  },
+  "peerDependencies": {
+~>    "request": ">=2.80.0"
+  },
+  "optionalDependencies": {
+~>    "phantomjs-prebuilt": "2.1.16"
+  }
+}

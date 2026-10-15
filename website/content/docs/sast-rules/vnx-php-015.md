@@ -1,11 +1,11 @@
 ---
 title: "VNX-PHP-015 – PHP Unrestricted File Upload via move_uploaded_file"
-description: "Detects uploads stored under a client-chosen name with no extension allowlist: move_uploaded_file() whose destination contains $_FILES[...]['name'] or request input (directly or through variables built from it), and UploadedFile move()/storeAs() given getClientOriginalName(). An extension check against an allowlist, or a generated name, suppresses the finding; a client MIME-type check does not."
+description: "Detects uploads stored under a client-chosen name with no extension allowlist: move_uploaded_file() whose destination contains $_FILES[...]['name'] or request input (directly or through variables built from it), and UploadedFile move()/storeAs() given getClientOriginalName() or getClientOriginalExtension() (inline or through a variable). An extension check against an allowlist, or a generated name, suppresses the finding; a client MIME-type check does not."
 ---
 
 ## Overview
 
-This rule flags every use of `move_uploaded_file()` as a prompt for security review. File upload handling is one of the most complex and frequently exploited topics in PHP. The function itself moves a valid uploaded file from the PHP temporary directory to a permanent location — it is not inherently unsafe, but it is the final step in a validation pipeline that must be completed correctly. If any of the five required safeguards are missing, the most common outcome is webshell upload and remote code execution.
+This rule flags uploads stored under a name or extension the client chose, when no extension allowlist precedes the store. File upload handling is one of the most complex and frequently exploited topics in PHP. The function itself moves a valid uploaded file from the PHP temporary directory to a permanent location — it is not inherently unsafe, but it is the final step in a validation pipeline that must be completed correctly. If any of the five required safeguards are missing, the most common outcome is webshell upload and remote code execution.
 
 A webshell is a PHP script uploaded as a disguised file (e.g., named `shell.php.jpg` or with a `Content-Type: image/jpeg` header) that, when accessed via a web URL in a directory where PHP execution is enabled, executes arbitrary code under the web server's process identity.
 
@@ -29,7 +29,7 @@ Bypassing naive upload validation is straightforward and well-documented:
 
 ## What Gets Flagged
 
-The rule matches `move_uploaded_file()` whose destination (the second argument) contains `$_FILES[...]['name']`, a `$_GET`/`$_POST`/`$_REQUEST`/`$_COOKIE` value, or a variable built from one within the 40 lines above, and Laravel/Symfony `->move()`/`->storeAs()`/`->storePubliclyAs()` given `getClientOriginalName()`. The call is treated as validated, and not flagged, when the 40 lines above extract the extension (`pathinfo(..., PATHINFO_EXTENSION)`, `strrpos`/`strrchr`/`explode` on `'.'`, `getClientOriginalExtension()`) and compare it with an allowlist, or `preg_match()` the name against an extension pattern.
+The rule matches `move_uploaded_file()` whose destination (the second argument) contains `$_FILES[...]['name']`, a `$_GET`/`$_POST`/`$_REQUEST`/`$_COOKIE` value, or a variable built from one within the 40 lines above, and Laravel/Symfony `->move()`/`->storeAs()`/`->storePubliclyAs()` given `getClientOriginalName()` or `getClientOriginalExtension()`, inline or through a variable built from either. The call is treated as validated, and not flagged, when the 40 lines above extract the extension (`pathinfo(..., PATHINFO_EXTENSION)`, `strrpos`/`strrchr`/`explode` on `'.'`, `getClientOriginalExtension()`) and compare it with an allowlist, or `preg_match()` the name against an extension pattern.
 
 ```php
 // FLAGGED: user-supplied filename used as destination — webshell upload risk
@@ -44,6 +44,10 @@ if ($_FILES['uploaded']['type'] == "image/jpeg") {
 
 // FLAGGED: Laravel keeps the original client name
 $file->move(public_path('uploads'), $file->getClientOriginalName());
+
+// FLAGGED: a generated name with the client's extension (shell.php stays .php)
+$name = time() . '.' . $file->getClientOriginalExtension();
+$file->move(public_path('avatars'), $name);
 
 // NOT FLAGGED: extension allowlisted before the move
 $ext = strtolower(pathinfo($_FILES['doc']['name'], PATHINFO_EXTENSION));

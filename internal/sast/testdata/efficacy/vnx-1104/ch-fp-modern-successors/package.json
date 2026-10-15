@@ -1,0 +1,20 @@
+{
+  "name": "acme-dashboard",
+  "version": "1.0.0",
+  "scripts": {
+    "lint": "eslint . && echo tslint replaced",
+    "build": "sass src/styles:dist/css"
+  },
+  "dependencies": {
+    "uuid": "^9.0.1",
+    "pug": "^3.0.2",
+    "sass": "^1.77.0",
+    "axios": "^1.7.2",
+    "request-ip": "^3.3.0"
+  },
+  "devDependencies": {
+    "@babel/eslint-parser": "^7.24.7",
+    "nyc": "^17.0.0",
+    "typescript-eslint": "^7.13.0"
+  }
+}

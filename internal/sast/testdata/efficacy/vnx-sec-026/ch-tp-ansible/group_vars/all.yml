@@ -1,0 +1,3 @@
+region: nyc3
+~>do_api_token: dop_v1_@@sample:[a-f0-9]{64}@@
+droplet_size: s-1vcpu-1gb

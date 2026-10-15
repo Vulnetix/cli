@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
     "id": "VNX-JAVA-029",
     "name": "XML External Entity (XXE) via DocumentBuilderFactory",
-    "description": "A DOM or SAX parser factory is created (DocumentBuilderFactory.newInstance/newDefaultInstance/newNSInstance, SAXParserFactory.newInstance/newDefaultInstance, XMLReaderFactory.createXMLReader) and the file never hardens that factory: no setFeature(disallow-doctype-decl, true), setFeature(external-general-entities, false), setFeature(FEATURE_SECURE_PROCESSING, true) or setAttribute/setProperty(ACCESS_EXTERNAL_DTD, \"\") on the same variable, no such call on any parser or reader within the 30 lines that follow (a SAXParser's XMLReader hardened instead of its factory), and no harden/secure helper given the factory. A factory created and used in one chained expression is reported. Also reported: setFeature(external-general-entities or external-parameter-entities, true) on a factory or reader that does not also restrict ACCESS_EXTERNAL_DTD or turn on secure processing. Not reported: hardened factories (including a feature URI held in a named constant), setExpandEntityReferences(false) is not accepted as hardening, imports, field declarations of the type, comments and string literals. StAX (XMLInputFactory), TransformerFactory and SchemaFactory are covered by VNX-JAVA-004, not here.",
+    "description": "A DOM or SAX parser factory is created (DocumentBuilderFactory.newInstance/newDefaultInstance/newNSInstance, SAXParserFactory.newInstance/newDefaultInstance, XMLReaderFactory.createXMLReader) and the file never hardens that factory: no setFeature(disallow-doctype-decl, true), setFeature(external-general-entities, false), setFeature(FEATURE_SECURE_PROCESSING, true) or setAttribute/setProperty(ACCESS_EXTERNAL_DTD, \"\") on the same variable, no such call on a parser or reader (not on another factory created in the file) within the 30 lines that follow (a SAXParser's XMLReader hardened instead of its factory), and no harden/secure helper given the factory. A factory created and used in one chained expression is reported. Also reported: setFeature(external-general-entities or external-parameter-entities, true) on a factory or reader that does not also restrict ACCESS_EXTERNAL_DTD or turn on secure processing. Not reported: hardened factories (including a feature URI held in a named constant), setExpandEntityReferences(false) is not accepted as hardening, imports, field declarations of the type, comments and string literals. StAX (XMLInputFactory), TransformerFactory and SchemaFactory are covered by VNX-JAVA-004, not here.",
     "help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-029/",
     "languages": ["java"],
     "severity": "high",
@@ -103,6 +103,18 @@ _hardened(content, lines, i, _) if {
     contains(l, ".set")
     not helpers.is_comment_line(l)
     _hardening(content, _stmt(lines, k))
+    not _other_factory(lines, l)
+}
+
+# The setter's receiver is a different factory created in the file: hardening
+# a neighbouring factory does not protect this one.
+_other_factory(lines, l) if {
+    m := regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\s*\.set(?:Feature|Attribute|Property)\(`, l, 1)
+    count(m) > 0
+    r := m[0][1]
+    some fl in lines
+    contains(fl, r)
+    regex.match(concat("", [`\b`, r, `\s*=\s*(?:[\w.]+\.)?(?:DocumentBuilderFactory|SAXParserFactory)\.new`]), fl)
 }
 
 findings contains finding if {

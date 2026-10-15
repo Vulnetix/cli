@@ -1,0 +1,6 @@
+{
+  "version": "4",
+  "specifiers": {
+    "npm:hono@^4.6.0": "4.6.3"
+  }
+}

@@ -3,12 +3,14 @@ package vulnetix.rules.vnx_602
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-602",
-	"name": "CWE-602",
-	"description": "Detects source patterns associated with CWE-602 (CWE-602). Each finding should be manually reviewed for exploitability in context.",
+	"name": "Server trusts a client-supplied role or admin flag",
+	"description": "A server-side authorisation decision is taken on a value the client controls: a request body field, query parameter, URL parameter, header or unsigned cookie named for a role or privilege (admin, isAdmin, is_admin, role, user_role, X-User-Role, isAuthenticated, loggedIn, authorized, privileges, accessLevel, userType, permissions, isStaff, superuser) is compared, tested in a condition or used in a ternary, either directly or through a variable assigned (or destructured: const { isAdmin } = req.body) from it within the 15 lines above; PHP if (!empty($_POST['is_admin'])) on a boolean privilege flag counts as a test. The client sets these values, so the check enforces nothing the client did not already decide. Covers Express/Koa (req.body, req.query, req.params, req.headers, req.cookies), Django/Flask (request.COOKIES/GET/POST/args/form/cookies/headers/json/values/data) and PHP ($_COOKIE, $_GET, $_POST, $_REQUEST, $_SERVER). Not reported: server-held identity (req.user, req.session, request.user, $_SESSION), signed cookies, the Authorization header, presence checks (isset, compared with null/undefined/None), assignment without a decision (role written to a new record), allowlist validation (includes), comparisons inside filter/find callbacks or comprehensions (filtering records by a requested role), browser UI code reading a user object, comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-602/",
-	"languages": ["node"],
+	"languages": ["node", "python", "php"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",
@@ -17,38 +19,138 @@ metadata := {
 	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "CWSS:1.0/TI:M/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:M/DI:H/EX:M/EC:N/P:C",
-	"tags": ["client-side-enforcement", "cwe-602"],
+	"tags": ["authorization", "client-side-enforcement", "trust-boundary", "cwe-602"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
-_skip(path) if endswith(path, ".min.html")
+_name := `(?i:(?:http_)?(?:x[-_])?(?:(?:is|user|account)[-_]?)?(?:admin|role|roles|authenticated|logged[-_]?in|authori[sz]ed|privileges?|access[-_]?level|permissions|staff|superuser)|(?:user|account)[-_]?type)`
 
-_is_comment_line(line) if startswith(trim_space(line), "//")
-_is_comment_line(line) if startswith(trim_space(line), "*")
-_is_comment_line(line) if startswith(trim_space(line), "/*")
-_is_comment_line(line) if startswith(trim_space(line), "#")
-_is_comment_line(line) if startswith(trim_space(line), "--")
+# Matched against the normalised line (see _norm): keys become members.
+_access := concat("", [
+	`(?:\breq(?:uest)?\.(?:body|query|params|headers|cookies)\.`, _name,
+	`|\brequest\.(?:COOKIES|GET|POST|args|form|cookies|headers|json|values|data|query_params)(?:\.get\(\s*`, _name, `\s*[,)]|\.`, _name,
+	`)|\$_(?:COOKIE|GET|POST|REQUEST|SERVER)\.`, _name, `)(?:[^\w-]|$)`,
+])
+
+_ext := {".js", ".mjs", ".cjs", ".ts", ".jsx", ".tsx", ".py", ".php"}
+
+_ext_of(path) := concat("", [".", parts[count(parts) - 1]]) if parts := split(path, ".")
+
+# ['key'] → .key and get('key' → get(key, then every other literal → "".
+_norm(line) := n if {
+	a := regex.replace(line, `\[\s*['"]([\w-]+)['"]\s*\]`, ".$1")
+	b := regex.replace(a, `\.get\(\s*['"]([\w-]+)['"]`, ".get($1")
+	n := regex.replace(b, "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'|`[^`]*`", `""`)
+}
+
+_msg := "An authorisation decision uses a role or admin flag the client sent (body, query, header or cookie); the client can set it to anything. Decide from the server-side session or verified identity instead"
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	some _ext in {".js", ".ts"}
-	endswith(path, _ext)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	not _is_comment_line(line)
-	some _pat in {"if (user.role ==="}
-	contains(line, _pat)
+	some path, content in input.file_contents
+	_ext_of(path) in _ext
+	_file_gate(content)
+	lines := split(content, "\n")
+	srcs := [j | some j, l in lines; _raw_access(l)]
+	count(srcs) > 0
+	some i in _decision_lines(lines, srcs)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Client-side role check — not a security boundary, enforce on server",
+		"message": _msg,
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": lines[i],
 	}
 }
+
+_file_gate(content) if contains(content, "req.")
+
+_file_gate(content) if contains(content, "request.")
+
+_file_gate(content) if contains(content, "$_")
+
+_raw_access(l) if {
+	regex.match(`\b(?:req|request)\.(?:body|query|params|headers|cookies|COOKIES|GET|POST|args|form|json|values|data|query_params)\b|\$_(?:COOKIE|GET|POST|REQUEST|SERVER)\s*\[`, l)
+	not helpers.is_comment_line(l)
+}
+
+_cmp := `(?:===?|!==?|<>)`
+
+_nullish := `(?:null|undefined|None|NULL)\b`
+
+_decision_lines(lines, srcs) := ((direct | indirect) | destructured) | php_flag if {
+	norms := {j: _norm(lines[j]) | some j in srcs}
+	php_flag := {j | some j in srcs; regex.match(_php_flag_re, norms[j])}
+	direct := {j | some j in srcs; regex.match(_access, norms[j]); _used_as_decision(norms[j], _access); not _filtering(norms[j])}
+	destructured := {i |
+		some j in srcs
+		some v in _destructured(lines[j])
+		some i in numbers.range(j + 1, min([count(lines) - 1, j + 15]))
+		contains(lines[i], v)
+		not helpers.is_comment_line(lines[i])
+		n := _norm(lines[i])
+		_used_as_decision(n, concat("", [`(?:^|[^\w$.])`, v, `\b`]))
+		not _filtering(n)
+	}
+	indirect := {i |
+		some j in srcs
+		p := norms[j]
+		not j in direct
+		regex.match(_access, p)
+		not regex.match(`(?:isset|empty)\s*\(`, p)
+		m := regex.find_all_string_submatch_n(`^\s*(?:(?:const|let|var|final)\s+)?\$?([A-Za-z_]\w*)\s*(?::\s*[\w<>\[\]|]+\s*)?=[^=]`, p, 1)
+		count(m) > 0
+		v := m[0][1]
+		some i in numbers.range(j + 1, min([count(lines) - 1, j + 15]))
+		contains(lines[i], v)
+		not helpers.is_comment_line(lines[i])
+		_used_as_decision(_norm(lines[i]), concat("", [`(?:^|[^\w$.])\$?`, v, `\b`]))
+		not _filtering(_norm(lines[i]))
+	}
+}
+
+
+_used_as_decision(n, x) if {
+	regex.match(concat("", [x, `\s*(?:\)\s*)?`, _cmp, `\s*(?:[^\s\w]|\w)`]), n)
+	not regex.match(concat("", [x, `\s*(?:\)\s*)?`, _cmp, `\s*`, _nullish]), n)
+	not _presence(n, x)
+}
+
+_used_as_decision(n, x) if {
+	regex.match(concat("", [_cmp, `\s*`, x]), n)
+	not regex.match(concat("", [_nullish, `\s*`, _cmp, `\s*`, x]), n)
+	not _presence(n, x)
+}
+
+# if (req.body.isAdmin) / if not request.COOKIES.get(admin): / cond ? a : b
+_used_as_decision(n, x) if {
+	regex.match(concat("", [`^\s*(?:\}\s*)?(?:else\s*)?(?:if|elif|elseif|while)\s*\(?\s*(?:!|not\s+)?\s*`, x, `\s*(?:\)\s*\{?|:|\{|&&|\|\||and\b|or\b)`]), n)
+	not _presence(n, x)
+}
+
+_used_as_decision(n, x) if {
+	regex.match(concat("", [x, `\s*\?[^?.:]`]), n)
+	not _presence(n, x)
+}
+
+_presence(n, x) if regex.match(concat("", [`(?:isset|empty|typeof)\s*\(?\s*`, x]), n)
+
+# A comparison inside a collection callback or comprehension filters records
+# by the requested role; it grants nothing.
+_filtering(n) if regex.match(`\.(?:filter|find|findIndex|findOne|some|every|where|count)\s*\(\s*(?:\(\s*\w*\s*\)|\w+)\s*=>|\bfor\s+\w+\s+in\b.*\bif\b`, n)
+
+# const { isAdmin, role: r } = req.body;  →  isAdmin, r (names for a role or flag).
+_destructured(l) := {v |
+	m := regex.find_all_string_submatch_n(`^\s*(?:const|let|var)\s*\{([^}]*)\}\s*=\s*req(?:uest)?\.(?:body|query|params|headers|cookies)\b`, l, 1)
+	count(m) > 0
+	some part in split(m[0][1], ",")
+	kv := split(trim_space(part), ":")
+	regex.match(concat("", [`^`, _name, `$`]), trim_space(kv[0]))
+	v := trim_space(kv[count(kv) - 1])
+	regex.match(`^[A-Za-z_$][\w$]*$`, v)
+}
+
+# PHP if (!empty($_POST['is_admin'])): empty() is the truthiness test there, so
+# for a boolean privilege flag (not a role name, often validated as required)
+# it is the decision itself.
+_php_flag_re := `^\s*(?:\}\s*)?(?:else\s*)?(?:if|elseif)\s*\(\s*!\s*empty\s*\(\s*\$_(?:COOKIE|GET|POST|REQUEST|SERVER)\.(?i:(?:is_?)?(?:admin|authenticated|logged_?in|authori[sz]ed|staff|superuser))\s*\)`

@@ -1,0 +1,4 @@
+spring:
+  rabbitmq:
+    username: app
+~>    password: guest

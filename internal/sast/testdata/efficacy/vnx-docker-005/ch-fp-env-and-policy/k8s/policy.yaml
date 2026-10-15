@@ -1,0 +1,28 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged
+spec:
+  rules:
+    - name: privileged-containers
+      validate:
+        pattern:
+          spec:
+            containers:
+              - =(securityContext):
+                  =(privileged): "false"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web
+spec:
+  containers:
+    - name: web
+      image: nginx:1.27.0
+      env:
+        - name: PRIVILEGED
+          value: "true"
+      securityContext:
+        privileged: false
+        allowPrivilegeEscalation: false

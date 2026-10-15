@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-028 – SQL injection via string concatenation in Java"
-description: "Detects JDBC Statement/Connection and Spring JdbcTemplate calls whose SQL is built from a SQL literal and a non-constant value by concatenation, +=, concat(), String.format or StringBuilder.append, inline or in a variable assigned above the call. Parameterised queries and constant-only SQL are not reported."
+description: "Detects JDBC Statement/Connection, Spring JdbcTemplate and Android SQLiteDatabase rawQuery/execSQL calls whose SQL is built from a SQL literal or text block and a non-constant value by concatenation, +=, concat(), String.format, .formatted() or StringBuilder.append, inline or in a variable assigned above the call. Parameterised queries and constant-only SQL are not reported."
 ---
 
 ## Overview

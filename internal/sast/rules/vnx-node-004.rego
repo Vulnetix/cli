@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-004",
 	"name": "Express app without helmet",
-	"description": "An Express application object is created (const app = express(), module.exports = express(), export const app = express()) in a file that imports express, and nothing in the same npm package (the files under the nearest directory holding a package.json, or the whole project when there is none) applies security headers: no helmet(...) call in code, no lusca, and no middleware that sets Content-Security-Policy, X-Frame-Options, Strict-Transport-Security or X-Content-Type-Options itself. The app then serves without clickjacking, MIME-sniffing, HSTS or CSP protection. Reported once per file, on the first express() call. Not reported: express.Router() and other express.* factories, a helmet() call in any other module of the package, a helmet mentioned only in a comment (this still reports), test, example, sample, demo and benchmark code.",
+	"description": "An Express application object is created (const app = express(), module.exports = express(), export const app = express()) in a file that imports express, and nothing in the same npm package (the files under the nearest directory holding a package.json, or the whole project when there is none) applies security headers: no helmet(...) call in code, no lusca, and no middleware that sets Content-Security-Policy, X-Frame-Options, Strict-Transport-Security or X-Content-Type-Options itself (setHeader/set/header by name, or as a key of a headers object). A helmet named only inside a string literal or a comment does not count. The app then serves without clickjacking, MIME-sniffing, HSTS or CSP protection. Reported once per file, on the first express() call. Not reported: express.Router() and other express.* factories, a helmet() call in any other module of the package, a helmet mentioned only in a comment (this still reports), test, example, sample, demo and benchmark code.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-004/",
 	"languages": ["node"],
 	"severity": "medium",
@@ -25,13 +25,25 @@ _is_js(path) if regex.match(`\.(?:js|ts|mjs|cjs|mts|cts)$`, path)
 
 _express_import := `require\(\s*['"]express['"]\s*\)|from\s+['"]express['"]`
 
-_app_re := `(?:=|\(|return|export\s+default)\s*express\s*\(\s*\)`
+_app_re := `(?:=|\(|return|export\s+default)\s*(?:express|require\(\s*['"]express['"]\s*\))\s*\(\s*\)`
 
 # A code line (not a comment) that applies security headers.
-_mitigation_re := concat("", [
-	`(?m)^\s*[^\s/*](?:[^/\n]|/[^/\n])*`,
-	`(?:\bhelmet(?:\.\w+)?\s*\(|\blusca\b|(?:setHeader|\.set|\.header)\s*\(\s*['"](?i:content-security-policy|x-frame-options|strict-transport-security|x-content-type-options)['"])`,
+_code_prefix := `(?m)^\s*(?:[^\s/*](?:[^/\n]|/[^/\n])*)?`
+
+_headers := `['"](?i:content-security-policy|x-frame-options|strict-transport-security|x-content-type-options)['"]`
+
+# Matched on the content with string literals removed, so "enable helmet()"
+# in a log message is not a mitigation.
+_call_mitigation_re := concat("", [_code_prefix, `(?:\bhelmet(?:\.\w+)?\s*\(|\blusca\b)`])
+
+# Matched on the content with its literals kept: these name a module or a
+# header in one. A header set by name, or as a key of a headers object.
+_literal_mitigation_re := concat("", [
+	_code_prefix,
+	`(?:require\(\s*['"]helmet['"]\s*\)\s*\(|(?:setHeader|\.set|\.header)\s*\(\s*`, _headers, `|`, _headers, `\s*:)`,
 ])
+
+_strip_strings(c) := regex.replace(c, `'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|\x60(?:[^\x60\\]|\\.)*\x60`, `""`)
 
 # Block comments are removed first: a helmet setup commented out with /* */
 # protects nothing.
@@ -40,8 +52,12 @@ _package_mitigated(root) if {
 	startswith(p, root)
 	_is_js(p)
 	regex.match(`(?i)helmet|lusca|x-frame-options|content-security-policy|strict-transport-security|x-content-type-options`, c)
-	regex.match(_mitigation_re, regex.replace(c, `(?s)/\*.*?\*/`, ""))
+	_mitigates(regex.replace(c, `(?s)/\*.*?\*/`, ""))
 }
+
+_mitigates(c) if regex.match(_literal_mitigation_re, c)
+
+_mitigates(c) if regex.match(_call_mitigation_re, _strip_strings(c))
 
 _skipped(path) if helpers.is_test_path(path)
 
@@ -58,7 +74,7 @@ findings contains finding if {
 	lines := split(content, "\n")
 	hits := [i |
 		some i, line in lines
-		contains(line, "express(")
+		contains(line, "express")
 		not helpers.is_comment_line(line)
 		regex.match(_app_re, line)
 		not regex.match(`['"\x60][^'"\x60]*express\s*\(`, line)

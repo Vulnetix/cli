@@ -1,0 +1,11 @@
+<beans>
+  <property name="password" value="${db.password}"/>
+  <property name="password" value="#{environment['DB_PASSWORD']}"/>
+  <password>{@@sample:C[O]QL[C]E6[D]U6[G]tc[S]5P[=]@@}</password>
+  <password>ENC(@@sample:G[6]N7[1]8U[u]yP[E]5b[H]yW[K]yu[L]QS[m]02[a]uQ[P]Ut[m]@@)</password>
+  <password>@deploy.password@</password>
+  <password></password>
+  <add key="SmtpPassword" value="" />
+  <property name="passwordEncoder" ref="encoder"/>
+  <property name="hibernate.connection.password">${DB_PASS}</property>
+</beans>

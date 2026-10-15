@@ -7,7 +7,7 @@ import data.vulnetix.lib.secrets
 metadata := {
 	"id": "VNX-SEC-018",
 	"name": "AI provider API key",
-	"description": "Reports an AI provider API key written into a file: an Anthropic key (sk-ant-api03-, sk-ant-admin01- or another sk-ant-<kind><nn>- prefix with a 40+ character body), an OpenAI project, service-account or admin key (sk-proj-, sk-svcacct-, sk-admin- with a 40+ character body), or a Hugging Face user access token (hf_ followed by 34+ letters and digits). The token must stand alone (not the tail of a longer identifier), must not be a placeholder (xxxx, your-key, EXAMPLE) and must have the entropy of a real key; the snippet is redacted. Not reported: keys read from the environment or a secrets manager, truncated or documentation keys shorter than the real format, and test, fixture, vendored and generated paths. Overlaps VNX-LLM-003 (LLM-focused view) and the generated provider rules VNX-SEC-027/049/251/252/285/298/299.",
+	"description": "Reports an AI provider API key written into a file: an Anthropic key (sk-ant-api03-, sk-ant-admin01- or another sk-ant-<kind><nn>- prefix with a 40+ character body), an OpenAI project, service-account or admin key (sk-proj-, sk-svcacct-, sk-admin- with a 40+ character body), or a Hugging Face user access token (hf_ followed by 34+ letters and digits in both letter cases). The token must stand alone (not the tail of a longer identifier), must not be a placeholder (xxxx, your-key, EXAMPLE) and must have the entropy of a real key; the snippet is redacted. Not reported: keys read from the environment or a secrets manager, truncated or documentation keys shorter than the real format, identifiers such as hf_ followed only by lowercase letters, and test, fixture, vendored and generated paths. Overlaps VNX-LLM-003 (LLM-focused view) and the generated provider rules VNX-SEC-027/049/251/252/285/298/299.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-018/",
 	"languages": [],
 	"severity": "critical",
@@ -33,6 +33,14 @@ _whos(line) := {p.who |
 	tok := m[1]
 	not secrets.is_example_token(tok)
 	secrets.high_entropy(tok, 3.5)
+	_mixed_case(tok)
+}
+
+# Real keys are random over both letter cases; a run of lowercase letters
+# after hf_ is an identifier (hf_modelrepositoryidentifier...), not a token.
+_mixed_case(tok) if {
+	regex.match(`[A-Z]`, substring(tok, 3, -1))
+	regex.match(`[a-z]`, substring(tok, 3, -1))
 }
 
 findings contains finding if {

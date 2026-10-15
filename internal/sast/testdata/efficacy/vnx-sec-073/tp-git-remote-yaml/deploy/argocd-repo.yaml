@@ -1,0 +1,5 @@
+repositories:
+  - name: infra
+~>    url: https://deploy-bot:Zq8Wm3Nr5tYc@@@sample:g[i]t[.][a]cm[e][-]c[o]rp[.]io[/]pl[a]tf[o]rm[/]in[f]ra[.]gi[t]@@
+    type: git
+~>  - url: git+https://ci:Hn5Rt8Vz2Kq@@@sample:g[i]t[.][a]cm[e][-]c[o]rp[.]io[/]pl[a]tf[o]rm[/]ch[a]rt[s][.]g[i]t@@

@@ -26,12 +26,12 @@ const app = express();
 app.listen(3000);
 ```
 
-A helmet setup that is commented out (`// app.use(helmet())`, or inside `/* ... */`) does not count.
+A helmet setup that is commented out (`// app.use(helmet())`, or inside `/* ... */`), or named only in a string (`console.warn("enable helmet()")`), does not count.
 
 Not flagged:
 
 - `app.use(helmet())`, `helmet.frameguard()` and other helmet middlewares, in this file or another module of the package;
-- `lusca`, or middleware that sets `Content-Security-Policy`, `X-Frame-Options`, `Strict-Transport-Security` or `X-Content-Type-Options` itself;
+- `lusca`, or middleware that sets `Content-Security-Policy`, `X-Frame-Options`, `Strict-Transport-Security` or `X-Content-Type-Options` itself, by name (`res.setHeader("X-Frame-Options", ...)`) or as a key of a headers object (`res.set({ "X-Frame-Options": "DENY" })`);
 - `express.Router()`, `express.json()` and other `express.*` factories;
 - test, example, sample, demo and benchmark code.
 

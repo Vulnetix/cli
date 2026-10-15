@@ -1,0 +1,8 @@
+<Server port="8005" shutdown="SHUTDOWN">
+  <Service name="Catalina">
+    <!--
+    <Connector port="8443" SSLEnabled="true" keystorePass="OldPw-from-2019" />
+    -->
+    <Connector port="8443" SSLEnabled="true" keystoreFile="conf/ks.p12" keystorePass="" />
+  </Service>
+</Server>

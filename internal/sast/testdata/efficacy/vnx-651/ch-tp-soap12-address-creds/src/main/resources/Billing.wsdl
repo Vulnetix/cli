@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
+    targetNamespace="urn:billing" name="Billing">
+  <wsdl:service name="BillingService">
+    <wsdl:port name="BillingPort" binding="tns:BillingBinding">
+~>      <soap12:address location="http://svcadmin:Winter2024@billing.internal.example:8080/ws/billing"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

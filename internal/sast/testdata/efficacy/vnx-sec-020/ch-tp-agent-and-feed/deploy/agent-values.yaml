@@ -1,0 +1,5 @@
+config:
+~>  token: glagent-@@sample:[A-Za-z0-9]{50}@@
+  kasAddress: wss://kas.gitlab.com
+feeds:
+~>  calendar: https://gitlab.com/-/issues.ics?feed_token=glft-@@sample:[A-Za-z0-9]{20}@@

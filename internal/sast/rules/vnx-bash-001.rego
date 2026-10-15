@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-BASH-001",
 	"name": "eval or sh -c of a dynamically built string",
-	"description": "Reports a shell eval statement, and a bash/sh/zsh/ksh/dash -c command string, whose text contains an expansion the shell will re-parse as code: a variable or positional parameter ($cmd, ${x}, $1, $@), a command substitution whose own command line is dynamic, or the output of a download or decoder ($(curl ...), $(wget ...), $(... | base64 -d)). Variables assigned only constant strings in the same file count as constant. Also reported: the indirect-reference idiom eval \"x=\\$$name\" when the name comes from a positional parameter or read. Not reported: static or single-quoted strings, escaped \\$, arithmetic and $?, eval \"$(tool init/env/hook)\" of a local tool's own output, getopt's eval set -- \"$opts\", indirect references through a name from a fixed list, sh -c 'script' _ \"$arg\" (the value is passed as an argument, not code), eval inside a string, comment or usage here-document, eval_gettext and other lookalikes, generated gradlew/mvnw wrappers and Makefiles. Shell files are .sh, .bash, .bats, .ksh, .zsh and extensionless files with a sh/bash/dash/ksh/zsh shebang.",
+	"description": "Reports a shell eval statement, and a bash/sh/zsh/ksh/dash -c (including /bin/sh -c, env bash -c) or su/runuser -c command string, whose text contains an expansion the shell will re-parse as code: a variable or positional parameter ($cmd, ${x}, $1, $@), a command substitution whose own command line is dynamic, or the output of a download or decoder ($(curl ...), $(wget ...), $(... | base64 -d)). Variables assigned only constant strings in the same file count as constant. Also reported: the indirect-reference idiom eval \"x=\\$$name\" when the name comes from a positional parameter or read, and find -exec sh -c / xargs -I{} sh -c scripts that paste {} into the code text. Not reported: static or single-quoted strings, escaped \\$, arithmetic and $?, eval \"$(tool init/env/hook)\" of a local tool's own output, getopt's eval set -- \"$opts\", indirect references through a name from a fixed list, sh -c 'script' _ \"$arg\" (the value is passed as an argument, not code), eval inside a string, comment or usage here-document, eval_gettext and other lookalikes, generated gradlew/mvnw wrappers and Makefiles. Shell files are .sh, .bash, .bats, .ksh, .zsh and extensionless files with a sh/bash/dash/ksh/zsh shebang.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-bash-001/",
 	"languages": ["bash", "shell"],
 	"severity": "critical",
@@ -48,7 +48,7 @@ _strip_re := `"(?:[^"\\$]|\\.|\$[^("])*\$?"|'[^']*'`
 
 _eval_re := concat("", [`(?:^|[;&|(){!`, _bt, `]|\b(?:then|do|else|if|elif|while|until|command|builtin|time)\s)\s*eval\s+(.*)$`])
 
-_dash_c_re := `(?:^|[\s;&|(!])(?:ba|da|k|z)?sh\s+(?:-[A-Za-z]+\s+)*-[A-Za-z]*c\s+(.*)$`
+_dash_c_re := `(?:^|[\s;&|(!])(?:\S*/)?(?:ba|da|k|z)?sh\s+(?:-[A-Za-z]+\s+)*-[A-Za-z]*c\s+(.*)$`
 
 # Shell words: a double-quoted string, a single-quoted string, an operator, or
 # a bare word.
@@ -235,16 +235,25 @@ _dash_c_words(line, stripped) := [ws[0]] if {
 	count(ws) > 0
 }
 
+# su/runuser -c: the command string is run by the target user's shell.
+_su_c_re := `(?:^|[\s;&|(!])(?:\S*/)?(?:su|runuser)\s+(?:[^\s;&|]+\s+)*?(?:-c|--command)(?:\s+|=)(.*)$`
+
+_su_c_words(line, stripped) := [ws[0]] if {
+	regex.match(`\b(su|runuser)\s`, line)
+	ws := _words(_arg(line, stripped, _su_c_re))
+	count(ws) > 0
+}
+
 _message := "eval or sh -c re-parses a string built from variables or command output, so any shell syntax in that data runs as code; pass values as arguments (\"$@\", an array, sh -c 'cmd \"$1\"' _ \"$value\") or dispatch with a case statement instead"
 
 findings contains finding if {
 	some path, content in input.file_contents
 	_is_shell(path, content)
-	regex.match(`(?m)(eval|sh\s+(-[A-Za-z]+\s+)*-[A-Za-z]*c)\s`, content)
+	regex.match(`(?m)(eval|sh\s+(-[A-Za-z]+\s+)*-[A-Za-z]*c|\b(su|runuser)\s.*(-c|--command))\s`, content)
 	lines := split(content, "\n")
 	docs := _docs(content, lines)
 	some i, line in lines
-	regex.match(`(eval|sh)\s`, line)
+	regex.match(`(eval|sh|su|runuser)\s`, line)
 	not _comment(line)
 	not _in_text_heredoc(docs, i)
 	stripped := regex.replace(line, _strip_re, "\"\"")
@@ -263,3 +272,14 @@ findings contains finding if {
 _flagged(lines, i, line, stripped) if _dynamic(lines, i, _eval_words(line, stripped))
 
 _flagged(lines, i, line, stripped) if _dynamic(lines, i, _dash_c_words(line, stripped))
+
+_flagged(lines, i, line, stripped) if _dynamic(lines, i, _su_c_words(line, stripped))
+
+# find -exec sh -c '... {} ...' and xargs -I{} sh -c '... {} ...': the file
+# name or input line is pasted into the script text, quoted or not.
+_flagged(_, _, line, stripped) if {
+	contains(line, "{}")
+	regex.match(`\s-exec(dir)?\s|\bxargs\s`, line)
+	some w in _dash_c_words(line, stripped)
+	contains(w, "{}")
+}

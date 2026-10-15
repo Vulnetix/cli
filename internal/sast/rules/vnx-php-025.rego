@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-025",
 	"name": "PHP deprecated mcrypt encryption functions",
-	"description": "A call to a PHP mcrypt function that performs or sets up encryption: mcrypt_encrypt(), mcrypt_decrypt(), the legacy mode functions mcrypt_cbc/cfb/ecb/ofb(), mcrypt_module_open(), mcrypt_generic(), mdecrypt_generic() and mcrypt_create_iv(), called directly (optionally as \\mcrypt_...) or by name through call_user_func()/call_user_func_array(). mcrypt was deprecated in PHP 7.1 and removed in 7.2; libmcrypt has been unmaintained since 2007, offers no authenticated mode and is usually used with DES, 3DES, Blowfish or ECB. Migrate to openssl_encrypt/decrypt with AES-256-GCM or to Sodium. Not reported: the mcrypt helper calls that only size or tear down a cipher (mcrypt_get_iv_size, mcrypt_enc_get_*, mcrypt_generic_init/deinit, mcrypt_module_close), so one encryption is one finding; methods or functions that merely share the name ($obj->mcrypt_encrypt(), Class::mcrypt_decrypt(), my_mcrypt_encrypt()); polyfill definitions (function mcrypt_encrypt(...)); function_exists/extension_loaded checks and other mentions inside string literals or comments.",
+	"description": "A call to a PHP mcrypt function that performs or sets up encryption: mcrypt_encrypt(), mcrypt_decrypt(), the legacy mode functions mcrypt_cbc/cfb/ecb/ofb(), mcrypt_module_open(), mcrypt_generic(), mdecrypt_generic() and mcrypt_create_iv(), called directly (optionally as \\mcrypt_...) or by name through call_user_func()/call_user_func_array(), in .php, .php3-8, .phtml and .inc files. mcrypt was deprecated in PHP 7.1 and removed in 7.2; libmcrypt has been unmaintained since 2007, offers no authenticated mode and is usually used with DES, 3DES, Blowfish or ECB. Migrate to openssl_encrypt/decrypt with AES-256-GCM or to Sodium. Not reported: the mcrypt helper calls that only size or tear down a cipher (mcrypt_get_iv_size, mcrypt_enc_get_*, mcrypt_generic_init/deinit, mcrypt_module_close), so one encryption is one finding; methods or functions that merely share the name ($obj->mcrypt_encrypt(), Class::mcrypt_decrypt(), my_mcrypt_encrypt()); polyfill definitions (function mcrypt_encrypt(...)); function_exists/extension_loaded checks and other mentions inside string literals, heredoc/nowdoc bodies or comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-025/",
 	"languages": ["php"],
 	"severity": "high",
@@ -43,9 +43,29 @@ _hit(line) if {
 
 _hit(line) if regex.match(_callback_re, line)
 
+_php_path(path) if regex.match(`\.(?:php[3-8]?|phtml|inc)$`, lower(path))
+
+# A line inside a heredoc/nowdoc body (opened within the 40 lines above and
+# not yet closed) is text, not code.
+_in_heredoc(content, lines, i) if {
+	contains(content, "<<<")
+	i > 0
+	some j in numbers.range(max([0, i - 40]), i - 1)
+	m := regex.find_all_string_submatch_n(`<<<\s*['"]?([A-Za-z_]\w*)['"]?\s*$`, lines[j], 1)
+	count(m) > 0
+	id := m[0][1]
+	not _closed(lines, j, i, id)
+}
+
+_closed(lines, j, i, id) if {
+	j + 1 <= i - 1
+	some k in numbers.range(j + 1, i - 1)
+	regex.match(concat("", [`^\s*`, id, `\b`]), lines[k])
+}
+
 findings contains finding if {
 	some path, content in input.file_contents
-	endswith(path, ".php")
+	_php_path(path)
 	contains(content, "crypt_")
 	regex.match(`m(?:de)?crypt_`, content)
 	lines := split(content, "\n")
@@ -53,6 +73,7 @@ findings contains finding if {
 	contains(line, "crypt_")
 	not helpers.is_comment_line(line)
 	_hit(line)
+	not _in_heredoc(content, lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Deprecated mcrypt function detected; mcrypt was removed in PHP 7.2 and offers no authenticated encryption. Migrate to openssl_encrypt/decrypt with AES-256-GCM or the Sodium extension",

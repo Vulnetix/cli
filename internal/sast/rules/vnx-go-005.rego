@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-005",
 	"name": "Go open redirect",
-	"description": "A redirect sends the browser to a destination whose host the requester chooses: the URL given to http.Redirect, gin/echo c.Redirect(code, url), fiber c.Redirect(url) or a hand-written Location header starts with a value read from the request (r.URL.Query().Get, r.FormValue, r.PostFormValue, r.Form.Get, gin c.Query/DefaultQuery/PostForm/Param, echo c.QueryParam/FormValue, fiber c.Query/FormValue, gorilla/mux Vars, chi URLParam, r.PathValue), directly or through a variable assigned from it in the 25 lines above (including fmt.Sprintf(\"%s...\") and concatenation), or the value follows a prefix that does not pin the host (\"https://\" + v, \"//\" + v, or a bare \"/\" + v, which /evil.example turns into //evil.example). Not reported: a destination behind a fixed path or host (\"/items?id=\" + v, \"https://accounts.example.com/login?next=\" + url.QueryEscape(v)); a value checked in between (url.Parse, Host/IsAbs/Hostname tests, strings.HasPrefix, an allowlist, or a helper named for the check such as isLocalURL/safeRedirect/validateRedirect); a destination passed through a function call; constants, configuration values and the request's own r.URL.Path (canonical trailing-slash redirects); the call inside a string literal or comment.",
+	"description": "A redirect sends the browser to a destination whose host the requester chooses: the URL given to http.Redirect, gin/echo c.Redirect(code, url), fiber c.Redirect(url) or a hand-written Location header starts with a value read from the request (r.Referer(), r.Header.Get, gin c.GetHeader, r.URL.Query().Get,r.FormValue, r.PostFormValue, r.Form.Get, gin c.Query/DefaultQuery/PostForm/Param, echo c.QueryParam/FormValue, fiber c.Query/FormValue, gorilla/mux Vars, chi URLParam, r.PathValue), directly or through a variable assigned from it in the 25 lines above (including fmt.Sprintf(\"%s...\") and concatenation), or the value follows a prefix that does not pin the host (\"https://\" + v, \"//\" + v, or a bare \"/\" + v, which /evil.example turns into //evil.example). Not reported: a destination behind a fixed path or host (\"/items?id=\" + v, \"https://accounts.example.com/login?next=\" + url.QueryEscape(v)); a value checked in between (Host/IsAbs/Hostname/Scheme tests on the value or on the url.Parse result, strings.HasPrefix other than a bare HasPrefix(v, \"/\"), an allowlist, or a helper named for the check such as isLocalURL/safeRedirect/validateRedirect); a destination passed through a function call; constants, configuration values, r.Host and the request's own r.URL.Path (canonical trailing-slash and HTTPS-upgrade redirects); the call inside a string literal (including a multi-line raw string) or comment. Reported despite a check: url.Parse whose result is never tested (https://evil.example parses), and HasPrefix(v, \"/\") alone (//evil.example passes it).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-005/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -21,11 +21,11 @@ metadata := {
 	"tags": ["open-redirect", "web", "phishing"],
 }
 
-_request := `\b(?:r|req|request)\.(?:FormValue|PostFormValue)\(|\b(?:r|req|request)\.URL\.Query\(\)(?:\.Get\(|\[)|\b(?:r|req|request)\.(?:Form|PostForm)(?:\.Get\(|\[)|\bmux\.Vars\(|\.PathValue\(|\bchi\.URLParam\(|\b(?:c|ctx|g|e)\.(?:Query|DefaultQuery|GetQuery|Param|Params|PostForm|DefaultPostForm|FormValue|QueryParam)\(`
+_request := `(?:\b(?:r|req|request)|\.Request)\.Referer\(\)|\b(?:r|req|request)\.Header\.Get\(|\b(?:c|ctx)\.GetHeader\(|\b(?:r|req|request)\.(?:FormValue|PostFormValue)\(|\b(?:r|req|request)\.URL\.Query\(\)(?:\.Get\(|\[)|\b(?:r|req|request)\.(?:Form|PostForm)(?:\.Get\(|\[)|\bmux\.Vars\(|\.PathValue\(|\bchi\.URLParam\(|\b(?:c|ctx|g|e)\.(?:Query|DefaultQuery|GetQuery|Param|Params|PostForm|DefaultPostForm|FormValue|QueryParam)\(`
 
 _sink_hint := `\.Redirect\(|"Location"`
 
-_validator := `(?i)url\.Parse|\.Host\b|\.Hostname\(|\.IsAbs\(|\.Scheme\b|HasPrefix|allow|valid|safe|white_?list|trusted|is_?local|is_?relative|same_?origin|check_?redirect`
+_validator := `(?i)\.Host\b|\.Hostname\(|\.IsAbs\(|\.Scheme\b|HasPrefix|allow|valid|safe|white_?list|trusted|is_?local|is_?relative|same_?origin|check_?redirect`
 
 # Names assigned straight from a request read (optionally trimmed).
 _direct := concat("", [`(?::=|=)\s*(?:strings\.\w+\(\s*)*(?:`, _request, `)`])
@@ -89,6 +89,35 @@ _checked(lines, i, e, names) if {
 	regex.match(_word(v), l)
 	not helpers.is_comment_line(l)
 	regex.match(_validator, l)
+	not _slash_only(l, v)
+}
+
+# url.Parse(v) into u, then a later line tests u's host, scheme or IsAbs.
+# Parsing alone proves nothing: https://evil.example parses.
+_checked(lines, i, e, names) if {
+	some v in names
+	regex.match(concat("", [`^`, v, `\b`]), e)
+	some k in numbers.range(max([0, i - 25]), i - 1)
+	m := regex.find_all_string_submatch_n(concat("", [`([A-Za-z_]\w*)\s*,\s*\w+\s*:?=\s*url\.(?:Parse|ParseRequestURI)\(\s*`, v, `\s*\)`]), lines[k], 1)
+	count(m) > 0
+	u := m[0][1]
+	u != "_"
+	some k2 in numbers.range(k, i - 1)
+	regex.match(concat("", [`\b`, u, `\.(?:Host|Hostname\(|IsAbs\(|Scheme|Opaque)`]), lines[k2])
+}
+
+# strings.HasPrefix(v, "/") alone: //evil.example and /\evil.example pass it.
+_slash_only(l, v) if {
+	regex.match(concat("", [`HasPrefix\(\s*`, v, `\s*,\s*"/"\s*\)`]), l)
+	not contains(l, `"//"`)
+	not contains(l, `\\`)
+	not regex.match(`(?i)\.Host\b|\.Hostname\(|\.IsAbs\(|\.Scheme\b|allow|valid|safe|white_?list|trusted|is_?local|is_?relative|same_?origin|check_?redirect`, l)
+}
+
+# The line lies inside a raw string literal opened on an earlier line.
+_in_raw_string(lines, i) if {
+	ticks := sum([count(indexof_n(lines[m], "`")) | some m in numbers.range(max([0, i - 60]), i - 1)])
+	ticks % 2 == 1
 }
 
 # The call text: the line, plus its argument lines when the call is broken
@@ -154,6 +183,7 @@ findings contains finding if {
 	regex.match(_sink_hint, line)
 	not helpers.is_comment_line(line)
 	_in_code(line)
+	not _in_raw_string(lines, i)
 	e := _dest(_stmt(lines, i, line))
 	names := _names(lines, i)
 	_attacker_start(e, names)

@@ -1,0 +1,8 @@
+<?php
+$notice = <<<'EOT'
+Files are sealed with mcrypt_encrypt() for older clients.
+EOT;
+~>$blob = mcrypt_encrypt(MCRYPT_DES, $secret, $file, MCRYPT_MODE_ECB);
+?>
+<p><?= htmlspecialchars($notice) ?></p>
+<a href="/dl?b=<?= urlencode(base64_encode($blob)) ?>">download</a>

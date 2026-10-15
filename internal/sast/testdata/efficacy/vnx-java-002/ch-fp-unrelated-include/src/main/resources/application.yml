@@ -1,0 +1,10 @@
+spring:
+  config:
+    import: optional:configserver:
+logging:
+  include: "*"
+feature:
+  exposure:
+    include: "*"
+  shutdown:
+    enabled: true

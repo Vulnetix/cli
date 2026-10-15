@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pref_key_auth_token" translatable="false">auth_token</string>
+    <string name="pref_key_password" translatable="false">pref_password</string>
+    <string name="key_api_token" translatable="false">api_token_key</string>
+</resources>

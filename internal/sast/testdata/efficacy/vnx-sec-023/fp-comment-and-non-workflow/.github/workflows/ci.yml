@@ -1,0 +1,10 @@
+on: pull_request
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Do not write: run: echo "${{ github.event.pull_request.title }}"
+      # it lets a PR title run commands; use env: instead.
+      - run: |
+          # the old step used ${{ github.event.pull_request.title }} directly
+          make test

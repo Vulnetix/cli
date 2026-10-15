@@ -1,0 +1,9 @@
+name: sync
+on: [push]
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+~>      NOTION_API_KEY: secret_@@sample:[A-Za-z0-9]{43}@@
+    steps:
+      - run: node scripts/sync.js

@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-002 – Private Key Committed"
-description: "Detects RSA, EC, DSA, and OpenSSH private keys committed to source code, which permanently expose cryptographic material even after deletion."
+description: "Reports a committed PEM private key (RSA, EC, DSA, OpenSSH or PKCS#8) whose armour line is followed by real base64 key material, excluding code that builds or strips the armour, placeholders, public keys, prose examples and test certificates."
 ---
 
 ## Overview
@@ -19,24 +19,28 @@ Private keys are never safe in source code — there is no "example" or "placeho
 
 ## What Gets Flagged
 
-Any file containing a PEM-format private key block.
+A `-----BEGIN RSA/EC/DSA/OPENSSH PRIVATE KEY-----` or PKCS#8 `-----BEGIN PRIVATE KEY-----` line that is followed by key material: base64 on the same line (an escaped `\n` string in code, JSON or Terraform), or a base64 line within the next four lines (a `.pem`/`.key` file, a heredoc, a YAML block scalar or a multi-line string, including legacy `Proc-Type: 4,ENCRYPTED` PEM).
 
-```
-# FLAGGED: private key in a config or source file
------BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEA2a2rwplBQLF29amygykEMmYz0+Kcj3bKBp29O2bOHqh...
------END RSA PRIVATE KEY-----
+```text
+# FLAGGED: a key file (server.key)
+-----BEGIN EC PRIVATE KEY-----
+<base64 key material>
+-----END EC PRIVATE KEY-----
 ```
 
-```python
-# FLAGGED: key embedded as a string literal
-PRIVATE_KEY = """
------BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAA_EXAMPLE_REDACTED
-...
------END OPENSSH PRIVATE KEY-----
-"""
+```javascript
+// FLAGGED: a key inlined as an escaped string
+const privateKey = '-----BEGIN RSA PRIVATE KEY-----\n<base64 key material>\n-----END RSA PRIVATE KEY-----'
 ```
+
+Not flagged:
+
+- Code that only builds, strips or compares the armour (`append("-----BEGIN PRIVATE KEY-----\n")`, `pem.replace("-----BEGIN PRIVATE KEY-----", "")`, `startsWith(...)`).
+- Placeholder bodies (`...`, `<your key here>`), public keys and certificates.
+- Examples in Markdown, reStructuredText, AsciiDoc or in comments.
+- Test, fixture, vendored and generated files (test certificates under `tests/certs/`, `testdata/`).
+
+PKCS#8 `ENCRYPTED PRIVATE KEY` blocks are VNX-SEC-646.
 
 ## Detecting a Compromise
 

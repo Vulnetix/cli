@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JWT-006",
 	"name": "JWT missing audience or issuer verification",
-	"description": "A JWT verifier does not check who the token was issued for, so a token minted for another application (by the same identity provider or signing key) is accepted here. Reported: audience or issuer validation switched off explicitly, by PyJWT/python-jose options {\"verify_aud\": False} or {\"verify_iss\": False} (Python) and TokenValidationParameters ValidateAudience = false or ValidateIssuer = false (C#); and a token verified against a shared identity provider's key set with no audience check anywhere in the file: jsonwebtoken jwt.verify, jose jwtVerify and express-jwt in a file that uses jwks-rsa or createRemoteJWKSet (JavaScript/TypeScript), Auth0 JWT.require() in a file using a JwkProvider (Java), and golang-jwt jwt.Parse/ParseWithClaims with a keyfunc/JWKS key set (Go) without WithAudience. Not reported: verification with a private shared secret and no audience (PyJWT already rejects an aud claim it was not told to expect), verifiers that pass an audience, comments and strings.",
+	"description": "A JWT verifier does not check who the token was issued for, so a token minted for another application (by the same identity provider or signing key) is accepted here. Reported: audience or issuer validation switched off explicitly, by PyJWT/python-jose options {\"verify_aud\": False} or {\"verify_iss\": False} (Python) and TokenValidationParameters ValidateAudience = false or ValidateIssuer = false (C#); and a token verified against a shared identity provider's key set with no audience check anywhere in the file: jsonwebtoken jwt.verify, jose jwtVerify and express-jwt in a file that uses jwks-rsa or createRemoteJWKSet (JavaScript/TypeScript), Auth0 JWT.require() in a file using a JwkProvider and Spring Security NimbusJwtDecoder.withJwkSetUri/withIssuerLocation or JwtDecoders.fromIssuerLocation with no audience validator (Java), and golang-jwt jwt.Parse/ParseWithClaims with a keyfunc/JWKS key set (Go) without WithAudience. Not reported: verification with a private shared secret and no audience (PyJWT already rejects an aud claim it was not told to expect), verifiers that pass an audience, comments and strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-jwt-006/",
 	"languages": ["python", "javascript", "typescript", "csharp", "java", "go"],
 	"severity": "medium",
@@ -75,7 +75,7 @@ _no_audience(lines) if {
 
 _jwks_sink := {
 	"js": `^(.*?)(?:\b(?:jwt|jsonwebtoken)\.verify\s*\(|\bjwtVerify\s*\(|\bexpressjwt\s*\(|\bexpressJwt\s*\(|\bjwt\s*\(\s*\{)`,
-	"java": `^(.*?)\bJWT\s*\.\s*require\s*\(`,
+	"java": `^(.*?)(?:\bJWT\s*\.\s*require\s*\(|\bNimbus(?:Reactive)?JwtDecoder\s*\.\s*with(?:JwkSetUri|IssuerLocation)\s*\(|\b(?:Reactive)?JwtDecoders\s*\.\s*from(?:Oidc)?IssuerLocation\s*\()`,
 	"go": `^(.*?)(?:\bjwt\.(?:Parse|ParseWithClaims)\s*\(|\b[pP]arser\.(?:Parse|ParseWithClaims)\s*\()`,
 }
 
@@ -97,6 +97,10 @@ _has_jwks(content) if contains(content, "jwks")
 _has_jwks(content) if contains(content, "JWKS")
 
 _jwks_file("java", content) if contains(content, "JwkProvider")
+
+# Spring Security resource server: a JwtDecoder built from the provider's
+# JWKS or issuer location checks signature, expiry and (at most) issuer.
+_jwks_file("java", content) if contains(content, "JwtDecoder")
 
 _jwks_file("go", content) if {
 	contains(content, "golang-jwt")

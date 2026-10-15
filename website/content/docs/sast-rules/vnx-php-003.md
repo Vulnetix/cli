@@ -43,7 +43,7 @@ $file = str_replace(array("../", "..\\"), "", $_GET["file"]);
 include( $file );
 ```
 
-Not flagged: a path passed through `basename()` or `intval()`; a value checked with `in_array()`, `isset($map[$v])` or `preg_match()` before the include; constant and `__DIR__`-relative paths; variables set in another file or passed as a parameter (a documented gap: there is no cross-file dataflow); the keywords in comments and strings.
+Not flagged: a path passed through `basename()`, `intval()` or a `preg_replace('/[^a-z0-9_]/', '', $x)` that strips every character but letters, digits, `_` and `-`; a file looked up in a map by the request value (`include $pages[$_GET['p']]`); a value checked with `in_array()`, `isset($map[$v])` or `preg_match()` before the include; constant and `__DIR__`-relative paths; variables set in another file or passed as a parameter (a documented gap: there is no cross-file dataflow); the keywords in comments and strings.
 
 ## Remediation
 

@@ -1,0 +1,12 @@
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" name="Users">
+  <portType name="UsersPort">
+    <operation name="findUser">
+      <input message="tns:findUser"/>
+    </operation>
+~>    <operation name="getAdminPassword">
+      <input message="tns:getAdminPassword"/>
+    </operation>
+~>    <wsdl:operation name="executeShellCommand">
+    </wsdl:operation>
+  </portType>
+</definitions>

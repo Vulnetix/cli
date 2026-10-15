@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-011",
 	"name": "Python SQL injection",
-	"description": "SQL text is built from a non-constant value with an f-string, % formatting, str.format() or + concatenation and passed to a database API, so the value can change the statement (SQL injection). Reported: the first argument of cursor/connection/session .execute(), .executemany(), .executescript(), .mogrify(), Django Model.objects.raw(), QuerySet.extra(), RawSQL() and SQLAlchemy text() (when the file uses sqlalchemy) is such an expression, including on continuation lines of a multi-line call; or is a variable assigned or extended (+=) by such an expression up to 25 lines above. The string must look like SQL (a keyword such as SELECT/WHERE/ORDER BY or a comparison), except when a variable named like a query (sql, query, stmt) is itself formatted in the call. Not reported: parameterised calls (placeholders in a literal with the values passed separately, including a % or + inside the parameter tuple), f-strings without interpolation, interpolation of ALL_CAPS constants only, placeholder lists built with ','.join('?' ...) or a variable named placeholders, constant concatenation, non-SQL text passed to an unrelated .execute()/.raw(), and the pattern inside strings and comments. Queries assembled in another function, or through more than one intermediate variable, are not followed.",
+	"description": "SQL text is built from a non-constant value with an f-string, % formatting, str.format() or + concatenation and passed to a database API, so the value can change the statement (SQL injection). Reported: the first argument of cursor/connection/session .execute(), .executemany(), .executescript(), .mogrify(), asyncpg/databases .fetch()/.fetchrow()/.fetchval()/.fetch_all()/.fetch_one(), pandas read_sql()/read_sql_query(), Django Model.objects.raw(), QuerySet.extra(), RawSQL() and SQLAlchemy text() (when the file uses sqlalchemy) is such an expression, including on continuation lines of a multi-line call; or is a variable assigned or extended (+=) by such an expression up to 25 lines above. The string must look like SQL (a keyword such as SELECT/WHERE/ORDER BY or a comparison), except when a variable named like a query (sql, query, stmt) is itself formatted in the call. Not reported: psycopg sql.SQL(...).format(sql.Identifier(...)) composition, parameterised calls (placeholders in a literal with the values passed separately, including a % or + inside the parameter tuple), f-strings without interpolation, interpolation of ALL_CAPS constants only, placeholder lists built with ','.join('?' ...) or a variable named placeholders, constant concatenation, non-SQL text passed to an unrelated .execute()/.raw(), and the pattern inside strings and comments. Queries assembled in another function, or through more than one intermediate variable, are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-011/",
 	"languages": ["python"],
 	"severity": "critical",
@@ -83,11 +83,16 @@ _unsafe_ids(raw, b) := {x |
 
 _placeholders(raw) if regex.match(`\.join\(\s*[\[(]?\s*["'](?:\?|%s|:\w+)["']|["'](?:\?|%s)["']\s*\]?\s*\*\s*len\(`, raw)
 
+# psycopg sql.SQL(...).format(sql.Identifier(...)) composes identifiers and
+# literals safely.
+_composed(raw) if regex.match(`(?:^|[^\w.])(?:sql\.)?SQL\s*\(\s*[rRbBuU]{0,2}["']`, raw)
+
 _dynamic(raw) if {
 	b := _blank(raw)
 	_dyn_shape(b)
 	count(_unsafe_ids(raw, b)) > 0
 	not _placeholders(raw)
+	not _composed(raw)
 }
 
 _sqlish(raw) if regex.match(`(?i)\b(?:select|insert|update|delete|from|where|values|create|drop|alter|pragma|truncate|grant|revoke|show|describe|union|order\s+by|group\s+by|limit|join|like|set|exec)\b|\s=\s*['"%{]|=\s*'|=\s*%`, raw)
@@ -97,9 +102,9 @@ _sqlish(raw) if regex.match(`(?i)^\s*\w*(?:sql|query|stmt|statement)\w*\s*(?:%|\
 
 # ── Sinks ───────────────────────────────────────────────────────────────
 
-_sink_re(content) := `(?:\.(?:execute|executemany|executescript|mogrify|raw|extra)|(?:^|[^\w.])RawSQL|(?:^|[^\w])text)\s*\(` if contains(content, "sqlalchemy")
+_sink_re(content) := `(?:\.(?:execute|executemany|executescript|mogrify|raw|extra|fetch|fetchrow|fetchval|fetch_all|fetch_one|read_sql|read_sql_query)|(?:^|[^\w.])RawSQL|(?:^|[^\w])text)\s*\(` if contains(content, "sqlalchemy")
 
-_sink_re(content) := `(?:\.(?:execute|executemany|executescript|mogrify|raw|extra)|(?:^|[^\w.])RawSQL)\s*\(` if not contains(content, "sqlalchemy")
+_sink_re(content) := `(?:\.(?:execute|executemany|executescript|mogrify|raw|extra|fetch|fetchrow|fetchval|fetch_all|fetch_one|read_sql|read_sql_query)|(?:^|[^\w.])RawSQL)\s*\(` if not contains(content, "sqlalchemy")
 
 # The raw text after the sink's opening parenthesis, through up to 6 lines.
 _after(lines, i, sink) := pieces[1] if {
@@ -160,11 +165,11 @@ _reported(lines, arg) if {
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".py")
-	regex.match(`(?:execute\w*|mogrify|raw|extra|RawSQL|text)\s*\(`, content)
+	regex.match(`(?:execute\w*|mogrify|raw|extra|RawSQL|text|fetch(?:row|val|_all|_one)?|read_sql\w*)\s*\(`, content)
 	sink := _sink_re(content)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`(?:execute|mogrify|raw|extra|RawSQL|text)`, line)
+	regex.match(`(?:execute|mogrify|raw|extra|RawSQL|text|fetch|read_sql)`, line)
 	not helpers.is_comment_line(line)
 	regex.match(sink, _code(line))
 	after := _after(lines, i, sink)

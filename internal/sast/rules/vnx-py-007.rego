@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-007",
 	"name": "subprocess with shell=True",
-	"description": "A shell command line is built from non-constant text and run by /bin/sh: subprocess.call/run/Popen/check_call/check_output with shell=True (through the module, an `import subprocess as sp` alias or a name imported from subprocess, with the keyword anywhere in a call broken over several lines), or subprocess.getoutput/getstatusoutput and asyncio.create_subprocess_shell, which always use the shell, whose command is a variable, an f-string, a concatenation, a %-format or a .format() call; and the same call without shell=True whose argument list starts an explicit shell on a non-constant script (a list such as [sh, -c, f-string] or [cmd.exe, /c, name], inline or appended to a list in the 20 lines above). Shell metacharacters in any interpolated value (; | $() `) then run commands. Not reported: a constant command string, or a variable assigned only constant strings in the 30 lines above, an argument list that does not start sh -c / cmd /c with a non-constant script, shell=False or a shell flag that is not the literal True, a command whose interpolations go through shlex.quote()/pipes.quote(), run methods of other objects (conn.run in Fabric), os.system/os.popen, and the names in comments or string literals. Whether the interpolated value is attacker-controlled is not judged.",
+	"description": "A shell command line is built from non-constant text and run by /bin/sh: subprocess.call/run/Popen/check_call/check_output with shell=True (through the module, an `import subprocess as sp` alias or a name imported from subprocess, with the keyword anywhere in a call broken over several lines), or subprocess.getoutput/getstatusoutput and asyncio.create_subprocess_shell, which always use the shell, whose command is a variable, an f-string, a concatenation, a %-format or a .format() call; and the same call without shell=True whose argument list starts an explicit shell on a non-constant script (a list such as [sh, -c, f-string] or [cmd.exe, /c, name], inline or appended to a list in the 20 lines above). Shell metacharacters in any interpolated value (; | $() `) then run commands. Not reported: a constant command string, or a variable assigned only constant strings in the 30 lines above, an argument list that does not start sh -c / cmd /c with a non-constant script, shell=False or a shell flag that is not the literal True, a command whose interpolations go through shlex.quote()/pipes.quote() (inline, or in the nearest assignment of the command variable), run methods of other objects (conn.run in Fabric), os.system/os.popen, and the names in comments or string literals. Whether the interpolated value is attacker-controlled is not judged.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-007/",
 	"languages": ["python"],
 	"severity": "high",
@@ -125,6 +125,21 @@ _constant_var(lines, i, cmd) if {
 
 _quoted(raw) if regex.match(`\b(?:shlex|pipes)\.quote\s*\(`, raw)
 
+# A bare name whose nearest assignment in the 30 lines above quotes its
+# interpolations: cmd = f"grep {shlex.quote(p)} log"; run(cmd, shell=True).
+_quoted_var(lines, i, cmd) if {
+	m := regex.find_all_string_submatch_n(`^([A-Za-z_]\w*)\s*(?:[,)]|$)`, cmd, 1)
+	count(m) > 0
+	v := m[0][1]
+	re := concat("", [`^\s*`, v, `\s*\+?=[^=]`])
+	js := [j |
+		some j in numbers.range(max([0, i - 30]), i - 1)
+		regex.match(re, lines[j])
+	]
+	count(js) > 0
+	_quoted(lines[max(js)])
+}
+
 # ── An explicit shell in the argument list: ["sh", "-c", cmd] ────────────
 
 _shell_prog := `[rbuRBU]?["'](?:/usr)?(?:/bin/)?(?:ba|z|da|k)?sh["']\s*,\s*["']-c["']|[rbuRBU]?["']cmd(?:\.exe)?["']\s*,\s*["']/[cCkK]["']`
@@ -212,6 +227,7 @@ findings contains finding if {
 	not _list(cmd)
 	not _constant_var(lines, i, cmd)
 	not _quoted(_raw_text(lines, i, count(split(args, "\n")) - 1))
+	not _quoted_var(lines, i, cmd)
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("%s() runs a command line built from non-constant text through the shell; pass an argument list with shell=False, or shlex.quote() every interpolated value", [fn]),

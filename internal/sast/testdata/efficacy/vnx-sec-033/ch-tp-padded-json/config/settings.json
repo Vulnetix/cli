@@ -1,0 +1,5 @@
+{
+  "region": "us-west-2",
+~>  "bedrockApiKey": "@@sample:ABSKQmVkcm9ja0FQSUtleS[A-Za-z0-9+/]{130}==@@",
+  "model": "@@sample:a[m]az[o]n[.][t]it[a]n[-][t]ex[t][-]e[x]pr[e]ss[-]v1@@"
+}

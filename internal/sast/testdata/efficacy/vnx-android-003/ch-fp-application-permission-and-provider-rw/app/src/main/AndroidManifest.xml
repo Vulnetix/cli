@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.acme.vault">
+    <permission android:name="com.acme.vault.ACCESS" android:protectionLevel="signature" />
+    <application
+        android:label="@string/app_name"
+        android:permission="com.acme.vault.ACCESS">
+        <service android:name=".VaultService" android:exported="true" />
+        <provider
+            android:name=".VaultProvider"
+            android:authorities="com.acme.vault.provider"
+            android:exported="true"
+            android:readPermission="com.acme.vault.ACCESS"
+            android:writePermission="com.acme.vault.ACCESS" />
+    </application>
+</manifest>

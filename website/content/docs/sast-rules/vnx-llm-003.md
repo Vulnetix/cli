@@ -1,6 +1,6 @@
 ---
 title: "VNX-LLM-003 – Hardcoded LLM API Key"
-description: "Reports Anthropic and OpenAI API keys by their prefixes, and high-entropy literals assigned to LLM-provider key variables or passed to provider clients; placeholders and environment lookups are ignored."
+description: "Reports Anthropic, OpenAI and Groq API keys by their prefixes, and high-entropy literals assigned to LLM-provider key variables or passed to provider clients; placeholders and environment lookups are ignored."
 ---
 
 ## Overview

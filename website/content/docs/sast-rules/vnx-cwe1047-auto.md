@@ -18,7 +18,7 @@ What is reported:
 - Three modules in a load-time cycle: once, on the import made by the module whose path sorts first.
 - An import moved into a function body that closes a cycle (of any length) with load-time imports back to the same module: on the deferred import. Deferring the import is the usual workaround; the dependency cycle is still there.
 
-What is not reported: imports under `if TYPE_CHECKING:`, `import type` and import lists made only of `type` names, cycles in which every import is deferred, package and standard-library imports, path aliases (`@/x`), commented-out imports, and load-time cycles longer than three modules. Go is not covered: the Go compiler rejects import cycles.
+What is not reported: imports under `if TYPE_CHECKING:` or `if __name__ == "__main__":`, `import type` and import lists made only of `type` names (on one line or across several), import text inside a multi-line template literal (a code generator's output), cycles in which every import is deferred, package and standard-library imports, path aliases (`@/x`), commented-out imports, and load-time cycles longer than three modules. Go is not covered: the Go compiler rejects import cycles.
 
 **Severity:** Low | **CWE:** [CWE-1047](https://cwe.mitre.org/data/definitions/1047.html)
 

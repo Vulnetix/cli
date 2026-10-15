@@ -1,0 +1,8 @@
+- name: Create deploy user
+  ansible.builtin.user:
+    name: deploy
+    shell: /bin/bash
+~>    password_expire_max: 99999
+
+- name: Never age the CI account
+~>  ansible.builtin.command: passwd -x -1 ci

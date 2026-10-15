@@ -1,33 +1,51 @@
 ---
 title: "VNX-76 – Improper Neutralization of Equivalent Special Elements"
-description: "Detects Detects source patterns associated with CWE-76 (Improper Neutralization of Equivalent Special Elements). Each finding should be manually reviewed for exploitability in context."
+description: "A dangerous multi-character sequence (../, <script>, javascript:, &&, a SQL keyword, a URL scheme in an RFI filter) is neutralised by deleting it once, so input that rebuilds it after the deletion passes through."
 ---
 
 ## Overview
 
-VNX-76 maps to [CWE-76: Improper Neutralization of Equivalent Special Elements](https://cwe.mitre.org/data/definitions/76.html). Detects source patterns associated with CWE-76 (Improper Neutralization of Equivalent Special Elements). Each finding should be manually reviewed for exploitability in context.
+VNX-76 maps to [CWE-76: Improper Neutralization of Equivalent Special Elements](https://cwe.mitre.org/data/definitions/76.html). It reports a single-pass removal, a replacement with the empty string, of a sequence that an attacker can reassemble from the pieces left behind.
 
-**Severity:** Medium | **CWE:** [CWE-76](https://cwe.mitre.org/data/definitions/76.html) | **Languages:** java, node, python
+**Severity:** Medium | **CWE:** [CWE-76](https://cwe.mitre.org/data/definitions/76.html) | **Languages:** java, node, php, python
 
 ## Why This Matters
 
-This weakness class (Improper Neutralization of Equivalent Special Elements) creates a concrete exploit surface: the rule searches for the concrete source-level patterns most commonly associated with CWE-76 and surfaces them for review. Each finding should be evaluated in context — the rule catches the pattern, not the context.
+Deleting a sequence once does not remove it from the input, only from one spelling of it. `....//` becomes `../`, `<scr<script>ipt>` becomes `<script>`, `&;&` becomes `&&` once `;` is also stripped, and `hthttp://tp://` becomes `http://`. The filter gives the appearance of protection and the attack still lands.
 
 ## What Gets Flagged
 
 ```python
-// FLAGGED: contains 'replace('<','&lt;'' pattern
-replace('<','&lt;'
+return name.replace("../", "")
+html = re.sub(r"<script>", "", html)
 ```
+
+```javascript
+return input.replace(/<script>/gi, '');
+return url.replaceAll('javascript:', '');
+```
+
+```java
+return path.replace("../", "");
+userId = userId.toUpperCase().replace("FROM", "").replace("SELECT", "");
+```
+
+```php
+$file = str_replace( array( "../", "..\\" ), "", $file );
+$target = str_replace(array('&&', ';'), '', $target);
+$name = str_replace( '<script>', '', $_GET[ 'name' ] );
+```
+
+Not flagged: a removal repeated in a loop until the sequence is gone, removal of a single character (it cannot be rebuilt), a replacement with a non-empty string (`&lt;`, `_`), a URL scheme stripped to get a host name with no other removal nearby, test code, comments and strings.
 
 ## Remediation
 
-1. Review each flagged line and determine whether the pattern represents a real instance of CWE-76 or a false positive.
-2. Replace the flagged construct with a documented safe alternative appropriate to your language and framework.
-3. For confirmed false positives, add a `# vulnetix-ignore: VNX-76` comment on the line.
-4. Ensure equivalent test coverage exists to prevent regression.
+1. Reject input that contains the sequence instead of editing it.
+2. For output, encode for the context (HTML-escape, a templating engine's autoescape) rather than strip tags.
+3. For paths, take the basename or canonicalise and check containment.
+4. For SQL, use parameterised queries; keyword filters are never sufficient.
 
 ## References
 
 - [CWE-76: Improper Neutralization of Equivalent Special Elements](https://cwe.mitre.org/data/definitions/76.html)
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [CWE-182: Collapse of Data into Unsafe Value](https://cwe.mitre.org/data/definitions/182.html)

@@ -1,0 +1,4 @@
+targets:
+  - url: https://status.acme-corp.io/health
+    headers:
+~>      Authorization: "Bearer @@sample:[A-Za-z0-9]{36}@@"

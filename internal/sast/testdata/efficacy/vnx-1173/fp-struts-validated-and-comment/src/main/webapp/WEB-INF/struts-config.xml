@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<struts-config>
+  <action-mappings>
+    <!-- validate="false" was removed from /transfer in 2021 -->
+    <action path="/transfer" type="com.example.bank.TransferAction" name="transferForm" validate="true">
+      <forward name="success" path="/done.jsp"/>
+    </action>
+    <action path="/logout" type="com.example.bank.LogoutAction"/>
+  </action-mappings>
+  <plug-in className="org.apache.struts.validator.ValidatorPlugIn">
+    <set-property property="stopOnFirstError" value="false"/>
+  </plug-in>
+</struts-config>

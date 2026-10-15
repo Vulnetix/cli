@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="password">Password</string>
+    <string name="title_change_password">ChangePassword</string>
+    <string name="forgot_password">Forgot password?</string>
+    <string name="error_invalid_token">Invalid token, please sign in again.</string>
+    <string name="token_endpoint">https://auth.acme.com/oauth/token</string>
+    <string name="api_key">YOUR_API_KEY_HERE</string>
+    <string name="secret_key">@string/injected_secret</string>
+</resources>

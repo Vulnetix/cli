@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-028 – npm Access Token Hardcoded"
-description: "Detect npm access tokens (npm_ followed by exactly 36 letters or digits) in any file, and legacy UUID auth tokens written literally in .npmrc or .yarnrc.yml, ignoring ${NPM_TOKEN} references, npm_config_* names and placeholders."
+description: "Detect npm access tokens (npm_ followed by exactly 36 letters or digits) in any file, and legacy UUID auth tokens written literally in .npmrc, .yarnrc or .yarnrc.yml (or echoed into one as //registry/:_authToken=), ignoring ${NPM_TOKEN} references, npm_config_* names and placeholders."
 ---
 
 ## Overview

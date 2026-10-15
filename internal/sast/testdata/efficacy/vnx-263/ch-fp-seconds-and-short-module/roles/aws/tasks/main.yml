@@ -1,0 +1,6 @@
+- name: Account password policy
+  community.aws.iam_password_policy:
+    state: present
+    min_pw_length: 14
+    pw_max_age: 90
+    pw_reuse_prevent: 400

@@ -1,13 +1,35 @@
 ---
 title: "VNX-SEC-063 – MongoDB Connection String with Credentials"
-description: "Detects MongoDB connection strings with embedded username and password."
+description: "Reports a MongoDB connection URL (mongodb://, mongodb+srv://) that embeds a literal password, but not interpolated or default passwords, localhost servers, documentation or example files."
 ---
 
 ## Overview
 
-This rule detects mongodb connection string with credentials matching the `mongodb(\+srv)?://user:pass@host` pattern hardcoded anywhere in source files. Detects MongoDB connection strings with embedded username and password.
+This rule reports a MongoDB connection URL that embeds a literal password: `mongodb://user:password@host` (including replica-set host lists) or `mongodb+srv://user:password@cluster`, in code, config, `.env` and compose files. The password is masked in the snippet.
+
+It does not report a password that is interpolated or templated (`${VAR}`, `$VAR`, `{{ }}`, `%s`, `<password>`, template-literal fields, concatenation), a default or placeholder word (`password`, `example`, `mongo`, `changeme`, the user name itself), a server on localhost or a documentation host (`example.com`, `*.test`, a bare `host` or `hostname`), 127.0.0.1 or ::1, URLs without a password, Markdown/reStructuredText/AsciiDoc and `*.example`/`*.sample`/`*.template` files, or test, fixture, vendored and generated files. VNX-SEC-008 reports the same URLs for every database scheme.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
+
+## What Gets Flagged
+
+```javascript
+// FLAGGED: replica-set URL with a literal password
+mongoose.connect("mongodb://orders:<password>@mongo-0.acme.internal:27017,mongo-1.acme.internal:27017/orders?replicaSet=rs0");
+```
+
+```yaml
+# FLAGGED: Atlas SRV URL in Spring config
+spring:
+  data:
+    mongodb:
+      uri: mongodb+srv://svc:<password>@prod.x7y8z.mongodb.net/catalog
+```
+
+```typescript
+// NOT FLAGGED: interpolated credentials
+const uri = `mongodb+srv://${user}:${pass}@cluster0.ab1cd.mongodb.net/app`;
+```
 
 ## Why This Matters
 

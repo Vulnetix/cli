@@ -35,6 +35,9 @@ _, err := jwt.ParseWithClaims(
 // FLAGGED: a parser built without WithAudience
 var parser = jwt.NewParser(jwt.WithValidMethods([]string{"RS256"}))
 
+// FLAGGED: the same call through an import alias (jwtlib "github.com/golang-jwt/jwt/v5")
+tok, err := jwtlib.ParseWithClaims(raw, claims, keyFunc, jwtlib.WithIssuer(iss))
+
 // FLAGGED: go-jose token validated against an Expected with no audience
 tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.ES256})
 
@@ -42,7 +45,7 @@ tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.ES256})
 provider.Verifier(&oidc.Config{SkipClientIDCheck: true})
 ```
 
-Not flagged: `jwt.Parse(raw, kf, jwt.WithAudience("api.example.com"))`, a file that calls `claims.VerifyAudience(aud, true)` or validates `jwt.Expected{AnyAudience: ...}`, a wrapper that forwards its caller's `opts...`, test files, comments and strings. An audience check made in a different file is not seen.
+Not flagged: `jwt.Parse(raw, kf, jwt.WithAudience("api.example.com"))`, a file that calls `claims.VerifyAudience(aud, true)` or validates `jwt.Expected{AnyAudience: ...}`, `jwt.NewParser().ParseUnverified(...)` (no verification at all, a different weakness), a custom claims struct whose `Aud` field is compared, a wrapper that forwards its caller's `opts...`, test files, comments and strings. An audience check made in a different file is not seen.
 
 ## Remediation
 

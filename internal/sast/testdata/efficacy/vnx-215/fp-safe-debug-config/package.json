@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "debug": "node --inspect server.js",
+    "start": "node server.js"
+  }
+}

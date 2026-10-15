@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-009 – Jinja2 Autoescape Disabled"
-description: "Detect Jinja2 Environment instances created with autoescape=False, which renders user-supplied template variables without HTML escaping and enables cross-site scripting."
+description: "Detect Jinja2, Flask and Django template configuration that turns autoescaping off (autoescape=False, an Environment with no autoescape in web code, or {% autoescape false %}), which renders user-supplied template variables without HTML escaping and enables cross-site scripting."
 ---
 
 ## Overview
@@ -19,7 +19,7 @@ Jinja2's `autoescape=False` is the default in older versions, and many code exam
 
 ## What Gets Flagged
 
-Any line where `Environment(` is called with `autoescape=False`.
+`autoescape=False` passed to a Jinja2 `Environment`, `SandboxedEnvironment`, `Template` or Starlette `Jinja2Templates`, or assigned (`app.jinja_env.autoescape = False`); an `"autoescape": False` entry in Flask `jinja_options` or Django `TEMPLATES` `OPTIONS`; a Jinja2 `Environment` with no `autoescape` argument in web code; and `{% autoescape false %}` blocks in templates. `autoescape=True`, `select_autoescape()`, code generators and test templates are not reported.
 
 ```python
 # FLAGGED: autoescape explicitly disabled

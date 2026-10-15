@@ -1,0 +1,4 @@
+{
+  "endpoint": "https://api.acme-corp.io",
+~>  "apiKey": "@@sample:[A-Za-z0-9]{32}@@"
+}

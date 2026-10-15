@@ -1,0 +1,5 @@
+# Password aging controls:
+#	PASS_MAX_DAYS	Maximum number of days a password may be used.
+~>PASS_MAX_DAYS	99999
+PASS_MIN_DAYS	0
+PASS_WARN_AGE	7

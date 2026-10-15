@@ -1,0 +1,3 @@
+env:
+  VAULT_TOKEN: ${VAULT_TOKEN}
+  vault_token: "{{ lookup('env', 'VAULT_TOKEN') }}"

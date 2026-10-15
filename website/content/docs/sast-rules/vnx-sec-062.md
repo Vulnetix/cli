@@ -1,13 +1,32 @@
 ---
 title: "VNX-SEC-062 – MySQL Connection String with Credentials"
-description: "Detects MySQL connection strings with embedded username and password."
+description: "Reports a MySQL or MariaDB connection URL (mysql://, mariadb://, mysql+driver://, jdbc:mysql) that embeds a literal password, but not interpolated or default passwords, localhost servers, documentation or example files."
 ---
 
 ## Overview
 
-This rule detects mysql connection string with credentials matching the `mysql://user:pass@host` pattern hardcoded anywhere in source files. Detects MySQL connection strings with embedded username and password.
+This rule reports a MySQL or MariaDB connection URL that embeds a literal password: `mysql://` or `mariadb://user:password@host`, with an optional driver suffix (`mysql+pymysql`, `mysql+mysqldb`) or `jdbc:` prefix, and a `jdbc:mysql` or `jdbc:mariadb` URL carrying a `password=` parameter, in code, config, `.env` (including Prisma) and compose files. The password is masked in the snippet.
+
+It does not report a password that is interpolated or templated (`${VAR}`, `$VAR`, `{{ }}`, `%s`, `<password>`, template-literal fields, concatenation), a default or placeholder word (`password`, `root`, `mysql`, `changeme`, the user name itself), a server on localhost or a documentation host (`example.com`, `*.test`, a bare `host` or `hostname`), 127.0.0.1 or ::1, URLs without a password, Markdown/reStructuredText/AsciiDoc and `*.example`/`*.sample`/`*.template` files, or test, fixture, vendored and generated files. VNX-SEC-008 reports the same URLs for every database scheme.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
+
+## What Gets Flagged
+
+```python
+# FLAGGED: SQLAlchemy URL with a literal password
+engine = create_engine('mysql+pymysql://etl:<password>@10.0.3.17/warehouse')
+```
+
+```bash
+# FLAGGED: Prisma .env
+DATABASE_URL="mysql://prisma:<password>@aws.connect.psdb.cloud/blog?sslaccept=strict"
+```
+
+```javascript
+// NOT FLAGGED: the credentials come from the environment
+const url = `mysql://${process.env.DB_USER}:${process.env.DB_PASS}@db:3306/app`;
+```
 
 ## Why This Matters
 

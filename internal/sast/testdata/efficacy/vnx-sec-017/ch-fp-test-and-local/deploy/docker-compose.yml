@@ -1,0 +1,5 @@
+services:
+  worker:
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      BROKER_URL: amqp://${RABBIT_USER}:${RABBIT_PASS}@${RABBIT_HOST}:5672

@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-039 – Missing rate limiting on login endpoint"
-description: "Detects Go HTTP login handlers (declared Login/SignIn/Authenticate handlers or inline login routes) when nothing in the project's production Go code rate-limits requests."
+description: "Detects Go HTTP login handlers (declared Login/SignIn/Authenticate handlers or inline login routes) when nothing in the project's production Go code rate-limits requests or locks accounts after failed attempts."
 ---
 
 ## Overview
@@ -27,10 +27,11 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 func SignIn(c *gin.Context) {
 func Login(c echo.Context) error {
 func (h *Handler) Authenticate(w http.ResponseWriter,
+func (s *Server) LoginHandler(w http.ResponseWriter, r *http.Request) {
 r.POST("/api/login", func(c *gin.Context) {
 ```
 
-Not flagged: any project that references a limiter (`rate.NewLimiter`, `httprate`, `tollbooth`, a `limiter` or `throttle`), methods and functions that are not HTTP handlers (`func (c *Client) Login(ctx, user, pass)`, `ParseLogin`, CLI commands), test files, comments and strings.
+Not flagged: any project that references a limiter (`rate.NewLimiter`, `httprate`, `tollbooth`, a `limiter` or `throttle`; a CSV `Delimiter` does not count) or an account lockout (`lockout`, `failedAttempts`, `maxLoginAttempts`, a `StatusTooManyRequests` response, a CAPTCHA), methods and functions that are not HTTP handlers (`func (c *Client) Login(ctx, user, pass)`, `ParseLogin`, CLI commands), test files, comments and strings.
 
 ## Remediation
 

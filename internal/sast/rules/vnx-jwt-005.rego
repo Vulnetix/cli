@@ -24,7 +24,7 @@ metadata := {
 _names := `(?:password|passwd|pwd|password_?hash|hashed_?password|pass_?hash|secret|client_?secret|api_?key|ssn|social_?security_?number|credit_?card(?:_?number)?|card_?number|cvv|cvc)`
 
 # A dict/object/hash/array key, or JS shorthand property.
-_key_re := concat("", [`(?i)(?:^|[{,(\[\s])["':]?`, _names, `["']?\s*(?::[^:]|=>)|(?i)[{,]\s*`, _names, `\s*[,}]`])
+_key_re := concat("", [`(?i)(?:(?:^|[{,(\[\s])["':]?`, _names, `["']?\s*(?::[^:]|=>)|[{,]\s*`, _names, `\s*[,}]|^\s*`, _names, `\s*,?\s*$)`])
 
 # Java builder claim and map put.
 _java_key_re := concat("", [`(?i)\.(?:claim|withClaim|put)\s*\(\s*"`, _names, `"`])
@@ -86,14 +86,38 @@ _is_key_line(line, kp) if {
 	regex.match(kp, line)
 }
 
-# Lines that put a sensitive key into the token issued at line i.
-_key_line(lines, i, kp, j) if {
+# Lines that put a sensitive key into the token issued at line i. Outside
+# Java the key must sit inside a {...} or [...] opened after the sink (the
+# payload literal), so a positional key argument named `secret` is no claim.
+_key_line(lines, i, kp, j, _) if {
 	j >= i
+	kp == _java_key_re
 	_is_key_line(lines[j], kp)
 }
 
+_key_line(lines, i, kp, j, pi) if {
+	j >= i
+	kp != _java_key_re
+	_is_key_line(lines[j], kp)
+	km := regex.find_all_string_submatch_n(concat("", [`^(.*?)(?:`, kp, `)`]), lines[j], 1)
+	_depth(lines, i, pi, j, count(km[0][1])) > 0
+}
+
+_braces(s) := (count(indexof_n(s, "{")) + count(indexof_n(s, "["))) - (count(indexof_n(s, "}")) + count(indexof_n(s, "]")))
+
+_depth(lines, i, pi, j, pj) := _braces(substring(lines[i], pi, pj - pi)) if {
+	j == i
+	pj >= pi
+}
+
+_depth(lines, i, pi, j, pj) := d if {
+	j > i
+	mid := sum([n | some k in numbers.range(i + 1, j - 1); k < j; n := _braces(lines[k])])
+	d := (_braces(substring(lines[i], pi, -1)) + mid) + _braces(substring(lines[j], 0, pj))
+}
+
 # The first argument is a variable defined (or extended) shortly above.
-_key_line(lines, i, kp, j) if {
+_key_line(lines, i, kp, j, _) if {
 	j < i
 	m := regex.find_all_string_submatch_n(`\(\s*(?:jwt\.SigningMethod\w+\s*,\s*)?\$?([A-Za-z_]\w*)\s*[,)]`, lines[i], 1)
 	v := m[0][1]
@@ -118,7 +142,7 @@ _in_literal(lines, a, j) if {
 	]) > 0
 }
 
-_key_line(lines, i, kp, j) if {
+_key_line(lines, i, kp, j, _) if {
 	j < i
 	m := regex.find_all_string_submatch_n(`\(\s*\$?([A-Za-z_]\w*)\s*[,)]`, lines[i], 1)
 	v := m[0][1]
@@ -140,8 +164,9 @@ findings contains f if {
 	not helpers.is_comment_line(line)
 	m := regex.find_all_string_submatch_n(concat("", [`^(.*?)(?:`, sink, `)`]), line, 1)
 	not _odd_quotes(m[0][1])
+	pi := count(m[0][1])
 	some j in numbers.range(max([0, i - 20]), _call_end(lines, i))
-	_key_line(lines, i, kp, j)
+	_key_line(lines, i, kp, j, pi)
 	f := _finding(path, j, lines[j])
 }
 

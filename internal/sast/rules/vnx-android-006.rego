@@ -48,7 +48,7 @@ _elem_re := `<(string|item)\b([^>]*)>([^<]*)</(string|item)>`
 
 _cred_name := `(?i)(api_?key|apikey|secret|private_?key|access_?key|signing_?key|encryption_?key|licen[cs]e_?key|token|passw(or)?d|passwd|passphrase|pass_?code|pwd|credential)`
 
-_ui_name := `(?i)(hint|label|title|prompt|error|_err|err_|msg|message|desc|summary|button|btn|action|menu|caption|placeholder|forgot|reset|change|confirm|enter|show|hide|toggle|visib|invalid|wrong|incorrect|required|requirement|empty|missing|header|dialog|tab_|screen|activity|tooltip|instruction|pref|_url|url_|uri|endpoint|host|regex|pattern|format|length|strength|policy|expir|_type|type_|text|notice|warning|success|fail|help|question|sample|example|dummy)`
+_ui_name := `(?i)(hint|label|title|prompt|error|_err|err_|msg|message|desc|summary|button|btn|action|menu|caption|placeholder|forgot|reset|change|confirm|enter|show|hide|toggle|visib|invalid|wrong|incorrect|required|requirement|empty|missing|header|dialog|tab_|screen|activity|tooltip|instruction|pref|_url|url_|uri|endpoint|host|regex|pattern|scope|format|length|strength|policy|expir|_type|type_|text|notice|warning|success|fail|help|question|sample|example|dummy)`
 
 _public_ids := {"google_api_key", "google_crash_reporting_api_key", "facebook_client_token"}
 

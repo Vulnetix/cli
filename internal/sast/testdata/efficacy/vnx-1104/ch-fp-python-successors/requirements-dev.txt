@@ -1,0 +1,7 @@
+# pycrypto was replaced by pycryptodome in 2019
+pycryptodome==3.20.0
+nose2==0.14.1
+scikit-learn==1.5.0
+mysqlclient==2.2.4
+pypdf==4.2.0
+pycodestyle==2.11.1

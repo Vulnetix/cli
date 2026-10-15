@@ -1,0 +1,6 @@
+jobs:
+  deploy:
+    steps:
+      - uses: digitalocean/action-doctl@v2
+        with:
+~>          token: @@sample:dop_v1_[a-f0-9]{64}@@

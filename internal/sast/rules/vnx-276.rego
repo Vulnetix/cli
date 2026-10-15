@@ -8,9 +8,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-276",
 	"name": "Incorrect Default Permissions",
-	"description": "A file or directory is given a world-writable mode by a call the umask does not filter, so any local user can modify what the program or its installer put there. Reported: chmod/fchmod/lchmod/fchmodat and std::filesystem::permissions (perms::all, perms::others_write) in C and C++; os.chmod/os.fchmod/Path.chmod in Python; os.Chmod/File.Chmod (including os.ModePerm) in Go; chmod() and ->chmod() in PHP; fs.chmod/chmodSync/fchmod in JavaScript and TypeScript (numeric or string modes); File.chmod/FileUtils.chmod/chmod_R and FileUtils.mkdir/mkdir_p/install with mode: (which chmod after creating) in Ruby; Files.setPosixFilePermissions with rwxrwxrwx or OTHERS_WRITE and File.setWritable(true, false) in Java; `chmod`, `install -m` (also after -o/-g options), `mkdir -m` and `COPY --chmod` with a world-writable mode in shell scripts, Makefile recipes, PKGBUILD/APKBUILD and Dockerfiles; and `chmod 777`-style commands run through system/exec/subprocess from any of those languages. A mode is world-writable when it grants others write (an octal mode ending in 2, 3, 6 or 7, S_IWOTH/S_IRWXO, o+w/a+w, PHP octdec('0777') or Python int('777', 8)). A call whose arguments run onto following lines is read up to its closing parenthesis. Also reported when the mode comes from a variable assigned such a literal a few lines above, or from a constant declared once for the file (const/#define/static final, an ALL_CAPS module constant, a Go const block, PHP define()). Not reported: modes passed to creation calls the umask filters (open, mkdir, os.makedirs, os.WriteFile, fs.writeFile), the sticky-bit modes for shared directories (1777, +t), modes computed from the umask or masked (0777 - umask(), mode & ~S_IWOTH), reading permissions (st.permissions() & perms::others_write), test code, and the pattern in comments or log strings. Modes held in shell variables, Kotlin, C# and YAML CI steps are not covered.",
+	"description": "A file or directory is given a world-writable mode by a call the umask does not filter, so any local user can modify what the program or its installer put there. Reported: chmod/fchmod/lchmod/fchmodat and std::filesystem::permissions (perms::all, perms::others_write) in C and C++; os.chmod/os.fchmod/Path.chmod in Python; os.Chmod/File.Chmod (including os.ModePerm) in Go; chmod() and ->chmod() in PHP; fs.chmod/chmodSync/fchmod in JavaScript and TypeScript (numeric or string modes); File.chmod/FileUtils.chmod/chmod_R and FileUtils.mkdir/mkdir_p/install with mode: (which chmod after creating) in Ruby; Files.setPosixFilePermissions with rwxrwxrwx or OTHERS_WRITE and File.setWritable(true, false) in Java; fs::Permissions::from_mode and PermissionsExt::set_mode in Rust (which feed fs::set_permissions); mode: and mode= in Ansible file/copy/template tasks; `chmod`, `install -m` (also after -o/-g options), `mkdir -m` and `COPY --chmod` with a world-writable mode in shell scripts, Makefile recipes, PKGBUILD/APKBUILD and Dockerfiles; and `chmod 777`-style commands run through system/exec/subprocess from any of those languages. A mode is world-writable when it grants others write (an octal mode ending in 2, 3, 6 or 7, S_IWOTH/S_IRWXO, o+w/a+w, PHP octdec('0777') or Python int('777', 8)). A call whose arguments run onto following lines is read up to its closing parenthesis. Also reported when the mode comes from a variable assigned such a literal a few lines above, or from a constant declared once for the file (const/#define/static final, an ALL_CAPS module constant, a Go const block, PHP define()). Not reported: modes passed to creation calls the umask filters (open, mkdir, os.makedirs, os.WriteFile, fs.writeFile, Rust OpenOptions/DirBuilder .mode()), the sticky-bit modes for shared directories (1777, +t), modes computed from the umask or masked (0777 - umask(), mode & ~S_IWOTH, a mode variable masked after it is assigned), a tree made writable only to be removed a few lines later (an rmtree onerror handler, a walk before RemoveAll), reading permissions (st.permissions() & perms::others_write), test code, and the pattern in comments or log strings. Modes held in shell variables, Kotlin, C#, Kubernetes manifests and YAML CI steps are not covered.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-276/",
-	"languages": ["c", "cpp", "python", "go", "php", "javascript", "ruby", "java", "bash", "docker"],
+	"languages": ["c", "cpp", "python", "go", "php", "javascript", "ruby", "java", "rust", "bash", "docker", "yaml"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",
@@ -60,6 +60,8 @@ _lang(path) := "ruby" if {
 
 _lang(path) := "java" if endswith(path, ".java")
 
+_lang(path) := "rs" if endswith(path, ".rs")
+
 _shell(path) if {
 	some ext in {".sh", ".bash", ".zsh", ".ksh", ".bats"}
 	endswith(path, ext)
@@ -99,6 +101,7 @@ _ww_token := {
 	"php": _ww_octal,
 	"js": concat("|", [_ww_octal, "[\"'`]0?[0246]?[0-7]{2}[2367][\"'`]", `\bS_IWOTH\b|\bS_IRWXO\b`]),
 	"ruby": concat("|", [_ww_octal, `["'][ugoa]*[oa][ugoa]*[+=][rwxX]*w[rwxX]*["']`]),
+	"rs": _ww_octal,
 }
 
 # The mode is computed: masked, subtracted from, or a bit removed.
@@ -112,6 +115,9 @@ _call_re := {
 	"php": `\bchmod\s*\(`,
 	"js": `\b(chmod|chmodSync|fchmod|fchmodSync|lchmod|lchmodSync)\s*\(`,
 	"ruby": `\b(File|FileUtils)\.l?chmod(_R)?\b|\.chmod\s*\(`,
+	# Rust: PermissionsExt::from_mode / set_mode feed fs::set_permissions, which
+	# the umask does not filter (OpenOptions and DirBuilder `.mode()` it does).
+	"rs": `\b(from_mode|set_mode)\s*\(`,
 }
 
 # Substring gates, per file and per line: cheaper than a regular expression.
@@ -123,6 +129,7 @@ _needles := {
 	"js": {"chmod"},
 	"ruby": {"chmod"},
 	"java": {"chmod", "setWritable", "OTHERS_WRITE", "fromString"},
+	"rs": {"from_mode", "set_mode"},
 }
 
 # String contents are blanked where a mode is never a string, so a log line
@@ -219,6 +226,14 @@ _ww_args(args, lang, lines, i, _) if {
 	not _masked(args)
 	some v in helpers.tainted_names(lines, i, 15, _ww_assign)
 	regex.match(concat("", [`(^|[^\w.])`, v, `\b`]), args)
+	not _remasked(lines, i, v)
+}
+
+# The variable is masked after it is assigned: `mode &= ~old_umask;`,
+# `mode &^= 0o022`, `mode = mode & ~umask`.
+_remasked(lines, i, v) if {
+	some k in numbers.range(max([0, i - 15]), i - 1)
+	regex.match(concat("", [`(^|[^\w.])`, v, `\s*(&\^?|-|\^)=|(^|[^\w.])`, v, `\s*=\s*`, v, `\s*(&|-)`]), lines[k])
 }
 
 _ww_args(args, lang, _, _, consts) if {
@@ -241,6 +256,7 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	args := _args(_code(_joined(lines, i, line), lang), lang)
 	_ww_args(args, lang, lines, i, consts)
+	not _deleted_after(lines, i, args)
 	finding := {
 		"rule_id": metadata.id,
 		"message": _msg,
@@ -386,6 +402,64 @@ findings contains finding if {
 	_has_any(line, {"chmod", "install", "mkdir"})
 	not helpers.is_comment_line(line)
 	_sh_ww(line)
+	finding := {
+		"rule_id": metadata.id,
+		"message": _msg,
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+
+# ── Made writable only to be deleted ─────────────────────────────────────
+
+# `os.chmod(path, 0o777); func(path)` in an rmtree onerror handler, or a walk
+# that makes a read-only tree writable before RemoveAll: the mode lives only
+# until the removal a few lines on.
+_first_arg(args) := m[0][1] if {
+	m := regex.find_all_string_submatch_n(`^\s*&?([A-Za-z_][\w.]*)\s*[,)]`, args, 1)
+	count(m) > 0
+}
+
+_deleted_after(lines, i, _) if {
+	some k in numbers.range(i + 1, min([count(lines) - 1, i + 6]))
+	regex.match(`\b(RemoveAll|rmtree|rm_rf|rm_r|rmSync|rimraf|remove_dir_all|deleteRecursively)\s*\(`, lines[k])
+}
+
+_deleted_after(lines, i, args) if {
+	v := _first_arg(args)
+	some k in numbers.range(i + 1, min([count(lines) - 1, i + 3]))
+	regex.match(concat("", [`\b(remove|Remove|unlink|unlinkSync|rmdir|rmdirSync|delete|func)\s*\(\s*&?`, replace(v, ".", `\.`), `\s*[,)]`]), lines[k])
+}
+
+# ── Ansible tasks ────────────────────────────────────────────────────────
+
+_yaml(path) if endswith(path, ".yml")
+
+_yaml(path) if endswith(path, ".yaml")
+
+# The file is an Ansible task list: a module that writes files with a mode.
+_ansible(content) if contains(content, "ansible.builtin.")
+
+_ansible(content) if regex.match(`(?m)^\s*-?\s*(file|copy|template|unarchive|get_url|assemble|synchronize)\s*:(\s*$|\s+\w+=)`, content)
+
+# `mode: '0777'`, `mode: 0666`, `mode: a+w`, and the k=v form `mode=0777`.
+_ansible_modes(line) := {m[1] | some m in regex.find_all_string_submatch_n(`^\s*mode\s*:\s*["']?([^"'\s#]+)["']?\s*(#.*)?$`, line, 1)} | {m[1] | some m in regex.find_all_string_submatch_n(`(?:^|\s)mode=["']?([^"'\s]+)`, line, -1)}
+
+findings contains finding if {
+	some path, content in input.file_contents
+	_yaml(path)
+	contains(content, "mode")
+	not _is_test(path)
+	_ansible(content)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "mode")
+	not helpers.is_comment_line(line)
+	some tok in _ansible_modes(line)
+	_ww_shell_mode(tok)
 	finding := {
 		"rule_id": metadata.id,
 		"message": _msg,

@@ -1,0 +1,4 @@
+{% for url in user.links %}
+~>  <a href="{{ url }}" target="_blank">{{ url }}</a>
+  <a href="{{ path('profile', {id: user.id}) }}" target="_blank">Profile</a>
+{% endfor %}

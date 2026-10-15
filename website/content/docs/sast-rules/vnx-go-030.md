@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-030 – Missing Secure flag on cookie"
-description: "Detects a cookie sent to the browser without Secure: an http.Cookie, fiber.Cookie or gorilla sessions.Options literal with Secure absent or false, gin SetCookie with secure=false, csrf.Secure(false), or a gorilla cookie store whose Options are never set."
+description: "Detects a cookie sent to the browser without Secure: an http.Cookie, fiber.Cookie or gorilla sessions.Options literal with Secure absent or false, gin SetCookie with secure=false, a hand-written Set-Cookie header without Secure, csrf.Secure(false), or a gorilla cookie store whose Options are never set."
 ---
 
 ## Overview

@@ -1,11 +1,13 @@
 ---
 title: "VNX-SWIFT-002 – Swift NSLog with Potentially Sensitive Data"
-description: "Detects NSLog calls that include sensitive terms such as passwords, tokens, and PII, which write data to the system console log readable by any application on the device."
+description: "Detects a password, token, secret, API key or credential value passed to or interpolated into NSLog, print, debugPrint, dump or CocoaLumberjack DDLog*, logged by os_log with %{public}, or interpolated into os.Logger with privacy: .public."
 ---
 
 ## Overview
 
-This rule scans Swift source files for lines that both call `NSLog(` and contain at least one sensitive term: `password`, `passwd`, `token`, `secret`, `apiKey`, `api_key`, `privateKey`, `private_key`, `credential`, `ssn`, `creditCard`, or `credit_card`. When both conditions are true on the same line, a finding is produced.
+This rule reports a Swift `NSLog`, `print`, `debugPrint` or `dump` call that passes a credential value as an argument or interpolates it into the message, an `os_log` call whose format marks an argument `%{public}` and passes one, and an `os.Logger` call that interpolates one with `privacy: .public`. A credential value is an identifier, or the last member of a property chain, whose name ends with password, passwd, pwd, passcode, passphrase, secret, token, apiKey, privateKey or credential(s); a password text field's `.text`; or a local assigned from one in the six lines above. Continuation lines of the call are read.
+
+It does not report the sensitive word inside the message text alone (`"wrong password"`), descriptive names (`tokenType`, `tokenExpiry`, `credentials.username`), a value compared with `nil` or reduced to `.count`/`.isEmpty`, a value passed through a mask/redact/hash helper, `os_log` without `%{public}` and `Logger` interpolations without `privacy: .public` (both are redacted by default), comments and test files.
 
 `NSLog` writes output to the Apple System Log (ASL) facility and to the Xcode console. On iOS, this data is accessible to any application running on the same device through the `asl_search` API and, on older versions of iOS, was additionally readable via iTunes file sharing and device backups. Even on current iOS versions, log output persists on the device and can be retrieved by anyone with physical access or an MDM profile.
 
@@ -35,6 +37,12 @@ NSLog("Request failed — apiKey=%@", apiKey)
 
 // FLAGGED: credential data logged for diagnostics
 NSLog("Keychain credential retrieved: %@", credential)
+
+// FLAGGED: CocoaLumberjack writes log files to the app container
+DDLogDebug("Saving access token \(accessToken)")
+
+// NOT FLAGGED: unified logging redacts dynamic values unless marked public
+logger.debug("token \(token)")
 ```
 
 ## Remediation

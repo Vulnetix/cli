@@ -1,11 +1,11 @@
 ---
 title: "VNX-95 – Template Injection (Eval Injection)"
-description: "Detect server-side template engines rendering user-controlled strings as template source, enabling Server-Side Template Injection (SSTI) and arbitrary code execution."
+description: "HTTP request data becomes the source of a Jinja2, Mako, Django, EJS, Pug, Handlebars, Nunjucks, lodash, ERB, Erubi, Haml, Slim or Rails render inline: template, directly or through a variable."
 ---
 
 ## Overview
 
-This rule flags server-side template engine calls — Jinja2's `render_template_string()`, Mako's `Template()`, Node.js Pug/EJS/Handlebars compile/render functions, and Ruby's `ERB.new()` — where user-controlled data appears to flow into the template source string rather than the template context. Server-Side Template Injection (SSTI) allows an attacker to inject template directives that are evaluated by the template engine with full application privileges, often leading to arbitrary code execution. This maps to [CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')](https://cwe.mitre.org/data/definitions/95.html).
+This rule flags server-side template engine calls — Jinja2's `render_template_string()`, Mako's `Template()`, Node.js Pug/EJS/Handlebars compile/render functions, and Ruby's `ERB.new()`, Erubi, Haml, Slim and Rails `render inline:` — whose template source (first argument) is HTTP request data, used directly or through a variable assigned from it in the 25 lines above. Request data passed as template context is not reported. Server-Side Template Injection (SSTI) allows an attacker to inject template directives that are evaluated by the template engine with full application privileges, often leading to arbitrary code execution. This maps to [CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')](https://cwe.mitre.org/data/definitions/95.html).
 
 **Severity:** Critical | **CWE:** [CWE-95 – Eval Injection / Template Injection](https://cwe.mitre.org/data/definitions/95.html)
 
@@ -15,59 +15,29 @@ SSTI is frequently confused with XSS, but the consequences are far worse: instea
 
 ## What Gets Flagged
 
-```python
-# FLAGGED: Flask/Jinja2 render_template_string with user input
-from flask import request, render_template_string
-
-@app.route('/greet')
-def greet():
-    name = request.args.get('name', '')
-    # Attacker sends: name={{''.__class__.__mro__[1].__subclasses__()[X]('id',shell=True,stdout=-1).communicate()[0]}}
-    return render_template_string('<h1>Hello ' + name + '</h1>')
-```
+The template SOURCE (first argument) carries request data, directly or through a variable assigned from it:
 
 ```python
-# FLAGGED: Jinja2 Template from user string
-from jinja2 import Template
-
-def render(user_template):
-    return Template(user_template).render()   # user controls the template
-```
-
-```python
-# FLAGGED: Mako Template with user input
-from mako.template import Template
-
-tmpl = Template(request.form['template'])
-return tmpl.render()
+# FLAGGED
+name = request.args.get("name", "guest")
+page = "<h1>Hello " + name + "</h1>"
+return render_template_string(page)
+tpl = env.from_string(request.form["body"])
 ```
 
 ```javascript
-// FLAGGED: Pug render with user-controlled template
-const pug = require('pug');
-
-app.post('/render', (req, res) => {
-    const output = pug.render(req.body.template);  // template source from user
-    res.send(output);
-});
-```
-
-```javascript
-// FLAGGED: EJS render with user template string
-const ejs = require('ejs');
-
-app.post('/preview', (req, res) => {
-    res.send(ejs.render(req.body.template, { user: req.user }));
-});
+// FLAGGED
+res.send(ejs.render(req.query.tpl, {}));
+const t = Handlebars.compile(`<div>${req.body.msg}</div>`);
 ```
 
 ```ruby
-# FLAGGED: ERB.new with any string (may be user-controlled)
-require 'erb'
-
-template = ERB.new(params[:template])
-output = template.result(binding)
+# FLAGGED
+html = ERB.new(params[:template]).result(binding)
+render inline: "<p>#{params[:message]}</p>"
 ```
+
+Not flagged: request data passed as context (`render_template_string("<h1>{{ name }}</h1>", name=name)`, `ejs.render(layout, { name: req.query.name })`), templates read from files, and Python `string.Template`.
 
 ## Remediation
 

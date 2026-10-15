@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-006 – Stripe Secret Key"
-description: "Detects hardcoded Stripe secret API keys (sk_live_ or sk_test_ prefix) in source code, which grant full access to Stripe account payment operations."
+description: "Reports a hard-coded Stripe secret key (sk_live_ or sk_test_ plus 24 or more characters) in any file, excluding Stripe's published documentation keys, placeholders, publishable and restricted keys, environment references and test files."
 ---
 
 ## Overview
@@ -19,25 +19,24 @@ Note that Stripe also issues restricted keys and publishable keys — this rule 
 
 ## What Gets Flagged
 
-Any source line containing a string starting with `sk_live_` or `sk_test_` followed by at least 24 alphanumeric characters.
+A standalone `sk_live_` (live mode) or `sk_test_` (test mode) token of 24 or more alphanumeric characters: assigned to `stripe.api_key`, `Stripe.api_key` or `stripe.Key`, passed to `require('stripe')(...)` or `\Stripe\Stripe::setApiKey(...)`, or set in a `.env` file.
 
 ```python
-# FLAGGED: hardcoded Stripe live secret key (example pattern for testing)
-import stripe
-
-stripe.api_key = 'sk_live_EXAMPLE_REDACTED'  # This is a test pattern, not a real key
-
-charge = stripe.Charge.create(
-    amount=2000,
-    currency='usd',
-    source='tok_visa',
-)
+# FLAGGED: secret key set on the SDK
+stripe.api_key = "sk_live_<24+ characters>"
 ```
 
 ```javascript
-// FLAGGED: key in Node.js application (example pattern for testing)
-const stripe = require('stripe')('sk_live_EXAMPLE_REDACTED');  // This is a test pattern, not a real key
+// FLAGGED: key passed to the Node SDK
+const stripe = require('stripe')('sk_live_<24+ characters>');
 ```
+
+Not flagged:
+
+- Stripe's published documentation test keys and placeholder runs (`sk_live_xxxxxxxx...`).
+- Publishable keys (`pk_live_`, `pk_test_`), which are meant for browsers, and restricted keys (`rk_`, reported by VNX-SEC-321/322).
+- Prefix checks and environment references (`os.environ["STRIPE_SECRET_KEY"]`).
+- Test, fixture, vendored and generated files.
 
 ## Remediation
 

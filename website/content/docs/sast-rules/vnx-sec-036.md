@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-036 – Heroku API Key"
-description: "Reports a Heroku platform API key: a standalone v2 key (HRKU-AA followed by 58 characters), or a legacy UUID-format key assigned to a name that contains heroku and key, token or secret (HEROKU_API_KEY=..., heroku_api_token: ...). A bare UUID without that context, placeholder or example UUIDs and test or fixture paths are not reported."
+description: "Reports a Heroku platform API key: a standalone v2 key (HRKU-AA followed by 58 characters), or a legacy UUID-format key assigned to a name that contains heroku and key, token or secret (HEROKU_API_KEY=..., heroku_api_token: ..., ENV['HEROKU_API_KEY'] ||= ...), or sent as a Bearer token on a line that calls api.heroku.com. A bare UUID without that context, placeholder or example UUIDs and test or fixture paths are not reported."
 ---
 
 ## Overview

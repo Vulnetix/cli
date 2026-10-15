@@ -49,7 +49,7 @@ _finding(path, i, line) := {
 
 # The option key opens on this line; its value (or a list continuing for up
 # to 5 lines) names 'none'.
-_opt_re := `^([^\n]*?)["']?\balgorithms?["']?\s*(?:=>|[:=])\s*(?:[\[\(]\s*(?:["'][\w-]*["']\s*,\s*)*)?["'](?i:none)["']`
+_opt_re := `^([^\n]*?)(?:["']?\balgorithms?["']?|["']?\b(?i:jwt_(?:\w+_)?algorithms?)["']?\]?)\s*(?:=>|[:=])\s*(?:[\[\(]\s*(?:["'][\w-]*["']\s*,\s*)*)?["'](?i:none)["']`
 
 _win(lines, i) := concat("\n", [l |
 	some j in numbers.range(i, min([count(lines) - 1, i + 5]))
@@ -67,11 +67,14 @@ _line_re := {
 	"jvm": [
 		`^(.*?)\bAlgorithm\s*\.\s*none\s*\(\s*\)`,
 		`^(.*?)\bJwts\s*\.\s*parser\s*\(\s*\)[^;]*\.unsecured\s*\(\s*\)`,
+		`^(.*?)\bnew\s+PlainJWT\s*\(`,
+		`^(.*?)\bPlainJWT\s*\.\s*parse\s*\(`,
 	],
 	"go": [
 		`^(.*?)\bjwt\.UnsafeAllowNoneSignatureType\b`,
 		`^(.*?)\bjwt\.NewWithClaims\s*\(\s*jwt\.SigningMethodNone\b`,
 		`^(.*?)\bjwt\.New\s*\(\s*jwt\.SigningMethodNone\b`,
+		`^(.*?)\bWithValidMethods\s*\(\s*\[\]string\s*\{[^}]*"(?i:none)"`,
 	],
 }
 
@@ -79,8 +82,8 @@ _anchor := {
 	"py": ["jwt"],
 	"rb": ["JWT"],
 	"js": ["UnsecuredJWT"],
-	"jvm": ["none(", "unsecured("],
-	"go": ["None"],
+	"jvm": ["none(", "unsecured(", "PlainJWT"],
+	"go": ["None", "\"none\""],
 }
 
 _anchored(lang, s) if {
@@ -101,11 +104,12 @@ findings contains f if {
 	lang := _lang(path)
 	lang in {"py", "js", "rb"}
 	regex.match(`(?i)["']none["']`, content)
-	contains(content, "lgorithm")
+	regex.match(`(?i)lgorithm`, content)
 	_jwt_file(content)
 	lines := split(content, "\n")
 	some i, line in lines
-	contains(line, "lgorithm")
+	regex.match(`(?i)lgorithm`, line)
+	not _test_issue(path, line)
 	not helpers.is_comment_line(line)
 	m := regex.find_all_string_submatch_n(_opt_re, _win(lines, i), 1)
 	count(m) > 0
@@ -125,5 +129,13 @@ findings contains f if {
 	m := regex.find_all_string_submatch_n(re, line, 1)
 	count(m) > 0
 	not _odd_quotes(m[0][1])
+	not _test_issue(path, line)
 	f := _finding(path, i, line)
+}
+
+# A test that mints an unsigned token (to prove the verifier rejects it) is
+# not the weakness; accepting 'none' in a test is still reported.
+_test_issue(path, line) if {
+	helpers.is_test_path(path)
+	regex.match(`\.sign\s*\(|\b(?:jwt|JWT)\.encode\s*\(|\bjwt\.(?:NewWithClaims|New)\s*\(\s*jwt\.SigningMethodNone|\.SignedString\s*\(|\bnew\s+(?:UnsecuredJWT|PlainJWT)\s*\(`, line)
 }

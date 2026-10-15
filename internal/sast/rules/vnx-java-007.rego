@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-007",
 	"name": "Java open redirect",
-	"description": "Reports a redirect whose target comes from the request: HttpServletResponse.sendRedirect(), a Spring \"redirect:\" + value view name (returned or passed to ModelAndView), new RedirectView(), and a Location header (setHeader/addHeader(\"Location\" | HttpHeaders.LOCATION) or ResponseEntity .location(URI.create(...))) whose argument reads getParameter/getHeader/getQueryString/getCookies, is a @RequestParam/@PathVariable/@RequestHeader/@CookieValue parameter, or is a variable assigned from one (directly or through one intermediate assignment such as URLDecoder.decode) within the 40 lines above. Attackers use it to send users to phishing pages from a trusted domain. Not reported: a target that starts with a fixed local path (\"/account?next=\" + v) or fixed absolute URL, a value looked up in a map of allowed destinations (DESTINATIONS.get(id)), a value checked by an if guard (startsWith, matches, an allowlist contains/isAllowed/isSafe/isValid, getHost comparison) before the redirect, values from configuration, comments and string literals.",
+	"description": "Reports a redirect whose target comes from the request: HttpServletResponse.sendRedirect(), a Spring \"redirect:\" + value view name (returned or passed to ModelAndView), new RedirectView(), and a Location header (setHeader/addHeader(\"Location\" | HttpHeaders.LOCATION) or ResponseEntity .location(URI.create(...))) whose argument reads getParameter/getHeader/getQueryString/getCookies, is a @RequestParam/@PathVariable/@RequestHeader/@CookieValue parameter, or is a variable assigned from one (directly or through one intermediate assignment such as URLDecoder.decode) within the 40 lines above. Attackers use it to send users to phishing pages from a trusted domain. Not reported: a target that starts with a fixed local path (\"/account?next=\" + v) or fixed absolute URL, a value looked up in a map of allowed destinations (DESTINATIONS.get(id)), a value checked by an if guard (startsWith, matches, an allowlist contains/isAllowed/isSafe/isValid, getHost comparison) before the redirect, on the value itself or on a value parsed from it (URI uri = URI.create(v)), values from configuration, comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-007/",
 	"languages": ["java"],
 	"severity": "medium",
@@ -164,8 +164,21 @@ _req(lines, i, v) if {
 
 _guard_re := `(?i)startsWith|matches\s*\(|contains\s*\(|isAllowed|isSafe|isValid|allow|whitelist|trusted|validate|getHost\s*\(|equals\s*\(`
 
+_guarded(lines, i, v) if _guard_on(lines, _win(i), i, v)
+
+# A guard on a value parsed from v (URI uri = URI.create(v); if (!ok(uri.getHost())) ...).
 _guarded(lines, i, v) if {
 	some j in numbers.range(_win(i), i - 1)
+	contains(lines[j], v)
+	m := regex.find_all_string_submatch_n(concat("", [`(\w+)\s*=\s*[^=;]*\b`, v, `\b`]), _strip(lines[j]), 1)
+	count(m) > 0
+	w := m[0][1]
+	w != v
+	_guard_on(lines, j + 1, i, w)
+}
+
+_guard_on(lines, lo, i, v) if {
+	some j in numbers.range(lo, i - 1)
 	contains(lines[j], v)
 	regex.match(`^\s*(?:\}\s*else\s+)?if\s*\(|^\s*(?:return\s+)?\w*(?:valid|allow|safe)\w*\s*\(`, lines[j])
 	regex.match(concat("", [`\b`, v, `\b`]), lines[j])

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GQL-004",
 	"name": "GraphQL field suggestion disclosure enabled",
-	"description": "A JavaScript/TypeScript GraphQL server is constructed (new ApolloServer(...), createYoga(...), GraphQLModule.forRoot(...), graphqlHTTP(...), register(mercurius, ...)) in a project that nowhere suppresses graphql-js field suggestions. These servers return validation errors such as 'Cannot query field \"pasword\". Did you mean \"password\"?' by default, which lets an attacker enumerate the schema even with introspection disabled. A project counts as mitigated when any of its files sets hideSchemaDetailsFromClientErrors: true (Apollo Server), uses GraphQL Armor (ApolloArmor, EnvelopArmor, blockFieldSuggestions), a disable-suggestions plugin, or a formatError/maskError that rewrites 'Did you mean' messages. Reported once per constructor call; test files, comments and string literals are not reported. Servers in other languages are not covered.",
+	"description": "A JavaScript/TypeScript GraphQL server is constructed (new ApolloServer(...) or new ApolloServer<Context>(...), createYoga(...), GraphQLModule.forRoot(...), graphqlHTTP(...), register(mercurius, ...)) in a project that nowhere suppresses graphql-js field suggestions. These servers return validation errors such as 'Cannot query field \"pasword\". Did you mean \"password\"?' by default, which lets an attacker enumerate the schema even with introspection disabled. A project counts as mitigated when any of its files sets hideSchemaDetailsFromClientErrors: true (Apollo Server), uses GraphQL Armor (ApolloArmor, EnvelopArmor, blockFieldSuggestions), a disable-suggestions plugin, or a formatError/maskError that rewrites 'Did you mean' messages. Reported once per constructor call; test files, comments and string literals are not reported. Servers in other languages are not covered.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-gql-004/",
 	"languages": ["javascript", "typescript"],
 	"severity": "low",
@@ -34,9 +34,24 @@ _gate(content) if contains(content, "graphqlHTTP")
 _gate(content) if contains(content, "mercurius")
 
 # The constructor call itself, not an import, a type or the name in a string.
-_ctor := `(^|[^"'\x60\w.])(new\s+ApolloServer\s*\(|createYoga\s*(<[^>]*>)?\s*\(|GraphQLModule\.forRoot(Async)?\s*(<[^>]*>)?\s*\(|graphqlHTTP\s*\()|\.register\(\s*mercurius\b`
+_ctor := `(^|[^"'\x60\w.])(new\s+ApolloServer\s*(<[^>]*>)?\s*\(|createYoga\s*(<[^>]*>)?\s*\(|GraphQLModule\.forRoot(Async)?\s*(<[^>]*>)?\s*\(|graphqlHTTP\s*\()|\.register\(\s*mercurius\b`
 
-_mitigation := `hideSchemaDetailsFromClientErrors\s*:\s*true|blockFieldSuggestion|graphql-armor|ApolloArmor|EnvelopArmor|[Dd]isableSuggestions|Did you mean|didYouMean|suggestions\s*:\s*false`
+_ctor_core := `new\s+ApolloServer\s*(<[^>]*>)?\s*\(|createYoga\s*(<[^>]*>)?\s*\(|GraphQLModule\.forRoot(Async)?\s*(<[^>]*>)?\s*\(|graphqlHTTP\s*\(|\.register\(\s*mercurius\b`
+
+# The first constructor on the line sits inside a string literal (an odd
+# number of one quote kind before it) or after a trailing // comment.
+_in_string_or_comment(line) if {
+	prefix := regex.split(_ctor_core, line)[0]
+	some q in ["'", "\"", "`"]
+	count(indexof_n(prefix, q)) % 2 == 1
+}
+
+_in_string_or_comment(line) if {
+	prefix := regex.split(_ctor_core, line)[0]
+	contains(prefix, "//")
+}
+
+_mitigation :=`hideSchemaDetailsFromClientErrors\s*:\s*true|blockFieldSuggestion|graphql-armor|ApolloArmor|EnvelopArmor|[Dd]isableSuggestions|Did you mean|didYouMean|suggestions\s*:\s*false`
 
 # A mitigation anywhere in the project protects every server in it.
 _mitigated if {
@@ -54,6 +69,7 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(_ctor, line)
 	not helpers.is_comment_line(line)
+	not _in_string_or_comment(line)
 	not _mitigated
 	finding := {
 		"rule_id": metadata.id,

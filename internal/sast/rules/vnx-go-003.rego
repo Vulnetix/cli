@@ -37,7 +37,7 @@ _sinks := {"stmt": _stmt_sink, "sqlx": _sqlx_sink, "clause": _clause_sink}
 _request := `\b(?:r|req|request)\.(?:FormValue|PostFormValue)\(|\b(?:r|req|request)\.URL\.Query\(\)\.Get\(|\b(?:r|req|request)\.(?:Form|PostForm|Header)\.Get\(|\bmux\.Vars\(|\.PathValue\(|\bchi\.URLParam\(|\b(?:c|ctx|g|e)\.(?:Query|DefaultQuery|GetQuery|Param|Params|PostForm|DefaultPostForm|FormValue|QueryParam)\(`
 
 # A value in a bind-parameter position of a format string ...
-_vpos_fmt := `(?i)'(?:%%)*%[-+#0-9.]*[sqv]|(?:=|<>|!=|<=|>=|<|>|\b(?:i?like|in|values|limit|offset|between)\b)\s*\(?\s*%[-+#0-9.]*[sqv]`
+_vpos_fmt := `(?i)'(?:%%)*%[-+#0-9.]*(?:\[\d+\])?[sqv]|(?:=|<>|!=|<=|>=|<|>|\b(?:i?like|in|values|limit|offset|between)\b)\s*\(?\s*%[-+#0-9.]*(?:\[\d+\])?[sqv]`
 
 # ... or of a literal that a concatenation continues with a value.
 _vpos_cat := `(?i)(?:'|(?:=|<>|!=|<=|>=|<|>|\b(?:i?like|in|values|limit|offset|between)\b)\s*\(?\s*'?)%*["\x60]\s*\+\s*[A-Za-z_(]`

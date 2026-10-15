@@ -1,0 +1,13 @@
+spring:
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+~>            allowedOrigins: "*"
+            allowedMethods: "*"
+          '/api/**':
+~>            allowedOriginPatterns:
+              - "*"
+            allowedHeaders:
+              - "*"

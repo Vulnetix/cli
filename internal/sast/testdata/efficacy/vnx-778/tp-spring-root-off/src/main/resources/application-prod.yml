@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: billing
+logging:
+  level:
+~>    root: OFF

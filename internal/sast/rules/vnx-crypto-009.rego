@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CRYPTO-009",
 	"name": "Use of cryptographically weak PRNG (rand/srand/random in C/C++)",
-	"description": "A value from a non-cryptographic C/C++ PRNG (rand(), random(), rand_r(), the drand48/lrand48/mrand48/erand48/nrand48/jrand48 family, std::rand(), or a <random> engine such as std::mt19937, minstd_rand or default_random_engine) becomes a security value: it is assigned to (or snprintf'd into) a token, nonce, salt, IV, secret, password, session id, CSRF token, OTP, PIN, challenge, cookie, ticket or crypto key, directly or through a variable assigned a few lines before, or it is produced inside a function whose name says it makes one (generate_token, make_nonce, new_otp, make_session_id). Not reported: rand() used for sampling, shuffling, jitter, hashing seeds, dictionary keys, counts, sizes and timeouts (the overwhelming majority of rand() calls); srand()/srand48()/seed48() on their own; arc4random(), getrandom(), RAND_bytes(), randombytes_buf() and std::random_device; calls inside comments or string literals; and test files. Flows through more than one intermediate variable, or across functions, are not followed.",
+	"description": "A value from a non-cryptographic C/C++ PRNG (rand(), random(), rand_r(), the drand48/lrand48/mrand48/erand48/nrand48/jrand48 family, std::rand(), or a <random> engine such as std::mt19937, minstd_rand or default_random_engine) becomes a security value: it is assigned to (or snprintf'd into, also across a line break) a token, nonce, salt, IV, secret, password, session id, CSRF token, OTP, PIN, challenge, cookie, ticket or crypto key, including through a pointer (*pin = ...), directly or through a variable (not one named as a count or size) assigned a few lines before, or it is produced inside a function whose name pairs a making verb with one (generate_token, make_nonce, new_otp, make_session_id; fuzz_tokens and parse_token are not makers). Not reported: rand() used for sampling, shuffling, jitter, hashing seeds, dictionary keys, counts, sizes and timeouts (the overwhelming majority of rand() calls); srand()/srand48()/seed48() on their own; arc4random(), getrandom(), RAND_bytes(), randombytes_buf() and std::random_device; calls inside comments or string literals; and test files. Flows through more than one intermediate variable, or across functions, are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-009/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
@@ -146,7 +146,7 @@ _code(line) := c if {
 # Assignment target: the last name of `a`, `a[i]`, `s->f`, `s.f[i]`, with an
 # optional single-line for/while/if header and declaration in front, assigned
 # with = += ^= |=.
-_lhs_re := `^\s*(?:(?:for|while|if)\s*\(.*\)\s*)?(?:[A-Za-z_][\w:<>,\s\*&]*?[\s\*&])?((?:[A-Za-z_]\w*(?:\s*\[[^\]]*\])*\s*(?:->|\.))*[A-Za-z_]\w*)\s*((?:\[[^\]]*\]\s*)*)[+^|]?=(?:[^=]|$)`
+_lhs_re := `^\s*(?:(?:for|while|if)\s*\(.*\)\s*)?(?:[A-Za-z_][\w:<>,\s\*&]*?[\s\*&])?\**\s*((?:[A-Za-z_]\w*(?:\s*\[[^\]]*\])*\s*(?:->|\.))*[A-Za-z_]\w*)\s*((?:\[[^\]]*\]\s*)*)[+^|]?=(?:[^=]|$)`
 
 _target(code) := t if {
 	m := regex.find_all_string_submatch_n(_lhs_re, code, 1)
@@ -213,13 +213,26 @@ _continued_sink(lines, i) if {
 	_sink_line(concat("", [_code(prev), " 0"]))
 }
 
+# A printf call broken across lines: `snprintf(csrf_token, sizeof csrf_token,`
+# on the line above, still open, and the PRNG call among its arguments.
+_continued_sink(lines, i) if {
+	i > 0
+	prev := lines[i - 1]
+	contains(prev, "printf")
+	not helpers.is_comment_line(prev)
+	c := _code(prev)
+	strings.count(c, "(") > strings.count(c, ")")
+	_secret_target({"chain": _printf_target(c), "indexed": false})
+}
+
 # A two-line flow: `long v = lrand48();` then `h->nonce = v ^ k;` within six
-# lines.
+# lines. A variable named for a measure (pin_count) is not the secret.
 _flows_to_sink(lines, i, code) if {
 	t := _target(code)
 	not t.indexed
 	v := t.chain
 	regex.match(`^\w+$`, v)
+	not _measure(_words(v))
 	end := min([count(lines) - 1, i + 6])
 	i + 1 <= end
 	some j in numbers.range(i + 1, end)
@@ -314,13 +327,40 @@ _closed_between(lines, k, i) if {
 	startswith(trim_left(l, " \t"), "}")
 }
 
+# A whole-line comment. `*pin = rand()` (a dereference, no space after the
+# star) is code, as the engine's own comment test treats it.
+_comment_line(line) if {
+	helpers.is_comment_line(line)
+	not regex.match(`^\s*\*+[A-Za-z_(]`, line)
+}
+
 _security_context(_, _, code) if _sink_line(code)
 
 _security_context(lines, i, _) if _continued_sink(lines, i)
 
 _security_context(lines, i, code) if _flows_to_sink(lines, i, code)
 
-_security_context(lines, i, _) if _secret_name(_fn_name(lines, i))
+_security_context(lines, i, _) if _maker_name(_fn_name(lines, i))
+
+# A function named for what it makes: a security word and a verb that says
+# the function produces it (generate_token, make_nonce, nextNonce, new_otp).
+# fuzz_tokens, parse_token and skip_session are not makers.
+_maker_verb := `^(?:gen|generate|make|mk|new|next|create|issue|mint|random|rand|rnd|build|produce|fill|init|initialize|setup|refresh|rotate|reset|assign|get|draw|alloc|allocate)$`
+
+_maker_name(name) if {
+	_secret_name(name)
+	some w in _words(name)
+	regex.match(_maker_verb, w)
+}
+
+_maker_name(name) if {
+	ws := _words(name)
+	some w in ws
+	regex.match(`^pins?$`, w)
+	not _measure(ws)
+	some v in ws
+	regex.match(_maker_verb, v)
+}
 
 findings contains finding if {
 	some path, content in input.file_contents
@@ -331,7 +371,7 @@ findings contains finding if {
 	engines := _engine_set(content, lines)
 	some i in _candidate_lines(content, engines, lines)
 	line := lines[i]
-	not helpers.is_comment_line(line)
+	not _comment_line(line)
 	code := _code(line)
 	_uses_prng(code, engines)
 	_security_context(lines, i, code)

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-030",
 	"name": "Missing Secure flag on cookie",
-	"description": "A cookie the server sends to the browser is not marked Secure, so the browser also sends it over plain HTTP where a network attacker can read it. Reported: an http.Cookie, fiber.Cookie or gorilla sessions.Options literal with no Secure field or with Secure: false that is passed to http.SetCookie/c.SetCookie/c.Cookie, returned to a caller, or assigned to a variable that is (session.Options = &sessions.Options{...} configures every session cookie); a new(http.Cookie) that is sent without .Secure being set; gin c.SetCookie(name, value, maxAge, path, domain, false, httpOnly); csrf.Secure(false); x.Secure = false / store.Options.Secure = false; and sessions.NewCookieStore/NewFilesystemStore in a project that never sets the store's Options (their default leaves Secure off). Not reported: Secure set to true or to any expression (Secure: !isLocal, r.TLS != nil, a config value), a deletion cookie (MaxAge negative, Expires at the Unix epoch), cookies a client sends (req.AddCookie, a cookie jar, a []*http.Cookie built to send), test files, comments and strings.",
+	"description": "A cookie the server sends to the browser is not marked Secure, so the browser also sends it over plain HTTP where a network attacker can read it. Reported: an http.Cookie, fiber.Cookie or gorilla sessions.Options literal with no Secure field or with Secure: false that is passed to http.SetCookie/c.SetCookie/c.Cookie, returned to a caller, or assigned to a variable that is (session.Options = &sessions.Options{...} configures every session cookie); a new(http.Cookie) that is sent without .Secure being set; gin c.SetCookie(name, value, maxAge, path, domain, false, httpOnly); csrf.Secure(false); x.Secure = false / store.Options.Secure = false; a hand-written Set-Cookie header (w.Header().Set/Add(\"Set-Cookie\", ...)) whose attributes on that line include no Secure; and sessions.NewCookieStore/NewFilesystemStore in a project that never sets the store's Options (their default leaves Secure off). Not reported: Secure set to true or to any expression (Secure: !isLocal, r.TLS != nil, a config value), a deletion cookie (MaxAge negative, Expires at the Unix epoch), cookies a client sends (req.AddCookie, a cookie jar, a []*http.Cookie built to send), test files, comments and strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-030/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -148,6 +148,16 @@ _hit(_, _, _, code) := _msg_store if {
 	not _project_sets_store_options
 }
 
+# A Set-Cookie header written by hand whose attributes on the line carry no
+# Secure: w.Header().Add("Set-Cookie", "sid="+id+"; Path=/; HttpOnly").
+_hit(_, _, line, code) := _msg_missing if {
+	regex.match(`\.Header\(\)\.(?:Set|Add)\(\s*""\s*,`, code)
+	regex.match(`\.Header\(\)\.(?:Set|Add)\(\s*"Set-Cookie"\s*,`, line)
+	regex.match(`(?i);\s*(?:path|httponly|samesite|max-age|expires|domain)\b`, line)
+	not regex.match(`(?i);\s*secure\b`, line)
+	not regex.match(`(?i)max-age=(?:0\b|-)|1970`, line)
+}
+
 _project_sets_store_options if {
 	some path, content in input.file_contents
 	endswith(path, ".go")
@@ -164,7 +174,7 @@ _hint(line) if contains(line, "Secure")
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".go")
-	regex.match(`http\.Cookie|fiber\.Cookie|sessions\.|SetCookie\(|csrf\.Secure|\.Secure\s*=`, content)
+	regex.match(`http\.Cookie|fiber\.Cookie|sessions\.|SetCookie\(|"Set-Cookie"|csrf\.Secure|\.Secure\s*=`, content)
 	not helpers.is_test_path(path)
 	lines := split(content, "\n")
 	some i, line in lines

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-273",
 	"name": "Improper Check for Dropped Privileges",
-	"description": "A call that drops privileges is made as a bare statement, so its result is thrown away and a failed drop goes unnoticed: the program carries on with the identity it meant to give up. Reported in C and C++ for setuid, setgid, seteuid, setegid, setreuid, setregid, setresuid, setresgid, setgroups and initgroups (also written ::setuid, and behind a (void) or (void)! cast, static_cast<void>() or std::ignore =, which silence warn_unused_result without checking anything) and for the Windows impersonation calls ImpersonateNamedPipeClient, ImpersonateLoggedOnUser, ImpersonateSelf, ImpersonateAnonymousToken, RpcImpersonateClient, CoImpersonateClient and SetThreadToken; in Go for syscall/unix Setuid, Setgid, Setreuid, Setresuid, Setgroups and friends called as a statement, assigned to _ or deferred; in Rust for the same libc:: calls whose value is discarded with a semicolon or let _ =, and for the nix crate's unistd::setuid & co. as a bare statement, with .ok(); or let _ =; and in PHP for posix_setuid, posix_setgid, posix_seteuid, posix_setegid and posix_initgroups as a statement (they return false on failure and raise nothing). Not reported: a result that is compared, assigned, returned, asserted or passed on (in Rust also ?, unwrap() and expect(); in PHP also `or die`); Python, Ruby and Node, whose calls raise on failure; a drop followed within a few lines by a getuid()/geteuid()/getgid()/getegid()/errno verification; a raise back to root (seteuid(0), setuid(0)), whose failure leaves the program less privileged; prototypes, macros, member calls and the names in comments or strings.",
+	"description": "A call that drops privileges is made as a bare statement, so its result is thrown away and a failed drop goes unnoticed: the program carries on with the identity it meant to give up. Reported in C and C++ for setuid, setgid, seteuid, setegid, setreuid, setregid, setresuid, setresgid, setgroups and initgroups (also written ::setuid, and behind a (void) or (void)! cast, static_cast<void>() or std::ignore =, which silence warn_unused_result without checking anything, and as the body of a braceless one-line `if (...) setuid(u);` or `else setgid(g);`) and for the Windows impersonation calls ImpersonateNamedPipeClient, ImpersonateLoggedOnUser, ImpersonateSelf, ImpersonateAnonymousToken, RpcImpersonateClient, CoImpersonateClient and SetThreadToken; in Go for syscall/unix Setuid, Setgid, Setreuid, Setresuid, Setgroups and friends called as a statement, assigned to _ or deferred; in Rust for the same libc:: calls whose value is discarded with a semicolon or let _ =, and for the nix crate's unistd::setuid & co. as a bare statement, with .ok(); or let _ =; and in PHP for posix_setuid, posix_setgid, posix_seteuid, posix_setegid and posix_initgroups as a statement (they return false on failure and raise nothing). Not reported: a result that is compared, assigned, returned, asserted or passed on (in Rust also ?, unwrap() and expect(); in PHP also `or die`); Python, Ruby and Node, whose calls raise on failure; a drop followed within a few lines by a getuid()/geteuid()/getgid()/getegid()/errno verification or by a checked attempt to regain root (`if (setuid(0) != -1) abort();`, CERT POS37-C); a raise back to root (seteuid(0), setuid(0)), whose failure leaves the program less privileged; prototypes and definitions (also BSD style, with the return type on the line above), macros, member calls and the names in comments or strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-273/",
 	"languages": ["c", "cpp", "go", "rust", "php"],
 	"severity": "medium",
@@ -68,7 +68,9 @@ _line_ok(_, _, lang) if lang != "rust"
 # or (void)! cast, static_cast<void>(...), std::ignore =, Go's defer (a
 # deferred call's result is dropped), Rust's `let _ =`, and C++'s global
 # scope `::`; PHP's @ (error suppression) and a leading namespace `\`.
-_discard_prefix := `^(\s*)(\(\s*void\s*\)\s*!?\s*|static_cast\s*<\s*void\s*>\s*\(\s*|std::ignore\s*=\s*|defer\s+|let\s+_\s*=\s*|::|@\s*|\\)+`
+# A braceless `if (cond) setuid(u);` / `} else setgid(g);` on one line is the
+# same discarded statement, so the guard is stripped too.
+_discard_prefix := `^(\s*)(\(\s*void\s*\)\s*!?\s*|static_cast\s*<\s*void\s*>\s*\(\s*|std::ignore\s*=\s*|defer\s+|let\s+_\s*=\s*|::|@\s*|\\|\}\s*|else\s+|if\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*)+`
 
 _norm(s) := regex.replace(s, _discard_prefix, "$1")
 
@@ -123,6 +125,16 @@ _discarded(line, "rust") if _rust_discarded(line)
 
 _discarded(_, lang) if lang != "rust"
 
+# A definition or prototype whose return type sits on the line above
+# (BSD style: `int\nsetresuid(uid_t r, uid_t e, uid_t s)\n{`): the
+# "statement" opens a body, or its parameters are declared with types.
+_definition(stmt, lang) if {
+	lang in {"c", "php"}
+	contains(stmt, "{")
+}
+
+_definition(stmt, "c") if regex.match(`^\s*\w+\s*\(\s*(const\s+|unsigned\s+)?(uid_t|gid_t|size_t|int|void|char|long)\b`, stmt)
+
 # The previous code line leaves an expression open, so this line is not the
 # start of a statement (`rc =` / `if (` / an argument list).
 _continuation(lines, i) if {
@@ -138,8 +150,11 @@ _verified_after(lines, i) if {
 	end >= i + 1
 	some j in numbers.range(i + 1, end)
 	not helpers.is_comment_line(lines[j])
-	regex.match(`(?i)\b(posix_)?(get(e|res)?[ug]id)\s*\(|\berrno\b|\bGetLastError\s*\(`, lines[j])
+	regex.match(`(?i)\b(posix_)?(get(e|res)?[ug]id)\s*\(|\berrno\b|\bGetLastError\s*\(|\bset(e|re|res)?[ug]id\s*\(\s*(-1\s*,\s*)?0\s*[,)]`, lines[j])
 	regex.match(`\bif\b|\bassert|\bensure|==|!=`, lines[j])
+	# `if (getuid() == 0) setuid(uid);` guards the next drop, it reads
+	# nothing back.
+	not regex.match(`(?i)(\b|_)set(e|re|res)?[ug]id\s*\(\s*([^0\s-]|-1\s*,\s*[^0\s])`, lines[j])
 }
 
 findings contains finding if {
@@ -157,6 +172,7 @@ findings contains finding if {
 	stmt := _norm(_statement(lines, i, lang))
 	not _elevation(stmt)
 	not _consumed(stmt)
+	not _definition(stmt, lang)
 	_discarded(n, lang)
 	not _continuation(lines, i)
 	not _verified_after(lines, i)

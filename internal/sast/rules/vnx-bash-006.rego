@@ -34,7 +34,7 @@ _is_shell(path, content) if {
 _comment(line) if startswith(trim_space(line), "#")
 
 # IFS assigned as a statement of its own (not a command prefix).
-_stmt_re := `(?:^|[;&|]|\bthen|\bdo|\belse)\s*(?:export\s+)?IFS=(\$'[^']*'|"[^"]*"|'[^']*'|[^\s;&|]*)\s*(?:;|&&|\|\||#|$)`
+_stmt_re := `(?:^|[;&|{)]|\bthen|\bdo|\belse)\s*(?:export\s+)?IFS=(\$'[^']*'|"[^"]*"|'[^']*'|[^\s;&|]*)\s*(?:;|&&|\|\||#|$)`
 
 _value(line) := m[0][1] if {
 	m := regex.find_all_string_submatch_n(_stmt_re, line, 1)
@@ -144,7 +144,7 @@ findings contains finding if {
 	some i, line in lines
 	contains(line, "IFS")
 	not _comment(line)
-	regex.match(`\bexport\s+IFS\b|(?:^|[;&|]|\bthen|\bdo|\belse)\s*(?:export\s+)?IFS=`, line)
+	regex.match(`\bexport\s+IFS\b|(?:^|[;&|{)]|\bthen|\bdo|\belse)\s*(?:export\s+)?IFS=`, line)
 	not _subshell(line)
 	v := _val_or_empty(line)
 	_stmt_or_export(line)

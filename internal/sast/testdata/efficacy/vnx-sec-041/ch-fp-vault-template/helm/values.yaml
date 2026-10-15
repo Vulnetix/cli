@@ -1,0 +1,4 @@
+jira:
+  apiToken: "{{ .Values.secrets.jiraApiToken }}"
+confluence_api_token: "${CONFLUENCE_API_TOKEN}"
+jira_token_ttl: "86400"

@@ -6,7 +6,7 @@ import data.vulnetix.lib.secrets
 metadata := {
 	"id": "VNX-SEC-037",
 	"name": "HashiCorp Vault token",
-	"description": "Reports a HashiCorp Vault token: a standalone hvs. service token (24 or more base62 characters, so root and namespaced tokens are included), an hvb. batch token (138 to 300 characters), or a legacy s. service token (24 characters) only where it is assigned to a Vault token setting (VAULT_TOKEN=, vault_token:, X-Vault-Token:, token = inside a vault block). A bare s.-prefixed word, placeholders and test or fixture paths are not reported.",
+	"description": "Reports a HashiCorp Vault token: a standalone hvs. service token (24 or more base62 characters, so root and namespaced tokens are included), an hvb. batch token (138 to 300 characters), or a legacy s. service token (24 characters) only where it is assigned to a Vault token setting (VAULT_TOKEN=, vault_token:, X-Vault-Token:) or passed to vault login. A bare s.-prefixed word, a short hvs. run with no digit (a property access on a variable named hvs), a token = line inside a multi-line vault block, placeholders and test or fixture paths are not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-037/",
 	"languages": [],
 	"severity": "critical",
@@ -23,7 +23,17 @@ metadata := {
 _modern := `\b(hvs\.[A-Za-z0-9_-]{24,}|hvb\.[A-Za-z0-9_-]{138,300})(?:[^A-Za-z0-9_-]|$)`
 
 # Legacy tokens ("s." + 24 base62) are only distinguishable by their setting.
-_legacy := `(?i)(?:vault[a-z0-9_.-]*token|x-vault-token)["']?\s*(?::=|=>|[:=])\s*["']?(s\.[A-Za-z0-9]{24})(?:[^A-Za-z0-9_-]|$)`
+_legacy := `(?i)(?:(?:vault[a-z0-9_.-]*token|x-vault-token)["'\]]*\s*(?::=|=>|[:=])\s*["']?|\bvault\s+login\s+(?:-[a-z-]+(?:=\S+)?\s+)*(?:token=)?)(s\.[A-Za-z0-9]{24})(?:[^A-Za-z0-9_-]|$)`
+
+# A short hvs. run with no digit is a property access on a variable named hvs
+# (hvs.saturationFromRgbComponents); a root token is 24 random base62
+# characters and carries a digit with near certainty. Long service tokens
+# are left alone.
+_identifier_like(tok) if {
+	startswith(tok, "hvs.")
+	count(tok) < 94
+	not regex.match(`[0-9]`, tok)
+}
 
 _kind(tok) := "service" if startswith(tok, "hvs.")
 _kind(tok) := "batch" if startswith(tok, "hvb.")
@@ -55,6 +65,7 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	tok := _hit(line)
+	not _identifier_like(tok)
 	not secrets.is_example_token(tok)
 	finding := {
 		"rule_id": metadata.id,

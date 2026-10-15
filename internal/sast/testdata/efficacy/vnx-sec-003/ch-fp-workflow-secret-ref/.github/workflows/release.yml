@@ -1,0 +1,9 @@
+name: release
+on: push
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - run: make release

@@ -1,0 +1,8 @@
+name: publish
+on: push
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+~>          curl -u release-bot:Zx9Wv3Lq7Ns2 -T dist/app.zip https://@@sample:f[i]le[s][.]a[c]me[-]co[r]p[.][i]o[/]@@

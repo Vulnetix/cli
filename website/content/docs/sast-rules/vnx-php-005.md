@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-005 – PHP Server-Side Request Forgery"
-description: "Detect file_get_contents(), fopen(), curl_init(), curl_setopt(CURLOPT_URL), get_headers(), fsockopen(), Laravel Http and Guzzle client calls whose URL is decided by a request value, enabling SSRF."
+description: "Detect file_get_contents(), fopen(), copy(), image readers, curl_init(), CURLOPT_URL, get_headers(), fsockopen(), wp_remote_get(), Laravel Http and Guzzle client calls whose URL is decided by a request value, enabling SSRF."
 ---
 
 ## Overview
@@ -34,7 +34,7 @@ $hook = $request->input("webhook_url");
 Http::timeout(5)->post($hook, ["ping" => true]);
 ```
 
-Not flagged: a URL whose literal prefix fixes the host (`"https://api.example.com/users/" . $id`) or a local directory (`__DIR__ . "/templates/" . $name`, which is path traversal rather than SSRF); a value checked with `in_array()`, `parse_url()` or `preg_match()` first; `php://input` and other constant URLs; `$_FILES` temporary paths; `->get()` on collections, caches and other non-client receivers; values whose origin is not visible in the file.
+Not flagged: a URL whose literal prefix fixes the host (`"https://api.example.com/users/" . $id`) or a local directory (`__DIR__ . "/templates/" . $name`, which is path traversal rather than SSRF); a value checked with `in_array()`, `parse_url()` or `preg_match()` first; `php://input` and other constant URLs; `$_FILES` temporary paths; `->get()` on collections, caches and other non-client receivers (`$redisClient->get()`); `wp_safe_remote_get()`; values whose origin is not visible in the file.
 
 ## Remediation
 

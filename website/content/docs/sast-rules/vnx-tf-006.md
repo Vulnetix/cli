@@ -1,11 +1,11 @@
 ---
 title: "VNX-TF-006 – Terraform AWS EC2 Instance Metadata Service v1 (IMDSv1) Enabled"
-description: "Detect EC2 instances in Terraform that allow the legacy IMDSv1, which does not require a session token and is vulnerable to SSRF attacks that can steal IAM credentials from the metadata endpoint."
+description: "Detect EC2 instances and launch templates in Terraform that leave the token-less IMDSv1 enabled (http_tokens = \"optional\" in resources or the ec2-instance/autoscaling modules, metadata_options without http_tokens, or no metadata_options), which lets SSRF steal IAM credentials from the metadata endpoint."
 ---
 
 ## Overview
 
-This rule flags Terraform `.tf` files where an `aws_instance` resource either explicitly sets `http_tokens = "optional"` in its `metadata_options` block (enabling IMDSv1) or omits the `metadata_options` block entirely (which defaults to IMDSv1-enabled behaviour). IMDSv1 allows any HTTP request to `http://169.254.169.254/latest/meta-data/` — without a session token — to retrieve instance metadata, including IAM role credentials.
+This rule flags Terraform `.tf` files where `http_tokens = "optional"` is set in the `metadata_options` of an `aws_instance`, `aws_launch_template` or `aws_launch_configuration`, where an `aws_instance` or `aws_launch_template` has a `metadata_options` block without `http_tokens`, or has no `metadata_options` block at all (both default to IMDSv1 enabled). It does not report `http_tokens = "required"`, a variable value, `http_endpoint = "disabled"`, an instance configured through a `launch_template` block, or any instance in a project that declares `aws_ec2_instance_metadata_defaults` with `http_tokens = "required"`. IMDSv1 allows any HTTP request to `http://169.254.169.254/latest/meta-data/`, without a session token, to retrieve instance metadata, including IAM role credentials.
 
 IMDSv2 (the more secure version) requires a preliminary PUT request to obtain a session token, which must be included in all subsequent metadata requests. This PUT request cannot be followed by standard HTTP redirect-following behavior, which prevents server-side request forgery (SSRF) attacks from being able to retrieve credentials from the metadata service.
 
@@ -23,25 +23,26 @@ IMDSv1 credentials theft is particularly insidious because the IAM credentials r
 
 ## What Gets Flagged
 
-The rule matches `.tf` files where `http_tokens = "optional"` is set or where an `aws_instance` resource lacks a `metadata_options` block entirely.
-
 ```hcl
-# FLAGGED: IMDSv1 explicitly enabled
-resource "aws_instance" "web" {
-  ami           = var.ami_id
-  instance_type = "t3.medium"
+resource "aws_instance" "api" {
   metadata_options {
-    http_tokens = "optional"
+    http_tokens = "optional"          # FLAGGED: IMDSv1 explicitly enabled
   }
 }
 
-# FLAGGED: missing metadata_options block — defaults to IMDSv1
-resource "aws_instance" "web" {
+resource "aws_instance" "web" {       # FLAGGED: no metadata_options block
   ami           = var.ami_id
   instance_type = "t3.medium"
-  # no metadata_options block
+}
+
+resource "aws_instance" "runner" {
+  metadata_options {                  # FLAGGED: http_tokens defaults to optional
+    http_put_response_hop_limit = 1
+  }
 }
 ```
+
+Not flagged: `http_tokens = "required"`, `http_endpoint = "disabled"`, or an account-level `aws_ec2_instance_metadata_defaults` that requires tokens.
 
 ## Remediation
 

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CS-008",
 	"name": "C# SSRF: request data chooses the host of an HttpClient, WebClient or WebRequest call",
-	"description": "An outbound HTTP request is sent to a URL whose scheme and host an HTTP client controls, so the server can be made to call internal services or cloud metadata endpoints (SSRF). Reported: the URL argument of an HttpClient method (GetAsync, GetStringAsync, GetByteArrayAsync, GetStreamAsync, GetFromJsonAsync, PostAsync, PutAsync, PatchAsync, DeleteAsync and the AsJson variants) or a WebClient method (DownloadString/Data/File, OpenRead/OpenWrite, UploadString/Data/File/Values and their Async/TaskAsync forms) on a receiver declared as HttpClient/WebClient/RestClient, created with new or IHttpClientFactory.CreateClient, or an inline new WebClient()/HttpClient(); WebRequest/HttpWebRequest.Create/CreateHttp; new HttpRequestMessage(method, url); new RestClient(url); and BaseAddress/RequestUri assignments, when the URL begins with request data: Request.Query/QueryString/Form/Params/Cookies/Headers/RouteValues, Request[...], RouteData.Values, a WebForms TextBox .Text, a string parameter of a controller action, a [FromQuery]/[FromRoute]/[FromForm]/[FromHeader] parameter or a minimal-API lambda parameter, used inline, wrapped in new Uri(...), after only a scheme (\"http://\" + host, $\"https://{host}/...\"), or through a variable assigned that way up to 15 lines above. Not reported: request data that only fills the path or query of a URL whose host is a literal (\"/api/items/\" + id, $\"https://api.example.com/search?q={q}\"), URLs from configuration, URLs checked against a host allowlist (AllowedHosts.Contains(uri.Host)), an IsAllowed/IsValid/IsTrusted method or Regex.IsMatch in the 15 lines above, non-HTTP receivers such as IDistributedCache.GetAsync, parameters of non-controller methods (the caller is not followed), and the pattern in comments and string literals.",
+	"description": "An outbound HTTP request is sent to a URL whose scheme and host an HTTP client controls, so the server can be made to call internal services or cloud metadata endpoints (SSRF). Reported: the URL argument of an HttpClient method (GetAsync, GetStringAsync, GetByteArrayAsync, GetStreamAsync, GetFromJsonAsync, PostAsync, PutAsync, PatchAsync, DeleteAsync and the AsJson variants) or a WebClient method (DownloadString/Data/File, OpenRead/OpenWrite, UploadString/Data/File/Values and their Async/TaskAsync forms) on a receiver declared as HttpClient/WebClient/RestClient, created with new or IHttpClientFactory.CreateClient, an inline new WebClient()/HttpClient(), or chained onto factory.CreateClient(...); WebRequest/HttpWebRequest.Create/CreateHttp; new HttpRequestMessage(method, url); new RestClient(url); BaseAddress/RequestUri assignments; and, in a file using Flurl, a Flurl call chain (WithHeader, GetStringAsync, PostJsonAsync...) whose receiver is the URL string itself, or new Url/FlurlRequest/FlurlClient(url), when the URL begins with request data: Request.Query/QueryString/Form/Params/Cookies/Headers/RouteValues, Request[...], RouteData.Values, a WebForms TextBox .Text, a string parameter of a controller action, a [FromQuery]/[FromRoute]/[FromForm]/[FromHeader] parameter or a minimal-API lambda parameter, used inline, wrapped in new Uri(...), after only a scheme (\"http://\" + host, $\"https://{host}/...\"), or through a variable assigned that way up to 15 lines above. Not reported: request data that only fills the path or query of a URL whose host is a literal (\"/api/items/\" + id, $\"https://api.example.com/search?q={q}\"), URLs from configuration, URLs checked against a host allowlist (AllowedHosts.Contains(uri.Host)), an IsAllowed/IsValid/IsTrusted method or Regex.IsMatch in the 15 lines above, non-HTTP receivers such as IDistributedCache.GetAsync, parameters of non-controller methods (the caller is not followed), and the pattern in comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-cs-008/",
 	"languages": ["csharp"],
 	"severity": "high",
@@ -63,7 +63,8 @@ _second_arg(rest) := a if {
 
 _client_methods := `(?:GetAsync|GetStringAsync|GetByteArrayAsync|GetStreamAsync|GetFromJsonAsync|PostAsync|PostAsJsonAsync|PutAsync|PutAsJsonAsync|PatchAsync|PatchAsJsonAsync|DeleteAsync|DeleteFromJsonAsync|DownloadString|DownloadStringAsync|DownloadStringTaskAsync|DownloadData|DownloadDataAsync|DownloadDataTaskAsync|DownloadFile|DownloadFileAsync|DownloadFileTaskAsync|OpenRead|OpenReadAsync|OpenReadTaskAsync|OpenWrite|OpenWriteAsync|UploadString|UploadStringAsync|UploadStringTaskAsync|UploadData|UploadDataAsync|UploadDataTaskAsync|UploadFile|UploadFileAsync|UploadValues|UploadValuesAsync)`
 
-_method_call_re := concat("", [`\.\s*`, _client_methods, `\s*\(`])
+# Generic arguments (GetFromJsonAsync<List<Item>>) sit between name and call.
+_method_call_re := concat("", [`\.\s*`, _client_methods, `\s*(?:<(?:[^<>()]|<[^<>()]*>)*>)?\s*\(`])
 
 _receivers(content) := {m[1] |
 	some m in regex.find_all_string_submatch_n(`\b(?:HttpClient|WebClient|HttpMessageInvoker|RestClient)\??\s+([A-Za-z_]\w*)\b`, content, -1)
@@ -92,6 +93,11 @@ _url_args(stmt, recv) := {a |
 	a := _first_arg(rest)
 } | {a |
 	re := concat("", [`\bnew\s+(?:System\.Net\.(?:Http\.)?)?(?:WebClient|HttpClient)\s*\([^()]*\)\s*`, _method_call_re])
+	some rest in _rests(re, stmt)
+	a := _first_arg(rest)
+} | {a |
+	# factory.CreateClient("name").GetAsync(url)
+	re := concat("", [`\.\s*CreateClient\s*\([^()]*\)\s*`, _method_call_re])
 	some rest in _rests(re, stmt)
 	a := _first_arg(rest)
 } | {a |
@@ -225,6 +231,49 @@ _tainted(lines, content, i) := t0 | {v |
 _guard_re := `(?i)\b(allow|white|safe|permit|trusted)\w*\.(Contains|Any)\s*\(|\bIs(Allowed|Trusted|Safe|Valid|Permitted)\w*\s*\(|\.Host\s*[!=]=|\.Host\b[^;\n]*\b(EndsWith|Equals|StartsWith)\b|\bRegex\.IsMatch\s*\(|\.IsMatch\s*\(`
 
 _guarded(lines, i) if regex.match(_guard_re, helpers.code_window(lines, i, 15, 0))
+
+# ── Flurl ────────────────────────────────────────────────────────────────
+# Flurl sends from a string or Url receiver: callbackUrl.GetStringAsync(),
+# callbackUrl.WithHeader(...).PostJsonAsync(...), new Url(x).GetAsync().
+
+_flurl_verbs := `(?:With\w+|AllowAnyHttpStatus|AllowHttpStatus|AppendPathSegments?|SetQueryParams?|(?:Get|Post|Put|Patch|Delete|Head|Options|Send)\w*Async|DownloadFileAsync)\b`
+
+_flurl_sink(lines, content, i, code) if {
+	some m in regex.find_all_string_submatch_n(`(?:\bawait|\breturn|[^=!<>]=)\s*([A-Za-z_]\w*)\s*(?:\.|$)`, code, -1)
+	n := m[1]
+	not n in {"new", "await", "this", "base", "null"}
+	stmt := _stmt(lines, i)
+	regex.match(concat("", [`(?:^|[^\w.])`, n, `\s*\.\s*`, _flurl_verbs]), stmt)
+	n in _tainted(lines, content, i)
+}
+
+_flurl_sink(lines, content, i, code) if {
+	contains(code, "new")
+	some rest in _rests(`\bnew\s+(?:Flurl\.(?:Http\.)?)?(?:Url|FlurlRequest|FlurlClient)\s*\(`, _stmt(lines, i))
+	_host_ctrl(trim_space(_first_arg(rest)), _tainted(lines, content, i))
+}
+
+findings contains finding if {
+	some path, content in input.file_contents
+	endswith(path, ".cs")
+	contains(content, "Flurl")
+	lines := split(content, "\n")
+	some i, line in lines
+	not helpers.is_comment_line(line)
+	regex.match(`\bawait\b|\breturn\b|=|\bnew\s+(?:Url|Flurl)`, line)
+	code := _code(line)
+	_flurl_sink(lines, content, i, code)
+	not _guarded(lines, i)
+	finding := {
+		"rule_id": metadata.id,
+		"message": "HTTP request data decides where this server sends an outbound request (SSRF): it can reach internal services and cloud metadata endpoints. Parse the URL with Uri.TryCreate and allow only known hosts and schemes, or keep the host fixed and pass the value only as an escaped path or query component",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
 
 findings contains finding if {
 	some path, content in input.file_contents

@@ -1,0 +1,5 @@
+<beans>
+  <bean id="contextSource" class="org.springframework.ldap.core.support.LdapContextSource">
+~>    <property name="url" value="ldap://ldap.acmecorp.io:389/dc=acmecorp,dc=io"/>
+  </bean>
+</beans>

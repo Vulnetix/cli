@@ -162,7 +162,7 @@ _direct(lines, i) := {v |
 	v := helpers.assigned_first(l)
 }
 
-_lookup_re := `=\s*(?:await\s+)?[\w.$?]+\.(?:get|findOne|findByPk|findById|findUnique|verify|decode|has)\(\s*(?:req|request|ctx)\b`
+_lookup_re := `=\s*(?:await\s+)?[\w.$?]+\.(?:get|findOne|findByPk|findById|findUnique|verify|decode|has)\(\s*(?:req|request|ctx)\b|=\s*[A-Z][A-Z0-9_]*\s*\[`
 
 _reaches(a, _, _) if regex.match(_src, a)
 

@@ -1,0 +1,5 @@
+framework:
+    secret: '%env(APP_SECRET)%'
+    csrf_protection: true
+    session:
+        cookie_samesite: lax

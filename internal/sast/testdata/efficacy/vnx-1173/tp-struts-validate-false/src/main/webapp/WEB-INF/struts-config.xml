@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<struts-config>
+  <form-beans>
+    <form-bean name="transferForm" type="com.example.bank.TransferForm"/>
+  </form-beans>
+  <action-mappings>
+~>    <action path="/transfer" type="com.example.bank.TransferAction" name="transferForm" scope="request" validate="false">
+      <forward name="success" path="/done.jsp"/>
+    </action>
+    <action path="/profile"
+            type="com.example.bank.ProfileAction"
+            name="profileForm"
+~>            validate="false"
+            input="/profile.jsp">
+      <forward name="success" path="/profile.jsp"/>
+    </action>
+  </action-mappings>
+</struts-config>

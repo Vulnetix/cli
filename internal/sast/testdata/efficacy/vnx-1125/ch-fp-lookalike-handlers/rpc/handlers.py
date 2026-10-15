@@ -1,0 +1,5 @@
+server.register_function(open_ticket, "open_ticket")
+server.register_function(evaluate_model)
+server.register_function(self.exec_query, "query")
+server.register_function(os.system_info, "info")
+server.register_function(lambda name: greet(name), "hello")

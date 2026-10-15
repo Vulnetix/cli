@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-RUBY-004",
 	"name": "Ruby SQL injection",
-	"description": "An ActiveRecord query method receives SQL text built from outside data: where/order/reorder/having/joins/find_by_sql/count_by_sql/execute/exec_query/select_all/select_value(s)/select_rows/select_one (with or without a receiver) and .select/.group/.from/.pluck/.lock/.not/.rewhere/.find_by/.exists?/.update_all/.delete_all (on a receiver) given a string whose interpolation (#{...}), concatenation (+) or format (%) inserts request input (params, request.*, cookies), a variable assigned from request input in the 15 lines above (up to two assignments), or a parameter of the enclosing method or lambda; a raw params[...] value passed as the SQL fragment (order(params[:sort])); or a variable holding such a SQL string built in the lines above. Not reported: placeholders (where(\"id = ?\", id)), hash conditions (where(id: params[:id])), values made safe with to_i/to_f/Integer(), quote/quote_table_name/sanitize_sql*, table_name/primary_key and constants, migrations under db/migrate, heredoc SQL (a documented gap), comments and strings.",
+	"description": "An ActiveRecord query method receives SQL text built from outside data: where/order/reorder/having/joins/find_by_sql/count_by_sql/execute/exec_query/select_all/select_value(s)/select_rows/select_one (with or without a receiver) and .select/.group/.from/.pluck/.lock/.not/.rewhere/.find_by/.exists?/.update_all/.delete_all (on a receiver) given a string whose interpolation (#{...}), concatenation (+) or format (%) inserts request input (params, request.*, cookies), a variable assigned from request input in the 15 lines above (up to two assignments), or a parameter of the enclosing method or lambda; a raw params[...] value passed as the SQL fragment (order(params[:sort])); or a variable holding such a SQL string built in the lines above. The SQL argument may sit on the line after the opening parenthesis, inside an array (find_by_sql([\"...\"])) or inside Arel.sql(...). Not reported: input checked against an allowlist on assignment (SORTABLE.include?(params[:s]) ? params[:s] : \"name\", a ternary between literals, CONST.fetch(params[:k])), placeholders (where(\"id = ?\", id)), hash conditions (where(id: params[:id])), values made safe with to_i/to_f/Integer(), quote/quote_table_name/sanitize_sql*, table_name/primary_key and constants, migrations under db/migrate, heredoc SQL (a documented gap), comments and strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-004/",
 	"languages": ["ruby"],
 	"severity": "critical",
@@ -24,6 +24,16 @@ metadata := {
 _src_re := `\bparams\b\s*(?:[\[\.\),]|$)|\brequest\.(?:params|query_parameters|request_parameters|body|raw_post|query_string|headers|cookies|referr?er|user_agent|POST|GET)\b|\bcookies\s*[\[\.]|\breq\.params\b`
 
 _assign_re := `^\s*(@{0,2}[A-Za-z_]\w*)\s*(?:\|\||\+)?=\s*[^=~>]`
+
+# An assignment that checks the input against an allowlist or only selects
+# between literals: SORTABLE.include?(params[:s]) ? params[:s] : "name",
+# params[:dir] == "asc" ? "asc" : "desc", DIRECTIONS.fetch(params[:d]).
+_lit := `(?:"[^"#]*"|'[^']*'|:\w+|nil)`
+
+_guarded_re := concat("", [
+	`=\s*(?:[A-Z][A-Z0-9_]*\.include\?\(|%[wi][\[(][^\])]*[\])]\.include\?\(|[A-Z][A-Z0-9_]*(?:\.fetch\(|\[))|\?\s*`,
+	_lit, `\s*:\s*`, _lit, `\s*$`,
+])
 
 # Query methods that may be called bare inside a model (scopes, class methods).
 _bare_sinks := `where|order|reorder|having|joins|select|group|pluck|find_by_sql|count_by_sql|execute|exec_query|exec_update|exec_delete|exec_insert|select_all|select_one|select_value|select_values|select_rows`
@@ -57,6 +67,7 @@ _tainted(lines, i) := t1 | t2 if {
 		not helpers.is_comment_line(l)
 		regex.match(_src_re, l)
 		not regex.match(`=\s*params\s*[\[\.].*\.(?:to_i|to_f)\b`, l)
+		not regex.match(_guarded_re, l)
 		v := _assigned(l)
 	}
 	t2 := {w |
@@ -220,7 +231,7 @@ findings contains finding if {
 	name := _name(m)
 	at := indexof(code, m[0])
 	_outside_string(code, m[0])
-	args := substring(code, at + count(m[0]), -1)
+	args := _unwrap(_full_args(lines, i, m[0], substring(code, at + count(m[0]), -1)))
 	_reportable(lines, i, name, args)
 	finding := {
 		"rule_id": metadata.id,
@@ -232,6 +243,25 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+# A call broken right after its opening parenthesis takes its SQL from the
+# next code line.
+_full_args(_, _, _, args) := args if trim_space(args) != ""
+
+_full_args(_, _, tok, args) := args if {
+	trim_space(args) == ""
+	not contains(tok, "(")
+}
+
+_full_args(lines, i, tok, args) := regex.replace(lines[j], `\s#[^{].*$`, "") if {
+	trim_space(args) == ""
+	contains(tok, "(")
+	j := helpers.next_code_index(lines, i, 2)
+}
+
+# The SQL argument inside an array (find_by_sql(["...", v])) or Arel.sql(...)
+# is still the SQL argument.
+_unwrap(args) := regex.replace(args, `^\s*(?:\[\s*|Arel\.sql\(\s*)`, "")
 
 _name(m) := m[1] if m[1] != ""
 

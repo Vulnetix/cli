@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1052",
 	"name": "Hard-coded Endpoint Literal in Datastore Client Initialization",
-	"description": "A database, cache or message-broker client is initialised with a hard-coded network endpoint: a non-loopback IP address or a real host name written as a literal (CWE-1052, a hard-coded literal that is not a simple constant used in initialization). Reported in Go, Java, JavaScript/TypeScript, PHP and Python: a connection URI literal (mysql://, postgres://, mongodb://, redis://, amqp://, jdbc:...://, jdbc:oracle:thin:@), a key=value DSN with host= or server= (PDO 'mysql:host=...', libpq 'host=...'), a host/addr/server field or keyword argument holding the literal inside a client constructor (redis.NewClient(&redis.Options{Addr: ...}), psycopg2.connect(host=...), mysql.createPool({host: ...}), 'host' => ... near new PDO), and the literal as the first argument of new Jedis/MongoClient/mysqli, mysqli_connect, redis.Redis, grpc.Dial. The endpoint then cannot change without a code change, ships the network layout in the source and is usually where credentials sit beside it. Not reported: localhost, 127.x, 0.0.0.0, ::1 and placeholder domains (example.com, .test, .invalid, .local, .localhost); a literal on a line that reads the environment or configuration (os.Getenv, process.env, getenv, env(), config(), a fallback default); a URI inside a longer message; comments; test files. Credentials inside such strings are reported by the connection-string rules (VNX-SEC-008, VNX-SEC-061), not here.",
+	"description": "A database, cache or message-broker client is initialised with a hard-coded network endpoint: a non-loopback IP address or a real host name written as a literal (CWE-1052, a hard-coded literal that is not a simple constant used in initialization). Reported in Go, Java, JavaScript/TypeScript, PHP and Python: a connection URI literal (mysql://, postgres://, mongodb://, redis://, amqp://, jdbc:...://, jdbc:oracle:thin:@, SQLAlchemy driver schemes such as postgresql+psycopg2://), a go-sql-driver/mysql DSN (user@tcp(host:port)/db), a key=value DSN with host= or server= (PDO 'mysql:host=...', libpq 'host=...'), a host/addr/server field or keyword argument holding the literal inside a client constructor (redis.NewClient(&redis.Options{Addr: ...}), psycopg2.connect(host=...), mysql.createPool({host: ...}), 'host' => ... near new PDO, pika.ConnectionParameters(host=...), a BullMQ 'connection: {host: ...}'), the literal as the first argument of new Jedis/MongoClient/mysqli, mysqli_connect, redis.Redis, pika.ConnectionParameters, phpredis ->connect/->pconnect and Memcached ->addServer, the host after the port in ioredis new Redis(6379, host), and an IP literal dialled with grpc.Dial. A plain socket or HTTP endpoint is not a datastore client: net.Dial (the 'udp 8.8.8.8:80' outbound-address idiom), a gRPC dial to a public API host name, HTTP requests and sqlite file paths are not reported. The endpoint then cannot change without a code change, ships the network layout in the source and is usually where credentials sit beside it. Not reported: localhost, 127.x, 0.0.0.0, ::1 and placeholder domains (example.com, .test, .invalid, .local, .localhost); a literal on a line that reads the environment or configuration (os.Getenv, process.env, getenv, env(), config(), a fallback default); a URI inside a longer message; comments; test files. Credentials inside such strings are reported by the connection-string rules (VNX-SEC-008, VNX-SEC-061), not here.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1052/",
 	"languages": ["go", "java", "python", "node", "php"],
 	"severity": "low",
@@ -39,7 +39,10 @@ _host := `((?:\d{1,3}\.){3}\d{1,3}|[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.
 _schemes := `(?:mysql|mariadb|postgres|postgresql|mongodb|mongodb\+srv|redis|rediss|amqp|amqps|mssql|sqlserver|cassandra|nats|memcached|clickhouse|neo4j|bolt|jdbc:[a-z0-9]+(?::[a-z0-9]+)?)`
 
 # A. a connection URI that starts the string literal
-_uri_re := concat("", ["[\"'`]", _schemes, `://(?:[^/@'"\x60\s]*@)?`, _host, `(?:[:/;?,'"\x60]|$)`])
+_uri_re := concat("", ["[\"'`]", _schemes, `(?:\+[a-z0-9]+)?://(?:[^/@'"\x60\s]*@)?`, _host, `(?:[:/;?,'"\x60]|$)`])
+
+# A''. go-sql-driver/mysql DSN: user:pass@tcp(host:port)/db
+_gomysql_re := concat("", [`["'\x60][^"'\x60\s]*@tcp\(`, _host, `(?::\d+)?\)`])
 
 # A'. Oracle thin driver
 _ora_re := concat("", [`["']jdbc:oracle:thin:[^@'"]*@(?://)?`, _host, `[:/'"]`])
@@ -50,10 +53,17 @@ _dsn_re := concat("", [`["'][^"'\n]*\b(?:host|server|Server|Host)=`, _host, `(?:
 # C. a host field or keyword argument in a client constructor
 _field_re := concat("", [`(?:^|[\s{(,])["']?(?:host|hostname|Host|HostName|server|Server|addr|Addr|address|Address|Addrs|servers|brokers|nodes)["']?\s*(?::|=>|=)\s*(?:\[\s*|\[\]string\{\s*)?["'\x60]`, _host, `(?::\d+)?["'\x60]`])
 
-_client_re := `(?i)(redis\.(new\w*client|redis|strictredis|createclient|cluster)|create(connection|pool|client)\b|new\s+(redis|pool|client|sequelize|mongoclient|jedis|jedispool|mysqli|pdo|memcached|kafka|cluster|knex)\b|knex\(|\bconnect\(|\.connect\(|options\s*\{|clusteroptions|universaloptions|mysqli_connect|pg_connect|pymysql|psycopg|mysql\.connector|elasticsearch\(|sequelize\(|amqp|nats\.|kafka|config\.(addr|host)|dataSource|hikariconfig|setservername|sethost|setjdbcurl|create_engine|motor|aioredis|mongoclient|'mysql'\s*=>|'pgsql'\s*=>|'redis'\s*=>|connections)`
+_client_re := `(?i)(redis\.(new\w*client|redis|strictredis|createclient|cluster)|create(connection|pool|client)\b|new\s+(redis|pool|client|sequelize|mongoclient|jedis|jedispool|mysqli|pdo|memcached|kafka|cluster|knex)\b|knex\(|\bconnect\(|\.connect\(|options\s*\{|clusteroptions|universaloptions|mysqli_connect|pg_connect|pymysql|psycopg|mysql\.connector|elasticsearch\(|sequelize\(|amqp|nats\.|kafka|config\.(addr|host)|dataSource|hikariconfig|setservername|sethost|setjdbcurl|create_engine|motor|aioredis|mongoclient|pika\.|connectionparameters|\bconnection\s*:|new\s+(queue|worker)\b|'mysql'\s*=>|'pgsql'\s*=>|'redis'\s*=>|connections)`
 
 # D. the host as the first positional argument
-_pos_re := concat("", [`(?:new\s+(?:Jedis|JedisPool|MongoClient|mysqli|Memcached|Redis)|mysqli_connect|redis\.(?:Redis|StrictRedis)|pymysql\.connect|MongoClient|grpc\.Dial|grpc\.DialContext|grpc\.NewClient|net\.Dial)\s*\(\s*(?:ctx,\s*)?(?:"tcp",\s*)?["']`, _host, `(?::\d+)?["']`])
+_pos_re := concat("", [`(?:new\s+(?:Jedis|JedisPool|MongoClient|mysqli|Memcached|Redis)|mysqli_connect|redis\.(?:Redis|StrictRedis)|pymysql\.connect|MongoClient|ConnectionParameters|->p?connect|->addServer)\s*\(\s*["']`, _host, `(?::\d+)?["']`])
+
+# ioredis takes the port first: new Redis(6379, '10.0.0.5')
+_pos_port_re := concat("", [`new\s+(?:Redis|IORedis)\s*\(\s*\d+\s*,\s*["']`, _host, `["']`])
+
+# a gRPC dial to an IP literal; a dial to a public API host name
+# (pubsub.googleapis.com:443) is how SDKs are meant to be used
+_grpc_ip_re := `grpc\.(?:Dial|DialContext|NewClient)\s*\(\s*(?:ctx,\s*)?["']((?:\d{1,3}\.){3}\d{1,3})(?::\d+)?["']`
 
 # a line that reads configuration: the literal there is a fallback default
 _config_read := `(?i)(getenv|environ|process\.env|system\.getproperty|\benv\(|\$_env|\$_server|\bconfig\(|viper\.|os\.lookupenv|settings\.|import\.meta\.env)`
@@ -70,7 +80,7 @@ _placeholder(h) if {
 }
 
 _hosts(line) := {h |
-	some re in [_uri_re, _ora_re, _dsn_re, _pos_re]
+	some re in [_uri_re, _gomysql_re, _ora_re, _dsn_re, _pos_re, _pos_port_re, _grpc_ip_re]
 	some m in regex.find_all_string_submatch_n(re, line, -1)
 	h := m[1]
 }
@@ -87,7 +97,7 @@ findings contains finding if {
 	_lang_ok(path)
 	not _vendored(path)
 	not helpers.is_test_path(path)
-	regex.match(`(?i)(://|host|addr|server|connect|mysqli|jedis|mongo|redis|dial)`, content)
+	regex.match(`(?i)(://|host|addr|server|connect|mysqli|jedis|mongo|redis|dial|@tcp\()`, content)
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(`(\d{1,3}\.){3}\d{1,3}|[A-Za-z0-9-]\.[A-Za-z]{2,}`, line)

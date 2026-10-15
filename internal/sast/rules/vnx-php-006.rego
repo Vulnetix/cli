@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-PHP-006",
 	"name": "PHP object injection via unserialize",
-	"description": "unserialize() or WordPress maybe_unserialize() is called on a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys), php://input, filter_input() or a Laravel/Symfony request accessor, inline (also wrapped in base64_decode(), urldecode() or similar) or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable), without an allowed_classes option that disables or restricts object creation. A crafted payload instantiates arbitrary classes and runs their magic methods (__wakeup, __destruct), which gadget chains turn into code execution. Not reported: unserialize() with ['allowed_classes' => false] or an explicit class list, json_decode(), data whose origin is not visible in the file (cache, queue and session payloads the application wrote itself, function parameters; no cross-function dataflow), methods named unserialize on an object, and the call in comments or string literals.",
+	"description": "unserialize() or WordPress maybe_unserialize() is called on a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys), php://input, filter_input() or a Laravel/Symfony request accessor, inline (also wrapped in base64_decode(), urldecode() or similar) or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable), without an allowed_classes option that disables or restricts object creation. A crafted payload instantiates arbitrary classes and runs their magic methods (__wakeup, __destruct), which gadget chains turn into code execution. CodeIgniter's $this->input->cookie()/post() and strtr()-decoded values count as request values. Not reported: unserialize() with ['allowed_classes' => false] or an explicit class list (inline, or as an options variable assigned that array in the 30 lines above), json_decode(), data whose origin is not visible in the file (cache, queue and session payloads the application wrote itself, function parameters; no cross-function dataflow), methods named unserialize on an object, and the call in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-006/",
 	"languages": ["php"],
 	"severity": "critical",
@@ -43,19 +43,20 @@ _code_line(line) if {
 
 findings contains finding if {
 	some path, content in input.file_contents
-	endswith(path, ".php")
+	regex.match(`\.(php\d?|phtml)$`, path)
 	contains(content, _gate_re)
 	regex.match(_source_re, content)
 	lines := split(content, "\n")
-	some i, line in lines
-	contains(line, "unserialize")
-	_code_line(line)
+	some i, raw in lines
+	contains(raw, "unserialize")
+	_code_line(raw)
+	line := _strip_comment(raw)
 	code := _no_strings(line)
 	regex.match(_sink_re, code)
 	not regex.match(`\bfunction\s+&?\w+\s*\(`, code)
 	locs := regex.find_n(_sink_re, code, 1)
 	call := _extend(lines, i, substring(line, indexof(line, trim_left(locs[0], " \t=(.,;!")), -1))
-	not _restricted(call)
+	not _restricted(lines, i, call)
 	value := _peel(substring(call, indexof(call, "(") + 1, -1))
 	_reaches(lines, i, _value_head(value))
 	finding := {
@@ -65,12 +66,12 @@ findings contains finding if {
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": raw,
 	}
 }
 
 # Decoding wrappers pass the attacker's bytes through unchanged in meaning.
-_wrapper_re := `^\s*\\?(base64_decode|urldecode|rawurldecode|stripslashes|stripcslashes|gzuncompress|gzinflate|gzdecode|hex2bin|str_rot13|trim|html_entity_decode|htmlspecialchars_decode|strval)\s*\(`
+_wrapper_re := `^\s*\\?(base64_decode|urldecode|rawurldecode|stripslashes|stripcslashes|gzuncompress|gzinflate|gzdecode|hex2bin|str_rot13|trim|html_entity_decode|htmlspecialchars_decode|strval|strtr)\s*\(`
 
 _peel(s) := t if {
 	m1 := regex.replace(s, _wrapper_re, "")
@@ -81,13 +82,24 @@ _peel(s) := t if {
 # The value being deserialised: the leading superglobal, request call or
 # variable, not a key used to look something up ($redis->get("s:" . $_COOKIE[...])).
 _value_head(v) := h if {
-	m := regex.find_n(`^\s*(\$_[A-Z]+(\s*\[[^\]]*\])*|\$request\s*->[^;]*|\w+::\w+\s*\([^;]*|request\s*\([^;]*|file_get_contents\s*\(\s*["']php://input["']|filter_input\s*\([^)]*|getallheaders\s*\(\s*\)(\s*\[[^\]]*\])*|\$\w+(\s*\[[^\]]*\])*)`, v, 1)
+	m := regex.find_n(`^\s*(\$_[A-Z]+(\s*\[[^\]]*\])*|\$request\s*->[^;]*|\$this\s*->\s*(input|request)\s*->[^;]*|\w+::\w+\s*\([^;]*|request\s*\([^;]*|file_get_contents\s*\(\s*["']php://input["']|filter_input\s*\([^)]*|getallheaders\s*\(\s*\)(\s*\[[^\]]*\])*|\$\w+(\s*\[[^\]]*\])*)`, v, 1)
 	count(m) > 0
 	h := m[0]
 }
 
 # allowed_classes => false, or an explicit list of classes.
-_restricted(call) if regex.match(`["']allowed_classes["']\s*=>\s*(false|\[|array\s*\()`, call)
+_restricted(_, _, call) if regex.match(`["']allowed_classes["']\s*=>\s*(false|\[|array\s*\()`, call)
+
+# The options passed as a variable assigned such an array a few lines above.
+_restricted(lines, i, call) if {
+	some m in regex.find_all_string_submatch_n(`,\s*\$(\w+)\s*\)`, call, 1)
+	re := concat("", [`^\s*\$`, m[1], `\s*=[^=].*["']allowed_classes["']\s*=>\s*(false|\[|array\s*\()`])
+	some k in numbers.range(max([0, i - 30]), i - 1)
+	regex.match(re, lines[k])
+}
+
+# The line without a trailing // or # comment (string literals respected).
+_strip_comment(s) := regex.replace(s, `^((?:[^"'/#]|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|/[^/"'#])*)(//|#[^\[]).*$`, "${1}")
 
 # Follow up to two continuation lines while the parentheses are unbalanced.
 _extend(_, _, s) := s if count(regex.find_n(`\(`, s, -1)) <= count(regex.find_n(`\)`, s, -1))
@@ -101,7 +113,7 @@ _extend(lines, i, s) := t if {
 # ── Local one-file taint tracking for PHP ────────────────────────────────
 # A request value: a superglobal, the raw body, a request header, or the
 # Laravel/Symfony request accessors. $_SERVER keys the client controls only.
-_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(`
+_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json|getContent)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(|\$this\s*->\s*input\s*->\s*(get|post|get_post|post_get|cookie|server|request_headers|get_request_header|raw_input_stream)\b|\$this\s*->\s*request\s*->\s*(getVar|getGet|getPost|getGetPost|getPostGet|getCookie|getJSON|getJsonVar|getRawInput|getBody|getHeaderLine)\s*\(|->\s*(getQueryParams|getParsedBody|getCookieParams)\s*\(\s*\)`
 
 # Variables an expression reads, ignoring $this and superglobals.
 _vars(s) := {v |

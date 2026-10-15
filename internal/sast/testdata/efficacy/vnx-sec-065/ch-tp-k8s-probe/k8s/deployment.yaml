@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metrics
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          image: registry.acme.io/metrics:1.4.2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+              httpHeaders:
+                - name: Authorization
+~>                  value: Basic @@sample:b[W]V0[c]ml[j]cz[p]Ke[D]cy[U]XB[M]dz[h]z@@

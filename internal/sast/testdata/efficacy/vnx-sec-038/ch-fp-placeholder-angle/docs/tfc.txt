@@ -1,0 +1,2 @@
+token = "<org-token>.atlasv1.<rest-of-token>"
+TF_TOKEN_app_terraform_io=@@sample:x[x]xx[x]xx[x]xx[x]xx[x][.]a[t]la[s]v1[.]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx@@

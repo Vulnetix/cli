@@ -1,0 +1,5 @@
+{{ range .Pages }}
+  <a href="{{ .RelPermalink }}" target="_blank">{{ .Title }}</a>
+  <a href="{{ .Permalink }}" target="_blank">permalink</a>
+{{ end }}
+<a href="{{ site.baseurl }}/feed.xml" target="_blank">RSS</a>

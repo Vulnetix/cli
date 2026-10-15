@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-014",
 	"name": "Python XML external entity injection",
-	"description": "An XML parser is configured, or used, so that it resolves external entities, letting a document read local files or make the server fetch URLs (XXE). Reported: a SAX parser whose external entity features are switched on (parser.setFeature(feature_external_ges or feature_external_pes, True/1), or the http://xml.org/sax/features/external-*-entities URI), which minidom and pulldom parsing then inherit; an lxml etree.XMLParser created with resolve_entities=True or no_network=False (also as a multi-line call); xmltodict.parse(..., disable_entities=False); and lxml etree.fromstring/XML/parse/iterparse given request data (directly, or a variable assigned from request data up to 25 lines above) with no parser argument, since older lxml releases resolve external entities with the default parser. Not reported: the standard library's xml.etree, minidom and sax parsers with their defaults (they do not fetch external entities on current Python), xml.etree imported under the name etree, defusedxml, lxml with an explicit parser or a constant/file-path argument, setFeature(..., False), and the pattern in comments and strings. Entity-expansion denial of service (billion laughs, huge_tree) is not covered.",
+	"description": "An XML parser is configured, or used, so that it resolves external entities, letting a document read local files or make the server fetch URLs (XXE). Reported: a SAX parser whose external entity features are switched on (parser.setFeature(feature_external_ges or feature_external_pes, True/1), or the http://xml.org/sax/features/external-*-entities URI), which minidom and pulldom parsing then inherit; an lxml etree.XMLParser created with resolve_entities=True or no_network=False (also as a multi-line call); xmltodict.parse(..., disable_entities=False); and lxml etree.fromstring/XML/parse/iterparse (also imported by name, from lxml.etree import parse) given request data (directly, or a variable assigned from request data up to 25 lines above) with no parser argument, since older lxml releases resolve external entities with the default parser. Not reported: the standard library's xml.etree, minidom and sax parsers with their defaults (they do not fetch external entities on current Python), xml.etree imported under the name etree, defusedxml, lxml with an explicit parser or a constant/file-path argument, setFeature(..., False), and the pattern in comments and strings. Entity-expansion denial of service (billion laughs, huge_tree) is not covered.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-014/",
 	"languages": ["python"],
 	"severity": "high",
@@ -119,6 +119,22 @@ _lxml_names(content) := {m[1] |
 	m[2] != ""
 } | {"etree" | regex.match(`(?m)^\s*from\s+lxml\s+import\s+(?:[^\n]*,\s*)?etree\s*(?:,|$)`, content)} | {"lxml.etree" | regex.match(`(?m)^\s*import\s+lxml\.etree\s*$`, content)}
 
+# Call patterns for the lxml parse functions: through a module name
+# (etree.fromstring) or imported by name (from lxml.etree import parse as p).
+_lxml_patterns(content) := {concat("", [`(?:^|[^\w.])`, replace(name, ".", `\.`), `\.(?:fromstring|XML|parse|iterparse|fromstringlist)\s*\(`]) |
+	some name in _lxml_names(content)
+} | {concat("", [`(?:^|[^\w.])`, local, `\s*\(`]) |
+	some m in regex.find_all_string_submatch_n(`(?m)^\s*from\s+lxml\.etree\s+import\s+\(?([^\n#)]+)`, content, -1)
+	some part in split(m[1], ",")
+	pm := regex.find_all_string_submatch_n(`^\s*(fromstring|XML|parse|iterparse|fromstringlist)(?:\s+as\s+(\w+))?\s*$`, part, 1)
+	count(pm) > 0
+	local := _local(pm[0])
+}
+
+_local(pm) := pm[2] if pm[2] != ""
+
+_local(pm) := pm[1] if pm[2] == ""
+
 _source_re := `\brequest\.(?:args|form|values|GET|POST|FILES|data|json|get_json|body|files|get_data|stream|read)\b`
 
 _tainted(lines, i) := {v |
@@ -148,15 +164,15 @@ findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".py")
 	contains(content, "lxml")
-	names := _lxml_names(content)
-	count(names) > 0
+	pats := _lxml_patterns(content)
+	count(pats) > 0
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`\.(?:fromstring|XML|parse|iterparse|fromstringlist)\s*\(`, line)
+	regex.match(`(?:fromstring|XML|parse|iterparse|fromstringlist|\w)\s*\(`, line)
 	not helpers.is_comment_line(line)
-	some name in names
-	pat := concat("", [`(?:^|[^\w.])`, replace(name, ".", `\.`), `\.(?:fromstring|XML|parse|iterparse|fromstringlist)\s*\(`])
+	some pat in pats
 	regex.match(pat, _code(line))
+	not regex.match(`^\s*(?:async\s+)?def\s`, line)
 	after := regex.split(pat, concat("\n", [lines[k] | some k in numbers.range(i, min([count(lines) - 1, i + 4]))]))[1]
 	arg := regex.find_n(_arg_re, after, 1)[0]
 	substring(after, count(arg), 1) == ")"

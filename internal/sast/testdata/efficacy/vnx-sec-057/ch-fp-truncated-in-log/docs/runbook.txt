@@ -1,0 +1,2 @@
+The token looks like glsa_AbC1... (truncated); rotate it from the Service accounts page.
+Grafana Cloud tokens begin glc_eyJ and are about 150 characters.

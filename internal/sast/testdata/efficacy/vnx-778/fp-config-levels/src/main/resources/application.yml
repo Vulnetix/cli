@@ -1,0 +1,6 @@
+logging:
+  level:
+    root: INFO
+    org.mongodb.driver: OFF
+cache:
+  root: off

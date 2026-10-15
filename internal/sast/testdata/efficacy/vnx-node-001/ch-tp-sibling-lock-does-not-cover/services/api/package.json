@@ -1,0 +1,6 @@
+~>{
+  "name": "billing-api",
+  "dependencies": {
+    "fastify": "^4.26.0"
+  }
+}

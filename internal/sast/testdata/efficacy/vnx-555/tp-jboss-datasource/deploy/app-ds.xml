@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datasources xmlns="http://www.jboss.org/ironjacamar/schema">
+  <datasource jndi-name="java:jboss/datasources/AppDS" pool-name="AppDS">
+    <connection-url>jdbc:oracle:thin:@db:1521:APP</connection-url>
+    <security>
+      <user-name>app</user-name>
+~>      <password>0racleApp</password>
+    </security>
+  </datasource>
+</datasources>

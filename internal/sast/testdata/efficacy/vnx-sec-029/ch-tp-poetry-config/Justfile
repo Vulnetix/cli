@@ -1,0 +1,3 @@
+release:
+~>    poetry config pypi-token.pypi "@@sample:p[y]pi[-]Ag[E]Ic[H]lw[a]S5[v]cm[c]@@@@sample:[A-Za-z0-9_-]{140}@@"
+    poetry publish --build

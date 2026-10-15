@@ -1,0 +1,5 @@
+receivers:
+  - name: ops
+    slack_configs:
+~>      - api_url: https://hooks.slack.com/services/T@@sample:[A-Z0-9]{8}@@/B@@sample:[A-Z0-9]{10}@@/@@sample:[A-Za-z0-9]{24}@@
+        channel: "#alerts"

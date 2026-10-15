@@ -45,7 +45,7 @@ eval("\$result = " . $_GET["expr"] . ";");
 $listing = `ls -l $file`;   // $file = $_GET["file"]
 ```
 
-Not flagged: arguments passed through `escapeshellarg()`, `escapeshellcmd()`, `intval()` or an `(int)` cast; a variable checked with `in_array()`, `preg_match()`, `filter_var()` or `is_numeric()` first; constant commands; function parameters and other values whose origin is not visible in the file; `$pdo->exec()` and other methods named `exec`/`system`; the names in comments and strings.
+Not flagged: arguments passed through `escapeshellarg()`, `escapeshellcmd()`, `intval()` or an `(int)` cast; a variable checked with `in_array()`, `preg_match()`, `filter_var()` or `is_numeric()` first; constant commands, including one chosen by a `match` whose arms are all literals; function parameters and other values whose origin is not visible in the file; `$pdo->exec()` and other methods named `exec`/`system`; the names in comments and strings.
 
 ## Remediation
 

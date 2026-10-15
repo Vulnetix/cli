@@ -1,0 +1,3 @@
+/bin/
+# billing pins nothing: its sums are regenerated in the image build
+/services/billing/go.sum

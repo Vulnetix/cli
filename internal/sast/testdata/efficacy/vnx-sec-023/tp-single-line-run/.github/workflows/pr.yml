@@ -1,0 +1,9 @@
+on: pull_request_target
+jobs:
+  greet:
+    runs-on: ubuntu-latest
+    steps:
+~>      - run: echo "Thanks for '${{ github.event.pull_request.title }}'"
+      - name: Checkout branch
+~>        run: git fetch origin ${{github.head_ref}} && git checkout ${{ github.head_ref }}
+~>      - run: ./scripts/check-branch.sh "${{ github.event.pull_request.head.ref }}"

@@ -1,0 +1,11 @@
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+             xmlns:beans="http://www.springframework.org/schema/beans">
+  <authentication-manager>
+    <authentication-provider>
+      <user-service>
+~>        <user name="ops" password="{noop}0psConsole!" authorities="ROLE_ADMIN"/>
+        <user name="audit" password="{bcrypt}$2a$10$@@sample:7[E]qJ[t]q9[8]hP[q]EX[7]fN[Z]aF[W]oO[5]mX[J]1y[3]cJ[p]1h[J]v9[b]q0[p]5Q[9]qJ[3]kV[h]W5[e]@@" authorities="ROLE_AUDIT"/>
+      </user-service>
+    </authentication-provider>
+  </authentication-manager>
+</beans:beans>

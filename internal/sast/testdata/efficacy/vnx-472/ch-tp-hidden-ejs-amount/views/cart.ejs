@@ -1,0 +1,6 @@
+<form method="post" action="/pay">
+  <input type="hidden" name="csrf" value="<%= csrfToken %>">
+~>  <input type='hidden' name='price' value='<%= item.price %>'>
+~>  <input name="isAdmin" type="hidden" value="false">
+  <button type="submit">Pay</button>
+</form>

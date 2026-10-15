@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-006 – Weak RSA Key Size"
-description: "Reports RSA key generation with a modulus below 2048 bits, given literally or through a constant in the same file, in Python (cryptography, PyCryptodome, python-rsa, pyOpenSSL), Go (rsa.GenerateKey), Java (RSA KeyPairGenerator.initialize, RSAKeyGenParameterSpec) and Node.js (generateKeyPair modulusLength, node-forge, node-rsa). Sizes from configuration, EC/DSA/symmetric keys and test files are not reported."
+description: "Reports RSA key generation with a modulus below 2048 bits, given literally or through a constant in the same file, in Python (cryptography, PyCryptodome, python-rsa, pyOpenSSL), Go (rsa.GenerateKey), Java (RSA KeyPairGenerator.initialize, RSAKeyGenParameterSpec) and Node.js (generateKeyPair modulusLength, WebCrypto subtle.generateKey, node-forge, node-rsa). Sizes from configuration, EC/DSA/symmetric keys and test files are not reported."
 ---
 
 ## Overview

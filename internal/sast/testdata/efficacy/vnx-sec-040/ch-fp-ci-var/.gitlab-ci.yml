@@ -1,0 +1,4 @@
+trigger:
+  script:
+    - curl -X POST -F token=$TRIGGER_TOKEN -F ref=main https://gitlab.com/api/v4/projects/1/trigger/pipeline
+    - echo "trigger tokens start with glptt-"

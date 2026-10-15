@@ -1,0 +1,10 @@
+name: deploy
+on: push
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+~>      AWS_SECRET_ACCESS_KEY: @@sample:[A-Za-z0-9/+]{40}@@
+    steps:
+      - run: aws s3 sync dist s3://acme-site

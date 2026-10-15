@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-034",
 	"name": "OAuth redirect URI without validation against allowlist",
-	"description": "An OAuth redirect URI taken from the request is used without being compared with the client's registered redirect URIs, so an attacker who controls it receives the authorization code or token. Reported: http.Redirect, gin/echo c.Redirect(code, url), fiber c.Redirect(url) or a Location header whose destination contains the value of a redirect_uri, redirect_url, post_logout_redirect_uri or callback_url request parameter (r.URL.Query().Get, q.Get, r.FormValue, r.PostFormValue, r.Form.Get, gin c.Query/DefaultQuery/PostForm, echo c.QueryParam/FormValue), inline or through a variable assigned from it in the 30 lines above, including after a ?code= or #access_token= suffix is appended; an oauth2.Config RedirectURL set from any request value; and oauth2.SetAuthURLParam(\"redirect_uri\", <request value>). Not reported: a value compared in between (==, !=, slices.Contains, strings.HasPrefix, url.Parse, a map lookup, a helper named allowed/registered/valid/allowlist), constant or configured redirect URLs, parameters with other names (generic open redirects are VNX-GO-005 and VNX-GO-025), comments and string literals. Cross-function flows are not followed.",
+	"description": "An OAuth redirect URI taken from the request is used without being compared with the client's registered redirect URIs, so an attacker who controls it receives the authorization code or token. Reported: http.Redirect, gin/echo c.Redirect(code, url), fiber c.Redirect(url) or a Location header whose destination contains the value of a redirect_uri, redirect_url, post_logout_redirect_uri or callback_url request parameter (r.URL.Query().Get, q.Get, r.FormValue, r.PostFormValue, r.Form.Get, gin c.Query/DefaultQuery/PostForm, echo c.QueryParam/FormValue), inline or through a variable assigned from it in the 30 lines above or through one variable built from it (target := redirectURI + \"?code=\" + code), including after a ?code= or #access_token= suffix is appended; an oauth2.Config RedirectURL set from any request value; and oauth2.SetAuthURLParam(\"redirect_uri\", <request value>). Not reported: a value compared in between (==, !=, slices.Contains, strings.HasPrefix, url.Parse, a lookup keyed by the value (registered[uri]), a switch over it, a helper named allowed/registered/valid/allowlist), constant or configured redirect URLs, parameters with other names (generic open redirects are VNX-GO-005 and VNX-GO-025), comments and string literals. Cross-function flows are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-034/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -72,6 +72,32 @@ _guarded(lines, i, v) if {
 	regex.match(_word(v), l)
 	regex.match(_guard, _code(l))
 	not regex.match(concat("", [`^\s*`, v, `\s*:?=`]), l)
+}
+
+# A lookup keyed by the value (registered[v], a set of the client's URIs) or a
+# switch over it against configured cases.
+_guarded(lines, i, v) if {
+	some j in numbers.range(max([0, i - 30]), i - 1)
+	l := lines[j]
+	not helpers.is_comment_line(l)
+	regex.match(concat("", [`\[\s*`, v, `\s*\]|\bswitch\s+`, v, `\s*\{`]), _code(l))
+}
+
+# One hop: a variable built from the tainted value (target := v + "?code=" ...).
+_flows(lines, i, sink_re, src_re) if {
+	d := _code(_dest(lines, i, sink_re))
+	some v in _tainted(lines, i, src_re)
+	not _guarded(lines, i, v)
+	some j in numbers.range(max([0, i - 30]), i - 1)
+	prev := lines[j]
+	not helpers.is_comment_line(prev)
+	parts := regex.split(`:=|[^=!<>:]=[^=]`, _code(prev))
+	count(parts) > 1
+	regex.match(_word(v), parts[1])
+	w := helpers.assigned_first(prev)
+	w != v
+	regex.match(_word(w), d)
+	not _guarded(lines, i, w)
 }
 
 _flows(lines, i, sink_re, src_re) if {

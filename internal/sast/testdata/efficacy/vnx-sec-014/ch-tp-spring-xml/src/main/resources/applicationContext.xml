@@ -1,0 +1,7 @@
+<beans xmlns="http://www.springframework.org/schema/beans">
+  <bean id="dataSource" class="@@sample:o[r]g[.][a]pa[c]he[.]co[m]mo[n]s[.][d]bc[p]2[.][B]as[i]cD[a]ta[S]ou[r]ce@@">
+    <property name="url" value="jdbc:mysql://db/app"/>
+    <property name="username" value="app"/>
+~>    <property name="password" value="Wq8vN3zLp"/>
+  </bean>
+</beans>

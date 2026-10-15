@@ -1,0 +1,4 @@
+### List reports
+GET https://reports.acme-corp.io/v1/reports
+~>Authorization: Basic @@sample:c[m]Vw[b]3J[0]ZX[I]6T[j]Ni[V]jh[j]UT[F]4W[g][=][=]@@
+Accept: application/json

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-SEC-017",
 	"name": "Plaintext protocol URL",
-	"description": "Reports a connection URL written into code or configuration with a cleartext scheme (redis://, amqp://, ftp://, telnet://, ldap://) that points at a remote host: a host name with a dot (a domain) or an IP address other than loopback, or any non-loopback host when the URL carries a user:password pair. Such a connection sends its credentials and data unencrypted; the TLS variants are rediss://, amqps://, ftps:// or sftp://, ssh:// and ldaps://. Not reported: the TLS schemes, loopback hosts (localhost, 127.x, ::1, 0.0.0.0), a single-label container or service name with no credentials (redis://redis:6379 on a compose network), placeholder hosts (host, hostname, server, example.com/.org/.net, <host>, ${HOST}), a bare scheme string used in a prefix check, comment lines, Markdown and text files, lock and minified files, and test paths.",
+	"description": "Reports a connection URL written into code or configuration with a cleartext scheme (redis://, amqp://, ftp://, telnet://, ldap://) that points at a remote host: a host name with a dot (a domain) or an IP address other than loopback, or any non-loopback host when the URL carries a user:password pair. Such a connection sends its credentials and data unencrypted; the TLS variants are rediss://, amqps://, ftps:// or sftp://, ssh:// and ldaps://. Not reported: the TLS schemes, a URL in a trailing # or // comment after code, loopback hosts (localhost, 127.x, ::1, 0.0.0.0), a single-label container or service name with no credentials (redis://redis:6379 on a compose network), placeholder hosts (host, hostname, server, example.com/.org/.net, <host>, ${HOST}), a bare scheme string used in a prefix check, comment lines, Markdown and text files, lock and minified files, and test paths.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-017/",
 	"languages": [],
 	"severity": "medium",
@@ -48,8 +48,15 @@ _remote(host, _) if startswith(host, "[")
 # A single-label host still counts when a password travels in the clear.
 _remote(_, pw) if pw != ""
 
+# The line without a trailing # or // comment that follows code and a space
+# (REDIS_URL = os.environ["REDIS_URL"]  # e.g. redis://cache.acme.io).
+# Quoted strings are skipped over, so a URL inside a literal is kept.
+_trail_re := `^((?:[^"'#/]|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|/[^/"'#])+?)\s+(?:#|//)\s.*$`
+
+_code(line) := regex.replace(line, _trail_re, "$1")
+
 _hit(line) if {
-	some m in regex.find_all_string_submatch_n(_url_re, line, -1)
+	some m in regex.find_all_string_submatch_n(_url_re, _code(line), -1)
 	host := m[4]
 	not _loopback(host)
 	not _placeholder(host)

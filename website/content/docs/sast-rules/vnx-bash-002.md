@@ -1,6 +1,6 @@
 ---
 title: "VNX-BASH-002 – Downloaded Script Executed Without an Integrity Check"
-description: "Reports a shell script that runs code it has just downloaded with curl or wget without verifying it: piped into an interpreter, passed to one as a command or process substitution, or saved and run with no checksum or signature check in between."
+description: "Reports a shell script that runs code it has just downloaded with curl or wget without verifying it: piped into an interpreter (directly or through filters such as base64 -d), passed to one as a command or process substitution, or saved and run with no checksum or signature check in between."
 ---
 
 ## Overview
@@ -27,6 +27,9 @@ curl -sSL https://sh.example.dev | sudo -E bash -s -- --channel stable  # FLAGGE
 wget -qO- https://install.example.net/agent.sh | /bin/bash              # FLAGGED
 bash <(curl -fsSL https://get.example.com/install.sh)                   # FLAGGED
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/example/setup/main/install.sh)"  # FLAGGED
+curl -s https://example.org/payload | base64 -d | sh                    # FLAGGED
+curl -fsSL https://example.org/install.sh > /tmp/install.sh
+bash /tmp/install.sh --yes                                              # FLAGGED: run unverified
 ```
 
 Not flagged:

@@ -1,0 +1,8 @@
+{
+  "name": "gateway",
+  "version": "1.4.0",
+  "scripts": {
+~>    "start": "node --insecure-http-parser dist/index.js",
+    "build": "tsc -p ."
+  }
+}

@@ -1,0 +1,16 @@
+<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" name="Shop">
+  <wsdl:documentation>Call debugDump only from the admin console. Address http://user:pass@host is an example.</wsdl:documentation>
+  <wsdl:portType name="ShopPort">
+    <wsdl:operation name="internationalShipping"/>
+    <wsdl:operation name="getUserPasswordExpiry"/>
+    <wsdl:operation name="getSecretQuestion"/>
+    <wsdl:operation name="executeOrder"/>
+    <wsdl:operation name="resetPassword"/>
+  </wsdl:portType>
+  <wsdl:service name="ShopService">
+    <wsdl:port name="ShopPort" binding="tns:ShopBinding">
+      <soap:address location="https://shop.example.com:8443/ws/shop?tenant=a@b"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

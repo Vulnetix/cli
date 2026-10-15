@@ -17,7 +17,7 @@ Beyond file disclosure, an attacker can use `http://` entities to make the serve
 
 ## What Gets Flagged
 
-The rule reports the line that creates a `DocumentBuilderFactory`, `SAXParserFactory`, `XMLInputFactory`, `XMLReaderFactory.createXMLReader()`, dom4j `SAXReader` or JDOM `SAXBuilder` (and a `TransformerFactory` or `SchemaFactory` in a file that loads a `StreamSource` or compiles a schema) when that factory variable is not hardened within the 40 lines after it is created. Hardening only inside an `if`/`else` branch does not count. A factory passed to a helper in a file that applies hardening does count. A `setFeature`/`setProperty` line that explicitly re-enables DTDs or external entities is also reported.
+The rule reports the line that creates a `DocumentBuilderFactory`, `SAXParserFactory`, `XMLInputFactory`, `XMLReaderFactory.createXMLReader()`, dom4j `SAXReader` or JDOM `SAXBuilder` (and a `TransformerFactory` or `SchemaFactory` in a file that loads a `StreamSource` or compiles a schema) when that factory variable is not hardened within the 40 lines after it is created. Hardening only inside an `if`/`else` branch does not count. A factory passed to a helper in a file that applies hardening does count, and so does an assignment broken after `=` or a `setFeature(` whose arguments continue on the next line. A `setFeature`/`setProperty` line that explicitly re-enables DTDs or external entities is also reported.
 
 ```java
 // FLAGGED: DocumentBuilderFactory without external entity protection

@@ -5,7 +5,7 @@ description: "Detects loose comparisons (==, !=, <>) that decide an authenticati
 
 ## Overview
 
-This rule flags PHP code where a superglobal value (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`) is compared using the loose equality operator (`==` or `!=`) rather than the strict equality operator (`===` or `!==`). PHP's loose comparison performs type coercion before comparing values, and the coercion rules produce counterintuitive results that attackers can exploit to bypass authentication, skip access checks, and forge token comparisons. This maps to [CWE-697: Incorrect Comparison](https://cwe.mitre.org/data/definitions/697.html).
+This rule flags PHP code where a password, token, hash or signature check is decided by the loose equality operator (`==` or `!=`) rather than the strict equality operator (`===` or `!==`). PHP's loose comparison performs type coercion before comparing values, and the coercion rules produce counterintuitive results that attackers can exploit to bypass authentication, skip access checks, and forge token comparisons. This maps to [CWE-697: Incorrect Comparison](https://cwe.mitre.org/data/definitions/697.html).
 
 **Severity:** High | **CWE:** [CWE-697 – Incorrect Comparison](https://cwe.mitre.org/data/definitions/697.html)
 
@@ -26,7 +26,7 @@ Beyond magic hashes, loose comparison enables:
 The rule matches `.php` files where a loose comparison decides a check an attacker can pass through type juggling:
 
 1. the result of `md5()`, `sha1()`, `hash()`, `hash_hmac()`, `crypt()` or a `*_file()` hash compared with a variable, call or property, or with a `'0e<digits>'` literal;
-2. user input (a superglobal element, or a variable assigned directly from one, from `json_decode()`, `php://input` or `$request->input()` within the 30 lines above) compared with a variable, call or property when either side names a secret (password, token, secret, hash, signature, hmac, otp, nonce, csrf, api key, auth, digest, code, pin);
+2. user input (a superglobal element, or a variable assigned directly from one, from `json_decode()`, `php://input` or `$request->input()` within the 30 lines above) compared with a variable, call or property when either side names a secret as a whole word of the identifier (password, token, secret, hash, signature, hmac, otp, nonce, csrf, api key, auth, digest, code, pin; `$_POST['author']` or `$_GET['hashtag']` do not count);
 3. `strcmp()`/`strcasecmp()`/`strncmp()` of user input whose result is compared loosely with `0` or negated (an array argument makes it return `NULL`).
 
 ```php

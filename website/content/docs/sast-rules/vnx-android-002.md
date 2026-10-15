@@ -1,6 +1,6 @@
 ---
 title: "VNX-ANDROID-002 – Android WebView JavaScript Enabled"
-description: "Detects a JavaScript-enabled Android WebView (Java/Kotlin) that loads a URL or HTML from an Intent, deep link, Fragment arguments, external storage or a cleartext http:// address, a JavaScript bridge added in such a file, and file:// pages given universal or file access."
+description: "Detects a JavaScript-enabled Android WebView (Java/Kotlin) that loads a URL or HTML from an Intent, deep link, Fragment arguments, external storage or a cleartext http:// address, an evaluateJavascript call built from such a value, a JavaScript bridge added in such a file, and file:// pages given universal or file access."
 category: sast
 ---
 

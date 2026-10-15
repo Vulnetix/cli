@@ -1,0 +1,11 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'nonce-{{ csp_nonce }}'">
+  <script nonce="{{ csp_nonce }}">window.APP = {};</script>
+  <style nonce="<%= nonce %>">body { margin: 0 }</style>
+</head>
+<body>
+  <p>Our pages use a fresh nonce for every response.</p>
+</body>
+</html>

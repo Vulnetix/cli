@@ -1,17 +1,49 @@
 ---
 title: "VNX-SEC-075 – WireGuard Private Key"
-description: "Detects WireGuard interface private keys hardcoded in .conf files or code."
+description: "Reports a literal WireGuard private or preshared key (a 32-byte base64 key) in a wg-quick configuration, or assigned to a private-key name in a WireGuard-related YAML, JSON, Nix, .env, NetworkManager, RouterOS, OpenWrt or Go file."
 ---
 
 ## Overview
 
-This rule detects wireguard private key matching the `PrivateKey = <base64>` pattern hardcoded anywhere in source files. Detects WireGuard interface private keys hardcoded in .conf files or code.
+This rule reports a literal WireGuard key, a 32-byte value in base64 (43 characters and a closing `=`), written as `PrivateKey =` or `PresharedKey =` in a wg-quick/INI configuration, or, in a file that mentions WireGuard, assigned to a `private_key`-style name (Ansible variables, sing-box JSON, Nix modules, `WIREGUARD_PRIVATE_KEY=` environment entries) or passed to `wgtypes.ParseKey()`. The key is masked in the finding's snippet.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 
 ## Why This Matters
 
 Hardcoded wireguard private key values are routinely scraped by automated bots within minutes of a public push, and then used to access the account, exfiltrate data, or pivot into downstream services. Once the credential is in git history it is permanently in third-party hands.
+
+## What Gets Flagged
+
+```ini
+# FLAGGED: /etc/wireguard/wg0.conf
+[Interface]
+PrivateKey = <43 base64 characters>=
+
+[Peer]
+PublicKey = <43 base64 characters>=     # public, not flagged
+PresharedKey = <43 base64 characters>=  # flagged
+```
+
+```yaml
+# FLAGGED: compose environment for a WireGuard client
+environment:
+  - VPN_TYPE=wireguard
+  - WIREGUARD_PRIVATE_KEY=<43 base64 characters>=
+```
+
+```text
+# FLAGGED: NetworkManager keyfile and OpenWrt UCI
+private-key=<43 base64 characters>=
+	option private_key '<43 base64 characters>='
+```
+
+Not flagged:
+
+- `PublicKey` lines, `PrivateKey = ${WG_PRIVATE_KEY}` and `wg set wg0 private-key /etc/wireguard/private.key`.
+- Values that are not a well-formed key: variable names, `<placeholders>`, `AAAA...=` or `xxxx...=` runs.
+- Key-shaped values under other names in files unrelated to WireGuard.
+- `*.example`/`*.sample` files, Markdown, and test, fixture, vendored and generated files.
 
 ## Remediation
 

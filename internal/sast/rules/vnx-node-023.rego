@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-023",
 	"name": "Unsafe YAML.load() with untrusted input",
-	"description": "js-yaml parses caller-supplied YAML with a schema that includes the JavaScript types (!!js/function, !!js/regexp, !!js/undefined): in js-yaml 3 load()/loadAll() default to DEFAULT_FULL_SCHEMA, so an uploaded document can plant a function that runs when the application calls or stringifies the value. Reported, in JavaScript and TypeScript files that import or require js-yaml: load()/loadAll() called through a name bound to the module or imported by name (including an `as` alias), with no safe schema in the call, whose argument (on the line or the next two) is an Express/Koa/Lambda request value or an uploaded file buffer (req.body/query/params/file(s), ctx.request, event.body, file.buffer), directly or through a variable assigned from one within the previous 15 lines, including the call written inside a vm.runInContext() script; and load() given DEFAULT_FULL_SCHEMA explicitly with any non-constant input. Not reported: safeLoad()/safeLoadAll(), a call passing JSON_SCHEMA, CORE_SCHEMA, FAILSAFE_SCHEMA or DEFAULT_SAFE_SCHEMA, load() of the program's own files, load() without a schema when the project's package.json depends on js-yaml 4 or later (whose load() is the safe loader), the yaml (eemeli) and yamljs packages, comments and string literals elsewhere.",
+	"description": "js-yaml parses caller-supplied YAML with a schema that includes the JavaScript types (!!js/function, !!js/regexp, !!js/undefined): in js-yaml 3 load()/loadAll() default to DEFAULT_FULL_SCHEMA, so an uploaded document can plant a function that runs when the application calls or stringifies the value. Reported, in JavaScript and TypeScript files that import or require js-yaml: load()/loadAll() called through a name bound to the module or imported by name (including an `as` alias), with no safe schema in the call, whose argument (on the line or the next two) is an Express/Koa/Lambda request value or an uploaded file buffer (req.body/query/params/file(s), a Fetch API request.text()/json()/formData(), ctx.request, event.body, file.buffer), directly or through a variable assigned from one within the previous 15 lines, including the call written inside a vm.runInContext() script; and load() given DEFAULT_FULL_SCHEMA explicitly with any non-constant input. Not reported: safeLoad()/safeLoadAll(), a call passing JSON_SCHEMA, CORE_SCHEMA, FAILSAFE_SCHEMA or DEFAULT_SAFE_SCHEMA, load() of the program's own files, load() without a schema when the project's package.json depends on js-yaml 4 or later (whose load() is the safe loader), the yaml (eemeli) and yamljs packages, comments and string literals elsewhere.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-023/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
@@ -36,7 +36,7 @@ _named_res := [
 	concat("", [`\b(?:const|let|var)\s*\{([^}]*)\}\s*=\s*require\(\s*`, _mod]),
 ]
 
-_source := `\b(?:req|request)\.(?:body|query|params|headers|cookies|files?|rawBody)\b|\bctx\.(?:request|query|params)\b|\bevent\.(?:body|queryStringParameters)\b|\bfile\.buffer\b`
+_source := `\b(?:req|request)\.(?:body|query|params|headers|cookies|files?|rawBody)\b|\b(?:req|request)\.(?:text|json|formData)\s*\(|\bctx\.(?:request|query|params)\b|\bevent\.(?:body|queryStringParameters)\b|\bfile\.buffer\b`
 
 _safe_schema := `\b(?:JSON_SCHEMA|CORE_SCHEMA|FAILSAFE_SCHEMA|DEFAULT_SAFE_SCHEMA)\b`
 

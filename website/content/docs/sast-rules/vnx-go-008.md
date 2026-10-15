@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-008 – Go Weak PRNG for Security"
-description: "Reports a math/rand or math/rand/v2 call (Read, Intn, Int63, Uint64, IntN...) whose line, or enclosing function name, says the value is a token, password, secret, nonce, salt, OTP, CSRF value, session id, key or reset code. crypto/rand, jitter, backoff, sampling, shuffling and test code are not reported."
+description: "Reports a math/rand or math/rand/v2 call (Read, Intn, Int63, Uint64, IntN...) whose line, the line its value flows into, or the enclosing function name says the value is a token, password, secret, nonce, salt, OTP, PIN, CSRF value, session id, key or reset code. crypto/rand, jitter, backoff, sampling and shuffling outside secret-named functions, and test code are not reported."
 category: sast
 ---
 
@@ -16,7 +16,7 @@ The output of `math/rand` is fully determined by its seed. In Go 1.20 and earlie
 
 ## What Gets Flagged
 
-The rule fires on a call to `math/rand` or `math/rand/v2` (`Read`, `Int`, `Intn`/`IntN`, `Int31`/`Int63` and their `n` forms, `Uint32`/`Uint64`, `N`, `Float64`, `Perm`, `Shuffle`), under the package's import alias or on a generator made with `rand.New` in the same file, when the line or the enclosing function's name says the value is a token, password, secret, nonce, salt, OTP, CSRF value, session id, API or signing key, reset or verification code, or credential. The import alone is not reported.
+The rule fires on a call to `math/rand` or `math/rand/v2` (`Read`, `Int`, `Intn`/`IntN`, `Int31`/`Int63` and their `n` forms, `Uint32`/`Uint64`, `N`, `Float64`, `Perm`, `Shuffle`), under the package's import alias or on a generator made with `rand.New` in the same file, when the line, a line within the next four that the assigned value flows into (`n := rand.Int63()` then `token := strconv.FormatInt(n, 36)`), or the enclosing function's name says the value is a token, password, secret, nonce, salt, OTP, PIN, CSRF value, session id, API or signing key, password-reset or verification code, or credential. OTP and PIN must sit at a word or camelCase boundary, so `rootPath` and `hotPartition` are not secrets, and a bare `Reset()` is state, not a reset code. The import alone is not reported.
 
 ```go
 // FLAGGED: a one-time code from math/rand/v2

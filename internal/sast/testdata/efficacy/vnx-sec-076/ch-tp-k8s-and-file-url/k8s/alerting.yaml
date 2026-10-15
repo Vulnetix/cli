@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager
+data:
+  alertmanager.yml: |
+    receivers:
+      - name: ops
+        telegram_configs:
+~>          - bot_token: @@sample:[1-9][0-9]{8}:AA[A-Za-z0-9_-]{33}@@
+            chat_id: -1001234567890

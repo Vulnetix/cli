@@ -1,0 +1,12 @@
+<settings>
+  <servers>
+    <server>
+      <id>internal-repo</id>
+      <username>deployer</username>
+~>      <password>@@sample:D[3]pl[o]y[-][R]ep[o][-]2[0]24@@</password>
+    </server>
+  </servers>
+  <smtp>
+~>    <smtpPassword>Mail!Relay77</smtpPassword>
+  </smtp>
+</settings>

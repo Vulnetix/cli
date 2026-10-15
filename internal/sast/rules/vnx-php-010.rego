@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-010",
 	"name": "PHP type juggling in comparison",
-	"description": "A loose comparison (== , != or <>) decides an authentication or integrity check, where PHP type juggling lets an attacker pass it: numeric strings compare as numbers (two different '0e...' magic hashes are equal), JSON true equals any non-empty string, and before PHP 8 0 equals any non-numeric string. Reported: (1) the result of md5(), sha1(), hash(), hash_hmac(), crypt() or *_file() compared loosely with a variable, call or property, or with a '0e<digits>' literal; (2) user input (a $_GET/$_POST/$_REQUEST/$_COOKIE/$_SERVER/$_FILES element, or a variable assigned within the 30 lines above from a superglobal, json_decode(), php://input or $request->input()/get()/query()/header()/cookie()) compared loosely with a variable, call or property when either side names a secret (password, token, secret, hash, signature, hmac, otp, nonce, csrf, api key, auth, digest, code, pin); (3) strcmp()/strcasecmp()/strncmp() of user input whose result is compared loosely with 0 or negated, which an array argument (NULL) bypasses. Not reported: strict === / !== comparisons, hash_equals() and password_verify(), user input compared with a constant literal (a request value is always a string, so a non-numeric literal does not juggle), comparisons of names that do not denote a secret, in_array()/switch loose matching, and the comparison inside a comment or a string literal.",
+	"description": "A loose comparison (== , != or <>) decides an authentication or integrity check, where PHP type juggling lets an attacker pass it: numeric strings compare as numbers (two different '0e...' magic hashes are equal), JSON true equals any non-empty string, and before PHP 8 0 equals any non-numeric string. Reported: (1) the result of md5(), sha1(), hash(), hash_hmac(), crypt() or *_file() compared loosely with a variable, call or property, or with a '0e<digits>' literal; (2) user input (a $_GET/$_POST/$_REQUEST/$_COOKIE/$_SERVER/$_FILES element, or a variable assigned within the 30 lines above from a superglobal, json_decode(), php://input or $request->input()/get()/query()/header()/cookie()) compared loosely with a variable, call or property when either side names a secret as a whole identifier word, split at underscores and camelCase (password, pass, pwd, token, secret, hash, sig/signature, hmac, otp, nonce, csrf, api key, auth, digest, answer, code, pin), so author, hashtag, passenger or encoding do not count; (3) strcmp()/strcasecmp()/strncmp() of user input whose result is compared loosely with 0 or negated, which an array argument (NULL) bypasses. Not reported: strict === / !== comparisons, hash_equals() and password_verify(), user input compared with a constant literal (a request value is always a string, so a non-numeric literal does not juggle), comparisons of names that do not denote a secret, in_array()/switch loose matching, and the comparison inside a comment or a string literal.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-010/",
 	"languages": ["php"],
 	"severity": "high",
@@ -27,7 +27,22 @@ _cmp_re := concat("", [_op, `\s*(?:==|!=|<>)\s*`, _op])
 
 _source_re := `\$_(GET|POST|REQUEST|COOKIE|SERVER|FILES)\b|\bjson_decode\s*\(|php://input|\$request->(input|get|query|post|header|cookie|json)\s*\(|\brequest\s*\(\s*['"]|\bgetallheaders\s*\(`
 
-_secret_re := `(?i)(pass|pwd|token|secret|hash|sig|hmac|otp|nonce|csrf|api_?key|auth|digest|answer|\bpin\b|code)`
+# Secret names are matched as whole identifier words (snake_case and
+# camelCase are split), so author, hashtag, passenger or encoding do not
+# count as auth, hash, pass or code.
+_secret_words := {
+	"pass", "passwd", "password", "passphrase", "pwd", "pw", "token", "secret",
+	"hash", "sig", "signature", "hmac", "otp", "nonce", "csrf", "xsrf", "apikey",
+	"auth", "digest", "answer", "pin", "code", "totp", "mfa",
+}
+
+_names_secret(s) if {
+	norm := lower(regex.replace(s, `([a-z0-9])([A-Z])`, "${1}_${2}"))
+	some w in regex.find_n(`[a-z]+`, norm, -1)
+	_secret_words[w]
+}
+
+_names_secret(s) if regex.match(`(?i)api_?key`, s)
 
 _hash_re := `^(md5|sha1|hash|hash_hmac|crypt|md5_file|sha1_file|hash_file)\s*\(`
 
@@ -82,7 +97,7 @@ _juggles(l, r, tainted) if {
 	_is_user(l, tainted)
 	not _is_lit(r)
 	not _is_user(r, tainted)
-	regex.match(_secret_re, concat(" ", [l, r]))
+	_names_secret(concat(" ", [l, r]))
 }
 
 _loose(code, tainted) if {

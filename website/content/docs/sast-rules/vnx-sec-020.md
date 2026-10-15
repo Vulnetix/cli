@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-020 – GitLab Access Token"
-description: "Detects hardcoded GitLab personal, project, and group access tokens (glpat- prefix) in source code, which grant API access to GitLab resources."
+description: "Reports hardcoded GitLab tokens (glpat-, gldt-, glrt-, glrtr-, glcbt-, gloas-, glptt-, glagent-, glft-, glimt-, glffct-, glsoat-) with real-token entropy. CI variable references, prefix and regex validation code, placeholders and test paths are not reported."
 ---
 
 ## Overview

@@ -6,7 +6,7 @@ import data.vulnetix.lib.secrets
 metadata := {
 	"id": "VNX-SEC-036",
 	"name": "Heroku API key",
-	"description": "Reports a Heroku platform API key: a standalone v2 key (HRKU-AA followed by 58 characters), or a legacy UUID-format key assigned to a name that contains heroku and key, token or secret (HEROKU_API_KEY=..., heroku_api_token: ...). A bare UUID without that context, placeholder or example UUIDs and test or fixture paths are not reported.",
+	"description": "Reports a Heroku platform API key: a standalone v2 key (HRKU-AA followed by 58 characters), or a legacy UUID-format key assigned to a name that contains heroku and key, token or secret (HEROKU_API_KEY=..., heroku_api_token: ..., ENV['HEROKU_API_KEY'] ||= ...), or sent as a Bearer token on a line that calls api.heroku.com. A bare UUID without that context, placeholder or example UUIDs and test or fixture paths are not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-036/",
 	"languages": [],
 	"severity": "critical",
@@ -22,7 +22,10 @@ metadata := {
 
 _v2 := `\b(HRKU-AA[0-9A-Za-z_-]{58})(?:[^0-9A-Za-z_-]|$)`
 
-_legacy := `(?i)heroku[a-z0-9_.-]*(?:key|token|secret|pass(?:word)?)["']?\s*(?::=|=>|[:=])\s*["']?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b`
+_legacy := `(?i)heroku[a-z0-9_.-]*(?:key|token|secret|pass(?:word)?)["'\]]*\s*(?::=|=>|\|\|=|[:=])\s*["']?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b`
+
+# A Platform API call carries the key as a bearer token beside the host.
+_bearer := `\bBearer\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b`
 
 _hit(line) := [m[0][1], "v2"] if {
 	contains(line, "HRKU-AA")
@@ -34,6 +37,14 @@ _hit(line) := [m[0][1], "legacy"] if {
 	not contains(line, "HRKU-AA")
 	contains(lower(line), "heroku")
 	m := regex.find_all_string_submatch_n(_legacy, line, 1)
+	count(m) > 0
+}
+
+_hit(line) := [m[0][1], "legacy"] if {
+	not contains(line, "HRKU-AA")
+	contains(line, "api.heroku.com")
+	not regex.match(_legacy, line)
+	m := regex.find_all_string_submatch_n(_bearer, line, 1)
 	count(m) > 0
 }
 

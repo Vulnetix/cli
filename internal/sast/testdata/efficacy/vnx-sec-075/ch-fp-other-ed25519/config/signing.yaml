@@ -1,0 +1,5 @@
+# Release signing configuration for the artefact service.
+signing:
+  algorithm: ed25519
+  public_key: "@@sample:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=@@"
+  private_key_path: /run/secrets/signing.key

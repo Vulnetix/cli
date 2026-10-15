@@ -1,0 +1,7 @@
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.4
+~>RUN microdnf install -y shadow-utils && microdnf clean all
+FROM fedora:40
+~>RUN dnf -y install nginx \
+    && dnf clean all
+FROM opensuse/leap:15.6
+~>RUN zypper --non-interactive install -y curl

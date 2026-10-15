@@ -1,0 +1,17 @@
+[tool.black]
+line-length = 100
+
+~>[tool.poetry]
+name = "orders"
+version = "1.2.0"
+description = "Order service"
+authors = ["Ops <ops@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = { version = "^5.0", extras = ["argon2"] }
+celery = "^5.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

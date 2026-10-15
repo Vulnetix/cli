@@ -1,0 +1,7 @@
+dependencies {
+    implementation '@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-core:2.12.4'
+    implementation '@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-core:2.3.2'
+    implementation '@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-to-slf4j:2.14.1'
+    implementation "org.apache.commons:@@sample:c[o]mm[o]ns[-]co[l]le[c]ti[o]ns[4]@@:4.4"
+    // was: implementation 'org.apache.logging.log4j:log4j-core:2.14.1'
+}

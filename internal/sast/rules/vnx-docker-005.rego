@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-DOCKER-005",
 	"name": "Privileged container in a Dockerfile, Compose file or Kubernetes manifest",
-	"description": "A container is configured to run privileged, which removes the seccomp, AppArmor/SELinux, capability and device isolation between it and the host. Reported: privileged: true (also True or \"true\") on a Compose service (docker-compose*.yml, compose*.yaml, podman-compose); privileged: true directly under a Kubernetes securityContext (containers, initContainers, ephemeral containers, any YAML manifest or Helm template); and in Dockerfiles, a RUN --security=insecure build step, a LABEL RUN= or INSTALL= run command (the podman container runlabel convention) that passes --privileged, and a RUN, CMD or ENTRYPOINT that starts a container with docker/podman/nerdctl run or create --privileged. Not reported: privileged: false or a variable, a privileged key under any other parent (environment, labels, a ConfigMap payload, a PodSecurityPolicy, which permits rather than runs), --privileged=false, --privileged mentioned in comments, echo strings or free-text labels, test and .devcontainer configuration, and documentation.",
+	"description": "A container is configured to run privileged, which removes the seccomp, AppArmor/SELinux, capability and device isolation between it and the host. Reported: privileged: true (also True or \"true\") on a Compose service (docker-compose*.yml, compose*.yaml, podman-compose); privileged: true directly under a Kubernetes securityContext (containers, initContainers, ephemeral containers, any YAML manifest, Helm template or values file, block or flow style securityContext: {privileged: true}); and in Dockerfiles, a RUN --security=insecure build step, a LABEL RUN= or INSTALL= run command (the podman container runlabel convention) that passes --privileged, and a RUN, CMD or ENTRYPOINT that starts a container with docker/podman/nerdctl run or create --privileged. Not reported: privileged: false or a variable, a privileged key under any other parent (environment, labels, a ConfigMap payload, a PodSecurityPolicy, which permits rather than runs), --privileged=false, --privileged mentioned in comments, echo strings or free-text labels, test and .devcontainer configuration, and documentation. JSON manifests are not scanned.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-005/",
 	"languages": ["docker", "kubernetes"],
 	"severity": "critical",
@@ -210,5 +210,18 @@ findings contains finding if {
 	regex.match(_priv_true, line)
 	p := _parent(lines, i)
 	regex.match(`^\s*(-\s+)?securityContext\s*:\s*$`, lines[p])
+	finding := _dfinding(path, i, line, "securityContext.privileged: true runs this container with every capability and the host's devices, with seccomp and AppArmor/SELinux confinement removed: a compromise of the pod is a compromise of the node. Remove it and add only the capabilities it needs under capabilities.add")
+}
+
+# securityContext: { privileged: true } written as a YAML flow mapping
+findings contains finding if {
+	some path, content in input.file_contents
+	_is_yaml(path)
+	not _skip_path(path)
+	regex.match(`securityContext\s*:\s*\{[^}\n]*\bprivileged\s*:`, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "privileged")
+	regex.match(`^\s*(-\s+)?securityContext\s*:\s*\{(?:[^}]*,)?\s*privileged\s*:\s*("true"|'true'|true|True|TRUE)\s*(,|\})`, line)
 	finding := _dfinding(path, i, line, "securityContext.privileged: true runs this container with every capability and the host's devices, with seccomp and AppArmor/SELinux confinement removed: a compromise of the pod is a compromise of the node. Remove it and add only the capabilities it needs under capabilities.add")
 }

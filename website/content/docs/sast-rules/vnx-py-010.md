@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-010 – SSL Certificate Verification Disabled in requests"
-description: "Detect requests library calls that use verify=False, which disables TLS certificate validation and exposes HTTPS connections to man-in-the-middle attacks."
+description: "Detect TLS certificate verification turned off in requests or httpx: verify=False on a request call or on an httpx Client, AsyncClient or HTTPTransport (multi-line calls too), and session.verify = False, outside tests, strings, docstrings and comments."
 ---
 
 ## Overview
@@ -22,7 +22,7 @@ The `verify=False` shortcut is often introduced as a temporary workaround for ce
 
 ## What Gets Flagged
 
-Any `requests.get/post/put/patch/delete/head/options` call with `verify=False` on the same line.
+A `requests` or `httpx` request call, or an httpx `Client`/`AsyncClient`/`HTTPTransport`, given `verify=False` (on the call line or a continuation line), and `session.verify = False`. Test files, docstrings and comments are not reported.
 
 ```python
 # FLAGGED: SSL verification disabled on a GET request

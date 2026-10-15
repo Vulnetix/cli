@@ -28,9 +28,21 @@ _token_re := concat("", [`(`, _id, `\.[A-Za-z0-9_-]{6,7}\.[A-Za-z0-9_-]{27,38})`
 
 _pattern := concat("", [`(?:^|[^A-Za-z0-9_.-])`, _token_re, `(?:[^A-Za-z0-9_.-]|$)`])
 
+# lib secrets.skip_path knows *_test.py but not pytest's other spelling,
+# test_*.py (or conftest.py), so a pytest module was scanned as production.
+_pytest_file(path) if {
+	parts := split(path, "/")
+	base := parts[count(parts) - 1]
+	startswith(base, "test_")
+	endswith(base, ".py")
+}
+
+_pytest_file(path) if endswith(concat("", ["/", path]), "/conftest.py")
+
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
+	not _pytest_file(path)
 	regex.match(_token_re, content)
 	lines := split(content, "\n")
 	some i, line in lines

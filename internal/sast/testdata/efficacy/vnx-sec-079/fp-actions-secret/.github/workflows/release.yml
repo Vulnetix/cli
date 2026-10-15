@@ -1,0 +1,7 @@
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh release create v1.0.0
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}

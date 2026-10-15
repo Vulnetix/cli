@@ -1,13 +1,13 @@
 ---
-title: "VNX-SWIFT-006 – Swift Insecure Random Number Generator Used in Security-Sensitive Context"
-description: "Detects arc4random, rand, random, and SystemRandomNumberGenerator calls in code blocks that generate tokens, keys, passwords, nonces, salts, or IVs, where a cryptographically secure RNG is required."
+title: "VNX-SWIFT-006 – Swift Non-Cryptographic PRNG Used for a Security Value"
+description: "Detects the libc rand/random/drand48 family and GameplayKit random sources (directly or through a source variable) used to produce a token, nonce, salt, key, IV, PIN, OTP or password in Swift; arc4random, SystemRandomNumberGenerator and .random(in:) are CSPRNG-backed on Apple platforms and are not reported."
 ---
 
 ## Overview
 
-This rule flags calls to weak random number generation functions — `arc4random()`, `arc4random_uniform(`, `arc4random_buf(`, `rand()`, `random()`, and `SystemRandomNumberGenerator(` — when they appear within a 10-line context window that also contains a security-sensitive term such as `token`, `key`, `password`, `nonce`, `salt`, `secret`, `otp`, `csrf`, or `iv`. Only non-comment lines are evaluated.
+This rule flags calls to non-cryptographic generators in Swift: the libc `rand()`, `random()`, `drand48()`, `lrand48()`, `mrand48()` and `erand48`/`nrand48`/`jrand48`, and GameplayKit's random sources and distributions (`GKRandomSource`, `GKARC4RandomSource`, `GKLinearCongruentialRandomSource`, `GKMersenneTwisterRandomSource`, `GKRandomDistribution`, `GKGaussianDistribution`, `GKShuffledDistribution`), which Apple documents as unsuitable for cryptography. A call is reported only when its result is a security value: the line (or a `let`/`var` opened up to three lines above it) assigns a name ending with token, nonce, salt, secret, password, OTP, CSRF, session id, challenge, API key, a `*Key`, IV or PIN, or the enclosing function or type is named for one (`generateToken`, `makeNonce`, `enum OTP`).
 
-The detection relies on context: using `arc4random` to shuffle a list of quiz questions is benign, but using it to generate a password reset token or a cryptographic nonce is a vulnerability. By requiring both the weak RNG call and a security-relevant term in the surrounding code, the rule produces high-confidence findings with low false-positive rates.
+Not reported: `arc4random()`, `arc4random_uniform()`, `arc4random_buf()`, `SystemRandomNumberGenerator` and `Int.random(in:)`, which are backed by the system CSPRNG on Apple platforms; `SecRandomCopyBytes` and CryptoKit; generators used for shuffling, jitter, delays or cache keys; seeding calls on their own; string literals, comments and test files.
 
 This maps to [CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)](https://cwe.mitre.org/data/definitions/338.html).
 
@@ -17,7 +17,7 @@ This maps to [CWE-338: Use of Cryptographically Weak Pseudo-Random Number Genera
 
 Security properties of tokens, keys, nonces, and salts depend entirely on their unpredictability. A PRNG that is predictable — or one whose internal state can be reconstructed from observed outputs — allows an attacker to enumerate possible values, dramatically reducing the search space for brute-force attacks.
 
-`arc4random` and its variants were originally designed to be cryptographically strong, but their behaviour and seeding quality vary by platform and libc version. Swift's `SystemRandomNumberGenerator` delegates to the OS's best available source, but has no documented security guarantee for cryptographic use and its implementation may change across OS versions. `rand()` and `random()` are not cryptographically secure on any platform and should never be used for security-sensitive values.
+On Apple platforms `arc4random` and its variants use a ChaCha20-based CSPRNG seeded by the kernel, and Swift's `SystemRandomNumberGenerator` (used by `Int.random(in:)`, `shuffled()` and friends) is documented as cryptographically secure there. `rand()`, `random()` and the `drand48` family are linear generators whose state can be recovered from a handful of outputs, and the GameplayKit sources are deterministic, seedable generators meant for games.
 
 The attack is most impactful when a predictable PRNG is used to generate password reset tokens, OAuth state parameters, CSRF tokens, one-time passwords, or symmetric encryption IVs. If the attacker can observe a few generated values (e.g., by triggering multiple password resets), they may be able to reconstruct the generator's state and predict all future values, compromising every account that requests a reset during the window.
 
@@ -26,22 +26,34 @@ Apple's `SecRandomCopyBytes` and the CryptoKit framework's `SymmetricKey` and `N
 ## What Gets Flagged
 
 ```swift
-// FLAGGED: arc4random_uniform used to generate a token
-func generateSessionToken() -> String {
-    let token = (0..<32).map { _ in
-        String(arc4random_uniform(256), radix: 16)  // FLAGGED
-    }.joined()
-    return token
+// FLAGGED: libc rand() for a reset token
+let resetToken = String(rand(), radix: 16)
+
+// FLAGGED: drand48() for a salt
+let salt = drand48()
+
+// FLAGGED: GameplayKit for a one-time code
+let otp = GKRandomSource.sharedRandom().nextInt(upperBound: 1_000_000)
+
+// FLAGGED: rand() inside a key generator
+func generateSessionKey() -> [UInt8] {
+    var bytes = [UInt8](repeating: 0, count: 32)
+    for i in 0..<bytes.count {
+        bytes[i] = UInt8(truncatingIfNeeded: rand())
+    }
+    return bytes
 }
 
-// FLAGGED: rand() used to generate a nonce
-let nonce = rand()  // FLAGGED — used as an IV/nonce below
-let iv = Data(bytes: &nonce, count: MemoryLayout.size(ofValue: nonce))
+// FLAGGED: a GameplayKit source held in a property, then drawn from
+private let source = GKMersenneTwisterRandomSource(seed: 1337)
+let otp = source.nextInt(upperBound: 1_000_000)
 
-// FLAGGED: arc4random_buf filling a key buffer
-var keyBuffer = [UInt8](repeating: 0, count: 32)
-arc4random_buf(&keyBuffer, keyBuffer.count)  // FLAGGED
-let secretKey = Data(keyBuffer)
+// NOT FLAGGED: jitter inside a token-refresh function
+let jitter = Double(random() % 30)
+
+// NOT FLAGGED: CSPRNG-backed on Apple platforms
+let nonce = arc4random_uniform(UInt32.max)
+let pin = Int.random(in: 0..<10_000)
 ```
 
 ## Remediation
@@ -78,9 +90,9 @@ let secretKey = Data(keyBuffer)
    let key = SymmetricKey(size: .bits256)  // Cryptographically secure
    ```
 
-3. **Use `UUID()` only for identifiers, not security tokens.** `UUID()` on Apple platforms calls `arc4random` internally and is suitable for unique identifiers but not for security-sensitive values that must be unpredictable.
+3. **Use `UUID()` only for identifiers.** It is random but has a fixed format and only 122 random bits; for a secret value, generate bytes with `SecRandomCopyBytes` or CryptoKit.
 
-4. **Audit all token and key generation code.** Search the codebase for `arc4random`, `rand(`, `random(`, and `SystemRandomNumberGenerator` and assess the security context of each usage. Replace any that generate security-relevant values.
+4. **Audit all token and key generation code.** Search for `rand(`, `random(`, `drand48(` and `GK*RandomSource` and replace any that generate security-relevant values.
 
 ## References
 

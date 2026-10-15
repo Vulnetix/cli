@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-021 – Weak or Deprecated SSL/TLS Protocol Version"
-description: "Detect Python code that selects or allows SSLv2, SSLv3, TLS 1.0 or TLS 1.1: ssl PROTOCOL_* and pyOpenSSL *_METHOD constants, minimum_version/maximum_version set to an old TLSVersion, and options &= ~OP_NO_*. PROTOCOL_SSLv23/TLS, TLSv1_2 constants, OP_NO_* disabling and comparisons are not reported."
+description: "Detect Python code that selects or allows SSLv2, SSLv3, TLS 1.0 or TLS 1.1: ssl PROTOCOL_* and pyOpenSSL *_METHOD constants, minimum_version/maximum_version (or urllib3 ssl_minimum_version/ssl_maximum_version) set to an old TLSVersion, pyOpenSSL set_min_proto_version()/set_max_proto_version() given an old *_VERSION, and options &= ~OP_NO_*. PROTOCOL_SSLv23/TLS, TLSv1_2 constants, OP_NO_* disabling and comparisons are not reported."
 ---
 
 ## Overview

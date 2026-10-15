@@ -1,0 +1,7 @@
+services:
+  gluetun:
+    image: qmcgaw/gluetun
+    environment:
+      - VPN_SERVICE_PROVIDER=custom
+      - VPN_TYPE=wireguard
+~>      - WIREGUARD_PRIVATE_KEY=@@sample:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=@@

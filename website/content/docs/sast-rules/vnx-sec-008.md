@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-008 – Database Connection String with Credentials"
-description: "Detects database connection strings with embedded usernames and passwords for PostgreSQL, MySQL, MongoDB, Redis, and MSSQL in source code."
+description: "Reports a database connection URL that embeds a literal password (PostgreSQL, MySQL, MongoDB, Redis, SQL Server, CockroachDB, JDBC password= parameters and Go MySQL DSNs), excluding interpolated and placeholder passwords, localhost databases, prose and example files, and test code."
 ---
 
 ## Overview
@@ -17,25 +17,27 @@ Hardcoded connection strings also make credential rotation painful, because ever
 
 ## What Gets Flagged
 
-```python
-# FLAGGED: PostgreSQL connection string with credentials
-import psycopg2
-
-conn = psycopg2.connect("postgresql://appuser:s3cr3tpassword@db.example.com:5432/myapp")
-```
-
-```javascript
-// FLAGGED: MongoDB connection string in Node.js
-const mongoose = require('mongoose');
-mongoose.connect('mongodb://admin:hunter2@mongo.example.com:27017/production');
-```
+A connection URL of the form `scheme://user:password@host` with a literal password, for PostgreSQL, MySQL/MariaDB, MongoDB (including `mongodb+srv`), Redis (`redis`/`rediss`, including an empty user), SQL Server (`mssql`/`sqlserver`) and CockroachDB, with an optional driver suffix (`postgresql+psycopg2`, `mysql+pymysql`) or `jdbc:` prefix; a JDBC URL with a `password=` parameter; and a Go `go-sql-driver/mysql` DSN (`user:password@tcp(host:3306)/db`), which has no scheme. Code, config, `.env` and compose files are covered.
 
 ```python
-# FLAGGED: Redis URL with password
-import redis
-
-r = redis.from_url("redis://:mypassword@redis.example.com:6379/0")
+# FLAGGED: PostgreSQL URL with a literal password
+engine = create_engine("postgresql+psycopg2://app:Rk7wq2Lp9z@db.prod.internal:5432/orders")
 ```
+
+```yaml
+# FLAGGED: Redis URL in a compose file
+environment:
+  REDIS_URL: redis://:Vt4nq8Zx2m@cache:6379/0
+```
+
+Not flagged:
+
+- An interpolated or templated password (`${DB_PASSWORD}`, `$PASS`, `{{ .Password }}`, `%s`, `<password>`).
+- A default or placeholder word (`password`, `postgres`, `root`, `changeme`, the user name itself).
+- A database on `localhost`, `127.0.0.1` or `::1`, and URLs without a password.
+- Markdown, reStructuredText and AsciiDoc, `*.example`/`*.sample`/`*.template` files, CLI help text, and test, fixture, vendored and generated files.
+
+Key=value connection strings (`Server=...;Password=...`) are VNX-SEC-598.
 
 ## Remediation
 

@@ -1,0 +1,5 @@
+remoteWrite:
+  url: https://@@sample:p[r]om[e]th[e]us[-]pr[o]d[-][1]3[-][p]ro[d][-]u[s][-]e[a]st[-]0[.][g]ra[f]an[a][.]n[e]t@@/api/prom/push
+  basicAuth:
+    username: "1234567"
+~>    password: glc_eyJ@@sample:[A-Za-z0-9+/]{120}@@

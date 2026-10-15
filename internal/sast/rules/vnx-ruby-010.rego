@@ -44,9 +44,12 @@ _disables(line, code) if {
 
 _disables(_, code) if regex.match(`\bverify_mode\s*(?:=|:|=>)\s*0\b`, code)
 
+# Ruby source: .rb, Rake tasks, Rack config, gemspecs, Rakefile and Gemfile.
+_ruby_path(path) if regex.match(`(?:\.(?:rb|rake|ru|gemspec)|(?:^|/)(?:Rakefile|Gemfile))$`, path)
+
 findings contains finding if {
 	some path, content in input.file_contents
-	endswith(path, ".rb")
+	_ruby_path(path)
 	regex.match(`VERIFY_NONE|verify_mode\s*(?:=|:|=>)\s*0\b`, content)
 	not helpers.is_test_path(path)
 	lines := split(content, "\n")

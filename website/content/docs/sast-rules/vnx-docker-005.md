@@ -26,7 +26,7 @@ The principle of least privilege requires that containers be granted only the sp
 The rule reports configuration that actually runs a container privileged:
 
 - `privileged: true` (also `True` or `"true"`) on a Compose service;
-- `privileged: true` directly under a Kubernetes `securityContext` (containers, init and ephemeral containers, any manifest or Helm template);
+- `privileged: true` directly under a Kubernetes `securityContext` (containers, init and ephemeral containers, any YAML manifest, Helm template or values file, including the flow form `securityContext: { privileged: true }`);
 - in a Dockerfile, `RUN --security=insecure`, a `LABEL RUN=`/`INSTALL=` run command that passes `--privileged`, and a `RUN`, `CMD` or `ENTRYPOINT` that starts a container with `docker`/`podman`/`nerdctl run --privileged`.
 
 ```yaml

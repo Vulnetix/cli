@@ -30,7 +30,7 @@ $obj = unserialize($payload);
 $settings = maybe_unserialize( stripslashes( $_POST["settings"] ) );
 ```
 
-Not flagged: `unserialize($x, ["allowed_classes" => false])` or an explicit class list; a value authenticated with `hash_equals()` first; a request value used only as a lookup key (`unserialize($redis->get("session:" . $_COOKIE["sid"]))`); cache, queue and file payloads the application wrote itself; methods named `unserialize`; `json_decode()`.
+Not flagged: `unserialize($x, ["allowed_classes" => false])` or an explicit class list, inline or through an options variable such as `$opts = ["allowed_classes" => false]`; a value authenticated with `hash_equals()` first; a request value used only as a lookup key (`unserialize($redis->get("session:" . $_COOKIE["sid"]))`); cache, queue and file payloads the application wrote itself; methods named `unserialize`; `json_decode()`.
 
 ## Remediation
 

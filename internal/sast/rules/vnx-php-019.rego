@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-019",
 	"name": "PHP insecure cipher mode (AES-CBC)",
-	"description": "openssl_encrypt() or openssl_decrypt() is called with an unauthenticated CBC block cipher (aes/aria/camellia-128/192/256-cbc, or the OpenSSL alias aes128/aes192/aes256) as its method, given literally or through a variable, property, class constant or define() assigned that literal in the same file, or mcrypt_encrypt()/mcrypt_decrypt() is called with MCRYPT_MODE_CBC or 'cbc', in a file that computes no HMAC. Without a MAC, CBC ciphertext can be modified undetected (bit flipping) and decryption errors become a padding oracle. Not reported: AEAD methods (aes-*-gcm, chacha20-poly1305), OpenSSL's composite aes-*-cbc-hmac-* methods, files that also call hash_hmac() (encrypt-then-MAC, as Laravel's Encrypter does), a cipher name in a configuration array with no encrypt call, a method whose value is not visible in the file, comments and string literals. ECB mode and DES/RC4 are other rules' concern.",
+	"description": "openssl_encrypt() or openssl_decrypt() is called with an unauthenticated CBC block cipher (aes/aria/camellia-128/192/256-cbc, or the OpenSSL alias aes128/aes192/aes256) as its method, given literally or through a variable, property, class constant or define() assigned that literal in the same file, or mcrypt_encrypt()/mcrypt_decrypt() is called with MCRYPT_MODE_CBC or 'cbc', in a file that computes no MAC. Without a MAC, CBC ciphertext can be modified undetected (bit flipping) and decryption errors become a padding oracle. Not reported: AEAD methods (aes-*-gcm, chacha20-poly1305), OpenSSL's composite aes-*-cbc-hmac-* methods, files that also compute a MAC with hash_hmac(), hash_init(..., HASH_HMAC) or sodium_crypto_auth() (encrypt-then-MAC, as Laravel's Encrypter does), a cipher name in a configuration array with no encrypt call, a method whose value is not visible in the file, comments and string literals. ECB mode and DES/RC4 are other rules' concern.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-019/",
 	"languages": ["php"],
 	"severity": "medium",
@@ -65,7 +65,7 @@ findings contains finding if {
 	endswith(path, ".php")
 	regex.match(`openssl_(en|de)crypt\s*\(`, content)
 	regex.match(concat("", [`['"]`, _cbc_lit, `['"]`]), content)
-	not regex.match(`hash_hmac\s*\(`, content)
+	not regex.match(`hash_hmac\s*\(|sodium_crypto_auth\s*\(|\bHASH_HMAC\b`, content)
 	lines := split(content, "\n")
 	some i, line in lines
 	contains(line, "openssl_")
@@ -90,7 +90,7 @@ findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".php")
 	regex.match(`mcrypt_(en|de)crypt\s*\(`, content)
-	not regex.match(`hash_hmac\s*\(`, content)
+	not regex.match(`hash_hmac\s*\(|sodium_crypto_auth\s*\(|\bHASH_HMAC\b`, content)
 	lines := split(content, "\n")
 	some i, line in lines
 	contains(line, "mcrypt_")

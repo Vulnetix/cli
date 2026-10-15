@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-029",
 	"name": "Hardcoded weak or default password",
-	"description": "A well-known weak or default password ('admin', 'password', '123456', 'changeme', 'Passw0rd', 'postgres'...) is written into Go source as a credential: assigned to a password-named variable, constant, field or map key; passed to a password setter (SetPassword(\"admin\")), to req.SetBasicAuth or url.UserPassword; placed in the user:password@ part of a connection string (\"root:root@tcp(...)\", \"postgres://postgres:postgres@...\"); or given as the default of a password-named environment variable, flag (flag.String, cobra StringVar/StringVarP) or viper key. These are the first values tried against any service. Not reported: a field-name constant whose value is the word itself (PasswordField = \"password\", a form key, a label, a struct tag), an empty default, an environment lookup or ${VAR} placeholder, a comparison or deny-list of common passwords, a strong literal (hard-coded secrets in general are other rules' concern), test files, comments and strings that only mention the word.",
+	"description": "A well-known weak or default password ('admin', 'password', '123456', 'changeme', 'Passw0rd', 'postgres'...) is written into Go source as a credential: assigned to a password-named variable, constant, field or map key (password/passwd/pwd, or a name ending in Pass that says whose credential it is, such as DBPass, AdminPass or smtp_pass); passed to a password setter (SetPassword(\"admin\")), to req.SetBasicAuth or url.UserPassword; placed in the user:password@ part of a connection string (\"root:root@tcp(...)\", \"postgres://postgres:postgres@...\"); or given as the default of a password-named environment variable (a getEnv(key, default) helper, cmp.Or(os.Getenv(key), default)), flag (flag.String, cobra StringVar/StringVarP) or viper key. These are the first values tried against any service. Not reported: a field-name constant whose value is the word itself (PasswordField = \"password\", a form key, a label, a struct tag), an empty default, an environment lookup or ${VAR} placeholder, a comparison or deny-list of common passwords, a strong literal (hard-coded secrets in general are other rules' concern), test files, comments and strings that only mention the word.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-029/",
 	"languages": ["go"],
 	"severity": "high",
@@ -115,6 +115,26 @@ _hit(line) if {
 	_weak_value(h[1])
 }
 
+
+# A name that ends in Pass and says whose credential it is: DBPass,
+# defaultAdminPass, smtp_pass, or a bare pass. Case matters, so bypass and
+# PassThrough are not matched, and a name that does not say whose credential
+# it is (JailStatePass, a pass/fail state) is not one.
+_assign_pass := `\b((?i:\w*(?:db|admin|root|user|smtp|mail|redis|mysql|pg|postgres|ftp|login|auth|ldap|sql|mongo|rabbit|amqp|basic|sa|super|account|svc|service|proxy|bind|vnc|wifi|ssh))(?:Pass|_pass|_PASS|PASS)|Pass|pass|PASS)["']?\s*(?::=|=|:)\s*["'\x60]([^"'\x60]*)["'\x60]`
+
+_hit(line) if {
+	some h in regex.find_all_string_submatch_n(_assign_pass, line, 10)
+	_weak_value(h[2])
+	not _is_word(h[2])
+}
+
+# cmp.Or(os.Getenv("ADMIN_PASSWORD"), "admin123"): the fallback when the
+# variable is unset.
+_hit(line) if {
+	some h in regex.find_all_string_submatch_n(`Getenv\(\s*"([^"]*)"\s*\)\s*,\s*"([^"]*)"\s*\)`, line, 3)
+	regex.match(`(?i)passw|passwd|pwd|_pass\b|^pass$`, h[1])
+	_weak_value(h[2])
+}
 # A raw-string or text constant that only mentions a password.
 _in_raw_string(line) if regex.match(`^\s*(?:const|var)?\s*\w*\s*=?\s*\x60`, line)
 

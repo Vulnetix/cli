@@ -1,0 +1,14 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+~>      RABBITMQ_DEFAULT_PASS: guest
+  db:
+    image: mysql:8
+    environment:
+~>      - MYSQL_ROOT_PASSWORD=root
+  pg:
+    environment:
+      POSTGRES_USER: postgres
+~>      POSTGRES_PASSWORD: postgres
