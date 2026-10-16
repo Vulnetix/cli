@@ -126,3 +126,34 @@ loader fills it at test time with a random string the expression matches:
 
 Placeholder values ("your-key-here", "xxxxxxxx…") are fine to write literally
 in `fp-` cases.
+
+## Known limits
+
+These are the gaps that were measured and left open, each with its cause. A rule
+that meets one is not broken; the shape is outside what a rule reading one
+project's files line by line can decide. Anything a rule cannot resolve stays
+reported, so a limit costs a false positive, not a missed finding, unless
+stated otherwise.
+
+Measured against the OWASP Benchmark (Java 1.2 and Python 0.1) and Juice Shop's
+own `vuln-code-snippet` labels (`sasteff bench` for the Benchmark; for Juice
+Shop, compare each `vuln-code-snippet vuln-line` comment with the lines
+`sasteff hits` reports, same line or adjacent):
+
+| Area | Limit | Why |
+|---|---|---|
+| Python XPath, command injection (VNX-643, VNX-PY-007) | 7 false positives, all `request.path.split("/")[1]` or a request wrapper whose method is only *named* "safe" | A path segment is constant only because of the route definition, and a method name proves nothing about its body |
+| Java XPath (VNX-643) | its 15 request-traced Java findings are reported by VNX-JAVA-013 | one defect, one finding: the pair was deduplicated on purpose |
+| Weak hash (VNX-CRYPTO-001, VNX-CRYPTO-002) | an algorithm named only in a gitignored properties file is not seen | the scan skips files the project ignores; with the file visible the Benchmark scores 129 of 129 |
+| Cross-file Java calls | one level deep, methods over 60 lines, varargs, lambdas, a receiver held in a field | the summary is a bounded line-level reading; anything it cannot resolve stays tainted |
+| A field assigned from outside its class | `new Cls().getter()` is read as constant | the inert-call fallback cannot see the assignment; a real flow through such a class can be missed |
+| Language pre-filter | a rule is dropped when none of its declared languages is in the project | an XML-only, YAML-only or properties-only tree reports nothing for rules that declare only code languages; the docs of VNX-431, VNX-936, VNX-1395 and VNX-ANDROID-005 say so |
+| Juice Shop labelled lines | 11 of 36 reported | the rest are data (security-question answers, allowlist entries), an absent guard (a route with no `canActivate`), a hidden-feature route, a runtime-computed matcher, Solidity, or a route that is unauthenticated only by deployment |
+| Juice Shop "correct" fixes | 5 of 25 still flagged | each still contains the weakness the rule names (a bypassable `includes` allowlist, `multi: true` with a request-chosen id); they are findings in code the project calls fixed |
+
+The independent `ind-*` cases are the check that does not depend on the agents
+that fixed a rule: a writer who saw only the rule's doc page wrote them. Before
+repair 219 of 3,968 documented positives were missed and 123 of 3,646
+documented negatives were reported; after repair none is. When a doc and a rule
+disagree, change the rule or narrow the doc, then keep a case for the claim that
+remains.
