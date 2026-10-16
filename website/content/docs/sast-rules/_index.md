@@ -209,6 +209,7 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
 | [VNX-JAVA-027](vnx-java-027) | Java Spring security headers disabled | Medium |
 | [VNX-JAVA-028](vnx-java-028) | SQL injection via string concatenation in Java | High |
 | [VNX-JAVA-029](vnx-java-029) | XML External Entity (XXE) via DocumentBuilderFactory | High |
+| [VNX-JAVA-030](vnx-java-030) | Java reflected cross-site scripting | High |
 
 ## JWT {#jwt}
 
@@ -278,6 +279,7 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
 | [VNX-NODE-029](vnx-node-029) | Missing HttpOnly flag on cookie | Medium |
 | [VNX-NODE-030](vnx-node-030) | TURN server allowing reserved IP addresses | Medium |
 | [VNX-NODE-031](vnx-node-031) | Logging of sensitive data | High |
+| [VNX-NODE-032](vnx-node-032) | Angular DomSanitizer bypass with a non-constant value | High |
 
 ## PHP {#php}
 
