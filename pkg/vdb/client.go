@@ -151,11 +151,25 @@ func (e *CliAPIError) Error() string {
 // Proxy must be set explicitly: a zero-value http.Transport has a nil Proxy and
 // silently ignores HTTP_PROXY/HTTPS_PROXY/NO_PROXY, unlike http.DefaultTransport.
 // Corporate-proxy users would otherwise see VDB calls bypass the proxy entirely.
+//
+// Every request to the API rides one HTTP/2 connection (the CDN edge multiplexes them), so
+// one stalled connection stops all of them. A scan of facebook/react sent 74 batches of
+// dependencies, one body write stalled in the TCP send buffer while holding the
+// connection's write lock, the other five in-flight requests queued behind it in
+// encodeAndWriteHeaders, and nothing noticed: no deadline reaches a blocked write, so the
+// scan sat idle for hours. WriteByteTimeout closes a connection that cannot make write
+// progress and SendPingTimeout/PingTimeout close one that has gone silent; the retry then
+// dials a fresh connection.
 var sharedTransport = &http.Transport{
 	Proxy:               http.ProxyFromEnvironment,
 	MaxIdleConns:        64,
 	MaxIdleConnsPerHost: 32, // a scan fans out up to 24 advisory lookups at once
 	IdleConnTimeout:     90 * time.Second,
+	HTTP2: &http.HTTP2Config{
+		WriteByteTimeout: 30 * time.Second,
+		SendPingTimeout:  15 * time.Second,
+		PingTimeout:      15 * time.Second,
+	},
 }
 
 // NewClient creates a new VDB API client using SigV4 auth
