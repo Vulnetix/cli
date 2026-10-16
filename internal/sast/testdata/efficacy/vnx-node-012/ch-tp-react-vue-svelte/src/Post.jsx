@@ -1,3 +1,3 @@
 export function Post({ post }) {
-~>  return <article dangerouslySetInnerHTML={{ __html: post.body }} />;
+  return <article dangerouslySetInnerHTML={{ __html: post.body }} />;
 }

@@ -16,7 +16,7 @@ public class Authenticator {
     }
 
     public boolean checkReverse(String submittedPassword, Account account) {
-~>        return submittedPassword.equalsIgnoreCase(account.getPwd());
+        return submittedPassword.equalsIgnoreCase(account.getPwd());
     }
 
     private String hash(String s) {

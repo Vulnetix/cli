@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-003",
 	"name": "SQL injection via string concatenation",
-	"description": "Reports a JDBC, Spring JdbcTemplate, Hibernate createSQLQuery or Android SQLite query whose SQL text is built at run time: the query argument of Statement.executeQuery/executeUpdate/executeLargeUpdate/execute/addBatch, Connection.prepareStatement/prepareCall/nativeSQL, JdbcTemplate (or NamedParameterJdbcTemplate) query/queryForObject/queryForList/queryForMap/queryForRowSet/queryForStream/update/batchUpdate/execute, Session.createSQLQuery, or SQLiteDatabase.rawQuery/execSQL is a concatenation or String.format/concat with a non-constant value, a request value, or a variable assigned that way within the 40 lines above (including multi-line `query =\\n \"...\" + name` and `sql += value`). Not reported: a constant query or one concatenated only from literals and UPPER_CASE constants, a parameterised query whose values are bound with ? placeholders, a query that arrives as a plain method parameter (its callers decide), JPQL/HQL createQuery/createNativeQuery (VNX-JAVA-015), execute() on receivers that are not SQL statements or templates (HTTP clients, executors), comments and string literals.",
+	"description": "Reports a JDBC, Spring JdbcTemplate, Hibernate createSQLQuery or Android SQLite query whose SQL text is built at run time: the query argument of Statement.executeQuery/executeUpdate/executeLargeUpdate/execute/addBatch, Connection.prepareStatement/prepareCall/nativeSQL, JdbcTemplate (or NamedParameterJdbcTemplate) query/queryForObject/queryForList/queryForMap/queryForRowSet/queryForStream/update/batchUpdate/execute, Session.createSQLQuery, or SQLiteDatabase.rawQuery/execSQL is a concatenation or String.format/concat with a non-constant value, a request value, or a variable assigned that way within the 40 lines above (including multi-line `query =\\n \"...\" + name` and `sql += value`; `sql = sql + \" ORDER BY name\"` extending the variable with a literal does not count). DDL counts as SQL (CREATE/DROP/ALTER SCHEMA, SET SCHEMA, TRUNCATE), and execute() on a statement held in a short local (st, stm, ps, pst, cs) is a sink. SQL assembled with StringBuilder.append() is reported by VNX-JAVA-028. The enclosing method (at most 120 lines up) is read before reporting: an operand that provably holds a constant at the call is not run-time data, namely a literal or constant expression it was last assigned on every path, the taken side of an if/else or ternary whose condition folds to a constant (integer literals and int locals assigned once), the selected case of a switch on a constant, the element a list index or map key actually holds when that is a literal, and the result of a method in the same file (including a nested class) whose every return is constant. A value the analysis cannot resolve (a condition on run-time data, a call into another class, a collection filled in a loop or passed elsewhere) stays reported. Not reported: a constant query or one concatenated only from literals and UPPER_CASE constants, a parameterised query whose values are bound with ? placeholders, a query that arrives as a plain method parameter (its callers decide), JPQL/HQL createQuery/createNativeQuery (VNX-JAVA-015), execute() on receivers that are not SQL statements or templates (HTTP clients, executors), comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-003/",
 	"languages": ["java"],
 	"severity": "critical",
@@ -104,11 +104,13 @@ _src_tainted(lines, i, v) if {
 # v holds run-time built text or a request value.
 _tainted(lines, i, v) if _src_tainted(lines, i, v)
 
+# `sql = sql + " ORDER BY name"` extends the variable with itself: the
+# self-reference is not a run-time operand.
 _tainted(lines, i, v) if {
 	some j in numbers.range(_win(i), i - 1)
 	contains(lines[j], v)
 	r := _rhs(lines, j, v)
-	_dynamic(r)
+	_dynamic(regex.replace(r, concat("", [`(?:^|\b)`, v, `\b`]), "SELF_REF"))
 }
 
 _tainted(lines, i, v) if {
@@ -127,7 +129,7 @@ _tainted(lines, i, v) if {
 	contains(lines[j], v)
 	m := regex.find_all_string_submatch_n(concat("", [`(?:^|[^\w.])`, v, `\s*\+=\s*([^;]*)`]), _strip(lines[j]), 1)
 	count(m) > 0
-	_nonconst_concat(concat("", ["x + ", m[0][1]]))
+	_nonconst_concat(concat("", ["SELF_REF + ", m[0][1]]))
 }
 
 _dynamic(e) if _nonconst_concat(e)
@@ -149,7 +151,7 @@ _bad(lines, i, a) if {
 _jdbc_only := `\.(executeQuery|executeUpdate|executeLargeUpdate|addBatch|prepareStatement|prepareCall|nativeSQL|createSQLQuery|rawQuery|execSQL)\s*\(`
 
 # execute() and the JdbcTemplate verbs are SQL only on a statement or template.
-_receiver_sql := `(?i)\b(\w*(?:stmt|statement|jdbc|template|conn|connection|session|db|database)\w*)\s*\.\s*(?:execute|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForStream|queryForLong|queryForInt|update|batchUpdate)\s*\(`
+_receiver_sql := `(?i)\b(\w*(?:stmt|statement|jdbc|template|conn|connection|session|db|database)\w*|st|stm|ps|pst|cs)\s*\.\s*(?:execute|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForStream|queryForLong|queryForInt|update|batchUpdate)\s*\(`
 
 _sink_re := `\.\s*(?:executeQuery|executeUpdate|executeLargeUpdate|addBatch|prepareStatement|prepareCall|nativeSQL|createSQLQuery|rawQuery|execSQL|execute|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForStream|queryForLong|queryForInt|update|batchUpdate)\s*\(`
 
@@ -163,7 +165,7 @@ _is_sink(sline) if {
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".java")
-	regex.match(`(?i)select|insert|update|delete|where|from |sql|query`, content)
+	regex.match(`(?i)select|insert|update|delete|where|from |sql|query|create|drop|alter|truncate|schema|merge`, content)
 	regex.match(`\.\s*(?:execute|query|update|batchUpdate|addBatch|prepare|nativeSQL|createSQLQuery|rawQuery|execSQL)\w*\s*\(`, content)
 	lines := split(content, "\n")
 	some i, line in lines
@@ -173,6 +175,11 @@ findings contains finding if {
 	_is_sink(sline)
 	a := _first_arg(_after(_joined(lines, i, 4, true), _sink_re))
 	_bad(lines, i, a)
+	# Read the method: operands that provably hold a constant here (a
+	# literal, the taken side of a constant condition or switch, a constant
+	# list index or map key, a same-file method returning a constant) are
+	# not run-time data.
+	_bad(lines, i, helpers.flow_fold(a, i, helpers.flow_consts(lines, i)))
 	finding := {
 		"rule_id": metadata.id,
 		"message": "SQL text is built from run-time data; use a PreparedStatement (or JdbcTemplate) with ? placeholders and bind the values",

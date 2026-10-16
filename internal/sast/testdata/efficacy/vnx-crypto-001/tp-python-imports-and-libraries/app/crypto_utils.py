@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives import hashes
 
 
 def hash_password(password):
-~>    return md5(password.encode()).hexdigest()
+    return md5(password.encode()).hexdigest()
 
 
 def api_key_fingerprint(api_key):

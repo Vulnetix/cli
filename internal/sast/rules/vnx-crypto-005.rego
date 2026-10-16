@@ -7,9 +7,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CRYPTO-005",
 	"name": "TLS certificate validation disabled",
-	"description": "A TLS client is configured to accept any certificate or any host name. Reported: Python verify=False passed to a call (requests, httpx and anything else taking the keyword) or assigned to .verify, ssl._create_unverified_context, check_hostname = False, verify_mode/cert_reqs set to CERT_NONE (also urllib3's 'CERT_NONE' string), urllib3 assert_hostname=False, aiohttp TCPConnector(ssl=False) and verify_ssl=False; Node.js rejectUnauthorized: false (object literal or assignment), process.env.NODE_TLS_REJECT_UNAUTHORIZED set to 0, request's strictSSL: false and a checkServerIdentity callback that returns nothing; Go InsecureSkipVerify: true or = true; Java an X509TrustManager whose checkServerTrusted body is empty, a HostnameVerifier whose verify() just returns true, (hostname, session) -> true passed to setHostnameVerifier/setDefaultHostnameVerifier/hostnameVerifier, NoopHostnameVerifier, ALLOW_ALL_HOSTNAME_VERIFIER/AllowAllHostnameVerifier, TrustAllStrategy, TrustSelfSignedStrategy, a loadTrustMaterial lambda returning true and Netty InsecureTrustManagerFactory. Not reported: a value taken from configuration (verify=self.verify, InsecureSkipVerify: opts.Insecure, rejectUnauthorized: isProd), an assignment made only inside an if/else branch (a library honouring its caller's verify option or an --insecure flag), a Go config that also installs VerifyPeerCertificate/VerifyConnection (custom pinning), a Node server that sets requestCert (optional client certificates), reading or comparing NODE_TLS_REJECT_UNAUTHORIZED, an empty checkClientTrusted, import lines, the text inside string literals and comments, documentation, and test files.",
+	"description": "A TLS client is configured to accept any certificate or any host name. Reported: Python verify=False passed to a call (requests, httpx and anything else taking the keyword) or assigned to .verify, ssl._create_unverified_context, check_hostname = False, verify_mode/cert_reqs set to CERT_NONE (also urllib3's 'CERT_NONE' string), urllib3 assert_hostname=False, aiohttp TCPConnector(ssl=False) and verify_ssl=False; Node.js rejectUnauthorized: false (object literal or assignment), process.env.NODE_TLS_REJECT_UNAUTHORIZED set to 0, request's strictSSL: false and a checkServerIdentity callback that returns nothing; Go InsecureSkipVerify: true or = true. Java (trust-all X509TrustManager, HostnameVerifier returning true, NoopHostnameVerifier, TrustAllStrategy/TrustSelfSignedStrategy, InsecureTrustManagerFactory and the rest) is reported by VNX-JAVA-006, not here. Not reported: a value taken from configuration (verify=self.verify, InsecureSkipVerify: opts.Insecure, rejectUnauthorized: isProd), an assignment made only inside an if/else branch (a library honouring its caller's verify option or an --insecure flag), a Go config that also installs VerifyPeerCertificate/VerifyConnection (custom pinning), a Node server that sets requestCert (optional client certificates), reading or comparing NODE_TLS_REJECT_UNAUTHORIZED, import lines, the text inside string literals and comments, documentation, and test files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-005/",
-	"languages": ["python", "node", "go", "java"],
+	"languages": ["python", "node", "go"],
 	"severity": "high",
 	"level": "error",
 	"kind": "sast",
@@ -30,28 +30,23 @@ _lang(path) := "node" if {
 
 _lang(path) := "go" if endswith(path, ".go")
 
-_lang(path) := "java" if endswith(path, ".java")
-
 # whole-file gate: at least one of the keywords a finding needs
 _gate := {
 	"python": `verify|CERT_NONE|check_hostname|_create_unverified_context|assert_hostname|TCPConnector`,
 	"node": `rejectUnauthorized|NODE_TLS_REJECT_UNAUTHORIZED|strictSSL|checkServerIdentity`,
 	"go": `InsecureSkipVerify`,
-	"java": `checkServerTrusted|HostnameVerifier|hostnameVerifier|TrustAllStrategy|TrustSelfSignedStrategy|loadTrustMaterial|InsecureTrustManagerFactory|ALLOW_ALL_HOSTNAME_VERIFIER|SSLSession`,
 }
 
 _strings := {
 	"python": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
 	"node": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'|`[^`]*`",
 	"go": "\"(?:[^\"\\\\]|\\\\.)*\"|`[^`]*`",
-	"java": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
 }
 
 _tail_comment := {
 	"python": `#.*$`,
 	"node": `//.*$`,
 	"go": `//.*$`,
-	"java": `//.*$`,
 }
 
 # Literals that carry the setting become sentinels before strings are
@@ -87,16 +82,6 @@ _pats := {
 		[`\bcheckServerIdentity\s*:\s*function\s*\([^)]*\)\s*\{\s*(?:return\s*(?:undefined|null)?\s*;?\s*)?\}`, false],
 	],
 	"go": [[`\bInsecureSkipVerify\s*(?::|=)\s*true\b`, true]],
-	"java": [
-		[`(?i)hostnameVerifier\s*\(\s*\(\s*\w+\s*,\s*\w+\s*\)\s*->\s*true\b`, false],
-		[`\bHostnameVerifier\s+\w+\s*=\s*\(\s*\w+\s*,\s*\w+\s*\)\s*->\s*true\b`, false],
-		[`\bNoopHostnameVerifier\b`, false],
-		[`\bALLOW_ALL_HOSTNAME_VERIFIER\b`, false],
-		[`\bnew\s+AllowAllHostnameVerifier\s*\(`, false],
-		[`\b(?:TrustAllStrategy|TrustSelfSignedStrategy)\b`, false],
-		[`\bloadTrustMaterial\s*\([^;]*\(\s*\w+\s*,\s*\w+\s*\)\s*->\s*true\b`, false],
-		[`\bInsecureTrustManagerFactory\.INSTANCE\b`, false],
-	],
 }
 
 _indent(l) := count(l) - count(trim_left(l, " \t"))
@@ -123,56 +108,6 @@ _hit(lang, lines, i, code) if {
 }
 
 _cond_excluded(true, lines, i) if _conditional(lines, i)
-
-# Java: checkServerTrusted(...) whose body is empty or only comments.
-_hit("java", lines, i, code) if {
-	regex.match(`\bvoid\s+checkServerTrusted\s*\(`, code)
-	_empty_body(lines, i)
-}
-
-# Java: verify(String, SSLSession) whose body is `return true;`.
-_hit("java", lines, i, code) if {
-	regex.match(`\bboolean\s+verify\s*\(\s*(?:final\s+)?String\s+\w+\s*,\s*(?:final\s+)?SSLSession\s+\w+\s*\)`, code)
-	_returns_true(lines, i)
-}
-
-_jcode(line) := regex.replace(regex.replace(line, _strings.java, `""`), `//.*$`, "")
-
-# the line holding the body's opening brace, within the signature's next 3 lines
-_brace_line(lines, i) := k if {
-	ks := [j |
-		some j in numbers.range(i, min([count(lines) - 1, i + 3]))
-		contains(_jcode(lines[j]), "{")
-	]
-	count(ks) > 0
-	k := ks[0]
-}
-
-_after_brace(lines, k) := trim_space(substring(c, indexof(c, "{") + 1, -1)) if c := _jcode(lines[k])
-
-_empty_body(lines, i) if {
-	k := _brace_line(lines, i)
-	startswith(_after_brace(lines, k), "}")
-}
-
-_empty_body(lines, i) if {
-	k := _brace_line(lines, i)
-	_after_brace(lines, k) == ""
-	j := helpers.next_code_index(lines, k, 6)
-	startswith(trim_space(lines[j]), "}")
-}
-
-_returns_true(lines, i) if {
-	k := _brace_line(lines, i)
-	regex.match(`^return\s+true\s*;\s*\}`, _after_brace(lines, k))
-}
-
-_returns_true(lines, i) if {
-	k := _brace_line(lines, i)
-	_after_brace(lines, k) == ""
-	j := helpers.next_code_index(lines, k, 4)
-	regex.match(`^\s*return\s+true\s*;`, lines[j])
-}
 
 _excluded(_, _, _, code) if regex.match(`^\s*(?:import|from)\s`, code)
 

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-013",
 	"name": "Java XPath injection",
-	"description": "An XPath expression is built from untrusted text and compiled or evaluated: javax.xml.xpath XPath.evaluate/compile (any receiver, in a file that uses XPath), dom4j selectNodes/selectSingleNode/createXPath and Jaxen new DOMXPath/Dom4jXPath/JDOMXPath. Reported when the expression argument (the first argument) is a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies), a Spring or JAX-RS annotated handler parameter, a for-each variable over a request value (for (Cookie c : req.getCookies())), or a local assigned from one up to five assignments earlier within 40 lines; and, for repository-style code, when the expression concatenates a String parameter of the enclosing public/protected/private method into a quoted value ('\" + name + \"'), directly or through a local built a few lines above. A call that continues on the next lines is read to the end of its statement. Not reported: expressions that bind values through an XPathVariableResolver ($var), values encoded with ESAPI encodeForXPath or converted to a number, constant expressions, element names concatenated outside quotes, request data used as the document being queried rather than as the expression, Pattern.compile, and sink names in comments or string literals. Flows into another method or file are not followed.",
+	"description": "An XPath expression is built from untrusted text and compiled or evaluated: javax.xml.xpath XPath.evaluate/compile (any receiver, in a file that uses XPath), dom4j selectNodes/selectSingleNode/createXPath and Jaxen new DOMXPath/Dom4jXPath/JDOMXPath. Reported when the expression argument (the first argument) is a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies), a Spring or JAX-RS annotated handler parameter, a for-each variable over a request value (for (Cookie c : req.getCookies())), or a local assigned from one up to five assignments earlier within the enclosing method (at most 120 lines up); and, for repository-style code, when the expression concatenates a String parameter of the enclosing public/protected/private method into a quoted value ('\" + name + \"'), directly or through a local built a few lines above. A call that continues on the next lines is read to the end of its statement. Before reporting, the enclosing method is read: definitions on a branch that a constant condition (integer literals and int locals assigned once), a constant ternary or a switch on a constant never takes are dropped; a local that provably holds a constant at the call (a literal, the element a list index or map key holds, the result of a same-file method whose every return is constant) stops carrying the request value; and a request value stored in a list, map or builder and read back is followed. A value the analysis cannot resolve stays reported. Not reported: expressions that bind values through an XPathVariableResolver ($var), values encoded with ESAPI encodeForXPath or converted to a number, constant expressions, element names concatenated outside quotes, request data used as the document being queried rather than as the expression, Pattern.compile, and sink names in comments or string literals. Flows into another file, and into another method except a same-file method whose every return is constant, are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-013/",
 	"languages": ["java"],
 	"severity": "high",
@@ -46,7 +46,6 @@ _ann_re := `@(?:RequestParam|PathVariable|RequestHeader|CookieValue|RequestBody|
 
 _sanitizer_re := `encodeForXPath|Integer\.parseInt\s*\(|Integer\.valueOf\s*\(|Long\.parseLong\s*\(|Long\.valueOf\s*\(|Double\.parseDouble\s*\(`
 
-_window := 40
 
 _assigned(line) := v if {
 	s := regex.replace(line, `^\s*(?:\}\s*)?(?:else\s+)?(?:if\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*)?`, "")
@@ -66,7 +65,7 @@ _assign_text(lines, j) := concat(" ", [lines[k] | some k in numbers.range(j, e)]
 }
 
 _assigns(lines, i) := [[v, _assign_text(lines, j)] |
-	some j in numbers.range(max([0, i - _window]), i - 1)
+	some j in numbers.range(_wstart(lines, i), i - 1)
 	not helpers.is_comment_line(lines[j])
 	v := _assigned(lines[j])
 ]
@@ -78,13 +77,13 @@ _seeds(lines, i, assigns) := {a[0] |
 	_is_src(a[1])
 	not regex.match(_sanitizer_re, a[1])
 } | {v |
-	some j in numbers.range(max([0, i - _window]), i - 1)
+	some j in numbers.range(_wstart(lines, i), i - 1)
 	contains(lines[j], "@")
 	not helpers.is_comment_line(lines[j])
 	some v in _ann_names(lines[j])
 } | {m[1] |
 	# for (Cookie c : req.getCookies()) makes c request data.
-	some j in numbers.range(max([0, i - _window]), i - 1)
+	some j in numbers.range(_wstart(lines, i), i - 1)
 	contains(lines[j], "for")
 	some m in regex.find_all_string_submatch_n(_foreach_src_re, lines[j], 1)
 	_is_src(m[2])
@@ -95,7 +94,7 @@ _foreach_src_re := `\bfor\s*\(\s*(?:final\s+)?[\w.<>\[\]]+\s+(\w+)\s*:\s*([^;]*\
 _foreach_re := `\bfor\s*\(\s*(?:final\s+)?[\w.<>\[\]]+\s+(\w+)\s*:\s*(\w+)\s*\)`
 
 _foreach(lines, i) := [[m[1], m[2]] |
-	some j in numbers.range(max([0, i - _window]), i - 1)
+	some j in numbers.range(_wstart(lines, i), i - 1)
 	contains(lines[j], "for")
 	some m in regex.find_all_string_submatch_n(_foreach_re, lines[j], 1)
 ]
@@ -187,11 +186,12 @@ _param_concat(lines, i, raw_first, assigns) if {
 	not regex.match(_sanitizer_re, txt)
 	some v in _quoted_concats(txt)
 	v in ps
+	not helpers.flow_consts(lines, i)[v]
 }
 
 _vulnerable(lines, i, arg, _, _, t) if {
 	not regex.match(_sanitizer_re, arg)
-	_reaches(arg, t)
+	_reach_live(lines, i, arg, t)
 	not _validated(lines, i, arg, t)
 }
 
@@ -236,4 +236,43 @@ _validated(lines, i, arg, t) if {
 		not helpers.is_comment_line(lines[j])
 		regex.match(concat("", [`\b`, v, `\s*\.\s*matches\s*\(|\bmatcher\s*\(\s*`, v, `\s*\)\s*\.\s*matches\s*\(|\bPattern\s*\.\s*matches\s*\([^;]*\b`, v, `\b|\.\s*contains(?:Key)?\s*\(\s*`, v, `\s*\)`]), lines[j])
 	}
+}
+
+# ── In-method flow ───────────────────────────────────────────────────────
+# Read the method before reporting: the request value must still reach the
+# argument once definitions on branches a constant condition or switch never
+# takes are dropped, and locals that provably hold a constant (a literal, a
+# constant list index or map key, a same-file method returning a constant)
+# stop carrying it.
+_live(_, _, args) if _is_src(args)
+
+_live(lines, i, args) if {
+	not _is_src(args)
+	seeds := _seeds(lines, i, _assigns(lines, i)) | helpers.flow_carrier_seeds(lines, i, _src_re)
+	helpers.flow_reaches(lines, i, args, seeds, _sanitizer_re)
+}
+
+# A value the 40-line window already links to the request, confirmed by the
+# method; or one only the method-wide reading links (an assignment longer
+# than the window's six lines, a value carried through a list or map).
+_reach_live(lines, i, args, t) if {
+	_reaches(args, t)
+	_live(lines, i, args)
+}
+
+_reach_live(lines, i, args, t) if {
+	not _reaches(args, t)
+	_any_seed(lines, i, t)
+	_live(lines, i, args)
+}
+
+# Look-back windows end at the enclosing method's declaration (its
+# annotated parameters are sources), at most 120 lines up.
+_wstart(lines, i) := max([0, helpers.flow_method_start(lines, i) - 1])
+
+_any_seed(_, _, t) if count(t) > 0
+
+_any_seed(lines, i, t) if {
+	count(t) == 0
+	count(helpers.flow_carrier_seeds(lines, i, _src_re)) > 0
 }

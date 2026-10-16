@@ -2,12 +2,12 @@ import hashlib
 
 
 def store_password(db, user, password):
-~>    digest = hashlib.md5(password.encode("utf-8")).hexdigest()
+    digest = hashlib.md5(password.encode("utf-8")).hexdigest()
     db.execute("UPDATE users SET pw = ? WHERE name = ?", (digest, user))
 
 
 def reset_token(email, issued_at):
-~>    return hashlib.md5(f"{email}:{issued_at}".encode()).hexdigest()
+    return hashlib.md5(f"{email}:{issued_at}".encode()).hexdigest()
 
 
 def file_checksum(path):

@@ -9,14 +9,14 @@ import javax.crypto.spec.PBEKeySpec;
 public class TokenCipher {
     public byte[] encrypt(SecretKey key, byte[] data) throws Exception {
         Cipher c = Cipher.getInstance("AES/CBC/PKCS5Padding");
-~>        IvParameterSpec ivSpec = new IvParameterSpec(new byte[16]);
+        IvParameterSpec ivSpec = new IvParameterSpec(new byte[16]);
         c.init(Cipher.ENCRYPT_MODE, key, ivSpec);
         return c.doFinal(data);
     }
 
     public byte[] encryptGcm(SecretKey key, byte[] data) throws Exception {
         Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
-~>        c.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, "fixednonce12".getBytes()));
+        c.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, "fixednonce12".getBytes()));
         return c.doFinal(data);
     }
 

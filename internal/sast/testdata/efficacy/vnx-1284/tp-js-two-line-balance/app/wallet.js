@@ -1,7 +1,7 @@
 async function withdraw(req, res) {
   const amount = Number(req.body.amount);
   const account = await Account.findById(req.user.accountId);
-~>  account.balance -= amount;
+  account.balance -= amount;
   await account.save();
   res.json({ balance: account.balance });
 }

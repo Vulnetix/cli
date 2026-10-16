@@ -6,12 +6,12 @@ class User < ApplicationRecord
 
   def self.authenticate(email, password)
     user = find_by(email: email)
-~>    return user if user && user.password == Digest::MD5.hexdigest(password)
+    return user if user && user.password == Digest::MD5.hexdigest(password)
     nil
   end
 
   def reset_token
-~>    ::Digest::MD5.hexdigest("#{email}#{Time.now.to_i}")
+    ::Digest::MD5.hexdigest("#{email}#{Time.now.to_i}")
   end
 
   def avatar_checksum(path)
@@ -19,7 +19,7 @@ class User < ApplicationRecord
   end
 
   def api_digest(secret)
-~>    OpenSSL::Digest::MD5.new.hexdigest(secret)
+    OpenSSL::Digest::MD5.new.hexdigest(secret)
   end
 
   def configurable_digest(data)
@@ -29,6 +29,6 @@ class User < ApplicationRecord
   private
 
   def hash_password
-~>    self.password = Digest::MD5.hexdigest(password)
+    self.password = Digest::MD5.hexdigest(password)
   end
 end

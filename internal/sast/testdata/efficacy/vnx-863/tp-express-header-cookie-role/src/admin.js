@@ -11,7 +11,8 @@ router.get('/admin/users', (req, res) => {
 
 router.get('/reports', (req, res) => {
   const isAdmin = req.cookies.isAdmin === 'true';
-~>  if (isAdmin) {
+  // Reported by VNX-807 (a decision on an untrusted cookie value), not by this rule.
+  if (isAdmin) {
     return res.json(reports.all());
   }
   res.json(reports.mine(req.user.id));

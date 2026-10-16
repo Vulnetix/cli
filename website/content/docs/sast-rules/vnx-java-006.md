@@ -7,6 +7,8 @@ description: "Reports Java code that disables TLS server authentication: empty c
 
 This rule detects two closely related patterns that render TLS completely ineffective: (1) an `X509TrustManager` whose `checkServerTrusted()` method has an empty body, meaning it performs no validation and silently accepts any certificate presented by any server; and (2) hostname verifiers and trust strategies that always return `true`, including library constants such as `ALLOW_ALL_HOSTNAME_VERIFIER` and `NoopHostnameVerifier`. Both patterns are covered by CWE-295 (Improper Certificate Validation).
 
+This rule owns every Java certificate- and host-name-validation bypass; [VNX-CRYPTO-005](../vnx-crypto-005/) covers the same weakness in Python, Node.js and Go and does not report Java files.
+
 **Severity:** Critical | **CWE:** [CWE-295 – Improper Certificate Validation](https://cwe.mitre.org/data/definitions/295.html)
 
 ## Why This Matters

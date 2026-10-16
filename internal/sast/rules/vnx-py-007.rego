@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-007",
 	"name": "subprocess with shell=True",
-	"description": "A shell command line is built from non-constant text and run by /bin/sh: subprocess.call/run/Popen/check_call/check_output with shell=True (through the module, an `import subprocess as sp` alias or a name imported from subprocess, with the keyword anywhere in a call broken over several lines), or subprocess.getoutput/getstatusoutput and asyncio.create_subprocess_shell, which always use the shell, whose command is a variable, an f-string, a concatenation, a %-format or a .format() call; and the same call without shell=True whose argument list starts an explicit shell on a non-constant script (a list such as [sh, -c, f-string] or [cmd.exe, /c, name], inline or appended to a list in the 20 lines above). Shell metacharacters in any interpolated value (; | $() `) then run commands. Not reported: a constant command string, or a variable assigned only constant strings in the 30 lines above, an argument list that does not start sh -c / cmd /c with a non-constant script, shell=False or a shell flag that is not the literal True, a command whose interpolations go through shlex.quote()/pipes.quote() (inline, or in the nearest assignment of the command variable), run methods of other objects (conn.run in Fabric), os.system/os.popen, and the names in comments or string literals. Whether the interpolated value is attacker-controlled is not judged.",
+	"description": "A shell command line is built from non-constant text and run by /bin/sh: subprocess.call/run/Popen/check_call/check_output with shell=True (through the module, an `import subprocess as sp` alias or a name imported from subprocess, with the keyword anywhere in a call broken over several lines), or subprocess.getoutput/getstatusoutput and asyncio.create_subprocess_shell, which always use the shell, whose command is a variable, an f-string, a concatenation, a %-format or a .format() call; and the same call without shell=True whose argument list starts an explicit shell on a non-constant script (a list such as [sh, -c, f-string] or [cmd.exe, /c, name], inline or appended to a list in the 20 lines above). Shell metacharacters in any interpolated value (; | $() `) then run commands. Not reported: a constant command string, or a variable assigned only constant strings in the 30 lines above, a command variable (or the script name of an explicit sh -c list) that the enclosing function (at most 120 lines up) proves holds a constant at the call (every reaching definition a literal or constant expression, after folding if/elif/else and conditional expressions whose condition is constant, a match on a constant, list/dict/ConfigParser reads at a constant index or key, copies of what a name held, and same-file functions whose every return is constant; anything unresolved stays reported), an argument list that does not start sh -c / cmd /c with a non-constant script, shell=False or a shell flag that is not the literal True, a command whose interpolations go through shlex.quote()/pipes.quote() (inline, or in the nearest assignment of the command variable), run methods of other objects (conn.run in Fabric), os.system/os.popen, and the names in comments or string literals. Whether the interpolated value is attacker-controlled is not judged.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-007/",
 	"languages": ["python"],
 	"severity": "high",
@@ -194,6 +194,7 @@ findings contains finding if {
 	cmd := _command(args)
 	raw := _raw_text(lines, i, count(split(args, "\n")) - 1)
 	_explicit_shell(lines, i, raw, cmd)
+	_explicit_live(lines, i, raw, cmd)
 	not _quoted(raw)
 	finding := {
 		"rule_id": metadata.id,
@@ -228,6 +229,7 @@ findings contains finding if {
 	not _constant_var(lines, i, cmd)
 	not _quoted(_raw_text(lines, i, count(split(args, "\n")) - 1))
 	not _quoted_var(lines, i, cmd)
+	not _flow_constant(lines, i, cmd)
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("%s() runs a command line built from non-constant text through the shell; pass an argument list with shell=False, or shlex.quote() every interpolated value", [fn]),
@@ -238,3 +240,21 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+# ── The function is read before reporting ────────────────────────────────
+# helpers.flow_py_consts: a name that provably holds a constant at the call
+# (a literal on every live path, a branch or conditional expression whose
+# condition folds, a match on a constant, a list/dict/ConfigParser read at a
+# constant index or key, a same-file function returning a constant) is not
+# run-time text, however the code around it was written.
+
+_flow_constant(lines, i, cmd) if {
+	m := regex.find_all_string_submatch_n(`^([A-Za-z_]\w*)\s*(?:[,)]|$)`, cmd, 1)
+	count(m) > 0
+	C := helpers.flow_py_consts(lines, i)
+	_ = C[m[0][1]]
+}
+
+_explicit_live(lines, i, _, cmd) if _built_shell_list(lines, i, cmd)
+
+_explicit_live(lines, i, raw, _) if _inline_shell_list(helpers.flow_py_fold(raw, i, helpers.flow_py_consts(lines, i)))

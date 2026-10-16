@@ -12,7 +12,8 @@ app.use(session({
 
 app.post('/login', (req, res) => {
   const token = issueToken(req.body.user);
-~>  res.cookie('access_token', token, { secure: true, sameSite: 'strict' });
+  // Reported by VNX-NODE-029 (a Node.js cookie without HttpOnly), not by this rule.
+  res.cookie('access_token', token, { secure: true, sameSite: 'strict' });
   res.json({ ok: true });
 });
 

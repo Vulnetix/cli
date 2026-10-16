@@ -31,9 +31,16 @@ document.body.innerHTML = event.data;
 // FLAGGED: appending and replacing with dynamic values
 li.innerHTML += entry.message;
 banner.outerHTML = '<div class="banner">' + text + '</div>';
+node["innerHTML"] = msg;
+
+// FLAGGED: one part encoded, the raw value spliced into another
+el.innerHTML = '<a href="/s?q=' + encodeURIComponent(q) + '">' + q + '</a>';
+box.innerHTML = 'Hello ' + unescape(location.search.substring(6));
 ```
 
-Not flagged: literal markup (`el.innerHTML = '<span class="spinner"></span>'`), a ternary between literals, a `const` holding a literal, `DOMPurify.sanitize(...)` or an `escapeHtml(...)` value, comparisons such as `el.innerHTML === x`, and third-party library copies (vendor/, libs/, dist/, jQuery and other library files). VNX-NODE-005 and VNX-NODE-012 report every innerHTML sink; this rule reports only the dynamic, unsanitised ones.
+Not flagged: literal markup (`el.innerHTML = '<span class="spinner"></span>'`), a ternary between literals, a `const` holding a literal, a value passed whole through `DOMPurify.sanitize(...)` or an `escapeHtml(...)` helper, comparisons such as `el.innerHTML === x`, and third-party library copies (vendor/, libs/, dist/, jQuery, three.js and other library files).
+
+This rule is the one finding for an innerHTML/outerHTML assignment: [VNX-NODE-005](../vnx-node-005/) and [VNX-NODE-012](../vnx-node-012/) do not report it again.
 
 ## Remediation
 

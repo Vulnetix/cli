@@ -145,6 +145,8 @@ findings contains finding if {
 	not regex.match(_safe_re, text)
 	_hit(text)
 	not _cwd_pwd(content, text)
+	not _r309_owns(path, raw)
+	not _c008_owns(lines, i, raw)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Password compared with an ordinary equality test, which leaks through response timing how much of a guess matches: store a salted hash and verify it with the hashing library's own check (bcrypt.checkpw, PasswordEncoder.matches) or a constant-time comparison",
@@ -166,4 +168,98 @@ _has_operator(lines, i, raw) if {
 	not regex.match(`==|!=|equals`, raw)
 	i + 1 < count(lines)
 	regex.match(`^\s*(?:\.\s*equals|==|!=)`, lines[i + 1])
+}
+
+# ── lines VNX-309 reports ───────────────────────────────────────────────
+# Both operands name the password (user.password == request.form["password"]):
+# that is VNX-309's finding, a login decided by comparing the plaintext
+# password. Its fix (store a slow salted hash and verify it with the
+# library's constant-time check) is this rule's fix too, so the line is
+# reported once, there. This is VNX-309's own test, kept in step with it.
+_r309_op := `(?:[A-Za-z_$][\w$]*(?:\??(?:\.|->)[\w$]+|\[\s*['"]?[\w$-]+['"]?\s*\]|\(\s*(?:['"][\w-]+['"])?\s*\))*)`
+
+_r309_res := [
+	concat("", [`(`, _r309_op, `)\s*(?:===?|!==?)\s*(`, _r309_op, `)`]),
+	concat("", [`(`, _r309_op, `)\.equals(?:IgnoreCase)?\(\s*(`, _r309_op, `)\s*\)`]),
+	concat("", [`Objects\.equals\(\s*(`, _r309_op, `)\s*,\s*(`, _r309_op, `)\s*\)`]),
+	concat("", [`\b(?:strcmp|strcasecmp|hash_equals)\(\s*(`, _r309_op, `)\s*,\s*(`, _r309_op, `)\s*\)`]),
+]
+
+_r309_secret(op) if {
+	regex.match(`(?i)(pass(word|wd|phrase)|pwd)`, op)
+	not regex.match(`(?i)(confirm|repeat|retype|again|verif|matching|new_?pass|newpass|hash|digest|md5|sha\d|crypt|format|policy|strength|length|\blen\b|(^|[._])count\b|type\b|hint|expir|reset|placeholder|changed|enabled|required|field|label|regex|pattern|rule)`, op)
+	not regex.match(`(?i)(pass\w*|pwd\w*)[12]['"]?\s*\)?\]?$`, op)
+}
+
+_r309_owns(path, line) if {
+	not helpers.is_test_path(path)
+	regex.match(`(?i)(pass(word|wd|phrase)|pwd)[^\n]*(==|!=|equals)|(==|!=|equals)[^\n]*(pass(word|wd|phrase)|pwd)`, line)
+	prose := [l | some l in regex.find_all_string_submatch_n("\"[^\"]*\"|'[^']*'|`[^`]*`", line, -1); contains(l[0], " ")]
+	some re in _r309_res
+	some m in regex.find_all_string_submatch_n(re, line, 4)
+	not _r309_in_prose(prose, m[1])
+	_r309_secret(m[1])
+	_r309_secret(m[2])
+	m[1] != m[2]
+}
+
+_r309_in_prose(prose, op) if {
+	some l in prose
+	contains(l[0], op)
+}
+
+# ── lines VNX-CRYPTO-008 reports ────────────────────────────────────────
+# A password checked against a value named as a secret, token, digest,
+# signature or MAC, next to the hash call that produced it, is VNX-CRYPTO-008's
+# timing finding (a secret compared with ordinary equality): the same timing
+# channel, so it is reported there. Only that rule's own clearest shape is
+# handed over: an operand whose last name part is one of its secret words and
+# a hash call on the line or one of the five above.
+_c008_words := {"signature", "sig", "hmac", "mac", "digest", "hexdigest", "token", "secret", "csrf", "xsrf", "otp"}
+
+_c008_pairs(text) := [[m[1], m[2]] |
+	some m in regex.find_all_string_submatch_n(`([\w$.]+(?:\([^()]*\))?)\s*(?:===|!==|==|!=|\.equals(?:IgnoreCase)?\s*\(\s*)([\w$.]+(?:\([^()]*\))?)`, text, -1)
+]
+
+_c008_secret(op) if {
+	not endswith(op, ")")
+	segs := regex.find_n(`[\w$\-]+$`, op, 1)
+	count(segs) > 0
+	parts := [x | some x in regex.split(`[_\-]+`, trim_left(segs[0], "$")); x != ""; not regex.match(`^\d+$`, x)]
+	count(parts) > 0
+	ws := regex.find_n(`[A-Z]?[a-z0-9]+|[A-Z]+`, parts[count(parts) - 1], -1)
+	count(ws) > 0
+	lower(ws[count(ws) - 1]) in _c008_words
+}
+
+_c008_strip(l) := regex.replace(l, `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`, `""`)
+
+# a hash or signing call on the line or one of the five above
+_c008_verified(lines, i, _) if {
+	some k in numbers.range(max([0, i - 5]), i)
+	not helpers.is_comment_line(lines[k])
+	regex.match(`(?i)(?:\b|_)(?:hmac|digest|hexdigest|md5|sha\d*|sha\w*hex|hash|sign|signature|crypt)\w*\s*\(|\.doFinal\s*\(|\.Sum(?:256|512)?\s*\(|\bSum(?:224|256|384|512)\s*\(`, _c008_strip(lines[k]))
+}
+
+# an operand assigned from a request on one of the 30 lines above
+_c008_verified(lines, i, pair) if {
+	some op in pair
+	segs := regex.find_n(`[\w$]+`, op, 2)
+	count(segs) > 0
+	x := trim_left(segs[0], "$")
+	not x in {"self", "this", "cls"}
+	x != ""
+	some k in numbers.range(max([0, i - 30]), i - 1)
+	t := lines[k]
+	contains(t, x)
+	regex.match(concat("", [`(?:^|[^\w.$])\$?`, x, `\s*(?:,\s*[\w$]+\s*)*:?=[^=]`]), t)
+	regex.match(`(?i)(?:^|[^\w])(?:req|request|params|headers?|cookies?|body|args|query|form)(?:[^\w]|$)|getParameter|getHeader|getCookies|getQueryString`, t)
+}
+
+_c008_owns(lines, i, raw) if {
+	not regex.match(`compare_digest|timingSafeEqual|hash_equals|hmac\.Equal|ConstantTimeCompare|isEqual|secure_compare|safe_str_cmp|constant_time_compare|constantTimeEquals|timing_safe|timingsafe|typeof`, raw)
+	some pair in _c008_pairs(_c008_strip(raw))
+	some op in pair
+	_c008_secret(op)
+	_c008_verified(lines, i, pair)
 }

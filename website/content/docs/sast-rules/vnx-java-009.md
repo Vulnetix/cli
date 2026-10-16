@@ -17,7 +17,7 @@ Write variants are even more dangerous: an attacker able to supply a path to a `
 
 ## What Gets Flagged
 
-The rule reports the file or path call whose argument carries request data: a servlet request value, `MultipartFile.getOriginalFilename()`, a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier in the same method. Paths checked with `startsWith` after normalising or canonicalising, names tested for `..`, names reduced with `FilenameUtils.getName` or converted to numbers, and request bodies written as file content are not reported.
+The rule reports the file or path call whose argument carries request data: a servlet request value, `MultipartFile.getOriginalFilename()`, a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier in the same method (the look-back stops at the method declaration, at most 120 lines up). Paths checked with `startsWith` after normalising or canonicalising, names tested for `..`, names reduced with `FilenameUtils.getName` or converted to numbers, and request bodies written as file content are not reported.
 
 ```java
 // FLAGGED: File constructor with raw user input
@@ -34,6 +34,28 @@ byte[] content = Files.readAllBytes(p);
 // FLAGGED: FileReader from parameter
 FileReader reader = new FileReader(new File(req.getParameter("template")));
 ```
+
+### Following the value through the method
+
+The look-back stops at the enclosing method's declaration (at most 120 lines up), and the method is read before the call is reported:
+
+- a definition on a branch that never runs is dropped: an `if`/`else` or ternary whose condition folds to a constant (integer literals, and `int` locals assigned once from a literal), or a `case` that a `switch` on a constant does not select;
+- a local that provably holds a constant at the call stops carrying the request value: a literal on every path, the element a list index or map key actually holds, or the result of a method in the same file (including a nested class) whose every `return` is a constant;
+- a request value stored in a list, map or builder and read back is followed, so `list.add(request.getParameter("x"))` followed by `list.get(0)` is request data.
+
+```java
+// NOT FLAGGED: 3 * 40 > 100, so name is always "default.html"
+int maxTemplates = 40;
+if (3 * maxTemplates > 100) name = "default.html";
+else name = request.getParameter("template");
+
+// FLAGGED: the map key read back holds the header value
+byKind.put("custom", request.getHeader("X-Layout"));
+byKind.put("standard", "standard.html");
+String path = byKind.get("custom");
+```
+
+Anything the analysis cannot resolve stays reported: a condition on request data, a call into another class, a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter.
 
 ## Remediation
 

@@ -6,7 +6,7 @@ services:
   mysql:
     image: mysql:8
     environment:
-~>      - MYSQL_ROOT_PASSWORD=root
+~>      - REDIS_PASSWORD=root
 ~>      - MYSQL_PASSWORD="secret"
   app:
     environment:

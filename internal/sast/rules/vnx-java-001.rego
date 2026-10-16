@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-001",
 	"name": "Command injection via Runtime.exec() or a shell ProcessBuilder",
-	"description": "Reports a Java OS command whose text is built at run time: Runtime.getRuntime().exec() (directly, or through a variable assigned from Runtime.getRuntime()) whose command is a concatenation or String.format/concat with a non-constant value, a request value (getParameter, getHeader, getQueryString, getCookies, getInputStream, readLine, a @RequestParam/@PathVariable/@RequestHeader parameter), or a variable assigned from either within the 40 lines above; and a ProcessBuilder or ProcessBuilder.command() that runs a shell (sh/bash -c, cmd /c, powershell -Command), inline or through a list built with add(\"-c\"), whose script is built the same way. Not reported: a constant command or one concatenated only from literals and UPPER_CASE constants, an exec(String[]) or ProcessBuilder argument list that does not invoke a shell (no shell parses its arguments), a command that arrives as a plain method parameter (a wrapper; its callers decide), environment arrays, comments and string literals.",
+	"description": "Reports a Java OS command whose text is built at run time: Runtime.getRuntime().exec() (directly, or through a variable assigned from Runtime.getRuntime()) whose command is a concatenation or String.format/concat with a non-constant value, a request value (getParameter, getHeader, getQueryString, getCookies, getInputStream, readLine, a @RequestParam/@PathVariable/@RequestHeader parameter), or a variable assigned from either within the 40 lines above; and a ProcessBuilder or ProcessBuilder.command() that runs a shell (sh/bash -c, cmd /c, powershell -Command), inline or through a list built with add(\"-c\"), whose script is built the same way. The enclosing method (at most 120 lines up) is read before reporting: an operand that provably holds a constant at the call is not run-time data, namely a literal or constant expression it was last assigned on every path, the taken side of an if/else or ternary whose condition folds to a constant (integer literals and int locals assigned once), the selected case of a switch on a constant, the element a list index or map key actually holds when that is a literal, and the result of a method in the same file (including a nested class) whose every return is constant. A value the analysis cannot resolve (a condition on run-time data, a call into another class, a collection filled in a loop or passed elsewhere) stays reported. Not reported: a constant command or one concatenated only from literals and UPPER_CASE constants, an exec(String[]) or ProcessBuilder argument list that does not invoke a shell (no shell parses its arguments), a command that arrives as a plain method parameter (a wrapper; its callers decide), environment arrays, comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-001/",
 	"languages": ["java"],
 	"severity": "high",
@@ -179,6 +179,7 @@ findings contains finding if {
 	_is_runtime_exec(sline, rvars)
 	a := _after(_joined(lines, i, 4, true), _exec_re)
 	_exec_reportable(lines, i, a)
+	_exec_reportable(lines, i, helpers.flow_fold(a, i, helpers.flow_consts(lines, i)))
 	finding := _finding(path, i, line, "Runtime.exec() runs a command built from run-time data; pass a fixed program and an argument list (ProcessBuilder) and validate every argument against an allowlist")
 }
 
@@ -207,6 +208,7 @@ findings contains finding if {
 	regex.match(_shell_re, raw)
 	a := _after(_joined(lines, i, 4, true), `(?:new\s+ProcessBuilder|\.command)\s*\(`)
 	_bad(lines, i, a)
+	_bad(lines, i, helpers.flow_fold(a, i, helpers.flow_consts(lines, i)))
 	finding := _finding(path, i, line, "ProcessBuilder runs a shell with a script built from run-time data; run the program directly with an argument list and validate every argument against an allowlist")
 }
 
@@ -224,6 +226,7 @@ findings contains finding if {
 	count(m) > 0
 	lst := m[0][1]
 	_shell_list(lines, i, lst)
+	_shell_list_live(lines, i, lst, helpers.flow_consts(lines, i))
 	finding := _finding(path, i, line, "ProcessBuilder runs a shell with a script built from run-time data; run the program directly with an argument list and validate every argument against an allowlist")
 }
 
@@ -235,6 +238,15 @@ _shell_list(lines, i, lst) if {
 	not helpers.is_comment_line(lines[k])
 	a := _after(_strip(lines[k]), concat("", [`\b`, lst, `\.add\s*\(`]))
 	_bad(lines, k, a)
+}
+
+# The same list, with operands that hold a constant at the call folded away.
+_shell_list_live(lines, i, lst, consts) if {
+	some k in numbers.range(_win(i), i - 1)
+	contains(lines[k], lst)
+	not helpers.is_comment_line(lines[k])
+	a := _after(_strip(lines[k]), concat("", [`\b`, lst, `\.add\s*\(`]))
+	_bad(lines, k, helpers.flow_fold(a, k, consts))
 }
 
 _finding(path, i, line, msg) := {

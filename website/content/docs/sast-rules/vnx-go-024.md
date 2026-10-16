@@ -41,7 +41,16 @@ req, _ := http.NewRequest(http.MethodGet, r.Header.Get("X-Upstream"), nil)
 db.Query("SELECT id FROM users WHERE name = $1", name)
 if !hostRE.MatchString(host) { return }
 id, err := strconv.Atoi(r.URL.Query().Get("id"))
+
+// NOT FLAGGED HERE: request data marked as trusted markup is reported by VNX-GO-020
+data["Message"] = template.HTML(r.FormValue("msg"))
 ```
+
+An html/template trusted-content conversion (`template.HTML`, `template.JS`,
+`template.URL`) of a request value is a cross-site scripting finding, and it is
+reported by [VNX-GO-020](../vnx-go-020/), which judges that sink more precisely
+(sanitisers, constant markup, numeric formatting). This rule does not report the
+same line a second time.
 
 ## Remediation
 

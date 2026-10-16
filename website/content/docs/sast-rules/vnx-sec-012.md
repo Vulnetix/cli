@@ -5,7 +5,7 @@ description: "Detects a server that answers cross-origin requests from any websi
 
 ## Overview
 
-This rule reports three shapes: the `Access-Control-Allow-Origin` header set to the request's own `Origin` header (directly or through a variable read from it a few lines above) with no allowlist check on the origin; the header set to `*` (`setHeader`, `w.Header().Set`, `response[...] =`, PHP `header()`, nginx `add_header`, Apache `Header set`, the ingress-nginx `cors-allow-origin` annotation); and CORS middleware configured for every origin (Express `cors()` or `origin: true`, FastAPI `allow_origins=["*"]`, Flask-CORS `CORS(app)`, django-cors-headers `CORS_ALLOW_ALL_ORIGINS = True`, gin `AllowAllOrigins`, rs/cors `AllowOriginFunc` returning true, Spring `allowedOriginPatterns("*")` and bare `@CrossOrigin`, ASP.NET Core `AllowAnyOrigin()` and `SetIsOriginAllowed(_ => true)`, Laravel and rack-cors wildcards). It does not report a wildcard whose configuration explicitly disables credentials nearby, specific origins, an origin checked against an allowlist, the header sent by client code (`fetch`/`axios` request headers), assertions, tests and documentation. CORS controls which websites can read responses from your API using cross-origin JavaScript. Setting it too broadly means any malicious website can make authenticated requests to your API on behalf of a logged-in user and read the responses.
+This rule reports three shapes: the `Access-Control-Allow-Origin` header set to the request's own `Origin` header (directly or through a variable read from it a few lines above) with no allowlist check on the origin; the header set to `*` (`w.Header().Set`, `response[...] =`, PHP `header()`, nginx `add_header`, Apache `Header set`, the ingress-nginx `cors-allow-origin` annotation); and CORS middleware configured for every origin (AWS CDK `allowOrigins: Cors.ALL_ORIGINS`, FastAPI `allow_origins=["*"]`, Flask-CORS `CORS(app)`, django-cors-headers `CORS_ALLOW_ALL_ORIGINS = True`, gin `AllowAllOrigins`, rs/cors `AllowOriginFunc` returning true, Spring `allowedOriginPatterns("*")` and bare `@CrossOrigin`, ASP.NET Core `AllowAnyOrigin()` and `SetIsOriginAllowed(_ => true)`, Laravel and rack-cors wildcards). It does not report a wildcard whose configuration explicitly disables credentials nearby, specific origins, an origin checked against an allowlist, the header sent by client code (`fetch`/`axios` request headers), assertions, tests and documentation. CORS in JavaScript and TypeScript servers (`res.setHeader`, the `cors` package, Fastify and NestJS) is reported by VNX-942, so one problem is not reported twice; for those files this rule reports only the AWS CDK construct. CORS controls which websites can read responses from your API using cross-origin JavaScript. Setting it too broadly means any malicious website can make authenticated requests to your API on behalf of a logged-in user and read the responses.
 
 **Severity:** High | **CWE:** [CWE-942 – Permissive Cross-domain Policy with Untrusted Domains](https://cwe.mitre.org/data/definitions/942.html)
 
@@ -35,19 +35,15 @@ app.add_middleware(
 )
 ```
 
-```javascript
-// FLAGGED: the request origin echoed back with credentials
-res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
-res.setHeader('Access-Control-Allow-Credentials', 'true');
-
-// FLAGGED: origin read into a variable, then reflected unchecked
-const origin = req.get('origin');
-res.set('Access-Control-Allow-Origin', origin);
-
-// FLAGGED: cors middleware for every origin
-app.use(cors());
-app.use(cors({ origin: true, credentials: true }));
+```typescript
+// FLAGGED: AWS CDK API Gateway preflight for every origin
+defaultCorsPreflightOptions: {
+  allowOrigins: apigw.Cors.ALL_ORIGINS,
+  allowCredentials: true,
+},
 ```
+
+Express, Fastify and NestJS servers (`res.setHeader('Access-Control-Allow-Origin', req.headers.origin)`, `app.use(cors())`, `cors({ origin: true })`) are reported by [VNX-942](../vnx-942/).
 
 ```go
 // FLAGGED

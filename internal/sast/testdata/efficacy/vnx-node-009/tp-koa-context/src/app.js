@@ -6,7 +6,7 @@ const app = new Koa();
 const router = new Router();
 
 router.get('/unfurl', async (ctx) => {
-~>  const res = await axios.get(ctx.query.link);
+  const res = await axios.get(ctx.query.link);
   ctx.body = res.data;
 });
 

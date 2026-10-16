@@ -1,15 +1,15 @@
 ---
 title: "VNX-PY-013 – ML/AI Insecure Deserialization"
-description: "Detect pickle-based deserialization of models and data: pickle/cPickle/dill/cloudpickle load(s) and Unpickler, joblib.load, pandas.read_pickle, numpy.load(allow_pickle=True), torch.load without weights_only=True and Keras load_model(safe_mode=False), including aliases and from-imports."
+description: "Detect ML and data loaders that unpickle under the hood: joblib.load, pandas.read_pickle, numpy.load(allow_pickle=True), torch.load without weights_only=True and Keras load_model(safe_mode=False), including aliases and from-imports. Plain pickle is reported by VNX-PY-003."
 ---
 
 ## Overview
 
-This rule flags Python code that loads ML model files or serialized data using pickle-based functions: `torch.load()`, `joblib.load()`, `pandas.read_pickle()`, `pd.read_pickle()`, `pickle.load()`, `pickle.loads()`, `cPickle.load()`, `cPickle.loads()`, `shelve.open()`, `dill.load()`, `dill.loads()`, and `numpy.load()` with `allow_pickle=True`. These functions deserialize Python objects from a binary stream. Any model or data file loaded this way can contain embedded code that executes automatically at load time, giving an attacker who controls the file arbitrary code execution on the machine running the model. This maps to [CWE-502: Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html).
+This rule flags Python code that loads ML model files or serialized data with loaders that unpickle under the hood: `torch.load()` without `weights_only=True`, `joblib.load()`, `pandas.read_pickle()`/`pd.read_pickle()`, `numpy.load()` with `allow_pickle=True`, and Keras `load_model(..., safe_mode=False)`. The pickle family itself (`pickle`, `cPickle`, `_pickle`, `dill` and `cloudpickle` `load()`/`loads()`/`Unpickler()`) is the same weakness and is reported by [VNX-PY-003](../vnx-py-003/), so one call is never shown twice. These functions deserialize Python objects from a binary stream. Any model or data file loaded this way can contain embedded code that executes automatically at load time, giving an attacker who controls the file arbitrary code execution on the machine running the model. This maps to [CWE-502: Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html).
 
 **Severity:** Critical | **CWE:** [CWE-502 – Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html) | **Bandit:** B301 (pickle), B302 (marshal), B403 (import of pickle module)
 
-> **Default behavior:** `torch.load()` uses pickle by default in all PyTorch versions prior to 2.6. Starting with PyTorch 2.6, `weights_only=True` became the default, but only for new code — any existing call without the parameter still uses the old unsafe default. `numpy.load()` has `allow_pickle=False` as the default since NumPy 1.16.3, so the rule only fires when it is explicitly set to `True`. `pickle.load()` is **always** unsafe regardless of version.
+> **Default behavior:** `torch.load()` uses pickle by default in all PyTorch versions prior to 2.6. Starting with PyTorch 2.6, `weights_only=True` became the default, but only for new code — any existing call without the parameter still uses the old unsafe default. `numpy.load()` has `allow_pickle=False` as the default since NumPy 1.16.3, so the rule only fires when it is explicitly set to `True`. `pickle.load()` is **always** unsafe regardless of version; VNX-PY-003 reports it.
 
 ## Why This Matters
 
@@ -33,9 +33,6 @@ clf = joblib.load("classifier.pkl")
 df = pandas.read_pickle("data.pkl")
 df = pd.read_pickle(cache_path)
 
-# FLAGGED: dill is pickle-compatible with more type coverage
-model = dill.load(open("model.dill", "rb"))
-
 # FLAGGED: numpy with allow_pickle=True (explicitly insecure — not the default)
 embeddings = numpy.load("embeddings.npy", allow_pickle=True)
 arr = np.load("data.npy", allow_pickle=True)
@@ -44,10 +41,13 @@ arr = np.load("data.npy", allow_pickle=True)
 model = torch.load(path, weights_only=False)
 model = keras.models.load_model(path, safe_mode=False)
 
-# NOT flagged: safe loaders and round trips
+# NOT flagged: safe loaders
 model = torch.load(path, weights_only=True)
 arr = np.load("data.npy")
-clone = pickle.loads(pickle.dumps(obj))
+
+# NOT flagged here: reported by VNX-PY-003
+model = dill.load(open("model.dill", "rb"))
+prefs = pickle.loads(base64.b64decode(raw))
 ```
 
 ## Remediation

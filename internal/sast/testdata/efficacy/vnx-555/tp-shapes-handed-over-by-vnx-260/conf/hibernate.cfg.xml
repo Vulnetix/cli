@@ -1,0 +1,6 @@
+<hibernate-configuration>
+  <session-factory>
+    <property name="hibernate.connection.username">ledger</property>
+~>    <property name="hibernate.connection.password">Ledg3rHbm</property>
+  </session-factory>
+</hibernate-configuration>

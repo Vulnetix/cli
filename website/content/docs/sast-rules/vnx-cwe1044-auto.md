@@ -68,6 +68,8 @@ def cheap(request):
     items = Product.objects.filter(price__lt=10)   # ORM call from a view
 ```
 
+In a Python project that has a data manager module (a `models`, `repositories`, `dao`, `db` or similar module or directory), a view or route file whose first direct SQL call is raw database access (`sqlite3.connect()`, `cursor()`, `objects.raw()`, `cursor.execute()`, `db.execute("SELECT ...")`) is left to [VNX-1057](../vnx-1057/), which reports that line and every other raw access in the file for the same reason. This rule still reports such a file in a project with no data manager module.
+
 ## Remediation
 
 1. Move the query into a repository, DAO or service function, and call that from the controller.

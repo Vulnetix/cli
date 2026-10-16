@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CRYPTO-008",
 	"name": "Timing attack via direct comparison of secrets",
-	"description": "A MAC, signature, digest or secret token is checked with an ordinary equality comparison, which stops at the first differing byte, so response time tells an attacker how much of a forged value is right. Reported: ==, !=, === or !== (Python, Node.js, Go, PHP, Ruby, Java) where one operand is named as a secret value (signature, sig, hmac, mac, digest, hexdigest, token, secret, csrf/xsrf, otp, api_key, including camelCase and snake_case forms such as expectedSignature, csrfToken, x-signature, HTTP_X_HUB_SIGNATURE) and the other is a real value; Java a.equals(b), Arrays.equals and Objects.equals with such an operand; Go bytes.Equal with such an operand; any equality comparison on a line that computes an HMAC (hmac.new, createHmac, hash_hmac, OpenSSL::HMAC, Mac.doFinal, mac.Sum); a header read by literal name counts as named by its key (headers.get(\"X-Hub-Signature-256\"), r.Header.Get(\"X-Signature\")), and a literal prefix glued to the value ('sha256=' + expected) is looked through; and a hand-written byte loop that returns at the first difference (if (expected[i] != supplied[i]) return false) in code whose file name, or the 40 lines above (function, class, doc comment), names a MAC, HMAC, signature, digest or secret. Use hmac.compare_digest, crypto.timingSafeEqual, hmac.Equal or subtle.ConstantTimeCompare, hash_equals, ActiveSupport::SecurityUtils.secure_compare or MessageDigest.isEqual. Not reported: presence checks against an empty string, null, None, undefined, nil, a boolean or a number, comparisons with an ALL_CAPS constant or a typeof test (lexer token kinds), comparisons of a .length, .type, size or count, names that only contain hash (geometryHash, location.hash), lines that already use a constant-time comparison, an XOR-accumulating loop, an element loop in code that says nothing about secrets, the text inside strings and comments, and test files.",
+	"description": "A MAC, signature, digest or secret token is checked with an ordinary equality comparison, which stops at the first differing byte, so response time tells an attacker how much of a forged value is right. Reported: ==, !=, === or !== (Python, Node.js, Go, PHP, Ruby, Java) where one operand is named as a secret value (signature, sig, hmac, mac, digest, hexdigest, token, secret, csrf/xsrf, otp, api_key, including camelCase and snake_case forms such as expectedSignature, csrfToken, x-signature, HTTP_X_HUB_SIGNATURE) and the other is a real value; Java a.equals(b), Arrays.equals and Objects.equals with such an operand; Go bytes.Equal with such an operand; any equality comparison on a line that computes an HMAC (hmac.new, createHmac, hash_hmac, OpenSSL::HMAC, Mac.doFinal, mac.Sum); a header read by literal name counts as named by its key (headers.get(\"X-Hub-Signature-256\"), r.Header.Get(\"X-Signature\")), and a literal prefix glued to the value ('sha256=' + expected) is looked through; and a hand-written byte loop that returns at the first difference (if (expected[i] != supplied[i]) return false) in code whose file name, or the 40 lines above (function, class, doc comment), names a MAC, HMAC, signature, digest or secret. An equality comparison is reported only in a verification context, because a timing attack needs one operand the caller supplies: an HMAC, hash or signing call on the line or one of the five above; an enclosing function named verify, validate, valid, check or authenticate; an operand read from a request, header, param, body, cookie or argument, or named for what was supplied or what it is checked against (provided, supplied, received, given, incoming, submitted, candidate, user_, client_, request, header, input, got, expected, computed, calculated); an operand assigned from a request on one of the 30 lines above; or an operand that is a parameter of a request handler (@RequestParam, @RequestHeader, @PostMapping, HttpServletRequest, http.ResponseWriter). Use hmac.compare_digest, crypto.timingSafeEqual, hmac.Equal or subtle.ConstantTimeCompare, hash_equals, ActiveSupport::SecurityUtils.secure_compare or MessageDigest.isEqual. Not reported: presence checks against an empty string, null, None, undefined, nil, a boolean or a number, comparisons with an ALL_CAPS constant or a typeof test (lexer token kinds), comparisons of a .length, .type, size or count, names that only contain hash (geometryHash, location.hash), lines that already use a constant-time comparison, an XOR-accumulating loop, an element loop in code that says nothing about secrets, comparisons where neither side is supplied (two documents' digests, a cache checking its own token, change detection on a refreshed token, a credential compared with a published constant), the text inside strings and comments, and test files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-008/",
 	"languages": ["python", "node", "go", "java", "php", "ruby"],
 	"severity": "medium",
@@ -58,7 +58,9 @@ _tail_comment := {
 # params[:signature]) become member accesses so the key names the operand;
 # then string literals are blanked and trailing comments dropped.
 _code(lang, line) := c if {
-	s1 := regex.replace(line, `\[\s*['"]([\w\-]+)['"]\s*\]`, ".$1")
+	# optional chaining (a?.b) reads as a member access
+	s0 := regex.replace(line, `\?\.([\w$])`, ".$1")
+	s1 := regex.replace(s0, `\[\s*['"]([\w\-]+)['"]\s*\]`, ".$1")
 	s2 := regex.replace(s1, `\[\s*:(\w+)\s*\]`, ".$1")
 	# a header read by name (headers.get("X-Signature", ""), r.Header.Get(...),
 	# req.header('x-signature'), getHeader("X-Sig")) is named by its key too
@@ -153,26 +155,37 @@ _pair_hit(a, b) if {
 
 _operand := `[\w$.:\-]+(?:\([^()]*\))?`
 
-_hit(_, code) if {
+# the operand pairs of a line's reportable comparisons
+_pairs(lang, code) := _eq_pairs(code) | _lang_pairs(lang, code)
+
+_eq_pairs(code) := {[a, b] |
 	some m in regex.find_all_string_submatch_n(concat("", [`(`, _operand, `)\s*(?:===|!==|==|!=)\s*((?:""\s*[+.]\s*)?`, _operand, `|"")`]), code, -1)
+	a := m[1]
 	# "sha256=" + expected: a literal prefix glued to the value
-	_pair_hit(m[1], regex.replace(m[2], `^""\s*[+.]\s*`, ""))
+	b := regex.replace(m[2], `^""\s*[+.]\s*`, "")
+	_pair_hit(a, b)
 }
 
-_hit("java", code) if {
-	some m in regex.find_all_string_submatch_n(`([\w$.]+(?:\([^()]*\))?)\.equals(?:IgnoreCase)?\s*\(\s*([^()]*(?:\([^()]*\))?)\s*\)`, code, -1)
-	_pair_hit(m[1], m[2])
+_lang_pairs("java", code) := {[a, b] |
+	some m in array.concat(
+		regex.find_all_string_submatch_n(`([\w$.]+(?:\([^()]*\))?)\.equals(?:IgnoreCase)?\s*\(\s*([^()]*(?:\([^()]*\))?)\s*\)`, code, -1),
+		regex.find_all_string_submatch_n(`\b(?:Arrays|Objects)\.equals\s*\(\s*([^,()]+(?:\([^()]*\))?)\s*,\s*([^,()]+(?:\([^()]*\))?)\s*\)`, code, -1),
+	)
+	a := m[1]
+	b := m[2]
+	_pair_hit(a, b)
 }
 
-_hit("java", code) if {
-	some m in regex.find_all_string_submatch_n(`\b(?:Arrays|Objects)\.equals\s*\(\s*([^,()]+(?:\([^()]*\))?)\s*,\s*([^,()]+(?:\([^()]*\))?)\s*\)`, code, -1)
-	_pair_hit(m[1], m[2])
-}
-
-_hit("go", code) if {
+_lang_pairs("go", code) := {[a, b] |
 	some m in regex.find_all_string_submatch_n(`\bbytes\.Equal\s*\(\s*([^,()]+(?:\([^()]*\))?)\s*,\s*([^,()]+(?:\([^()]*\))?)\s*\)`, code, -1)
-	_pair_hit(m[1], m[2])
+	a := m[1]
+	b := m[2]
+	_pair_hit(a, b)
 }
+
+_lang_pairs(lang, _) := set() if not lang in {"java", "go"}
+
+_hit(lang, code) if count(_pairs(lang, code)) > 0
 
 # an HMAC computed and compared on the same line
 _hit(_, code) if {
@@ -261,6 +274,7 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	hits[line]
+	_verification(lang, lines, i, line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "A MAC, signature or secret token is compared with ordinary equality, which leaks through timing how much of a guess matches; use a constant-time comparison (hmac.compare_digest, crypto.timingSafeEqual, hmac.Equal, hash_equals, secure_compare, MessageDigest.isEqual)",
@@ -270,4 +284,131 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# ---------------------------------------------------------------------------
+# Verification context. A timing oracle needs one operand the caller supplies
+# and the other a value the code holds. Two documents' digests, a cache's own
+# token, change detection on a refreshed credential and a comparison with a
+# public constant are none of that, so an equality comparison is reported only
+# when one of these says it checks a supplied value:
+#   - an HMAC, hash or signing call on the line or on one of the five above;
+#   - the enclosing function is named for verifying (verify, validate, valid,
+#     check, authenticate);
+#   - an operand is named for what was supplied or what it is checked against
+#     (provided, received, header, user_, expected, computed...) or is read
+#     from a request (req, request, params, headers, cookies, body, $_POST);
+#   - an operand is assigned from a request on one of the 30 lines above, or
+#     is a parameter of a request handler (@RequestParam, @RequestHeader,
+#     @PostMapping, HttpServletRequest, http.ResponseWriter).
+# ---------------------------------------------------------------------------
+
+_hash_call := `(?i)(?:\b|_)(?:hmac|digest|hexdigest|md5|sha\d*|sha\w*hex|hash|sign|signature|crypt)\w*\s*\(|\.doFinal\s*\(|\.Sum(?:256|512)?\s*\(|\bSum(?:224|256|384|512)\s*\(`
+
+_verification(_, lines, i, _) if {
+	some k in numbers.range(max([0, i - 5]), i)
+	not helpers.is_comment_line(lines[k])
+	regex.match(_hash_call, regex.replace(lines[k], `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`, `""`))
+}
+
+_verify_name := `(?i)verif|valid|check|authenticat`
+
+_verification(_, lines, i, _) if {
+	d := _decl_line(lines, i)
+	regex.match(_verify_name, _decl_name(lines[d]))
+}
+
+_supplied_name := `(?i)provided|supplied|received|given|incoming|submitted|candidate|request|header|input|expected|computed|calculated|(?:^|[^a-z])(?:user|client)_|\$_(?:GET|POST|REQUEST|COOKIE|SERVER)|(?:^|[^\w])(?:req|params|cookies?|body|args|query|form|got)(?:[^\w]|$)`
+
+_supplied_camel := `(?:^|[^\w])(?:user|client|got)[A-Z]`
+
+_supplied_op(op) if regex.match(_supplied_name, op)
+
+_supplied_op(op) if regex.match(_supplied_camel, op)
+
+_verification(lang, _, _, line) if {
+	some pair in _pairs(lang, _code(lang, line))
+	some op in pair
+	_supplied_op(op)
+}
+
+_request_src := `(?i)(?:^|[^\w])(?:req|request|params|headers?|cookies?|body|args|query|form)(?:[^\w]|$)|\$_(?:GET|POST|REQUEST|COOKIE|SERVER|FILES)\b|\br\.(?:FormValue|PostFormValue|Header|URL|Form|PostForm|Body|Cookie)\b|getParameter|getHeader|getCookies|getQueryString|FormValue|\b(?:c|ctx)\.(?:Query|Param|GetHeader|PostForm|FormValue|Request|Cookie)\b`
+
+# an operand assigned from a request on one of the 30 lines above
+_verification(lang, lines, i, line) if {
+	some pair in _pairs(lang, _code(lang, line))
+	some op in pair
+	x := _root(op)
+	some k in numbers.range(max([0, i - 30]), i - 1)
+	t := lines[k]
+	contains(t, x)
+	regex.match(concat("", [`(?:^|[^\w.$])\$?`, x, `\s*(?:,\s*[\w$]+\s*)*:?=[^=]`]), t)
+	regex.match(_request_src, t)
+}
+
+_handler_marker := `@(?:Get|Post|Put|Delete|Patch|Request)Mapping|@RequestParam|@RequestHeader|@RequestBody|@PathVariable|@CookieValue|@(?:Form|Header|Query|Cookie)Param|HttpServletRequest|http\.ResponseWriter|\*gin\.Context|echo\.Context|fiber\.Ctx|Request\s+\$request`
+
+# an operand that is a parameter of a request handler
+_verification(lang, lines, i, line) if {
+	d := _decl_line(lines, i)
+	sig := concat(" ", array.slice(lines, d, min([d + 7, i + 1])))
+	ann := concat(" ", array.slice(lines, max([0, d - 4]), min([d + 7, i + 1])))
+	regex.match(_handler_marker, ann)
+	params := _after_paren(sig)
+	some pair in _pairs(lang, _code(lang, line))
+	some op in pair
+	x := _root(op)
+	regex.match(concat("", [`(?:^|[^\w$.])\$?`, x, `\b`]), params)
+}
+
+# the first identifier of an operand ($token -> token, self.sig -> sig)
+_root(op) := r if {
+	segs := regex.find_n(`[\w$]+`, op, 2)
+	count(segs) > 0
+	r := _skip_self(trim_left(segs[0], "$"), segs)
+	r != ""
+}
+
+_skip_self(r0, segs) := trim_left(segs[1], "$") if {
+	r0 in {"self", "this", "cls"}
+	count(segs) > 1
+}
+
+_skip_self(r0, _) := r0 if not r0 in {"self", "this", "cls"}
+
+_decl_patterns := [
+	`^\s*func\s+(?:\([^)]*\)\s*)?(\w+)\s*[\[(]`,
+	`^\s*(?:async\s+)?def\s+(?:self\.)?(\w+[?!]?)`,
+	`\bfunction\s*\*?\s*(\w+)\s*\(`,
+	`^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*(?::\s*[\w<>\[\]|]+\s*)?=>|\w+\s*=>)`,
+	`^\s*(?:(?:public|private|protected|static|final|synchronized|abstract|default|async|override)\s+)+[\w<>\[\],.?\s]*?(\w+)\s*\(`,
+	`^\s*[\w<>\[\],.?]+\s+(\w+)\s*\([^;=]*$`,
+]
+
+_not_decl_names := {"if", "for", "while", "switch", "catch", "return", "new", "else", "throw", "elif", "unless", "until", "case", "when"}
+
+_decl_name(t) := ns[0] if {
+	not regex.match(`^\s*(?:return|new|else|throw|if|for|while|}|\))`, t)
+	ns := [m[1] |
+		some p in _decl_patterns
+		ms := regex.find_all_string_submatch_n(p, t, 1)
+		count(ms) > 0
+		m := ms[0]
+		not m[1] in _not_decl_names
+	]
+	count(ns) > 0
+}
+
+# the nearest function declaration at or above line i, within 80 lines
+_decl_line(lines, i) := max(ds) if {
+	ds := [k |
+		some k in numbers.range(max([0, i - 80]), i)
+		_decl_name(lines[k])
+	]
+	count(ds) > 0
+}
+
+_after_paren(sig) := substring(sig, p, -1) if {
+	p := indexof(sig, "(")
+	p >= 0
 }

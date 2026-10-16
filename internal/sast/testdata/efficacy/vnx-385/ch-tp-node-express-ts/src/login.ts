@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 
 export async function login(req: Request, res: Response) {
   const user = await users.findOne({ email: req.body.email });
-~>  if (!user || req.body.password !== user.password) {
+  if (!user || req.body.password !== user.password) {
     return res.status(401).end();
   }
   res.json({ ok: true });

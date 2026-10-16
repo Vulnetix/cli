@@ -3,5 +3,5 @@ export async function showPreview(container: HTMLElement, id: string): Promise<v
   const markup = await res.text();
 ~>  container.insertAdjacentHTML("beforeend", markup);
   const tpl = document.createElement("template");
-~>  tpl.outerHTML = `<div class="preview">${markup}</div>`;
+  tpl.outerHTML = `<div class="preview">${markup}</div>`;
 }

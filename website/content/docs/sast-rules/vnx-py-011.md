@@ -39,7 +39,13 @@ cursor.execute("SELECT * FROM users WHERE name = '%s'" % name)
 
 # FLAGGED: execute with .format()
 cursor.execute("DELETE FROM sessions WHERE token = '{}'".format(token))
+
+# FLAGGED: a SQL template held in a variable, formatted inside the call
+template = "UPDATE accounts SET label = '{}' WHERE id = {}"
+cursor.execute(template.format(label, account_id))
 ```
+
+The template variable itself is not a value: `template.format(marks)` where `marks` is a placeholder list (`", ".join(["?"] * len(ids))`) is not reported. This rule owns the single-expression shapes VNX-PY-022 used to report on the same lines; SQL assembled from a list of pieces and `join()`ed is reported by [VNX-PY-022](../vnx-py-022/).
 
 ## Remediation
 

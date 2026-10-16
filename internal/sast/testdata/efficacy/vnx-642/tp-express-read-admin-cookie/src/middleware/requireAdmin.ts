@@ -1,14 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
-~>  if (req.cookies.isAdmin === 'true') {
+  // Reported by VNX-784 (a security decision on a cookie), not by this rule.
+  if (req.cookies.isAdmin === 'true') {
     return next();
   }
   res.status(403).json({ error: 'forbidden' });
 }
 
 export function requireEditor(req: Request, res: Response, next: NextFunction) {
-~>  const role = req.cookies['user_role'];
+  // Reported by VNX-784 (a security decision on a cookie), not by this rule.
+  const role = req.cookies['user_role'];
   if (role === 'editor' || role === 'admin') {
     return next();
   }

@@ -6,7 +6,7 @@ export function clientIp(req: any): string {
 
 export const limiter = rateLimit({
   windowMs: 60_000,
-~>  keyGenerator({ headers, ip }: any) { return headers["X-Forwarded-For"] ?? ip },
+  keyGenerator({ headers, ip }: any) { return headers["X-Forwarded-For"] ?? ip },
 });
 
 export function audit(req: any) {

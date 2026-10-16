@@ -1,11 +1,13 @@
 ---
-title: "VNX-JAVA-028 – SQL injection via string concatenation in Java"
-description: "Detects JDBC Statement/Connection, Spring JdbcTemplate and Android SQLiteDatabase rawQuery/execSQL calls whose SQL is built from a SQL literal or text block and a non-constant value by concatenation, +=, concat(), String.format, .formatted() or StringBuilder.append, inline or in a variable assigned above the call. Parameterised queries and constant-only SQL are not reported."
+title: "VNX-JAVA-028 – SQL injection via StringBuilder-assembled SQL in Java"
+description: "Detects JDBC Statement/Connection, Spring JdbcTemplate and Android SQLiteDatabase calls whose SQL is assembled in a StringBuilder or StringBuffer with an append() of a non-constant value. SQL concatenated or formatted into a String is reported by VNX-JAVA-003."
 ---
 
 ## Overview
 
-This rule detects JDBC (`execute`, `executeQuery`, `executeUpdate`, `executeLargeUpdate`, `addBatch`, `prepareStatement`, `prepareCall`) and Spring `JdbcTemplate` (`query*`, `update`, `batchUpdate`) calls whose SQL argument contains a SQL string literal joined with a non-constant value through `+`, `+=`, `.concat()`, `String.format("...%s")` or `StringBuilder.append()`, either inline (also across line breaks) or in a variable built within the 40 lines above the call. SQL made only of literals and UPPER_CASE constants, `?` placeholders with bound arguments, and non-SQL `execute()` calls (HTTP clients, executors) are not reported. The rule does not follow values across methods and does not decide whether the joined value is attacker-controlled. When user-supplied data is embedded directly into a SQL query string without parameterization, an attacker can manipulate the query's structure — altering its logic, extracting unauthorized data, modifying records, or executing administrative commands depending on the database user's privileges. This is classified as CWE-89 (Improper Neutralization of Special Elements used in an SQL Command).
+This rule detects JDBC (`execute`, `executeQuery`, `executeUpdate`, `executeLargeUpdate`, `addBatch`, `prepareStatement`, `prepareCall`) and Spring `JdbcTemplate` (`query*`, `update`, `batchUpdate`) calls whose SQL is assembled in a `StringBuilder` or `StringBuffer`, where an `append()` adds a non-constant value: `sb.append(name)`, `sb.append(" AND x = '" + name + "'")`, or a chained `new StringBuilder("SELECT ...").append(id).toString()` written inside the call. The builder is read from its nearest plain assignment within the 40 lines above the call, and a SQL string literal must appear in what it is built from.
+
+SQL concatenated, `+=`-extended or formatted (`String.format`, `concat()`, `.formatted()`) into a `String`, inline or through a variable, is reported by [VNX-JAVA-003](../vnx-java-003/), so the same line is not reported twice. VNX-JAVA-003 does not follow a builder's `append()` calls, which is the shape this rule covers. Builders that append only literals and UPPER_CASE constants, `?` placeholders with bound arguments, and builders that hold no SQL are not reported. The rule follows values only within the enclosing method and does not decide whether the appended value is attacker-controlled. When user-supplied data is embedded directly into a SQL query string without parameterization, an attacker can manipulate the query's structure — altering its logic, extracting unauthorized data, modifying records, or executing administrative commands depending on the database user's privileges. This is classified as CWE-89 (Improper Neutralization of Special Elements used in an SQL Command).
 
 SQL injection remains one of the most prevalent and impactful vulnerabilities in web applications. Despite decades of awareness, string-concatenated queries continue to appear in Java codebases due to developer convenience, copied legacy patterns, and dynamic query generation for reporting or search features. Even a single injectable parameter in an otherwise safe codebase can expose the entire database.
 
@@ -20,26 +22,49 @@ In regulated environments (PCI-DSS, HIPAA, GDPR), SQL injection leading to data 
 ## What Gets Flagged
 
 ```java
-// FLAGGED: string concatenation in executeQuery
-String query = "SELECT * FROM users WHERE username = '" + username + "'";
-ResultSet rs = stmt.executeQuery(query);
-
-// FLAGGED: String.format used to construct SQL
-String sql = String.format("DELETE FROM sessions WHERE user_id = %s", userId);
-stmt.executeUpdate(sql);
-
-// FLAGGED: concatenation inside the call
-stmt.execute("UPDATE accounts SET balance = " + amount + " WHERE id = " + id);
-
-// FLAGGED: JdbcTemplate and StringBuilder
-return jdbcTemplate.queryForList("SELECT * FROM sales WHERE region = '" + region + "'");
+// FLAGGED: a request value appended to the builder
 StringBuilder sb = new StringBuilder("UPDATE stock SET qty = qty + 1 WHERE sku = '");
 sb.append(sku).append("'");
 return jdbcTemplate.update(sb.toString());
 
-// NOT FLAGGED: constants only
-st.execute("CREATE TABLE IF NOT EXISTS " + TABLE + " (" + COLUMNS + ")");
+// FLAGGED: a concatenation inside an append()
+StringBuilder q = new StringBuilder("SELECT * FROM products WHERE 1=1");
+if (category != null) q.append(" AND category = '" + category + "'");
+return conn.createStatement().executeQuery(q.toString());
+
+// FLAGGED: a chained builder inside the call
+stmt.executeUpdate(new StringBuilder("UPDATE invoices SET closed = 1 WHERE number = ").append(number).toString());
+
+// NOT FLAGGED: only constants appended, values bound
+StringBuilder sql = new StringBuilder("SELECT id FROM ");
+sql.append(TABLE).append(" WHERE customer = ?");
+jdbcTemplate.queryForList(sql.toString(), customer);
+
+// NOT FLAGGED HERE: concatenation or formatting into a String (reported by VNX-JAVA-003)
+stmt.executeQuery("SELECT * FROM users WHERE username = '" + username + "'");
 ```
+
+### Operands the method fixes
+
+Before reporting, the rule reads the enclosing method (at most 120 lines up) and asks what each operand actually holds at the call. An operand that provably holds a constant is not run-time data:
+
+- a literal or constant expression it was last assigned on every path to the call;
+- the taken side of an `if`/`else` or a ternary whose condition folds to a constant (integer literals, and `int` locals assigned once from a literal);
+- the case a `switch` on a constant selects;
+- the element a list index (`add`, `add(i, v)`, `set`, `remove(i)`) or a map key (`put`) actually holds, when that is a literal;
+- the result of a method in the same file, including a nested class, whose every `return` is a constant.
+
+```java
+// NOT FLAGGED: 50 * 2 > 60, so column is always "region_code"
+int pageSize = 50;
+if (pageSize * 2 > 60) column = "region_code";
+else column = request.getParameter("sort");
+StringBuilder sb = new StringBuilder("SELECT id FROM orders ORDER BY ");
+sb.append(column);
+stmt.executeQuery(sb.toString());
+```
+
+Anything the analysis cannot resolve stays reported: a condition on run-time data, a call into another class, a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter.
 
 ## Remediation
 

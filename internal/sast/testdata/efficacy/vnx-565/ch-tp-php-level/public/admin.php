@@ -1,5 +1,6 @@
 <?php
-~>if ($_COOKIE['admin'] == 1) {
+// Reported by VNX-784 (a security decision on a cookie), not by this rule.
+if ($_COOKIE['admin'] == 1) {
     include 'admin_panel.php';
 }
 

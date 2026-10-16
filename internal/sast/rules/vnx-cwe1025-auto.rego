@@ -325,6 +325,7 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	code := _code(line, lang)
 	_bad(line, code, lang, lines, i)
+	not _handed_over(lang, content, lines, i, line)
 	finding := _finding(path, i, line)
 }
 
@@ -462,4 +463,148 @@ findings contains finding if {
 	code := _code(line, "php")
 	regex.match(concat("", [`\$`, hv[0], `\b\s*(?:==|!=)\s*[^=]|(?:^|[^=!<>])(?:==|!=)\s*\$`, hv[0], `\b`]), code)
 	finding := _finding(path, i, line)
+}
+
+# ── comparisons other rules report ──────────────────────────────────────
+# A Java String compared by == or != with a string literal is VNX-597's
+# finding, and a PHP loose comparison that decides an authentication or
+# integrity check (a hash compared with ==, strcmp() == 0) is VNX-PHP-010's.
+# Each test below is that rule's own, so a line is handed over only when the
+# other rule reports it.
+_handed_over("java", content, _, _, line) if {
+	contains(content, "String")
+	contains(line, "\"")
+	regex.match(`[=!]=\s*"|"\s*[=!]=`, line)
+	c := regex.replace(regex.replace(regex.replace(line, `'(?:[^'\\]|\\.)'`, `''`), `"(?:[^"\\]|\\.)*"`, `""`), `\s*(?://|/\*).*$`, "")
+	regex.match(`(?:[=!]=\s*""|""\s*[=!]=)`, c)
+}
+
+_handed_over("php", content, lines, i, line) if _r010_owns(content, lines, i, line)
+
+# ── lines VNX-PHP-010 reports ───────────────────────────────────────────
+# A PHP loose comparison or strcmp() test that decides an authentication or
+# integrity check is VNX-PHP-010's finding (PHP type juggling). This is that
+# rule's own test, kept in step with it, so a line is only handed over when
+# it reports the line.
+_r010_owns(content, lines, i, line) if {
+	_r010_gate(content)
+	regex.match(`[^=!](==|!=|<>)[^=]|\bstrn?(case)?cmp\s*\(`, line)
+	_r010_report(_r010_masked(line), _r010_tainted(lines, i))
+}
+
+_r010_op := `(\$\w+(?:\s*\[[^\]]*\]|->\w+|::\$?\w+)*(?:\s*\((?:[^()]|\([^()]*\))*\))?|[A-Za-z_][\w\\]*(?:::\w+)?\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|-?\d[\w.]*|\w+)`
+
+_r010_cmp_re := concat("", [_r010_op, `\s*(?:==|!=|<>)\s*`, _r010_op])
+
+_r010_source_re := `\$_(GET|POST|REQUEST|COOKIE|SERVER|FILES)\b|\bjson_decode\s*\(|php://input|\$request->(input|get|query|post|header|cookie|json)\s*\(|\brequest\s*\(\s*['"]|\bgetallheaders\s*\(`
+
+# Secret names are matched as whole identifier words (snake_case and
+# camelCase are split), so author, hashtag, passenger or encoding do not
+# count as auth, hash, pass or code.
+_r010_secret_words := {
+	"pass", "passwd", "password", "passphrase", "pwd", "pw", "token", "secret",
+	"hash", "sig", "signature", "hmac", "otp", "nonce", "csrf", "xsrf", "apikey",
+	"auth", "digest", "answer", "pin", "code", "totp", "mfa",
+}
+
+_r010_names_secret(s) if {
+	norm := lower(regex.replace(s, `([a-z0-9])([A-Z])`, "${1}_${2}"))
+	some w in regex.find_n(`[a-z]+`, norm, -1)
+	_r010_secret_words[w]
+}
+
+_r010_names_secret(s) if regex.match(`(?i)api_?key`, s)
+
+_r010_hash_re := `^(md5|sha1|hash|hash_hmac|crypt|md5_file|sha1_file|hash_file)\s*\(`
+
+# A string literal that itself contains a comparison operator is prose.
+# Literals are found left to right so quote pairs are matched correctly.
+_r010_masked(line) := strings.replace_n(
+	{lit: `''` |
+		some lit in regex.find_n(`'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"`, line, -1)
+		regex.match(`==|!=|<>`, lit)
+	},
+	line,
+)
+
+_r010_is_lit(op) if regex.match(`(?i)^(['"]|-?\d|true$|false$|null$)`, op)
+
+_r010_magic_lit(op) if regex.match(`^['"]0e\d+['"]$`, op)
+
+_r010_tainted(lines, i) := {v |
+	i > 0
+	some j in numbers.range(max([0, i - 30]), i - 1)
+	prev := lines[j]
+	regex.match(_r010_source_re, prev)
+	not helpers.is_comment_line(prev)
+	m := regex.find_all_string_submatch_n(_r010_direct_re, prev, 1)
+	v := m[0][1]
+}
+
+# The assigned value IS the input (optionally through a trivial wrapper), not
+# merely computed with it: $row = fetch_user($_POST['u']) is database data.
+_r010_direct_re := `^\s*\$(\w+)\s*=\s*(?:(?:trim|strtolower|strtoupper|urldecode|rawurldecode|base64_decode|stripslashes|json_decode|isset|\(string\))\s*\(?\s*)*(?:\$_(?:GET|POST|REQUEST|COOKIE|SERVER|FILES)\b|json_decode\s*\(|file_get_contents\s*\(\s*['"]php://input|\$request->|request\s*\(|getallheaders\s*\()`
+
+_r010_is_user(op, _) if regex.match(`^\$_(GET|POST|REQUEST|COOKIE|SERVER|FILES)\b`, op)
+
+_r010_is_user(op, tainted) if {
+	m := regex.find_all_string_submatch_n(`^\$(\w+)`, op, 1)
+	tainted[m[0][1]]
+}
+
+_r010_is_user(op, _) if regex.match(`^(\$request->(input|get|query|post|header|cookie)|request)\s*\(`, op)
+
+_r010_juggles(l, r, _) if {
+	regex.match(_r010_hash_re, l)
+	not _r010_is_lit(r)
+}
+
+_r010_juggles(l, r, _) if {
+	regex.match(_r010_hash_re, l)
+	_r010_magic_lit(r)
+}
+
+_r010_juggles(l, r, tainted) if {
+	_r010_is_user(l, tainted)
+	not _r010_is_lit(r)
+	not _r010_is_user(r, tainted)
+	_r010_names_secret(concat(" ", [l, r]))
+}
+
+_r010_loose(code, tainted) if {
+	some m in regex.find_all_string_submatch_n(_r010_cmp_re, code, -1)
+	l := trim_space(m[1])
+	r := trim_space(m[2])
+	_r010_either(l, r, tainted)
+}
+
+_r010_either(l, r, tainted) if _r010_juggles(l, r, tainted)
+
+_r010_either(l, r, tainted) if _r010_juggles(r, l, tainted)
+
+_r010_strcmp_re := `\bstrn?(?:case)?cmp\s*\(((?:[^()]|\([^()]*\))*)\)`
+
+_r010_strcmp_bypass(code, tainted) if {
+	regex.match(`\bstrn?(?:case)?cmp\s*\((?:[^()]|\([^()]*\))*\)\s*(?:==|!=|<>)\s*0\b|\b0\s*(?:==|!=|<>)\s*strn?(?:case)?cmp\s*\(|!\s*strn?(?:case)?cmp\s*\(`, code)
+	some m in regex.find_all_string_submatch_n(_r010_strcmp_re, code, -1)
+	_r010_args_user(m[1], tainted)
+}
+
+_r010_args_user(args, _) if regex.match(_r010_source_re, args)
+
+_r010_args_user(args, tainted) if {
+	some v in tainted
+	regex.match(concat("", [`\$`, v, `\b`]), args)
+}
+
+
+_r010_report(code, tainted) if _r010_loose(code, tainted)
+
+_r010_report(code, tainted) if _r010_strcmp_bypass(code, tainted)
+
+# Cheap whole-file gate: a comparison can only be reported in a file that
+# reads input, hashes, or calls strcmp.
+_r010_gate(content) if {
+	some s in ["$_", "json_decode", "$request", "request(", "md5", "sha1", "hash", "crypt(", "cmp("]
+	contains(content, s)
 }

@@ -6,7 +6,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-831",
 	"name": "Signal Handler Function Associated with Multiple Signals",
-	"description": "Reports, in C and C++, the registration lines that install one signal handler for two or more different signals when the handler does non-reentrant work and nothing blocks the other signals while it runs, so a second signal can interrupt the handler half way through its own operation (one handler for SIGHUP and SIGTERM that frees a global frees it twice). Registrations: signal()/std::signal/sigset/bsd_signal(SIGx, handler), and sigaction(SIGx, &sa, ...) within 30 lines after sa.sa_handler/sa_sigaction = handler or a designated initialiser (struct sigaction sa = { .sa_handler = handler }), including a call whose arguments continue on the next line. The handler must be defined in the same file (the return type may sit on the line above) and its body must call a function that is not async-signal-safe (stdio, malloc/free, syslog, exit, strtok, localtime, strerror, pthread locking, std::cout, new/delete), directly or through a function defined in the same file whose body does. Not reported: a handler installed for a single signal, handlers that only set a flag or call async-signal-safe functions (write, _exit), a sigaction whose sa_mask is filled or extended (sigfillset/sigaddset on that struct's sa_mask), a crash handler shared only between synchronous fault signals (SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGABRT, SIGTRAP, SIGSYS), SIG_IGN/SIG_DFL, handlers defined in another file, comments and string literals.",
+	"description": "Reports, in C and C++, the registration lines that install one signal handler for two or more different signals when the handler does non-reentrant work and nothing blocks the other signals while it runs, so a second signal can interrupt the handler half way through its own operation (one handler for SIGHUP and SIGTERM that frees a global frees it twice). Registrations: signal()/std::signal/sigset/bsd_signal(SIGx, handler) with the handler plain or class-qualified (&Server::OnSignal), and sigaction(SIGx, &sa, ...) within 30 lines after sa.sa_handler/sa_sigaction = handler or a designated initialiser (struct sigaction sa = { .sa_handler = handler }), including a call whose arguments continue on the next line. The handler must be defined in the same file (the return type may sit on the line above) and its body must call a function that is not async-signal-safe (stdio, malloc/free, syslog, exit, strtok, localtime, strerror, pthread locking, std::cout, new/delete), directly or through a function defined in the same file whose body does. Not reported: a handler installed for a single signal, handlers that only set a flag or call async-signal-safe functions (write, _exit), a sigaction whose sa_mask is filled or extended (sigfillset/sigaddset on that struct's sa_mask), a crash handler shared only between synchronous fault signals (SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGABRT, SIGTRAP, SIGSYS), SIG_IGN/SIG_DFL, handlers defined in another file, comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-831/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
@@ -39,7 +39,7 @@ _regs(lines) := {[m[2], m[1], k] |
 	contains(line, "sig")
 	regex.match(`\b(?:signal|sigset|bsd_signal)\s*\(`, line)
 	not _is_comment(line)
-	some m in regex.find_all_string_submatch_n(`\b(?:signal|sigset|bsd_signal)\s*\(\s*(SIG\w+)\s*,\s*(?:&\s*)?([A-Za-z_]\w*)\s*\)`, _strip(line), -1)
+	some m in regex.find_all_string_submatch_n(`\b(?:signal|sigset|bsd_signal)\s*\(\s*(SIG\w+)\s*,\s*(?:&\s*)?(?:[A-Za-z_]\w*::)*([A-Za-z_]\w*)\s*\)`, _strip(line), -1)
 } | {[m[2], s, b] |
 	some a, line in lines
 	contains(line, "sa_")
@@ -126,7 +126,7 @@ _is_handler_def(lines, h, d) if {
 }
 
 # A function defined at file scope.
-_fn_def_re(f) := concat("", [`^(?:extern\s+"C"\s+)?(?:[A-Za-z_][\w\s\*]*[\s\*])?`, f, `\s*\([^;]*$`])
+_fn_def_re(f) := concat("", [`^(?:extern\s+"C"\s+)?(?:[A-Za-z_][\w\s\*]*[\s\*])?(?:\w+::)*`, f, `\s*\([^;]*$`])
 
 _body(lines, d) := [k |
 	n := count(lines)

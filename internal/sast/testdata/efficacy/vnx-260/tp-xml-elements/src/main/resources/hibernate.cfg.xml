@@ -1,6 +1,6 @@
 <hibernate-configuration>
   <session-factory>
     <property name="connection.username">shop</property>
-~>    <property name="hibernate.connection.password">Sh0p-DB-pass</property>
+    <property name="hibernate.connection.password">Sh0p-DB-pass</property>
   </session-factory>
 </hibernate-configuration>

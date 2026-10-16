@@ -35,6 +35,32 @@ new ProcessBuilder("sh", "-c", "grep " + pattern + " /var/log/app.log");
 
 Not flagged: a constant command, concatenation of literals and `UPPER_CASE` constants only, an argument list that does not invoke a shell (`new ProcessBuilder("convert", input, output)`), a command that arrives as a plain method parameter of a wrapper, comments and string literals.
 
+### Operands the method fixes
+
+Before reporting, the rule reads the enclosing method (at most 120 lines up) and asks what each operand actually holds at the call. An operand that provably holds a constant is not run-time data:
+
+- a literal or constant expression it was last assigned on every path to the call;
+- the taken side of an `if`/`else` or a ternary whose condition folds to a constant (integer literals, and `int` locals assigned once from a literal);
+- the case a `switch` on a constant selects;
+- the element a list index (`add`, `add(i, v)`, `set`, `remove(i)`) or a map key (`put`) actually holds, when that is a literal;
+- the result of a method in the same file, including a nested class, whose every `return` is a constant.
+
+```java
+// NOT FLAGGED: 8 + 4 * 3 < 10 is false, so target is always "127.0.0.1"
+int attempts = 4;
+if (8 + attempts * 3 < 10) target = request.getParameter("host");
+else target = "127.0.0.1";
+Runtime.getRuntime().exec("ping -c 1 " + target);
+
+// FLAGGED: the map key read back holds the request value
+logs.put("app", "/var/log/app.log");
+logs.put("custom", request.getParameter("log"));
+String file = logs.get("custom");
+new ProcessBuilder("sh", "-c", "tail -n 50 " + file).start();
+```
+
+Anything the analysis cannot resolve stays reported: a condition on run-time data, a call into another class, a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter.
+
 ## Remediation
 
 1. **Switch to `ProcessBuilder` with a split argument list.** When you supply each argument as a separate element of a `List<String>`, Java never passes the command through a shell — metacharacters in user input are treated as literal data, not shell syntax.

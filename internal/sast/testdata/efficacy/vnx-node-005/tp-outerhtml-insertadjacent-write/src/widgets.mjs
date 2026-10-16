@@ -1,5 +1,5 @@
 export function replace(node, html) {
-~>  node.outerHTML = html;
+  node.outerHTML = html;
 }
 
 export function toast(container, message) {

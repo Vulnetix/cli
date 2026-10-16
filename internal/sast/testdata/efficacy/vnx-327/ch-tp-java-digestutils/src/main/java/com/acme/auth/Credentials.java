@@ -6,7 +6,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 
 public class Credentials {
     public String hashPassword(String password) {
-~>        return DigestUtils.md5Hex(password);
+        return DigestUtils.md5Hex(password);
     }
 
     public String apiTokenFor(String userId, String salt) {

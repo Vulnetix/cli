@@ -6,7 +6,7 @@ function encrypt(text, iv) {
 }
 
 function sign(body) {
-~>  return crypto.createHmac('sha256', 'webhook-signing-secret').update(body).digest('hex');
+  return crypto.createHmac('sha256', 'webhook-signing-secret').update(body).digest('hex');
 }
 
 ~>const enc = CryptoJS.AES.encrypt(data, "@@sample:M[y]Su[p]er[S]ec[r]et[P]as[s]12[3]@@");

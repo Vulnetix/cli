@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-182",
 	"name": "Collapse of Data into Unsafe Value",
-	"description": "A single-pass removal of a dangerous token from a string: a traversal sequence (\"../\", \"..\\\\\", \"..\"), a \"<script>\" tag or a \"http://\"/\"https://\"/\"javascript:\" scheme replaced with the empty string by Python str.replace/re.sub, JavaScript replace/replaceAll (string or regex literal), Java replace/replaceAll, C# Replace and static Regex.Replace, Go strings.Replace/ReplaceAll, strings.NewReplacer and regexp.MustCompile(...).ReplaceAllString, or PHP str_replace/str_ireplace (including the array form) and preg_replace; a regex for a whole script element (<script[^>]*>.*?</script>) or a traversal with a separator class (\\.\\.[\\/\\\\]) counts. Removing the token once lets the surrounding characters collapse into it again (\"....//\" becomes \"../\", \"<scr<script>ipt>\" becomes \"<script>\"). Not reported: a removal repeated in a while/do-while loop until the token is gone, a removal whose result is checked for the token again (and rejected) within four lines, a prefix trim (TrimPrefix), a replacement with a non-empty value (escaping), other tokens, the call inside a string literal, comments.",
+	"description": "A single-pass removal of a dangerous token from a string: a traversal sequence (\"../\", \"..\\\\\", \"..\"), a \"<script>\" tag or a \"http://\"/\"https://\"/\"javascript:\" scheme replaced with the empty string by Python str.replace/re.sub, JavaScript replace/replaceAll (string or regex literal), Java replace/replaceAll/replaceFirst, C# Replace and static Regex.Replace, Go strings.Replace/ReplaceAll, strings.NewReplacer and regexp.MustCompile(...).ReplaceAllString, or PHP str_replace/str_ireplace (including the array form) and preg_replace; a regex for a whole script element (<script[^>]*>.*?</script>) or a traversal with a separator class (\\.\\.[\\/\\\\]) counts. Removing the token once lets the surrounding characters collapse into it again (\"....//\" becomes \"../\", \"<scr<script>ipt>\" becomes \"<script>\"). Not reported: a removal repeated in a while/do-while loop until the token is gone, a removal whose result is checked for the token again (and rejected) within four lines, a prefix trim (TrimPrefix), a replacement with a non-empty value (escaping), other tokens, the call inside a string literal, comments. This rule is the one finding for these removals; VNX-76 does not report them again and keeps the tokens this rule does not judge (other tags, vbscript:, shell operators, SQL keywords).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-182/",
 	"languages": ["python", "node", "java", "csharp", "go", "php"],
 	"severity": "medium",
@@ -30,7 +30,7 @@ _empty := concat("", [`(?:""|''|`, "``", `)`])
 
 # Each form captures the "search" argument in group 1.
 _forms := [
-	concat("", [`\.(?:replace|replaceAll|Replace)\s*\(\s*(`, _lit, `)\s*,\s*`, _empty, `\s*[,)]`]),
+	concat("", [`\.(?:replace|replaceAll|replaceFirst|Replace)\s*\(\s*(`, _lit, `)\s*,\s*`, _empty, `\s*[,)]`]),
 	concat("", [`\bstrings\.Replace(?:All)?\s*\(\s*[^,]+,\s*(`, _lit, `)\s*,\s*""`]),
 	concat("", [`\bstr_i?replace\s*\(\s*(`, _lit, `|array\s*\([^)]*\)|\[[^\]]*\])\s*,\s*`, _empty, `\s*,`]),
 	concat("", [`\bre\.sub\s*\(\s*r?(`, _lit, `)\s*,\s*`, _empty, `\s*,`]),

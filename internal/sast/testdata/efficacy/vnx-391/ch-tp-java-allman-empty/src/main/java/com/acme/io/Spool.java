@@ -12,7 +12,7 @@ public class Spool
         {
             Files.deleteIfExists(dir.resolve("spool.lock"));
         }
-~>        catch (IOException e)
+        catch (IOException e)
         {
         }
     }

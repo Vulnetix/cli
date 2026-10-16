@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-004 – Broken or Obsolete Cipher"
-description: "Reports construction of DES, Triple DES, RC4, RC2, Blowfish, CAST5 or IDEA ciphers in Python, Node.js, Go, Java, Ruby and PHP (PyCryptodome/cryptography, createCipheriv names, crypto/des and crypto/rc4, Cipher.getInstance transformations, OpenSSL::Cipher, openssl_encrypt and mcrypt). TLS cipher-suite deny-lists, names in lists or comparisons, block-size constants, lookalike names, comments, strings and test files are not reported."
+description: "Reports construction of DES, Triple DES, RC4, RC2, Blowfish, CAST5 or IDEA ciphers in Python, Node.js, Go, Java, Ruby and PHP (PyCryptodome/cryptography, createCipheriv names, crypto/des and crypto/rc4, Cipher.getInstance transformations and SecretKeySpec algorithms, OpenSSL::Cipher, openssl_encrypt and mcrypt). TLS cipher-suite deny-lists, names in lists or comparisons, block-size constants, lookalike names, comments, strings and test files are not reported."
 ---
 
 ## Overview
@@ -35,7 +35,14 @@ Cipher cipher = Cipher.getInstance("DESede/CBC/PKCS5Padding");
 
 // FLAGGED: Java RC4
 Cipher rc4 = Cipher.getInstance("RC4");
+
+// FLAGGED: a DES key, and a weak cipher behind a configuration default
+SecretKeySpec spec = new SecretKeySpec(raw, "DES");
+String alg = props.getProperty("crypto.alg", "DESede/ECB/PKCS5Padding");
+Cipher c = Cipher.getInstance(alg);
 ```
+
+Java is reported by this rule alone. [VNX-928](../vnx-928/) reads the same JCA and Bouncy Castle forms for Kotlin only, so a weak cipher in a `.java` file is one finding, not two.
 
 ```go
 // FLAGGED: Go DES

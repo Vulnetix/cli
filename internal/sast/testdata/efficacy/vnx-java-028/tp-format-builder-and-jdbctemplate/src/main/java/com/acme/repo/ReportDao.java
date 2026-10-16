@@ -14,12 +14,12 @@ public class ReportDao {
     public void purge(Connection c, String userId) throws Exception {
         String sql = String.format("DELETE FROM sessions WHERE user_id = '%s'", userId);
         Statement st = c.createStatement();
-~>        st.executeUpdate(sql);
-~>        st.execute(String.format("DROP TABLE tmp_%s", userId));
+        st.executeUpdate(sql);
+        st.execute(String.format("DROP TABLE tmp_%s", userId));
     }
 
     public List<Map<String, Object>> byRegion(String region) {
-~>        return jdbcTemplate.queryForList("SELECT * FROM sales WHERE region = '" + region + "'");
+        return jdbcTemplate.queryForList("SELECT * FROM sales WHERE region = '" + region + "'");
     }
 
     public int bump(String sku) {
@@ -30,6 +30,6 @@ public class ReportDao {
 
     public Long total(String table) {
         String q = "SELECT COUNT(*) FROM ".concat(table);
-~>        return jdbcTemplate.queryForObject(q, Long.class);
+        return jdbcTemplate.queryForObject(q, Long.class);
     }
 }

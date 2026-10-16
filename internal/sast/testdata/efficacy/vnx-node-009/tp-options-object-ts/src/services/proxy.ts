@@ -11,12 +11,12 @@ export async function relay(req: Request, res: Response): Promise<void> {
 }
 
 export function metadata(req: Request, res: Response): void {
-~>  http.get({ host: req.query.host as string, path: '/latest/meta-data/' }, (r) => r.pipe(res));
+  http.get({ host: req.query.host as string, path: '/latest/meta-data/' }, (r) => r.pipe(res));
 }
 
 export async function mirror(req: Request, res: Response): Promise<void> {
   const source = String(req.query.source);
-~>  const response = await fetch(
+  const response = await fetch(
     source,
     { headers: { accept: 'application/json' } },
   );

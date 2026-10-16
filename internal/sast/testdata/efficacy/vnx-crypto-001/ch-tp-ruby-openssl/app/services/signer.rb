@@ -3,7 +3,7 @@ require 'digest'
 
 class Signer
   def sign(body)
-~>    OpenSSL::Digest.new('MD5').hexdigest(body + secret)
+    OpenSSL::Digest.new('MD5').hexdigest(body + secret)
   end
 
   def legacy(body)

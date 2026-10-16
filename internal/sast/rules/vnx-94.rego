@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-94",
 	"name": "Code Injection",
-	"description": "HTTP request data reaches a dynamic code evaluator, so the requester writes code that the server runs. Reported sinks: JavaScript/TypeScript eval (also window./globalThis./global.eval), new Function / Function, vm.runInNewContext/runInThisContext/runInContext/compileFunction and new vm.Script, and setTimeout/setInterval given a code string; Python eval, exec and compile (bare or builtins.); PHP eval, assert, create_function, and call_user_func/call_user_func_array whose callback is request data; Ruby eval, instance_eval, class_eval and module_eval given a string. Request data is req/request query, body, params, headers or cookies (Koa ctx too), Flask/Django request.args/form/values/json/data/GET/POST/cookies/headers, PHP superglobals, php://input and filter_input, and Rails params/cookies/request.body/request.params, used in the call's argument (including arguments continued on the next two lines) directly or through a variable assigned from it (or from such a variable) in the 25 lines above, including concatenation, template literals, f-strings and PHP/Ruby interpolation. Not reported: evaluators over constants or values never derived from the request, a value passed through a numeric conversion (intval, (int), parseInt, Number, int(), float(), Integer(), to_i) or ast.literal_eval, a variable checked against an allowlist (in_array, array_key_exists, preg_match, includes, has, include?, in CONSTANT, fullmatch/re.match) between the read and the call, setTimeout/setInterval given a function, Ruby eval-family methods given a block, call_user_func with a constant callback, and the names in comments or string literals. Deeper flows (helper functions, collections, other files) are not followed.",
+	"description": "HTTP request data reaches a dynamic code evaluator, so the requester writes code that the server runs. Reported sinks: JavaScript/TypeScript eval (also window./globalThis./global.eval), new Function / Function, vm.runInNewContext/runInThisContext/runInContext/compileFunction and new vm.Script, and setTimeout/setInterval given a code string; Python eval, exec and compile (bare or builtins.); PHP eval, assert, create_function, and call_user_func/call_user_func_array whose callback is request data; Ruby eval, instance_eval, class_eval and module_eval given a string. Request data is req/request query, body, params, headers or cookies (Koa ctx too), Flask/Django request.args/form/values/json/data/GET/POST/cookies/COOKIES/headers, PHP superglobals, php://input and filter_input, and Rails params/cookies/request.body/request.params, used in the call's argument (including arguments continued on the next two lines) directly or through a variable assigned or destructured from it (every name a const { a, b: c } = req.body binds) or from such a variable in the 25 lines above, including concatenation, template literals, f-strings and PHP/Ruby interpolation. Not reported: evaluators over constants or values never derived from the request, a value passed through a numeric conversion (intval, (int), parseInt, Number, int(), float(), Integer(), to_i) or ast.literal_eval, a variable checked against an allowlist (in_array, array_key_exists, preg_match, includes, has, include?, in CONSTANT, fullmatch/re.match) between the read and the call, setTimeout/setInterval given a function, Ruby eval-family methods given a block, call_user_func with a constant callback, and the names in comments or string literals. Deeper flows (helper functions, collections, other files) are not followed. This rule owns these lines: VNX-PY-002 and VNX-NODE-002 (any non-constant eval) do not report a line reported here, and VNX-913 (which reported the Python and JavaScript subset of it) no longer reports any.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-94/",
 	"languages": ["node", "php", "python", "ruby"],
 	"severity": "critical",
@@ -47,7 +47,7 @@ _gate := {
 # Request sources per language.
 _src := {
 	"js": `\b(?:req|request)\.(?:query|body|params|headers|cookies|signedCookies)\b|\bctx\.(?:query|params|request\.body|request\.query)\b`,
-	"py": `\brequest\.(?:args|form|values|json|get_json|data|cookies|headers|GET|POST|body|query_params|stream)\b`,
+	"py": `\brequest\.(?:args|form|values|json|get_json|data|cookies|COOKIES|headers|GET|POST|body|query_params|stream)\b`,
 	"php": `\$_(?:GET|POST|REQUEST|COOKIE|FILES)\b|php://input|\bfilter_input\s*\(|\$request->(?:input|get|query|post|all)\s*\(`,
 	"rb": `\bparams\b\s*(?:\[|\.(?:fetch|require|permit|dig|to_unsafe_h)\b)|\bcookies\s*\[|\brequest\.(?:body|params|query_string|raw_post|headers|cookies|GET|POST)\b`,
 }
@@ -87,11 +87,18 @@ _assigned(line) := v if {
 	v != "_"
 }
 
-_assigned(line) := v if {
-	m := regex.find_all_string_submatch_n(`^\s*(?:const|let|var)\s*\{\s*([A-Za-z_]\w*)`, line, 1)
+# Every name a destructuring declaration binds, the alias when one is given:
+# const { a, b: c } = req.body binds a and c.
+_destructured(line) := {v |
+	m := regex.find_all_string_submatch_n(`^\s*(?:const|let|var)\s*\{([^}]*)\}\s*=`, line, 1)
 	count(m) > 0
-	v := m[0][1]
+	some part in split(m[0][1], ",")
+	pieces := split(trim_space(part), ":")
+	v := trim_left(trim_space(pieces[count(pieces) - 1]), ".")
+	regex.match(`^[A-Za-z_]\w*$`, v)
 }
+
+_names(line) := {v | v := _assigned(line)} | _destructured(line)
 
 _t1(lines, i, src) := {v |
 	i > 0
@@ -100,7 +107,7 @@ _t1(lines, i, src) := {v |
 	regex.match(src, l)
 	not helpers.is_comment_line(l)
 	not regex.match(_sanitised, l)
-	v := _assigned(l)
+	some v in _names(l)
 }
 
 _t2(lines, i, n1) := {v |
@@ -108,7 +115,7 @@ _t2(lines, i, n1) := {v |
 	count(n1) > 0
 	some j in numbers.range(max([0, i - 25]), i - 1)
 	l := lines[j]
-	v := _assigned(l)
+	some v in _names(l)
 	not v in n1
 	some n in n1
 	regex.match(concat("", [`=.*\b`, n, `\b`]), _plain_blank(l))

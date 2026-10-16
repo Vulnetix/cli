@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-SEC-012",
 	"name": "CORS wildcard or origin reflection",
-	"description": "A server answers cross-origin requests from any website. Reported: the Access-Control-Allow-Origin response header set to the request's own Origin header (req.headers.origin, req.get('origin'), r.Header.Get(\"Origin\"), request.getHeader(\"Origin\"), request.META['HTTP_ORIGIN'], $_SERVER['HTTP_ORIGIN'], nginx $http_origin), directly or through a variable assigned from it a few lines above, with no allowlist check (includes/has/in_array/in/==, allowed[...]) on the origin in between; the header set to '*' (setHeader/header/set, Header().Set, response[...] =, headers[...] =, header(\"Access-Control-Allow-Origin: *\"), nginx add_header, Apache Header set, the ingress-nginx cors-allow-origin annotation); and CORS middleware configured for every origin: Express cors() with no options, origin: true/'*' or an origin callback that always answers cb(null, true), AWS CDK allowOrigins: Cors.ALL_ORIGINS, AWS SAM AllowOrigin: \"'*'\", FastAPI/Starlette allow_origins=[\"*\"] or allow_origin_regex=\".*\", Flask-CORS CORS(app) without origins or origins='*', django-cors-headers CORS_ALLOW_ALL_ORIGINS/CORS_ORIGIN_ALLOW_ALL = True, gin AllowAllOrigins: true, rs/cors AllowedOrigins []string{\"*\"} or an AllowOriginFunc that returns true, Spring allowedOrigins(\"*\")/allowedOriginPatterns(\"*\")/addAllowedOrigin(\"*\") and @CrossOrigin without origins or with origins \"*\" (also when its arguments span lines), Kotlin allowedOriginPatterns = listOf(\"*\"), Spring Cloud Gateway YAML allowedOrigins: \"*\" (or a list holding \"*\") and Boot properties cors.allowed-origins=*, ASP.NET Core AllowAnyOrigin(), SetIsOriginAllowed(_ => true) and WithOrigins(\"*\"), Laravel 'allowed_origins' => ['*'] and rack-cors origins '*'. Not reported: a wildcard whose configuration explicitly disables credentials nearby (allow_credentials=False, credentials: false), specific origins, an origin variable that is checked against an allowlist, the header set by client code (fetch/axios request headers), assertions and comparisons, test files, comments and documentation.",
+	"description": "A server answers cross-origin requests from any website. Reported: the Access-Control-Allow-Origin response header set to the request's own Origin header (r.Header.Get(\"Origin\"), request.getHeader(\"Origin\"), request.META['HTTP_ORIGIN'], $_SERVER['HTTP_ORIGIN'], nginx $http_origin), directly or through a variable assigned from it a few lines above, with no allowlist check (includes/has/in_array/in/==, allowed[...]) on the origin in between; the header set to '*' (Header().Set, response[...] =, headers[...] =, header(\"Access-Control-Allow-Origin: *\"), nginx add_header, Apache Header set, the ingress-nginx cors-allow-origin annotation); and CORS middleware configured for every origin: AWS CDK allowOrigins: Cors.ALL_ORIGINS, AWS SAM AllowOrigin: \"'*'\", FastAPI/Starlette allow_origins=[\"*\"] or allow_origin_regex=\".*\", Flask-CORS CORS(app) without origins or origins='*', django-cors-headers CORS_ALLOW_ALL_ORIGINS/CORS_ORIGIN_ALLOW_ALL = True, gin AllowAllOrigins: true, rs/cors AllowedOrigins []string{\"*\"} or an AllowOriginFunc that returns true, Spring allowedOrigins(\"*\")/allowedOriginPatterns(\"*\")/addAllowedOrigin(\"*\") and @CrossOrigin without origins or with origins \"*\" (also when its arguments span lines), Kotlin allowedOriginPatterns = listOf(\"*\"), Spring Cloud Gateway YAML allowedOrigins: \"*\" (or a list holding \"*\") and Boot properties cors.allowed-origins=*, ASP.NET Core AllowAnyOrigin(), SetIsOriginAllowed(_ => true) and WithOrigins(\"*\"), Laravel 'allowed_origins' => ['*'] and rack-cors origins '*'. Not reported: a wildcard whose configuration explicitly disables credentials nearby (allow_credentials=False, credentials: false), specific origins, an origin variable that is checked against an allowlist, the header set by client code (fetch/axios request headers), assertions and comparisons, test files, comments and documentation. CORS in JavaScript/TypeScript servers (header calls, the cors package, Fastify and NestJS) is reported by VNX-942; only the AWS CDK allowOrigins construct is reported here for those files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-012/",
 	"languages": [],
 	"severity": "high",
@@ -284,6 +284,14 @@ _kind(path, lines, i, line) := "wild" if {
 	not _creds_off(lines, i)
 }
 
+# JavaScript/TypeScript servers (header calls, the cors package, origin
+# callbacks) are reported by VNX-942. Only the AWS CDK construct, which is
+# infrastructure configuration rather than a Node server, stays here.
+_node_owned(path, line) if {
+	regex.match(`\.(js|jsx|mjs|cjs|ts|tsx)$`, path)
+	not regex.match(`\ballowOrigins\s*:`, line)
+}
+
 _message := {
 	"reflect": "Access-Control-Allow-Origin echoes the request's Origin header without an allowlist check; any website can read this response (with the user's cookies if credentials are allowed). Compare the origin against a fixed list of trusted origins first",
 	"wild": "CORS allows every origin; restrict Access-Control-Allow-Origin to the specific trusted origins that need cross-origin access",
@@ -299,6 +307,7 @@ findings contains finding if {
 	regex.match(`(?i)origin|cors`, line)
 	not helpers.is_comment_line(line)
 	not _assertion(line)
+	not _node_owned(path, line)
 	k := _kind(path, lines, i, line)
 	finding := {
 		"rule_id": metadata.id,

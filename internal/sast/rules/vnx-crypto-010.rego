@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CRYPTO-010",
 	"name": "Hardcoded IV, nonce, or salt in cryptographic operation",
-	"description": "A constant is passed as the IV, nonce or salt argument of a cipher, AEAD or password KDF call: a string or byte literal, a literal byte array, or a zero-filled buffer (bytes(16), Buffer.alloc(16), new Uint8Array(12), make([]byte, n), new byte[16], [0u8; 12], {0}), either written in the call or held in a variable whose nearest assignment above is that constant and which is not filled between the assignment and the call. Sinks: Python pycryptodome AES/DES/Blowfish .new(), cryptography modes.CBC/CTR/GCM/CFB/OFB/XTS, AESGCM/AESCCM/ChaCha20Poly1305 encrypt/decrypt, iv=/nonce=/salt= keywords, hashlib.pbkdf2_hmac, PBKDF2/scrypt/PBKDF2HMAC/Scrypt/argon2 hash_secret, bcrypt.hashpw; JavaScript/TypeScript createCipheriv/createDecipheriv, pbkdf2(Sync)/scrypt(Sync), WebCrypto and CryptoJS iv:/salt: parameters, CryptoJS.PBKDF2; Go cipher.NewCBCEncrypter/NewCBCDecrypter/NewCTR/NewOFB/NewCFB*, AEAD Seal/Open, secretbox/box Seal/Open, pbkdf2/scrypt/argon2 Key; Java/Kotlin IvParameterSpec, GCMParameterSpec, PBEKeySpec, PBEParameterSpec, ChaCha20ParameterSpec, BCrypt.hashpw; C/C++/Objective-C EVP_EncryptInit/DecryptInit/CipherInit(_ex), AES_cbc/cfb/ofb_encrypt, PKCS5_PBKDF2_HMAC, mbedtls_aes_crypt_cbc, mbedtls_gcm_crypt_and_tag, crypto_secretbox_easy, CCCrypt/CCCryptorCreate; Rust Nonce::from_slice, Nonce::assume_unique_for_key, CBC/CTR/CFB/OFB ::new and new_from_slices, pbkdf2/pbkdf2_hmac, ring pbkdf2::derive, Argon2 hash_password_into; C# Rfc2898DeriveBytes (constructor and Pbkdf2), CreateEncryptor/CreateDecryptor(key, iv), the .IV property, AesGcm/AesCcm/ChaCha20Poly1305 Encrypt/Decrypt; PHP openssl_encrypt/openssl_decrypt, hash_pbkdf2, openssl_pbkdf2, sodium_crypto_secretbox, sodium_crypto_aead_*, sodium_crypto_pwhash; Ruby cipher.iv =, OpenSSL::PKCS5.pbkdf2_hmac, OpenSSL::KDF salt:. C# Encoding.*.GetBytes(literal) and Convert.FromBase64String(literal), PHP str_repeat/hex2bin/base64_decode of a literal count as constants. A direct constant is reported on the call line (or on the iv:/nonce:/salt: line); a constant held in a variable is reported on its assignment. Not reported: IVs and salts from a CSPRNG, read from the ciphertext, or filled in place (rand.Read, io.ReadFull, randomFillSync, getRandomValues, nextBytes, RAND_bytes, fill_bytes) before use; values from configuration or other objects (config.iv), function parameters with no constant assignment in the file, HKDF salts (a constant HKDF salt is permitted by RFC 5869), NULL IVs, calls inside comments or string literals, and test files (known-answer test vectors use fixed IVs by design). Flows through more than one variable, through helper functions, or across files are not followed.",
+	"description": "A constant is passed as the IV, nonce or salt argument of a cipher, AEAD or password KDF call: a string or byte literal, a literal byte array, or a zero-filled buffer (bytes(16), Buffer.alloc(16), new Uint8Array(12), make([]byte, n), new byte[16], [0u8; 12], {0}), either written in the call or held in a variable whose nearest assignment above is that constant and which is not filled between the assignment and the call. Sinks: Python pycryptodome AES/DES/Blowfish .new(), cryptography modes.CBC/CTR/GCM/CFB/OFB/XTS, AESGCM/AESCCM/ChaCha20Poly1305 encrypt/decrypt, iv=/nonce=/salt= keywords, hashlib.pbkdf2_hmac, PBKDF2/scrypt/PBKDF2HMAC/Scrypt/argon2 hash_secret, bcrypt.hashpw; JavaScript/TypeScript createCipheriv/createDecipheriv, pbkdf2(Sync)/scrypt(Sync), WebCrypto and CryptoJS iv:/salt: parameters, CryptoJS.PBKDF2; Go cipher.NewCBCEncrypter/NewCBCDecrypter/NewCTR/NewOFB/NewCFB*, AEAD Seal/Open, secretbox/box Seal/Open, pbkdf2/scrypt/argon2 Key; Java/Kotlin IvParameterSpec, GCMParameterSpec, PBEKeySpec, PBEParameterSpec, ChaCha20ParameterSpec, BCrypt.hashpw; C/C++/Objective-C EVP_EncryptInit/DecryptInit/CipherInit(_ex), AES_cbc/cfb/ofb_encrypt, PKCS5_PBKDF2_HMAC, mbedtls_aes_crypt_cbc, mbedtls_gcm_crypt_and_tag, crypto_secretbox_easy, CCCrypt/CCCryptorCreate; Rust Nonce::from_slice, Nonce::assume_unique_for_key, CBC/CTR/CFB/OFB ::new and new_from_slices, pbkdf2/pbkdf2_hmac, ring pbkdf2::derive, Argon2 hash_password_into; C# Rfc2898DeriveBytes (constructor and Pbkdf2), CreateEncryptor/CreateDecryptor(key, iv), the .IV property, AesGcm/AesCcm/ChaCha20Poly1305 Encrypt/Decrypt; PHP openssl_encrypt/openssl_decrypt, hash_pbkdf2, openssl_pbkdf2, sodium_crypto_secretbox, sodium_crypto_aead_*, sodium_crypto_pwhash; Ruby cipher.iv =, OpenSSL::PKCS5.pbkdf2_hmac, OpenSSL::KDF salt:. C# Encoding.*.GetBytes(literal) and Convert.FromBase64String(literal), PHP str_repeat/hex2bin/base64_decode of a literal count as constants. A direct constant is reported on the call line (or on the iv:/nonce:/salt: line); a constant held in a variable is reported on its assignment. Not reported: IVs and salts from a CSPRNG, read from the ciphertext, or filled in place (rand.Read, io.ReadFull, randomFillSync, getRandomValues, nextBytes, RAND_bytes, fill_bytes) before use; values from configuration or other objects (config.iv), function parameters with no constant assignment in the file, HKDF salts (a constant HKDF salt is permitted by RFC 5869), NULL IVs, calls inside comments or string literals, and test files (known-answer test vectors use fixed IVs by design). Flows through more than one variable, through helper functions, or across files are not followed. Java IVs that VNX-1204 reads are reported by VNX-1204, not here: in a .java file importing javax.crypto, a zero-filled or literal array passed straight to IvParameterSpec/GCMParameterSpec/ChaCha20ParameterSpec, a byte[] initialised from a literal and used as the IV, a byte[] allocated and never filled before it becomes the IV, and a String constant whose bytes are the IV. Java salts, Kotlin and other Java IV constants (Hex.decode(\"...\"), Base64 decodes) stay with this rule.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-010/",
 	"languages": ["python", "javascript", "typescript", "go", "java", "kotlin", "c", "cpp", "rust", "csharp", "php", "ruby"],
 	"severity": "high",
@@ -359,10 +359,103 @@ findings contains finding if {
 	indexof(t, m[0][0]) < count(_code(line, lang))
 	not _in_docstring(lines, i, lang)
 	r := _verdict(m[0][1], lines, i)
+	not _owned_by_vnx1204(path, content, lines, r.line)
 	finding := _finding(path, lines, r)
 }
 
 _excluded(s, line) if regex.match(s.not, line)
+
+# ── Java IVs reported by VNX-1204 ────────────────────────────────────────
+# VNX-1204 is the Java weak-IV rule and owns a Java IV that is a zero-filled
+# or literal array passed to the spec, a byte[] initialised from a literal, a
+# never-filled allocation or a String constant's bytes. These predicates are
+# VNX-1204's own, so every line handed over here is reported there.
+
+_owned_by_vnx1204(path, content, lines, k) if {
+	endswith(path, ".java")
+	contains(content, "ParameterSpec")
+	contains(content, "javax.crypto")
+	_v1204_line(content, lines, k)
+}
+
+_v1204_blank(line) := regex.replace(line, `"(?:\\.|[^"\\])*"`, `""`)
+
+_v1204_iv_arg(v) := concat("", [`(?:IvParameterSpec|GCMParameterSpec|ChaCha20ParameterSpec)\s*\(\s*(?:[^,()]+,\s*)?`, v, `\s*[,)]`])
+
+_v1204_byte_var := `\bbyte\s*(?:\[\s*\]\s+([A-Za-z_]\w*)|\s([A-Za-z_]\w*)\s*\[\s*\])\s*=\s*`
+
+# Zero-filled or literal bytes passed straight to the spec.
+_v1204_line(_, lines, k) if {
+	line := lines[k]
+	contains(line, "ParameterSpec")
+	code := _v1204_blank(_v1204_spec_text(lines, k, line))
+	regex.match(`new\s+(?:javax\.crypto\.spec\.)?(?:IvParameterSpec|GCMParameterSpec|ChaCha20ParameterSpec)\s*\(.*(?:new\s+byte\s*\[[^\]]+\]|new\s+byte\s*\[\s*\]\s*\{|""\s*\.getBytes\()`, code)
+}
+
+# A byte[] initialised from a literal and used as the IV.
+_v1204_line(content, lines, k) if {
+	contains(lines[k], "byte")
+	m := regex.find_all_string_submatch_n(concat("", [_v1204_byte_var, `(.*)$`]), _v1204_blank(lines[k]), 1)
+	count(m) > 0
+	v := concat("", [m[0][1], m[0][2]])
+	regex.match(`^(?:\{|new\s+byte\s*\[\s*\]\s*\{|""\s*\.getBytes\()`, trim_space(m[0][3]))
+	regex.match(_v1204_iv_arg(v), content)
+}
+
+# A byte[] allocated and used as the IV within 40 lines without being filled.
+_v1204_line(_, lines, k) if {
+	contains(lines[k], "new byte")
+	n := count(lines) - 1
+	m := regex.find_all_string_submatch_n(concat("", [_v1204_byte_var, `new\s+byte\s*\[[^\]]+\]\s*;`]), lines[k], 1)
+	count(m) > 0
+	v := concat("", [m[0][1], m[0][2]])
+	use_re := _v1204_iv_arg(v)
+	uses := [j |
+		some j in numbers.range(k + 1, min([n, k + 40]))
+		contains(lines[j], "ParameterSpec")
+		regex.match(use_re, concat(" ", [lines[j], _v1204_next(lines, j, n)]))
+	]
+	count(uses) > 0
+	not _v1204_filled(lines, k, uses[0], v)
+}
+
+# A String constant whose bytes are the IV.
+_v1204_line(content, lines, k) if {
+	contains(lines[k], "String")
+	m := regex.find_all_string_submatch_n(`\bString\s+([A-Za-z_]\w*)\s*=\s*"[^"]*"\s*;`, lines[k], 1)
+	count(m) > 0
+	v := m[0][1]
+	regex.match(concat("", [`(?:IvParameterSpec|GCMParameterSpec|ChaCha20ParameterSpec)\s*\(\s*(?:[^,()]+,\s*)?`, v, `\s*\.\s*getBytes\s*\(`]), content)
+}
+
+_v1204_next(lines, j, n) := lines[j + 1] if j + 1 <= n
+
+else := ""
+
+_v1204_filled(lines, i, k, v) if {
+	some j in numbers.range(i + 1, k)
+	l := lines[j]
+	not helpers.is_comment_line(l)
+	not regex.match(`\bArrays\.fill\s*\(`, l)
+	regex.match(concat("", [`(?:\w\s*\(\s*(?:[^;]*,\s*)?`, v, `\s*[,)]|\b`, v, `\s*\[[^\]]*\]\s*=[^=]|\b`, v, `\s*=[^=])`]), l)
+	not regex.match(concat("", [`ParameterSpec\s*\(\s*(?:[^,()]+,\s*)?`, v, `\s*[,)]`]), l)
+}
+
+_v1204_spec_text(lines, i, line) := t if {
+	regex.match(`ParameterSpec\s*\(`, line)
+	_v1204_open(line) > 0
+	n := count(lines) - 1
+	i + 1 <= n
+	t2 := concat(" ", [line, trim_space(lines[i + 1])])
+	t := _v1204_more(lines, i, n, t2)
+} else := line
+
+_v1204_more(lines, i, n, t) := concat(" ", [t, trim_space(lines[i + 2])]) if {
+	_v1204_open(t) > 0
+	i + 2 <= n
+} else := t
+
+_v1204_open(s) := count(regex.find_all_string_submatch_n(`\(`, s, -1)) - count(regex.find_all_string_submatch_n(`\)`, s, -1))
 
 # ── Keyword / object-member parameters ───────────────────────────────────
 

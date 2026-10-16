@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-013",
 	"name": "Python ML/AI insecure deserialization",
-	"description": "A model, dataset or cached object is loaded with a pickle-based deserializer, which runs code embedded in the file: whoever can write or substitute the file (a downloaded checkpoint, a shared bucket, a user upload, a cookie) gets code execution. Reported: pickle/cPickle/_pickle .load(), .loads() and .Unpickler(), dill and cloudpickle .load()/.loads(), joblib.load(), pandas.read_pickle(), numpy.load(..., allow_pickle=True), torch.load() without weights_only=True (or with weights_only=False), and Keras load_model(..., safe_mode=False), including module aliases (import pickle as pkl, import pandas as pd), functions imported by name (from pickle import loads as unpickle, from joblib import load) and arguments on continuation lines. Not reported: numpy.load without allow_pickle=True, torch.load(weights_only=True), torch.jit.load, safetensors, json, the dump/dumps writers, read_csv, load_model with the default safe mode, a round trip of an object the process just serialized (pickle.loads(pickle.dumps(x))), methods of other objects whose names merely contain pickle or load, and the pattern inside strings and comments. Whether the file is trusted is not judged; plain pickle and torch.load are also reported by VNX-PY-003 and VNX-LLM-007.",
+	"description": "A model, dataset or cached object is loaded with an ML or data loader that unpickles under the hood, which runs code embedded in the file: whoever can write or substitute the file (a downloaded checkpoint, a shared bucket, a user upload) gets code execution. Reported: joblib.load(), pandas.read_pickle(), numpy.load(..., allow_pickle=True), torch.load() without weights_only=True (or with weights_only=False), and Keras load_model(..., safe_mode=False), including module aliases (import pandas as pd), functions imported by name (from joblib import load as load_estimator) and arguments on continuation lines. Not reported: numpy.load without allow_pickle=True, torch.load(weights_only=True), torch.jit.load, safetensors, json, the dump/dumps writers, read_csv, load_model with the default safe mode, methods of other objects whose names merely contain pickle or load, and the pattern inside strings and comments. The pickle family itself (pickle, cPickle, _pickle, dill and cloudpickle load()/loads()/Unpickler()) is reported by VNX-PY-003, not here. Whether the file is trusted is not judged; torch.load is also reported by VNX-LLM-007.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-013/",
 	"languages": ["python"],
 	"severity": "critical",
@@ -27,14 +27,14 @@ _strip(line) := regex.replace(
 	"",
 )
 
+# The pickle family itself (pickle, cPickle, _pickle, dill, cloudpickle) is
+# VNX-PY-003's: this rule owns the loaders that unpickle under the hood.
 _kind := {
-	"pickle": "pickle", "cPickle": "pickle", "_pickle": "pickle", "dill": "pickle", "cloudpickle": "pickle",
 	"joblib": "joblib", "pandas": "pandas", "numpy": "numpy", "torch": "torch",
 }
 
 _defaults := {
-	["pickle", "pickle"], ["cPickle", "pickle"], ["_pickle", "pickle"], ["dill", "pickle"],
-	["cloudpickle", "pickle"], ["joblib", "joblib"], ["pandas", "pandas"], ["pd", "pandas"],
+	["joblib", "joblib"], ["pandas", "pandas"], ["pd", "pandas"],
 	["numpy", "numpy"], ["np", "numpy"], ["torch", "torch"],
 }
 
@@ -66,8 +66,6 @@ _call_text(lines, i) := txt if {
 	txt := concat("\n", [_strip(lines[k]) | some k in numbers.range(i, end)])
 }
 
-_unsafe("pickle", method, _) if method in {"load", "loads", "Unpickler"}
-
 _unsafe("joblib", "load", _) := true
 
 _unsafe("pandas", "read_pickle", _) := true
@@ -77,8 +75,6 @@ _unsafe("numpy", "load", txt) if regex.match(`\ballow_pickle\s*=\s*True\b`, txt)
 _unsafe("torch", "load", txt) if not regex.match(`\bweights_only\s*=\s*(?:True\b|[A-Za-z_][\w\.]*)`, txt)
 
 _unsafe("torch", "load", txt) if regex.match(`\bweights_only\s*=\s*False\b`, txt)
-
-_label("pickle") := "pickle-family deserializer"
 
 _label("joblib") := "joblib.load()"
 
@@ -134,9 +130,9 @@ findings contains finding if {
 _round_trip(txt) if regex.match(`\.loads?\s*\(\s*[\w\.]*\.dumps?\s*\(`, txt)
 
 # [local name, kind, method] for every deserializer imported by name:
-# from pickle import loads as unpickle, from joblib import load.
+# from joblib import load as load_estimator, from pandas import read_pickle.
 _from_imports(content) := {[local, k, orig] |
-	some m in regex.find_all_string_submatch_n(`(?m)^\s*from\s+(pickle|cPickle|_pickle|dill|cloudpickle|joblib|pandas|torch)\s+import\s+\(?([^\n#)]+)`, content, -1)
+	some m in regex.find_all_string_submatch_n(`(?m)^\s*from\s+(joblib|pandas|torch)\s+import\s+\(?([^\n#)]+)`, content, -1)
 	k := _kind[m[1]]
 	some part in split(m[2], ",")
 	pm := regex.find_all_string_submatch_n(`^\s*(\w+)(?:\s+as\s+(\w+))?\s*$`, part, 1)
@@ -153,7 +149,7 @@ _local_name(pm) := pm[1] if pm[2] == ""
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".py")
-	regex.match(`(?m)^\s*from\s+(?:pickle|cPickle|_pickle|dill|cloudpickle|joblib|pandas|torch)\s+import\s`, content)
+	regex.match(`(?m)^\s*from\s+(?:joblib|pandas|torch)\s+import\s`, content)
 	imported := _from_imports(content)
 	count(imported) > 0
 	lines := split(content, "\n")

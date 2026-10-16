@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-009 – Node.js Server-Side Request Forgery"
-description: "Reports a server-side HTTP request (fetch, axios, http(s).get/request, got, needle, superagent, undici, request, or curl/wget run as a subprocess) whose destination URL or host comes from req.query/body/params/headers/cookies or Koa ctx, directly or through a variable assigned from one. Fixed-host URLs and allowlisted destinations are not reported."
+description: "Reports a server-side HTTP request (fetch, axios, http(s).get/request, got, needle, superagent, undici, request, or curl/wget run as a subprocess) whose destination URL or host comes from req.query/body/params/headers/cookies or Koa ctx, directly or through a variable assigned from one. Fixed-host URLs and allowlisted destinations are not reported, and a request whose response is relayed back to the client is reported by VNX-441 instead."
 ---
 
 ## Overview
@@ -36,6 +36,8 @@ spawnSync('curl', ['-s', endpoint]);   // endpoint = req.body.endpoint
 ```
 
 Not flagged: a URL whose host is fixed (`API_BASE + '/items/' + req.params.id`, `` `${config.apiUrl}/users/${id}` ``), request values sent only as headers, params or a body, a destination checked against an allowlist (`ALLOWED_HOSTS.has(target.hostname)`), and methods named `fetch` on other objects (`cache.fetch(key)`).
+
+A request whose response is then sent back to the client (`res.send(upstream.data)`, `upstream.pipe(res)`, `ctx.body = r.data`) is reported by [VNX-441](../vnx-441/) instead: the service is an open proxy, the form of SSRF in which the attacker also reads what the server fetched, and one request is one finding. Python SSRF is [VNX-918](../vnx-918/).
 
 ## Remediation
 

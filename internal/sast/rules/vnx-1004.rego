@@ -191,6 +191,7 @@ findings contains _finding(path, i, line, "Session or auth cookie set without ht
 	_sensitive(content, _first_raw(call))
 	not _deleting(call)
 	_js_opts_unprotected(content, call)
+	not _n029_call(path, content, lines, i, line)
 }
 
 # No options, or an options object literal (already known to lack httpOnly),
@@ -222,6 +223,7 @@ findings contains _finding(path, i, line, "Cookie options set httpOnly: false fo
 	win := helpers.code_window(lines, i, 8, 2)
 	regex.match(`(?i)session\s*\(|cookieSession\s*\(|\.cookie\s*\(|setCookie\s*\(|cookie\s*:|cookieOptions|sessionOptions`, win)
 	not regex.match(_csrf_re, win)
+	not _n029_off(path, lines, i, line)
 }
 
 findings contains _finding(path, i, line, "Session or auth token written to document.cookie: a cookie set from script can never be HttpOnly, so any injected script can read it. Set it from the server with HttpOnly") if {
@@ -431,4 +433,95 @@ findings contains _finding(path, i, line, "Servlet session cookie HttpOnly turne
 _go_on(lit) if {
 	regex.match(`\bHttpOnly\s*:\s*\w`, lit)
 	not regex.match(`\bHttpOnly\s*:\s*false\b`, lit)
+}
+
+# ── Node.js lines VNX-NODE-029 reports ──────────────────────────────────
+# VNX-NODE-029 is the Node.js form of this rule (CWE-1004): it reports an
+# Express/Fastify res.cookie()/reply.setCookie() of a session or credential
+# cookie without httpOnly, and httpOnly: false next to a cookie call. This
+# rule leaves those lines to it and keeps the Node.js shapes VNX-NODE-029
+# does not see (a cookie named only for an identity or role, such as
+# user_id or admin; express-session options; document.cookie). The
+# conditions below mirror VNX-NODE-029's.
+_n029_call_re := `(?:\b(?:res|resp|response|reply)\.(?:cookie|setCookie)|\bcookie\.serialize)\s*\(`
+
+_n029_sensitive_re := `(?i)(sess|\bsid\b|sid['"]|token|auth(?:$|[^o]|o[^r])|jwt|login|identity|credential|bearer|access(?:$|[^i])|refresh|remember_?me)`
+
+_n029_strip(s) := regex.replace(s, concat("", [`'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`, "`[^`]*`"]), `''`)
+
+_n029_depth(lines, s, j) := sum([d |
+	some k in numbers.range(s, j)
+	c := _n029_strip(lines[k])
+	d := strings.count(c, "(") - strings.count(c, ")")
+])
+
+_n029_call_end(lines, i) := e if {
+	hi := min([count(lines) - 1, i + 8])
+	ends := [j | some j in numbers.range(i, hi); _n029_depth(lines, i, j) <= 0]
+	e := min(array.concat(ends, [hi]))
+}
+
+_n029_call_text(lines, i) := concat("\n", [l | some k in numbers.range(i, _n029_call_end(lines, i)); l := lines[k]; not helpers.is_comment_line(l)])
+
+_n029_args(text) := a if {
+	m := regex.find_all_string_submatch_n(concat("", ["(?s)", _n029_call_re, `(.*)$`]), text, 1)
+	count(m) > 0
+	a := m[0][1]
+}
+
+_n029_head(args) := concat(",", array.slice(split(split(replace(args, "${", "$<"), "{")[0], ","), 0, 2))
+
+_n029_clearing(args) if trim_space(split(split(args, "{")[0], ",")[1]) in {"''", `""`, "``", "null", "undefined"}
+
+_n029_clearing(args) if regex.match(`expires\s*:\s*new Date\(\s*0\s*\)|maxAge\s*:\s*0\b`, args)
+
+_n029_httponly_true(content, args) if {
+	not contains(args, "{")
+	parts := split(args, ",")
+	count(parts) >= 3
+	id := trim(trim_space(parts[2]), ") ;")
+	regex.match(`^[A-Za-z_$][\w$.]*$`, id)
+	regex.match(concat("", [`(?s)\b`, id, `\b[^=\n]*=\s*\{[^}]*httpOnly\s*:\s*true`]), content)
+}
+
+_n029_unknown_options(content, args) if {
+	not contains(args, "{")
+	parts := split(args, ",")
+	count(parts) >= 3
+	id := trim(trim_space(parts[2]), ") ;")
+	regex.match(`^[A-Za-z_$][\w$.]*$`, id)
+	not regex.match(concat("", [`\b`, id, `\b[^=\n]*=\s*\{`]), content)
+}
+
+_n029_unknown_options(_, args) if {
+	not contains(args, "{")
+	parts := split(args, ",")
+	count(parts) >= 3
+	regex.match(`^\s*[A-Za-z_$][\w$.]*\s*\(`, parts[2])
+}
+
+_n029_unknown_options(_, args) if regex.match(`\{\s*\.\.\.|,\s*\.\.\.[A-Za-z_$]`, args)
+
+# VNX-NODE-029 reports this cookie call.
+_n029_call(path, content, lines, i, line) if {
+	not endswith(path, ".min.js")
+	contains(line, "ookie")
+	regex.match(_n029_call_re, _n029_strip(line))
+	args := _n029_args(_n029_call_text(lines, i))
+	head := _n029_head(args)
+	regex.match(_n029_sensitive_re, head)
+	not regex.match(_csrf_re, head)
+	not _n029_clearing(args)
+	not regex.match(`\bhttpOnly\s*:`, args)
+	not _n029_httponly_true(content, args)
+	not _n029_unknown_options(content, args)
+}
+
+# VNX-NODE-029 reports this httpOnly: false.
+_n029_off(path, lines, i, line) if {
+	not endswith(path, ".min.js")
+	regex.match(`\bhttpOnly\s*:\s*false\b`, line)
+	some j in numbers.range(max([0, i - 6]), i)
+	regex.match(`\.cookies?\s*\(|\.cookies\.set\s*\(|setCookie\s*\(|\bserialize\s*\(`, lines[j])
+	not helpers.is_comment_line(lines[j])
 }

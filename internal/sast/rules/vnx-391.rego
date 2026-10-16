@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-391",
 	"name": "Unchecked Error Condition",
-	"description": "An exception is caught and silently discarded. In Java: a catch block whose body is empty (on one line, across lines holding only blanks, or with its brace on the next line in Allman style) or whose only statement is a discarded e.toString()/e.getMessage() call, or holds only a TODO/FIXME or auto-generated comment. In Python: a bare except:, except Exception or except BaseException (alone or in a tuple) whose whole body is pass or an ellipsis, on the same line or below. The failure is lost: the caller continues as if the operation succeeded. Not reported: a catch or except that logs, rethrows, returns or records anything; a Java catch variable named ignored/ignore/expected/unused (an explicit discard); a body holding an explanatory comment, or a Python pass carrying a trailing comment other than TODO/FIXME (# nosec, # noqa, a reason), or an except line carrying one (a documented decision); a Python except of a specific exception type such as ImportError or KeyError; contextlib.suppress; test files, comments and string literals (a quoted catch clause is not matched).",
+	"description": "An exception is caught and silently discarded. In Java: a catch block whose body holds only a TODO/FIXME or auto-generated comment (with blanks or a discarded e.toString()/e.getMessage() call), or an empty or no-op body longer than VNX-390 looks. A Java catch that is plainly empty (on one line, across a few blank lines, or Allman style) or whose only statement is a discarded e.toString()/e.getMessage() is reported by VNX-390 instead, the same defect under CWE-390, so it is one finding. In Python: a bare except:, except Exception or except BaseException (alone or in a tuple) whose whole body is pass or an ellipsis, on the same line or below. The failure is lost: the caller continues as if the operation succeeded. Not reported: a catch or except that logs, rethrows, returns or records anything; a Java catch variable named ignored/ignore/expected/unused (an explicit discard); a body holding an explanatory comment, or a Python pass carrying a trailing comment other than TODO/FIXME (# nosec, # noqa, a reason), or an except line carrying one (a documented decision); a Python except of a specific exception type such as ImportError or KeyError; contextlib.suppress; test files, comments and string literals (a quoted catch clause is not matched).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-391/",
 	"languages": ["java", "python"],
 	"severity": "medium",
@@ -102,6 +102,7 @@ findings contains finding if {
 	jm := _java_match(lines, i, line)
 	not _discard_var(jm.var)
 	_java_empty(lines, jm.at, jm.m)
+	not _vnx390_reports(lines, i, _strip_strings(line))
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Exception caught and silently discarded: the empty catch block hides the failure and the caller continues as if it succeeded. Handle, log or rethrow it",
@@ -111,6 +112,65 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# ── Handed over to VNX-390 ──────────────────────────────────────────────
+# VNX-390 (CWE-390, Detection of Error Condition Without Action) reports a
+# Java catch whose body is empty or only discards e.toString()/getMessage().
+# That is the same defect, so those catches are its, and this rule keeps the
+# Java shapes VNX-390 does not report: a body holding only a TODO/FIXME or
+# auto-generated comment, and the longer blank or no-op bodies beyond its
+# window. The predicates below are VNX-390's own.
+
+_v390_catch_re := `^(?:.*[};])?\s*catch\s*\(\s*(?:final\s+)?[\w.$|\s]+?\s+(\w+)\s*\)\s*\{(.*)$`
+
+_v390_allman_re := `^(?:.*[};])?\s*catch\s*\(\s*(?:final\s+)?[\w.$|\s]+?\s+(\w+)\s*\)\s*$`
+
+_v390_deliberate := {"ignored", "ignore", "ignoredException", "expected", "unused", "_", "ignore_"}
+
+_v390_discard := `\s*\.\s*(?:toString|getMessage|getLocalizedMessage|getCause)\s*\(\s*\)\s*;\s*`
+
+_v390_next(lines, i) := j if {
+	end := min([count(lines) - 1, i + 4])
+	end >= i + 1
+	cands := [k | some k in numbers.range(i + 1, end); trim_space(lines[k]) != ""]
+	count(cands) > 0
+	j := cands[0]
+}
+
+_v390_catch(_, i, line) := [m[0][1], i, m[0][2]] if {
+	m := regex.find_all_string_submatch_n(_v390_catch_re, line, 1)
+	count(m) > 0
+}
+
+_v390_catch(lines, i, line) := [m[0][1], j, b[0][1]] if {
+	m := regex.find_all_string_submatch_n(_v390_allman_re, line, 1)
+	count(m) > 0
+	j := _v390_next(lines, i)
+	b := regex.find_all_string_submatch_n(`^\s*\{(.*)$`, _strip_strings(lines[j]), 1)
+	count(b) > 0
+}
+
+_v390_empty(_, _, _, rest) if regex.match(`^\s*\}`, rest)
+
+_v390_empty(lines, i, _, rest) if {
+	trim_space(rest) == ""
+	regex.match(`^\s*\}`, lines[_v390_next(lines, i)])
+}
+
+_v390_empty(_, _, v, rest) if regex.match(concat("", [`^\s*`, v, _v390_discard, `\}`]), rest)
+
+_v390_empty(lines, i, v, rest) if {
+	trim_space(rest) == ""
+	j := _v390_next(lines, i)
+	regex.match(concat("", [`^\s*`, v, _v390_discard, `$`]), lines[j])
+	regex.match(`^\s*\}`, lines[_v390_next(lines, j)])
+}
+
+_vnx390_reports(lines, i, line) if {
+	c := _v390_catch(lines, i, line)
+	not _v390_deliberate[c[0]]
+	_v390_empty(lines, c[1], c[0], c[2])
 }
 
 # ── Python ──────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-321",
 	"name": "Hard-coded cryptographic key",
-	"description": "A cryptographic key is written into the source, so anyone with the code can decrypt or forge what it protects. Reported, in Python, JavaScript/TypeScript, Java and Go: a variable, constant, field or config key named as a cryptographic key (secret_key, private_key, encryption_key, signing_key, hmac_key, aes_key, des_key, master_key, crypto_key, cipher_key, enc_key, jwt_secret) assigned a literal that looks like key material (at least 16 characters, no spaces unless it is an inline PEM private key, not a placeholder or an environment lookup), including config subscripts such as app.config[\"SECRET_KEY\"]; a literal of 8 or more characters assigned to any variable that one of the key APIs below consumes as its key within 15 lines (key = b\"...\" then AES.new(key, ...), byte[] keyBytes = \"...\".getBytes() then new SecretKeySpec(keyBytes, ...)); and a string or byte literal passed straight to a key API, including JWT HMAC secrets (jwt.sign/encode/verify/decode with a literal secret, Algorithm.HMAC256(\"...\")): pycryptodome AES/DES/ARC4 .new(), cryptography Fernet/AESGCM/ChaCha20Poly1305/algorithms.AES, hmac.new, Node crypto.createCipheriv/createDecipheriv/createHmac and CryptoJS AES/DES/TripleDES/Rabbit/RC4/Hmac*, Java new SecretKeySpec(\"...\".getBytes(), ...) and byte-array literals, Go aes.NewCipher/des.NewCipher/hmac.New with []byte(\"...\"). Not reported: names that merely end in key (map keys, cache keys, loop variables), API keys and passwords (credentials, covered by the secret rules), placeholders (changeme, your-..., example, xxxx, ${...}), environment and config lookups, short non-key strings assigned to key names, test files and comments.",
+	"description": "A cryptographic key is written into the source, so anyone with the code can decrypt or forge what it protects. Reported, in Python, JavaScript/TypeScript, Java and Go: a variable, constant, field or config key named as a cryptographic key (secret_key, private_key, encryption_key, signing_key, hmac_key, aes_key, des_key, master_key, crypto_key, cipher_key, enc_key, jwt_secret) assigned a literal that looks like key material (at least 16 characters, no spaces unless it is an inline PEM private key, not a placeholder or an environment lookup), including config subscripts such as app.config[\"SECRET_KEY\"]; a literal of 8 or more characters assigned to any variable that one of the key APIs below consumes as its key within 15 lines (key = b\"...\" then AES.new(key, ...), byte[] keyBytes = \"...\".getBytes() then new SecretKeySpec(keyBytes, ...)); and a string or byte literal passed straight to a key API, including JWT HMAC secrets (jwt.sign/encode/verify/decode with a literal secret, Algorithm.HMAC256(\"...\")): pycryptodome AES/DES/ARC4 .new(), cryptography Fernet/AESGCM/ChaCha20Poly1305/algorithms.AES, hmac.new, Node crypto.createCipheriv/createDecipheriv/createHmac and CryptoJS AES/DES/TripleDES/Rabbit/RC4/Hmac*, Java new SecretKeySpec(\"...\".getBytes(), ...) and byte-array literals, Go aes.NewCipher/des.NewCipher/hmac.New with []byte(\"...\"). In JavaScript and TypeScript, a literal key given to jwt.sign()/jwt.verify() or crypto.createHmac(alg, '...'), a config property named for a JWT or session secret (jwtSecret, jwt_secret) set to a literal, and a constant holding a literal that one of those calls uses as its key are reported by VNX-NODE-019 instead, so one key is one finding (in examples/ directories, which VNX-NODE-019 skips, they stay here). Not reported: names that merely end in key (map keys, cache keys, loop variables), API keys and passwords (credentials, covered by the secret rules), placeholders (changeme, your-..., example, xxxx, ${...}), environment and config lookups, short non-key strings assigned to key names, test files and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-321/",
 	"languages": ["go", "java", "node", "python"],
 	"severity": "high",
@@ -86,6 +86,7 @@ findings contains finding if {
 	_api_gate(lines[k])
 	some p in _key_sink_prefix
 	regex.match(concat("", [p, v, `\b`]), lines[k])
+	not _handed_over(path, lines, line)
 	finding := _finding(path, j, line)
 }
 
@@ -131,6 +132,7 @@ findings contains finding if {
 	count(value) >= 16
 	_key_shaped(value)
 	not _placeholder(value)
+	not _handed_over(path, lines, line)
 	finding := _finding(path, i, line)
 }
 
@@ -149,5 +151,66 @@ findings contains finding if {
 	trim_space(value) != ""
 	not _placeholder(value)
 	not regex.match(`^\s*['"\x60]`, value)
+	not _handed_over(path, lines, line)
 	finding := _finding(path, i, line)
+}
+
+# ── Handed over to VNX-NODE-019 ─────────────────────────────────────────
+# In JavaScript and TypeScript, VNX-NODE-019 reports a literal JWT, session
+# or HMAC signing key: the key argument of jwt.sign()/jwt.verify() and
+# crypto.createHmac(alg, '...'), a config property named jwtSecret and the
+# like, and a const holding a literal that one of those calls uses as its
+# key. Those lines are left to it so one key is one finding. The shapes below
+# are VNX-NODE-019's own; it skips examples/ directories, so they stay here.
+
+_n19_path(path) if {
+	regex.match(`\.(js|jsx|mjs|cjs|ts|tsx|mts|cts)$`, path)
+	not regex.match(`(^|/)examples?/`, path)
+}
+
+# Every non-empty string literal becomes 'x', as VNX-NODE-019 normalises.
+_n19_norm(line) := regex.replace(
+	regex.replace(line, "''|\"\"|``", "\u0001"),
+	"'(?:[^'\\\\]|\\\\.)+'|\"(?:[^\"\\\\]|\\\\.)+\"|`[^`$]+`",
+	"'x'",
+)
+
+_n19_first := `(?:\{[^{}]*\}|[^,(){}]+(?:\([^()]*\))?)`
+
+_n19_jwt := `\b(?i:jwt|jsonwebtoken)\s*\.\s*(?:sign|verify)\s*\(\s*`
+
+_n19_lit_res := [
+	concat("", [_n19_jwt, _n19_first, `\s*,\s*'x'\s*[,)]`]),
+	`\bcreateHmac\s*\(\s*[^,()]+,\s*'x'\s*\)`,
+	concat("", [
+		`(?i)(?:^|[\s{,(])['"]?((?:jwt|session|cookie|token|auth|signing|access[_-]?token|refresh[_-]?token)[_-]?secret(?:[_-]?key)?|jwt[_-]?(?:signing[_-]?)?key)['"]?\s*(?::|=)\s*`,
+		`'x'\s*[,;}]?\s*$`,
+	]),
+]
+
+_n19_ident_res := [
+	concat("", [_n19_jwt, _n19_first, `\s*,\s*([A-Za-z_$][\w$]*)\s*[,)]`]),
+	`\bcreateHmac\s*\(\s*[^,()]+,\s*([A-Za-z_$][\w$]*)\s*\)`,
+]
+
+_handed_over(path, _, line) if {
+	_n19_path(path)
+	n := _n19_norm(line)
+	some re in _n19_lit_res
+	regex.match(re, n)
+}
+
+# const NAME = '...' where a jwt.sign/verify or createHmac call uses NAME.
+_handed_over(path, lines, line) if {
+	_n19_path(path)
+	regex.match(`^\s*(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::\s*\w+\s*)?=\s*'x'\s*;?\s*$`, _n19_norm(line))
+	m := regex.find_all_string_submatch_n(`^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)`, line, 1)
+	name := m[0][1]
+	some k, l in lines
+	regex.match(`\.\s*(?:sign|verify)\s*\(|createHmac`, l)
+	not helpers.is_comment_line(l)
+	w := _n19_norm(helpers.code_window(lines, k, 0, 3))
+	some re in _n19_ident_res
+	some hit in regex.find_all_string_submatch_n(re, w, -1)
+	hit[1] == name
 }

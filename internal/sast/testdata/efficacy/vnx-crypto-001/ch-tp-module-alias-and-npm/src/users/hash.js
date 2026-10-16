@@ -6,7 +6,7 @@ function apiToken(user) {
 }
 
 function sig(body, key) {
-~>  return CryptoJS.MD5(body + key).toString();
+  return CryptoJS.MD5(body + key).toString();
 }
 
 module.exports = { apiToken, sig };

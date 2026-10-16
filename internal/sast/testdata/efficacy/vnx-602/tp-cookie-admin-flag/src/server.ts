@@ -11,6 +11,7 @@ app.get('/admin', (req: Request, res: Response) => {
 });
 
 app.get('/billing', (req: Request, res: Response) => {
-~>  const allowed = req.cookies['is_admin'] === 'true';
+  // Reported by VNX-784 (a security decision on a cookie), not by this rule.
+  const allowed = req.cookies['is_admin'] === 'true';
   res.send(allowed ? renderBilling() : 'no');
 });

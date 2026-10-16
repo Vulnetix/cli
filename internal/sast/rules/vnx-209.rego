@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-209",
 	"name": "Generation of Error Message Containing Sensitive Information",
-	"description": "A stack trace or a database error message is sent to the client in an HTTP response, telling an attacker the file layout, framework versions, SQL text and schema behind the failure. Reported: Python traceback.format_exc()/format_exception()/format_tb()/format_stack() passed to a response (jsonify, make_response, HttpResponse, JsonResponse, FastAPI JSONResponse, Response, render_template, abort, self.write), directly, through a variable (or a dict) assigned from it on a line above, or returned bare or stored in an error dict that is returned in a module that imports a web framework (outside logging formatter methods), traceback.print_exc(file=self.wfile/response), and str(e) of a caught database exception (sqlite3.Error, psycopg2, DatabaseError, OperationalError, IntegrityError, SQLAlchemyError, pymysql/MySQLdb) in a response; Java e.printStackTrace(response.getWriter()) or into a PrintWriter assigned from the response, e.printStackTrace(new PrintWriter(sw)) followed by sw.toString() in a body or a controller's return, ExceptionUtils.getStackTrace/Throwables.getStackTraceAsString in a return, body or writer, and the getMessage()/toString() of a caught SQLException (or DataAccessException, PSQLException, PersistenceException) written to output, a writer or a return value; JavaScript/TypeScript err.stack/error.stack/e.stack inside res.send/json/end/write/render (also with the res.status(...).json(...) chain broken over lines), ctx.body or reply.send, directly, in a template literal or object, or through a variable assigned from it, unless the stack is selected only outside production (NODE_ENV/isDev/debug ternary or &&, or an if block on NODE_ENV/isDev a few lines above); PHP die/exit/echo/print of mysqli_error(), mysqli_connect_error(), mysql_error(), pg_last_error(), $db->error, $db->connect_error, getTraceAsString() or a caught PDOException's getMessage(), ini_set('display_errors', 1|'On'), and display_errors = On in php.ini or .htaccess; Go runtime/debug.Stack(), or the buffer filled by runtime.Stack(buf, ...), written to the http.ResponseWriter (w.Write, fmt.Fprint*(w, ...), http.Error, gin c.String/JSON); C# ex.StackTrace or ex.ToString() returned by Content/Ok/BadRequest/StatusCode/Problem/Json or Response.Write, and the Message of a caught SqlException/SQLiteException/DbException/MySqlException/NpgsqlException returned the same way or assigned to a WebForms control's Text; Spring Boot server.error.include-stacktrace=always and include-exception=true; ASP.NET customErrors mode=\"Off\" and httpErrors errorMode=\"Detailed\". Not reported: traces and messages written to a log, stderr or error_log, a generic message returned to the client, traceback.print_exc() to stderr, a trace returned from a helper in a module with no web framework (crash files, logging formatters), exception messages other than database ones (so WebForms lblError.Text = ex.Message on a generic Exception is not reported), a trace or message carried to the response through a helper function or another file, the patterns in comments or string literals, and test code.",
+	"description": "A stack trace or a database error message is sent to the client in an HTTP response, telling an attacker the file layout, framework versions, SQL text and schema behind the failure. Reported: Python traceback.format_exc()/format_exception()/format_tb()/format_stack() passed to a response (jsonify, make_response, HttpResponse, JsonResponse, FastAPI JSONResponse, Response, render_template, abort, self.write), directly, through a variable (or a dict) assigned from it on a line above, or returned bare or stored in an error dict that is returned in a module that imports a web framework (outside logging formatter methods), traceback.print_exc(file=self.wfile/response), and str(e) of a caught database exception (sqlite3.Error, psycopg2, DatabaseError, OperationalError, IntegrityError, SQLAlchemyError, pymysql/MySQLdb) in a response; Java e.printStackTrace(response.getWriter()) or into a PrintWriter assigned from the response when e is not the exception of the enclosing catch block, e.printStackTrace(new PrintWriter(sw)) followed by sw.toString() in a body or a controller's return, ExceptionUtils.getStackTrace/Throwables.getStackTraceAsString in a return, body or writer, and the getMessage()/toString() of a caught SQLException (or DataAccessException, PSQLException, PersistenceException) written to output, a writer or a return value (a caught exception written to the servlet response from inside its catch block is reported by VNX-536, the servlet form of this weakness, and not here); JavaScript/TypeScript err.stack/error.stack/e.stack inside res.send/json/end/write/render (also with the res.status(...).json(...) chain broken over lines), ctx.body or reply.send, directly, in a template literal or object, or through a variable assigned from it, unless the stack is selected only outside production (NODE_ENV/isDev/debug ternary or &&, or an if block on NODE_ENV/isDev a few lines above); PHP die/exit/echo/print of mysqli_error(), mysqli_connect_error(), mysql_error(), pg_last_error(), $db->error, $db->connect_error, getTraceAsString() or a caught PDOException's getMessage(), ini_set('display_errors', 1|'On'), and display_errors = On in php.ini or .htaccess; Go runtime/debug.Stack(), or the buffer filled by runtime.Stack(buf, ...), written to the http.ResponseWriter (w.Write, fmt.Fprint*(w, ...), http.Error, gin c.String/JSON); C# ex.StackTrace or ex.ToString() returned by Content/Ok/BadRequest/StatusCode/Problem/Json or Response.Write, and the Message of a caught SqlException/SQLiteException/DbException/MySqlException/NpgsqlException returned the same way or assigned to a WebForms control's Text; Spring Boot server.error.include-stacktrace=always and include-exception=true; ASP.NET customErrors mode=\"Off\" and httpErrors errorMode=\"Detailed\". Not reported: traces and messages written to a log, stderr or error_log, a generic message returned to the client, traceback.print_exc() to stderr, a trace returned from a helper in a module with no web framework (crash files, logging formatters), exception messages other than database ones (so WebForms lblError.Text = ex.Message on a generic Exception is not reported), a trace or message carried to the response through a helper function or another file, the patterns in comments or string literals, and test code.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-209/",
 	"languages": ["java", "node", "python", "php", "go", "csharp"],
 	"severity": "medium",
@@ -232,7 +232,81 @@ findings contains f if {
 	m := regex.find_all_string_submatch_n(`\.printStackTrace\s*\(\s*([^;]+?)\s*\)\s*;`, line, 1)
 	count(m) > 0
 	_java_resp_writer(lines, i, m[0][1], path)
+	not _servlet_catch_owned(path, lines, i, line)
 	f := _finding(path, i, line, _msg_trace)
+}
+
+# The caught exception written to the servlet response from inside its catch
+# block is reported by VNX-536 (a servlet runtime error message), the more
+# precise form of this weakness: the same tests as that rule, so a line leaves
+# this rule only where VNX-536 reports it.
+_servlet_catch_owned(path, _, _, line) if {
+	some e in {".jsp", ".jspx", ".jspf"}
+	endswith(path, e)
+	regex.match(`<%=\s*(?:exception|e|ex|err|t)\s*(?:%>|\.(?:getMessage|getLocalizedMessage|toString|getStackTrace|getCause)\s*\()|\b\w+\.printStackTrace\(\s*(?:new\s+(?:java\.io\.)?PrintWriter\(\s*)?out\b`, line)
+}
+
+_servlet_catch_owned(path, lines, i, line) if {
+	endswith(path, ".java")
+	v := _sv_catch_var(lines, i)
+	_sv_sink(line, v, _sv_writers(lines))
+}
+
+_sv_indent(line) := count(line) - count(trim_left(line, " \t"))
+
+_sv_catch_var(lines, i) := v if {
+	cs := [j |
+		some j in numbers.range(max([0, i - 25]), i - 1)
+		regex.match(`\bcatch\s*\(`, lines[j])
+	]
+	count(cs) > 0
+	c := cs[count(cs) - 1]
+	hdr := concat(" ", array.slice(lines, c, min([i, c + 8])))
+	m := regex.find_all_string_submatch_n(`\bcatch\s*\(\s*(?:final\s+)?[\w.]+(?:\s*\|\s*[\w.]+)*\s+(\w+)\s*\)`, hdr, 1)
+	count(m) > 0
+	not _sv_closed(lines, c, i)
+	v := m[0][1]
+}
+
+_sv_closed(lines, c, i) if {
+	ic := _sv_indent(lines[c])
+	c + 1 <= i - 1
+	some k in numbers.range(c + 1, i - 1)
+	_sv_indent(lines[k]) <= ic
+	startswith(trim_space(lines[k]), "}")
+}
+
+_sv_exposes(args, v) if regex.match(concat("", [`(?:^|[^\w.])`, v, `(?:\s*(?:[),+;]|$)|\.(?:getMessage|getLocalizedMessage|toString|getStackTrace|getCause)\s*\()`]), args)
+
+_sv_writers(lines) := {m[1] |
+	some l in lines
+	contains(l, "get")
+	some m in regex.find_all_string_submatch_n(`\b(\w+)\s*=\s*(?:new\s+PrintWriter\(\s*)?\w+\.get(?:Writer|OutputStream)\(\s*\)`, l, -1)
+}
+
+_sv_target(t, _) if regex.match(`\.get(?:Writer|OutputStream)\(\s*\)`, t)
+
+_sv_target(t, ws) if {
+	some w in ws
+	regex.match(concat("", [`(?:^|[^\w.])`, w, `\b`]), t)
+}
+
+_sv_sink(line, v, ws) if {
+	m := regex.find_all_string_submatch_n(concat("", [`\b`, v, `\.printStackTrace\(([^;]*)\)`]), line, 1)
+	count(m) > 0
+	_sv_target(m[0][1], ws)
+}
+
+_sv_sink(line, v, ws) if {
+	some m in regex.find_all_string_submatch_n(`((?:\w+\.get(?:Writer|OutputStream)\(\s*\))|\b\w+)\.(?:print|println|printf|write|append|format)\((.*)$`, line, -1)
+	_sv_target(m[1], ws)
+	_sv_exposes(m[2], v)
+}
+
+_sv_sink(line, v, _) if {
+	m := regex.find_all_string_submatch_n(`\.sendError\(\s*[^,]+,(.*)$`, line, 1)
+	count(m) > 0
+	_sv_exposes(m[0][1], v)
 }
 
 _java_resp_writer(_, _, arg, _) if regex.match(`(?i)(response|resp)\w*\.get(Writer|OutputStream)\s*\(`, arg)
@@ -305,6 +379,7 @@ findings contains f if {
 	regex.match(_java_trace, code)
 	regex.match(_java_sink, code)
 	not regex.match(_java_logging, code)
+	not _servlet_catch_owned(path, lines, i, line)
 	f := _finding(path, i, line, _msg_trace)
 }
 
@@ -329,6 +404,7 @@ findings contains f if {
 	regex.match(concat("", [`\b`, v, `\.(getMessage|getLocalizedMessage|toString)\s*\(\s*\)|\+\s*`, v, `\s*[+;)]`]), code)
 	regex.match(_java_sink, code)
 	not regex.match(_java_logging, code)
+	not _servlet_catch_owned(path, lines, i, line)
 	f := _finding(path, i, line, _msg_db)
 }
 

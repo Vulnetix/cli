@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-005 – TLS Certificate Validation Disabled"
-description: "Reports TLS clients told to accept any certificate or host name in Python (verify=False, CERT_NONE, unverified contexts), Node.js (rejectUnauthorized: false, NODE_TLS_REJECT_UNAUTHORIZED=0), Go (InsecureSkipVerify: true) and Java (empty checkServerTrusted, always-true HostnameVerifier, NoopHostnameVerifier, TrustAllStrategy). Values from configuration, branches honouring an insecure option, custom pinning and test files are not reported."
+description: "Reports TLS clients told to accept any certificate or host name in Python (verify=False, CERT_NONE, unverified contexts), Node.js (rejectUnauthorized: false, NODE_TLS_REJECT_UNAUTHORIZED=0)and Go (InsecureSkipVerify: true); Java trust managers and host-name verifiers are reported by VNX-JAVA-006. Values from configuration, branches honouring an insecure option, custom pinning and test files are not reported."
 ---
 
 ## Overview
@@ -19,7 +19,7 @@ Developers often disable verification to deal with self-signed certificates in d
 
 ## What Gets Flagged
 
-The rule matches the most common verification-bypass patterns across Python, Node.js, Go, and Java:
+The rule matches the most common verification-bypass patterns across Python, Node.js and Go. Java (a trust-all `X509TrustManager`, a `HostnameVerifier` that returns true, `NoopHostnameVerifier`, `TrustAllStrategy`/`TrustSelfSignedStrategy`, Netty `InsecureTrustManagerFactory`) is reported by [VNX-JAVA-006](../vnx-java-006/), so a Java line is reported once:
 
 ```python
 # FLAGGED: requests with SSL verification disabled
@@ -48,14 +48,7 @@ https.request({ rejectUnauthorized: false }, ...);
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 ```
 
-```java
-// FLAGGED: a trust manager that accepts every chain, a verifier that accepts every host
-public void checkServerTrusted(X509Certificate[] chain, String authType) {
-}
-HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
-```
-
-Not flagged: a value read from configuration (`verify=self.verify`, `InsecureSkipVerify: opts.Insecure`), an assignment made only inside an `if`/`else` branch (a library honouring its caller's option, an `--insecure` flag), a Go `tls.Config` that also sets `VerifyPeerCertificate`, a Node TLS server with `requestCert`, a `checkServerTrusted` that delegates, comments, strings and test files.
+Not flagged: a value read from configuration (`verify=self.verify`, `InsecureSkipVerify: opts.Insecure`), an assignment made only inside an `if`/`else` branch (a library honouring its caller's option, an `--insecure` flag), a Go `tls.Config` that also sets `VerifyPeerCertificate`, a Node TLS server with `requestCert`, comments, strings and test files.
 
 ## Remediation
 

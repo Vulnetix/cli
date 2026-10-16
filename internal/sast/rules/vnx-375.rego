@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-375",
 	"name": "Returning a Mutable Object to an Untrusted Caller",
-	"description": "A public or protected Java method returns a reference to one of the object's own mutable fields, so any caller can change the object's internal state without going through its methods (an exposed internal representation). Reported: `return field;` or `return this.field;` in a public or protected method (also a one-line getter) where the field is declared in the same file as an array or as a mutable collection or date type (List, ArrayList, LinkedList, Map, HashMap, TreeMap, LinkedHashMap, Set, HashSet, TreeSet, LinkedHashSet, Collection, Deque, Queue, Date, Calendar, StringBuilder). Not reported: a returned copy or view (Collections.unmodifiableList, List.copyOf, new ArrayList<>(x), clone(), new Date(d.getTime())), fields initialised with an immutable value (List.of, Set.of, Map.of, Collections.unmodifiable*, Collections.empty*, Immutable*, copyOf), immutable field types (String, primitives, ImmutableList), package-private and private methods, a local variable that shadows the field, JPA/document entity classes (@Entity, @Embeddable, @MappedSuperclass, @Document) and JAXB-bound classes (@XmlRootElement, @XmlType), whose collection getters the framework requires to be live, test sources, comments and the pattern inside a string literal.",
+	"description": "A public or protected Java method returns a reference to one of the object's own mutable fields, so any caller can change the object's internal state without going through its methods (an exposed internal representation). Reported: `return field;` or `return this.field;` in a public or protected method (also a one-line getter) where the field is declared in the same file as an array or as a mutable collection or date type (List, ArrayList, LinkedList, Map, HashMap, TreeMap, LinkedHashMap, Set, HashSet, TreeSet, LinkedHashSet, Collection, Deque, Queue, Date, Calendar, StringBuilder). Not reported: a returned copy or view (Collections.unmodifiableList, List.copyOf, new ArrayList<>(x), clone(), new Date(d.getTime())), fields initialised with an immutable value (List.of, Set.of, Map.of, Collections.unmodifiable*, Collections.empty*, Immutable*, copyOf), immutable field types (String, primitives, ImmutableList), package-private and private methods, a local variable that shadows the field, JPA/document entity classes (@Entity, @Embeddable, @MappedSuperclass, @Document) and JAXB-bound classes (@XmlRootElement, @XmlType), whose collection getters the framework requires to be live, test sources, comments and the pattern inside a string literal. A public method with an array return type that returns a private, non-empty array field is reported by VNX-495 (the array form of this weakness), not here.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-375/",
 	"languages": ["java"],
 	"severity": "low",
@@ -90,6 +90,7 @@ findings contains finding if {
 	s := _method_start(lines, i)
 	_visibility(lines[s]) in {"public", "protected"}
 	not _shadowed(lines, s, i, name)
+	not _owned_by_vnx495(lines, i, line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("Method returns the internal mutable field '%s', so callers can modify this object's state: return a copy or an unmodifiable view", [name]),
@@ -99,4 +100,76 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# ── Private arrays reported by VNX-495 ──────────────────────────────────
+# VNX-495 is the array form of this weakness and owns a public method with an
+# array return type that returns a private, non-empty array field. These
+# predicates are VNX-495's own, so every line handed over here is reported
+# there.
+
+_v495_field_re := `^\s*private\s+(?:(?:static|final|transient|volatile)\s+)*[A-Za-z_][\w.]*(?:<[^;=()]*>)?\s*(?:(?:\[\]\s*)+([A-Za-z_]\w*)|([A-Za-z_]\w*)\s*(?:\[\]\s*)+)\s*(=[^;]*)?;`
+
+_v495_return_re := `^\s*return\s+(?:this\s*\.\s*)?([A-Za-z_]\w*)\s*;`
+
+_v495_inline_re := `\)\s*(?:throws[^{]*)?\{\s*return\b`
+
+_v495_fields(lines) := {name |
+	some l in lines
+	contains(l, "[]")
+	startswith(trim_space(l), "private")
+	m := regex.find_all_string_submatch_n(_v495_field_re, l, 1)
+	count(m) > 0
+	not regex.match(`=\s*(?:new\s+[\w.]+\s*(?:\[\s*0\s*\])+|\{\s*\})`, m[0][3])
+	name := concat("", [m[0][1], m[0][2]])
+}
+
+_v495_returned(line) := r if {
+	m := regex.find_all_string_submatch_n(_v495_return_re, line, 1)
+	count(m) > 0
+	r := m[0][1]
+}
+
+_v495_returned(line) := r if {
+	not regex.match(_v495_return_re, line)
+	m := regex.find_all_string_submatch_n(`\{\s*return\s+(?:this\s*\.\s*)?([A-Za-z_]\w*)\s*;\s*\}`, line, 1)
+	count(m) > 0
+	r := m[0][1]
+}
+
+_v495_indent(line) := count(line) - count(trim_left(line, " \t"))
+
+_v495_sig(_, _, line) := line if regex.match(_v495_inline_re, line)
+
+_v495_sig(lines, i, line) := sig if {
+	not regex.match(_v495_inline_re, line)
+	ii := _v495_indent(lines[i])
+	ks := [k |
+		some k in numbers.range(max([0, i - 40]), i - 1)
+		k < i
+		_v495_indent(lines[k]) < ii
+		regex.match(`^\s*(?:(?:public|protected|private|static|final|synchronized|abstract|native|strictfp)\s+)+[^;=]*$`, lines[k])
+		not helpers.is_comment_line(lines[k])
+	]
+	count(ks) > 0
+	k := ks[count(ks) - 1]
+	sig := concat(" ", [lines[k], lines[min([k + 1, i])]])
+}
+
+_owned_by_vnx495(lines, i, line) if {
+	contains(line, "return")
+	r := _v495_returned(line)
+	_v495_fields(lines)[r]
+	sig := _v495_sig(lines, i, line)
+	regex.match(`^\s*(?:\w+\s+)*public\b`, sig)
+	regex.match(`\[\]\s*[A-Za-z_]\w*\s*\(`, sig)
+	not _v495_shadowed(lines, i, r)
+	not regex.match(concat("", [`[\w>\]]\s+`, r, `\s*(?:\[\]\s*)*[,)]`]), sig)
+}
+
+_v495_shadowed(lines, i, name) if {
+	re := concat("", [`^\s*(?:final\s+)?[\w.<>]+\s*(?:\[\]\s*)*\s+`, name, `\s*(?:\[\]\s*)*=`])
+	some k in numbers.range(max([0, i - 40]), i - 1)
+	regex.match(re, lines[k])
+	not startswith(trim_space(lines[k]), "private")
 }

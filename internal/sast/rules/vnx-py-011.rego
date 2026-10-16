@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-011",
 	"name": "Python SQL injection",
-	"description": "SQL text is built from a non-constant value with an f-string, % formatting, str.format() or + concatenation and passed to a database API, so the value can change the statement (SQL injection). Reported: the first argument of cursor/connection/session .execute(), .executemany(), .executescript(), .mogrify(), asyncpg/databases .fetch()/.fetchrow()/.fetchval()/.fetch_all()/.fetch_one(), pandas read_sql()/read_sql_query(), Django Model.objects.raw(), QuerySet.extra(), RawSQL() and SQLAlchemy text() (when the file uses sqlalchemy) is such an expression, including on continuation lines of a multi-line call; or is a variable assigned or extended (+=) by such an expression up to 25 lines above. The string must look like SQL (a keyword such as SELECT/WHERE/ORDER BY or a comparison), except when a variable named like a query (sql, query, stmt) is itself formatted in the call. Not reported: psycopg sql.SQL(...).format(sql.Identifier(...)) composition, parameterised calls (placeholders in a literal with the values passed separately, including a % or + inside the parameter tuple), f-strings without interpolation, interpolation of ALL_CAPS constants only, placeholder lists built with ','.join('?' ...) or a variable named placeholders, constant concatenation, non-SQL text passed to an unrelated .execute()/.raw(), and the pattern inside strings and comments. Queries assembled in another function, or through more than one intermediate variable, are not followed.",
+	"description": "SQL text is built from a non-constant value with an f-string, % formatting, str.format() or + concatenation and passed to a database API, so the value can change the statement (SQL injection). Reported: the first argument of cursor/connection/session .execute(), .executemany(), .executescript(), .mogrify(), asyncpg/databases .fetch()/.fetchrow()/.fetchval()/.fetch_all()/.fetch_one(), pandas read_sql()/read_sql_query(), Django Model.objects.raw(), QuerySet.extra(), RawSQL() and SQLAlchemy text() (when the file uses sqlalchemy) is such an expression, including on continuation lines of a multi-line call; or is a variable assigned or extended (+=) by such an expression up to 25 lines above; or formats a SQL template variable inside the call (`cur.execute(tmpl.format(name))`, `cur.execute(sql % name)`) whose nearest assignment in the 25 lines above is a SQL string literal (the template variable itself does not count as a value). The string must look like SQL (a keyword such as SELECT/WHERE/ORDER BY or a comparison), except when a variable named like a query (sql, query, stmt) is itself formatted in the call. Not reported: psycopg sql.SQL(...).format(sql.Identifier(...)) composition, parameterised calls (placeholders in a literal with the values passed separately, including a % or + inside the parameter tuple), f-strings without interpolation, interpolation of ALL_CAPS constants only, placeholder lists built with ','.join('?' ...) or a variable named placeholders, constant concatenation, non-SQL text passed to an unrelated .execute()/.raw(), and the pattern inside strings and comments. Queries assembled in another function, or through more than one intermediate variable, are not followed; SQL assembled from a list of pieces and join()ed is reported by VNX-PY-022.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-011/",
 	"languages": ["python"],
 	"severity": "critical",
@@ -87,12 +87,35 @@ _placeholders(raw) if regex.match(`\.join\(\s*[\[(]?\s*["'](?:\?|%s|:\w+)["']|["
 # literals safely.
 _composed(raw) if regex.match(`(?:^|[^\w.])(?:sql\.)?SQL\s*\(\s*[rRbBuU]{0,2}["']`, raw)
 
-_dynamic(raw) if {
+_dynamic(raw) if _dynamic_x(raw, set())
+
+# skip: names that are the template being formatted, not values put into it.
+_dynamic_x(raw, skip) if {
 	b := _blank(raw)
 	_dyn_shape(b)
-	count(_unsafe_ids(raw, b)) > 0
+	count(_unsafe_ids(raw, b) - skip) > 0
 	not _placeholders(raw)
 	not _composed(raw)
+}
+
+# `tmpl % args` / `tmpl.format(args)`: tmpl is the SQL template; only the
+# values formatted into it can change the statement.
+_lead_fmt(arg) := {m[0][1]} if {
+	m := regex.find_all_string_submatch_n(`^\s*([A-Za-z_]\w*)\s*(?:%|\.format\s*\()`, arg, 1)
+	count(m) > 0
+} else := set()
+
+# The template variable's nearest assignment in the 25 lines above is a SQL
+# string literal: tmpl = "UPDATE users SET nick = '{}'"; cur.execute(tmpl.format(n)).
+_sql_template(lines, i, v) if {
+	idx := [j |
+		some j in numbers.range(max([0, i - 25]), i - 1)
+		regex.match(concat("", [`^\s*`, v, `\s*=[^=]`]), lines[j])
+	]
+	count(idx) > 0
+	m := regex.find_all_string_submatch_n(concat("", [`^\s*`, v, `\s*=\s*[rRbBuU]?((?:"""|'''|"|')[\s\S]*)$`]), lines[max(idx)], 1)
+	count(m) > 0
+	_sqlish(m[0][1])
 }
 
 _sqlish(raw) if regex.match(`(?i)\b(?:select|insert|update|delete|from|where|values|create|drop|alter|pragma|truncate|grant|revoke|show|describe|union|order\s+by|group\s+by|limit|join|like|set|exec)\b|\s=\s*['"%{]|=\s*'|=\s*%`, raw)
@@ -149,8 +172,16 @@ _assign_dynamic("+=", rhs) if {
 }
 
 _reported(_, arg) if {
-	_dynamic(arg)
+	_dynamic_x(arg, _lead_fmt(arg))
 	_sqlish(arg)
+}
+
+_reported(lines, arg) if {
+	skip := _lead_fmt(arg)
+	some v in skip
+	_dynamic_x(arg, skip)
+	some i in [lines.i]
+	_sql_template(lines.lines, i, v)
 }
 
 _reported(lines, arg) if {

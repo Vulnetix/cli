@@ -45,22 +45,27 @@ _cookie_ctx(lines, i) if regex.match(`(?i)cookie|\bsession\b|session\(|sessions\
 
 _csrf_ctx(lines, i) if regex.match(`(?i)xsrf|csrf`, helpers.code_window(lines, i, 6, 0))
 
-_off(_, lines, i, line) if {
-	m := regex.find_all_string_submatch_n(_off_key_re, _strip(line), 1)
+_off(path, content, lines, i, line) if {
+	m := regex.find_all_string_submatch_n(_off_key_re, _strip(line), -1)
 	count(m) > 0
 	not regex.match(_decl_re, line)
 	_cookie_ctx(lines, i)
 	name := lower(m[0][1])
 	_flag_counts(name, lines, i)
+	some mm in m
+	flag := lower(mm[1])
+	_flag_counts(flag, lines, i)
+	not _key_owned(path, content, lines, i, line, flag)
 }
 
-_off(path, lines, i, line) if {
+_off(path, _, lines, i, line) if {
 	endswith(path, ".php")
 	regex.match(`(?i)["']httponly["']\s*=>\s*false\b`, line)
 	not _csrf_ctx(lines, i)
+	not _o1004_php_call(line)
 }
 
-_off(path, _, _, line) if {
+_off(path, _, _, _, line) if {
 	endswith(path, ".php")
 	regex.match(`(?i)["']secure["']\s*=>\s*false\b`, line)
 }
@@ -73,59 +78,64 @@ _flag_counts(name, lines, i) if {
 
 _flag_counts(name, _, _) if name == "secure"
 
-_off(path, _, _, line) if {
+_off(path, _, _, _, line) if {
 	endswith(path, ".py")
-	regex.match(`\b(SESSION_COOKIE_SECURE|SESSION_COOKIE_HTTPONLY|CSRF_COOKIE_SECURE|REMEMBER_COOKIE_SECURE|REMEMBER_COOKIE_HTTPONLY)["']?\s*\]?\s*=\s*False\b`, line)
+	some m in regex.find_all_string_submatch_n(`\b(SESSION_COOKIE_SECURE|SESSION_COOKIE_HTTPONLY|CSRF_COOKIE_SECURE|REMEMBER_COOKIE_SECURE|REMEMBER_COOKIE_HTTPONLY)["']?\s*\]?\s*=\s*False\b`, line, -1)
+	not _py_setting_owned(path, m[1])
 }
 
-_off(path, lines, i, line) if {
+_off(path, _, lines, i, line) if {
 	regex.match(`\.(java|kt|kts)$`, path)
-	regex.match(`\.(?:set(?:HttpOnly|Secure)|httpOnly|secure)\(\s*false\s*\)`, line)
+	some m in regex.find_all_string_submatch_n(`\.(set(?:HttpOnly|Secure)|httpOnly|secure)\(\s*false\s*\)`, line, -1)
 	regex.match(`Cookie`, helpers.code_window(lines, i, 10, 0))
+	not _java_off_owned(path, line, m[1])
 }
 
-_off(path, _, _, line) if {
+_off(path, _, _, _, line) if {
 	regex.match(`\.(kt|kts)$`, path)
 	regex.match(`(?i)\w*cookie\w*\.is(HttpOnly|Secure)\s*=\s*false\b`, line)
 }
 
-_off(path, _, _, line) if {
+_off(path, _, _, _, line) if {
 	regex.match(`(?i)\.(properties|ya?ml)$`, path)
 	regex.match(`(?i)session\.cookie\.(secure|http-only|httponly)\s*[=:]\s*false\b`, line)
+	not _properties_owned(path, line)
 }
 
-_off(path, _, _, line) if {
+_off(path, _, _, _, line) if {
 	endswith(path, ".cs")
 	regex.match(`\bCookieSecurePolicy\.None\b`, line)
 }
 
-_off(path, _, _, line) if {
+_off(path, _, _, _, line) if {
 	regex.match(`(?i)\.config$`, path)
 	regex.match(`(?i)<\s*(httpCookies|forms)\b`, line)
 	regex.match(`(?i)\b(httpOnlyCookies|requireSSL)\s*=\s*["']false["']`, line)
 }
 
-_off(path, _, _, line) if {
+_off(path, _, _, _, line) if {
 	endswith(path, ".php")
 	regex.match(`(?i)\bini_set\(\s*["']session\.cookie_(httponly|secure)["']\s*,\s*(?:0|false|off|["'](?:0|off|false)?["'])\s*\)`, line)
+	not regex.match(`(?i)ini_set\(\s*['"]session\.cookie_httponly['"]\s*,\s*(?:0|false|['"](?:0|off|false)?['"])\s*\)`, line)
 }
 
-_off(path, _, _, line) if {
+_off(path, _, _, _, line) if {
 	regex.match(`(?i)(\.ini|(^|/)\.htaccess)$`, path)
 	regex.match(`(?i)^\s*(?:php_(?:admin_)?(?:flag|value)\s+)?session\.cookie_(httponly|secure)\s*=?\s*(0|off|false|"0"|""|'0')\s*(;.*)?$`, line)
 }
 
 # false as the 6th (secure) or 7th (httponly) argument of PHP setcookie /
 # setrawcookie or gin's Context.SetCookie.
-_off(path, _, _, line) if {
+_off(path, _, _, _, line) if {
 	regex.match(`\.(php|go)$`, path)
 	regex.match(`\b(?:setcookie|setrawcookie|SetCookie)\s*\(([^,()]*(?:\([^()]*\))?[^,()]*,){5}\s*false\b`, line)
 }
 
-_off(path, lines, i, line) if {
+_off(path, _, lines, i, line) if {
 	regex.match(`\.(php|go)$`, path)
 	regex.match(`\b(?:setcookie|setrawcookie|SetCookie)\s*\(([^,()]*(?:\([^()]*\))?[^,()]*,){6}\s*false\b`, line)
 	not _csrf_ctx(lines, i)
+	not _php_seventh_owned(path, line)
 }
 
 # ── Session cookie issued without HttpOnly ──────────────────────────────
@@ -144,7 +154,7 @@ _call_text(lines, i) := t if {
 	t := concat("\n", [l | some k in numbers.range(i, stop); l := lines[k]])
 }
 
-_missing(path, lines, i, line) if {
+_missing(path, content, lines, i, line) if {
 	regex.match(`\.(js|jsx|mjs|cjs|ts|tsx)$`, path)
 	m := regex.find_all_string_submatch_n(`\b(?:res\.cookie|(?:reply|res|response)\.setCookie|(?:res|response)\.cookies\.set|cookies\(\)\.set)\(\s*([^,]+),\s*([^,{]+?)\s*(?:,\s*([{A-Za-z_])|\))`, line, 1)
 	count(m) > 0
@@ -152,9 +162,11 @@ _missing(path, lines, i, line) if {
 	_sensitive(concat(" ", [m[0][1], m[0][2]]))
 	not _flag_value(m[0][2])
 	not regex.match(`(?i)httponly`, _call_text(lines, i))
+	not _o029_call(path, content, lines, i, line)
+	not _o1004_js_call(lines, i, line)
 }
 
-_missing(path, lines, i, line) if {
+_missing(path, _, lines, i, line) if {
 	endswith(path, ".py")
 	contains(line, ".set_cookie(")
 	t := _py_call_text(lines, i)
@@ -164,6 +176,7 @@ _missing(path, lines, i, line) if {
 	_sensitive(concat(" ", [m[0][1], m[0][2]]))
 	not _flag_value(m[0][2])
 	not regex.match(`(?i)httponly|\*\*`, t)
+	not _o1004_py_call(line, t)
 }
 
 # A Python call: the line itself when its parentheses balance, otherwise up to
@@ -182,13 +195,14 @@ _py_call_text(lines, i) := t if {
 
 # document.cookie can never be HttpOnly: a session or auth token written from
 # script is readable by any script on the page.
-_missing(path, _, _, line) if {
+_missing(path, _, _, _, line) if {
 	regex.match(`\.(js|jsx|mjs|cjs|ts|tsx|html?|vue|svelte)$`, path)
 	m := regex.find_all_string_submatch_n("\\bdocument\\.cookie\\s*=\\s*[\"'`]\\s*([A-Za-z0-9_.\\-]+)=([^;\"'`]*)", line, 1)
 	count(m) > 0
 	_sensitive(m[0][1])
 	not regex.match(`(?i)max-age=0\b|expires=thu,\s*01 jan 1970`, line)
 	not _js_cleared(m[0][2], line)
+	not _o1004_document_cookie(path, line)
 }
 
 # 'auth=; Max-Age=0' or "token=" + "" clears the cookie.
@@ -199,7 +213,7 @@ _js_cleared(v, line) if {
 
 # ASP.NET Core Response.Cookies.Append(name, value) with no CookieOptions:
 # HttpOnly defaults to false.
-_missing(path, _, _, line) if {
+_missing(path, _, _, _, line) if {
 	endswith(path, ".cs")
 	m := regex.find_all_string_submatch_n(`\.Cookies\.Append\(\s*([^,()]+),\s*([^,()]*(?:\([^()]*\))?[^,()]*)\)\s*;`, line, 1)
 	count(m) > 0
@@ -208,7 +222,7 @@ _missing(path, _, _, line) if {
 }
 
 # Rails cookies jar: cookies[:auth_token] = value, or a hash with no httponly.
-_missing(path, lines, i, line) if {
+_missing(path, _, lines, i, line) if {
 	endswith(path, ".rb")
 	m := regex.find_all_string_submatch_n(`\bcookies(?:\.(?:permanent|signed|encrypted))*\[\s*:?["']?(\w+)["']?\s*\]\s*=\s*(.+?)\s*$`, line, 1)
 	count(m) > 0
@@ -227,13 +241,14 @@ _rb_has_httponly(lines, i, v) if {
 }
 
 # Spring ResponseCookie builder with no httpOnly(...) before build().
-_missing(path, lines, i, line) if {
+_missing(path, _, lines, i, line) if {
 	regex.match(`\.(java|kt|kts)$`, path)
 	m := regex.find_all_string_submatch_n(`\bResponseCookie\.from\(\s*([^,()]+)`, line, 1)
 	count(m) > 0
 	_sensitive(m[0][1])
 	t := _builder_text(lines, i)
 	not regex.match(`\.httpOnly\(|\.maxAge\(\s*0\s*\)`, t)
+	not _o1004_response_cookie(path, m[0][1])
 }
 
 _builder_text(lines, i) := t if {
@@ -243,13 +258,14 @@ _builder_text(lines, i) := t if {
 	t := concat("\n", [l | some k in numbers.range(i, stop); l := lines[k]])
 }
 
-_missing(path, lines, i, line) if {
+_missing(path, _, lines, i, line) if {
 	endswith(path, ".go")
 	regex.match(`\b(?:http|fiber)\.Cookie\{`, line)
 	not regex.match(`\bhttp\.Cookie\{\s*\}`, line)
 	block := _go_block(lines, i)
 	not regex.match(`HttpOnly|HTTPOnly`, block)
 	not _go_harmless_name(block)
+	not _o1004_go_cookie(lines, i, line, block)
 }
 
 _go_block(lines, i) := b if {
@@ -274,16 +290,17 @@ _go_harmless_name(block) if {
 	not _sensitive(m[0][1])
 }
 
-_missing(path, lines, i, line) if {
+_missing(path, _, lines, i, line) if {
 	endswith(path, ".java")
 	m := regex.find_all_string_submatch_n(`\bnew\s+Cookie\(([^)]*)\)`, line, 1)
 	count(m) > 0
 	_sensitive(m[0][1])
 	not _clearing(m[0][1])
 	not contains(helpers.code_window(lines, i, 0, 10), "setHttpOnly(")
+	not _o1004_java_cookie(lines, i, line)
 }
 
-_missing(path, lines, i, line) if {
+_missing(path, _, lines, i, line) if {
 	regex.match(`\.(kt|kts)$`, path)
 	m := regex.find_all_string_submatch_n(`=\s*Cookie\(([^)]*)\)`, line, 1)
 	count(m) > 0
@@ -292,7 +309,7 @@ _missing(path, lines, i, line) if {
 	not regex.match(`isHttpOnly|setHttpOnly\(`, helpers.code_window(lines, i, 0, 10))
 }
 
-_missing(path, _, _, line) if {
+_missing(path, _, _, _, line) if {
 	endswith(path, ".php")
 	m := regex.find_all_string_submatch_n(`\bset(?:raw)?cookie\(\s*([^,]+),\s*([^,]+?)\s*(,\s*(?:\[|array\s*\()|,|\))`, line, 1)
 	count(m) > 0
@@ -300,15 +317,16 @@ _missing(path, _, _, line) if {
 	_sensitive(concat(" ", [m[0][1], m[0][2]]))
 	not _flag_value(m[0][2])
 	not regex.match(`\bset(?:raw)?cookie\s*\(([^,()]*(?:\([^()]*\))?[^,()]*,){6}`, line)
+	not _o1004_php_call(line)
 }
 
-_kind(path, lines, i, line) := "off" if {
-	_off(path, lines, i, line)
+_kind(path, content, lines, i, line) := "off" if {
+	_off(path, content, lines, i, line)
 }
 
-_kind(path, lines, i, line) := "missing" if {
-	not _off(path, lines, i, line)
-	_missing(path, lines, i, line)
+_kind(path, content, lines, i, line) := "missing" if {
+	not _off(path, content, lines, i, line)
+	_missing(path, content, lines, i, line)
 }
 
 _message := {
@@ -325,7 +343,7 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(`(?i)cookie|httponly|http-only|secure|session`, line)
 	not helpers.is_comment_line(line)
-	k := _kind(path, lines, i, line)
+	k := _kind(path, content, lines, i, line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": _message[k],
@@ -341,3 +359,292 @@ findings contains finding if {
 _flag_value(v) if regex.match(`(?i)^\s*(?:key\s*=\s*|value\s*=\s*)?(\d+|true|false|none|null|""|''|"[^"]{0,3}"|'[^']{0,3}')\s*\)?\s*;?\s*$`, v)
 
 _clearing(args) if regex.match(`,\s*(""|null|None)\s*$`, args)
+
+# ── Lines the per-flag rules report ─────────────────────────────────────
+# This rule is the catch-all for both cookie flags. Where a rule dedicated to
+# one flag reports the same line, the line is left to it, so one missing flag
+# is one finding:
+#   VNX-614  Secure in Java, JavaScript/TypeScript and Python;
+#   VNX-1004 HttpOnly in Go, PHP, Python and Java, and document.cookie;
+#   VNX-NODE-029 HttpOnly for Express/Fastify res.cookie()/reply.setCookie()
+#   and httpOnly: false beside a cookie call.
+# This rule keeps everything else: Ruby, C#, Kotlin, web.config, php.ini and
+# .htaccess, YAML, gin and fiber cookies, Next.js cookies().set, PHP and Go
+# Secure, setHttpOnly(false) lines, and cookies whose names only this rule
+# counts as sensitive. Each predicate below mirrors the owner's condition.
+
+_js_path(path) if regex.match(`\.(js|jsx|mjs|cjs|ts|tsx)$`, path)
+
+# VNX-1004's cookie-name test.
+_o1004_sensitive_re := `(?i)sess|auth(?:$|[^o]|oriz)|token|jwt|(?:^|[^a-z])sid|remember|login|credential|refresh|access(?:$|[^i])|user_?id|(?:^|[^a-z])uid|admin|(?:^|[^a-z])roles?(?:$|[^a-z])|(?-i:[a-z]Roles?(?:$|[^a-z]))`
+
+_o1004_name(n) if {
+	regex.match(_o1004_sensitive_re, n)
+	not regex.match(`(?i)csrf|xsrf`, n)
+}
+
+_o1004_deleting(call) if regex.match(`(?i)max_?age\s*[:=]\s*-1|expires\s*[:=]\s*(?:time\.Unix\(0|new Date\(0\)|0\b)`, call)
+
+_o1004_empty(v) if regex.match(`^\s*(?:""|''|None|null|nil)\s*$`, v)
+
+# A flag found by the generic `httpOnly: false` / `secure = False` scan.
+_key_owned(path, _, lines, i, line, "secure") if {
+	endswith(path, ".py")
+	regex.match(`\.set_cookie\s*\(`, _strip(line))
+	regex.match(`\bsecure\s*=\s*False\b`, line)
+}
+
+_key_owned(path, content, lines, i, line, "secure") if {
+	_js_path(path)
+	regex.match(`\bsecure\s*:\s*false\b`, _strip(line))
+	regex.match(`(?i)\bcookie|\bsession\s*\(|cookieSession\s*\(`, helpers.code_window(lines, i, 8, 0))
+}
+
+_key_owned(path, _, lines, i, line, flag) if {
+	flag != "secure"
+	_js_path(path)
+	regex.match(`\bhttpOnly\s*:\s*false\b`, line)
+	_js_httponly_off_owned(path, lines, i)
+}
+
+_key_owned(path, _, lines, i, line, flag) if {
+	flag != "secure"
+	endswith(path, ".py")
+	regex.match(`\bhttponly\s*=\s*False\b`, line)
+	m := regex.find_all_string_submatch_n(`\.set_cookie\s*\(\s*(?:key\s*=\s*)?["']([^"']*)["']\s*,\s*(?:value\s*=\s*)?([^,)]*)`, line, 1)
+	count(m) > 0
+	_o1004_name(m[0][1])
+	not _o1004_empty(m[0][2])
+	t := _py_call_text(lines, i)
+	not regex.match(`max_age\s*=\s*0\b|\*\*\w+`, t)
+	not _o1004_deleting(t)
+	not regex.match(`^\s*(?:async\s+)?def\s`, line)
+}
+
+# Go: HttpOnly: false in a session store's Options (VNX-1004).
+_key_owned(path, _, lines, i, line, flag) if {
+	flag != "secure"
+	endswith(path, ".go")
+	regex.match(`^\s*HttpOnly\s*:\s*false\b`, line)
+	js := [k |
+		some d in numbers.range(1, min([i, 12]))
+		k := i - d
+		contains(lines[k], "{")
+	]
+	count(js) > 0
+	opener := lines[js[0]]
+	regex.match(`(?i)sessions?\.Options\{|SessionOptions\{|session|store`, opener)
+	not contains(opener, "http.Cookie{")
+}
+
+# JavaScript httpOnly: false: VNX-NODE-029 next to a cookie call, VNX-1004
+# in session or cookie options.
+_js_httponly_off_owned(_, lines, i) if {
+	some j in numbers.range(max([0, i - 6]), i)
+	regex.match(`\.cookies?\s*\(|\.cookies\.set\s*\(|setCookie\s*\(|\bserialize\s*\(`, lines[j])
+	not helpers.is_comment_line(lines[j])
+}
+
+_js_httponly_off_owned(_, lines, i) if {
+	win := helpers.code_window(lines, i, 8, 2)
+	regex.match(`(?i)session\s*\(|cookieSession\s*\(|\.cookie\s*\(|setCookie\s*\(|cookie\s*:|cookieOptions|sessionOptions`, win)
+	not regex.match(`(?i)csrf|xsrf`, win)
+}
+
+# Django/Flask settings: *_COOKIE_SECURE (VNX-614, outside its development
+# settings files) and SESSION_COOKIE_HTTPONLY (VNX-1004).
+_py_setting_owned(path, name) if {
+	name in {"SESSION_COOKIE_SECURE", "CSRF_COOKIE_SECURE", "REMEMBER_COOKIE_SECURE"}
+	not regex.match(`(?i)(?:^|/)(?:settings[_/])?(?:dev|develop|development|local|test|testing|ci)(?:_settings)?\.py$`, path)
+}
+
+_py_setting_owned(_, "SESSION_COOKIE_HTTPONLY")
+
+# Java: setSecure(false) (VNX-614); a ResponseCookie.from("name", ...) on the
+# same line with .secure(false) (VNX-614) or, for a session/auth name,
+# .httpOnly(false) (VNX-1004).
+_java_off_owned(path, line, "setSecure") if {
+	endswith(path, ".java")
+	regex.match(`\.setSecure\s*\(\s*(?:false|Boolean\.FALSE)\s*\)`, _strip(line))
+}
+
+_java_off_owned(path, line, "secure") if {
+	endswith(path, ".java")
+	regex.match(`\bResponseCookie\s*\.\s*(?:from|fromClientResponse)\s*\(\s*"([^"]+)"\s*,\s*([^)]*)\)`, line)
+}
+
+_java_off_owned(path, line, "httpOnly") if {
+	endswith(path, ".java")
+	m := regex.find_all_string_submatch_n(`\bResponseCookie\.from\s*\(\s*"([^"]*)"`, line, 1)
+	count(m) > 0
+	_o1004_name(m[0][1])
+	not regex.match(`\.maxAge\(\s*0\s*\)`, line)
+}
+
+# Spring Boot properties: secure=false (VNX-614), http-only=false (VNX-1004).
+_properties_owned(path, line) if {
+	endswith(path, ".properties")
+	regex.match(`^\s*server\.(?:servlet\.)?(?:reactive\.)?session\.cookie\.secure\s*[=:]\s*false\s*$`, line)
+}
+
+_properties_owned(path, line) if {
+	endswith(path, ".properties")
+	regex.match(`^\s*server\.servlet\.session\.cookie\.http-only\s*[=:]\s*false\s*$`, line)
+}
+
+# PHP setcookie()/setrawcookie() of a session or auth cookie: VNX-1004
+# reports it whether httponly is missing, false in seventh place, or absent
+# from the options array.
+_o1004_php_call(line) if {
+	m := regex.find_all_string_submatch_n(`\bset(?:raw)?cookie\s*\(\s*["']([^"']*)["']\s*,\s*([^,)]*)`, line, 1)
+	count(m) > 0
+	_o1004_name(m[0][1])
+	not _o1004_empty(m[0][2])
+	not _o1004_deleting(line)
+}
+
+_php_seventh_owned(path, line) if {
+	endswith(path, ".php")
+	_o1004_php_call(line)
+}
+
+# Express/Fastify res.cookie()/reply.setCookie() of a session or auth cookie
+# with no options or an options literal (VNX-1004).
+_o1004_js_call(lines, i, line) if {
+	m := regex.find_all_string_submatch_n("\\b(?:res|resp|response|reply)\\.(?:cookie|setCookie)\\s*\\(\\s*[\"'`]([^\"'`]*)[\"'`]\\s*,\\s*([^,)]*)", line, 1)
+	count(m) > 0
+	_o1004_name(m[0][1])
+	not _o1004_empty(m[0][2])
+	not _o1004_deleting(_call_text(lines, i))
+}
+
+# Python set_cookie() of a session or auth cookie (VNX-1004).
+_o1004_py_call(line, t) if {
+	m := regex.find_all_string_submatch_n(`\.set_cookie\s*\(\s*(?:key\s*=\s*)?["']([^"']*)["']`, line, 1)
+	count(m) > 0
+	_o1004_name(m[0][1])
+	not regex.match(`\bvalue\s*=\s*(?:None|""|'')|max_age\s*=\s*0\b`, t)
+	not _o1004_deleting(t)
+	not regex.match(`^\s*(?:async\s+)?def\s`, line)
+}
+
+# document.cookie = "token=..." in a script file (VNX-1004).
+_o1004_document_cookie(path, line) if {
+	_js_path(path)
+	m := regex.find_all_string_submatch_n("document\\.cookie\\s*=\\s*[\"'`]\\s*([A-Za-z_][\\w.-]*)\\s*=", line, 1)
+	count(m) > 0
+	_o1004_name(m[0][1])
+	not regex.match(`(?i)=\s*;|expires\s*=\s*Thu,\s*01 Jan 1970|max-age\s*=\s*(?:0|-1)\b`, line)
+}
+
+# Spring ResponseCookie.from("session", ...) without .httpOnly (VNX-1004).
+_o1004_response_cookie(path, arg) if {
+	endswith(path, ".java")
+	m := regex.find_all_string_submatch_n(`^\s*"([^"]*)"`, arg, 1)
+	count(m) > 0
+	_o1004_name(m[0][1])
+}
+
+# Go http.Cookie{Name: "session", ...} without HttpOnly (VNX-1004).
+_o1004_go_cookie(lines, i, line, block) if {
+	contains(line, "http.Cookie{")
+	m := regex.find_all_string_submatch_n(`\bName\s*:\s*"([^"]*)"`, block, 1)
+	count(m) > 0
+	_o1004_name(m[0][1])
+	not _o1004_deleting(block)
+	not regex.match(`(?i)\bValue\s*:\s*(?:""|nil)\s*[,}]`, block)
+	not _o1004_go_set_later(lines, i)
+}
+
+_o1004_go_set_later(lines, i) if {
+	some k in numbers.range(i + 1, min([count(lines) - 1, i + 20]))
+	regex.match(`\.HttpOnly\s*=\s*true`, lines[k])
+}
+
+# Java Cookie c = new Cookie("session", value) never given setHttpOnly(true)
+# (VNX-1004).
+_o1004_java_cookie(lines, i, line) if {
+	m := regex.find_all_string_submatch_n(`\b(?:Cookie\s+)?(\w+)\s*=\s*new\s+(?:javax\.servlet\.http\.|jakarta\.servlet\.http\.)?Cookie\s*\(\s*"([^"]*)"\s*,\s*([^,)]*)`, line, 1)
+	count(m) > 0
+	_o1004_name(m[0][2])
+	not _o1004_empty(m[0][3])
+	v := m[0][1]
+	not _o1004_java_protected(lines, i, v)
+}
+
+_o1004_java_protected(lines, i, v) if {
+	some k in numbers.range(i, min([count(lines) - 1, i + 15]))
+	regex.match(concat("", [`\b`, v, `\.set(?:HttpOnly\(\s*true|MaxAge\(\s*0)\s*\)`]), lines[k])
+}
+
+# VNX-NODE-029's res.cookie()/reply.setCookie() test.
+_o029_call_re := `(?:\b(?:res|resp|response|reply)\.(?:cookie|setCookie)|\bcookie\.serialize)\s*\(`
+
+_o029_sensitive_re := `(?i)(sess|\bsid\b|sid['"]|token|auth(?:$|[^o]|o[^r])|jwt|login|identity|credential|bearer|access(?:$|[^i])|refresh|remember_?me)`
+
+_o029_strip(s) := regex.replace(s, concat("", [`'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`, "`[^`]*`"]), `''`)
+
+_o029_depth(lines, s, j) := sum([d |
+	some k in numbers.range(s, j)
+	c := _o029_strip(lines[k])
+	d := strings.count(c, "(") - strings.count(c, ")")
+])
+
+_o029_call_end(lines, i) := e if {
+	hi := min([count(lines) - 1, i + 8])
+	ends := [j | some j in numbers.range(i, hi); _o029_depth(lines, i, j) <= 0]
+	e := min(array.concat(ends, [hi]))
+}
+
+_o029_call_text(lines, i) := concat("\n", [l | some k in numbers.range(i, _o029_call_end(lines, i)); l := lines[k]; not helpers.is_comment_line(l)])
+
+_o029_args(text) := a if {
+	m := regex.find_all_string_submatch_n(concat("", ["(?s)", _o029_call_re, `(.*)$`]), text, 1)
+	count(m) > 0
+	a := m[0][1]
+}
+
+_o029_head(args) := concat(",", array.slice(split(split(replace(args, "${", "$<"), "{")[0], ","), 0, 2))
+
+_o029_clearing(args) if trim_space(split(split(args, "{")[0], ",")[1]) in {"''", `""`, "``", "null", "undefined"}
+
+_o029_clearing(args) if regex.match(`expires\s*:\s*new Date\(\s*0\s*\)|maxAge\s*:\s*0\b`, args)
+
+_o029_options_hidden(content, args) if {
+	not contains(args, "{")
+	parts := split(args, ",")
+	count(parts) >= 3
+	id := trim(trim_space(parts[2]), ") ;")
+	regex.match(`^[A-Za-z_$][\w$.]*$`, id)
+	regex.match(concat("", [`(?s)\b`, id, `\b[^=\n]*=\s*\{[^}]*httpOnly\s*:\s*true`]), content)
+}
+
+_o029_options_hidden(content, args) if {
+	not contains(args, "{")
+	parts := split(args, ",")
+	count(parts) >= 3
+	id := trim(trim_space(parts[2]), ") ;")
+	regex.match(`^[A-Za-z_$][\w$.]*$`, id)
+	not regex.match(concat("", [`\b`, id, `\b[^=\n]*=\s*\{`]), content)
+}
+
+_o029_options_hidden(_, args) if {
+	not contains(args, "{")
+	parts := split(args, ",")
+	count(parts) >= 3
+	regex.match(`^\s*[A-Za-z_$][\w$.]*\s*\(`, parts[2])
+}
+
+_o029_options_hidden(_, args) if regex.match(`\{\s*\.\.\.|,\s*\.\.\.[A-Za-z_$]`, args)
+
+_o029_call(path, content, lines, i, line) if {
+	not endswith(path, ".min.js")
+	regex.match(_o029_call_re, _o029_strip(line))
+	args := _o029_args(_o029_call_text(lines, i))
+	head := _o029_head(args)
+	regex.match(_o029_sensitive_re, head)
+	not regex.match(`(?i)(csrf|xsrf)`, head)
+	not _o029_clearing(args)
+	not regex.match(`\bhttpOnly\s*:`, args)
+	not _o029_options_hidden(content, args)
+}

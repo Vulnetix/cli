@@ -3,13 +3,15 @@ from django.shortcuts import render
 
 
 def dashboard(request):
-~>    if request.COOKIES.get('admin') == "1":
+    # Reported by VNX-784 (a security decision on a cookie), not by this rule.
+    if request.COOKIES.get('admin') == "1":
         return render(request, "dashboard/admin.html")
     return render(request, "dashboard/user.html")
 
 
 def delete_user(request, pk):
-~>    role = request.COOKIES['role']
+    # Reported by VNX-784 (a security decision on a cookie), not by this rule.
+    role = request.COOKIES['role']
     if role != "admin":
         return HttpResponseForbidden()
     User.objects.filter(pk=pk).delete()

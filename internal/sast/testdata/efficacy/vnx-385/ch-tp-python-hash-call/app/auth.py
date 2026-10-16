@@ -3,7 +3,7 @@ import hashlib
 
 def login(db, username, supplied_pwd):
     row = db.fetch_user(username)
-~>    if row["pwd"] != supplied_pwd:
+    if row["pwd"] != supplied_pwd:
         return None
     return row
 

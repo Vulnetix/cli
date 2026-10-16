@@ -7,7 +7,7 @@ class OAuthController extends Controller
 {
     public function callback(Request $request)
     {
-~>        return redirect()->away(
+        return redirect()->away(
             $request->input('callback')
         );
     }

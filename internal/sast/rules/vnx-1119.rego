@@ -8,9 +8,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1119",
 	"name": "Excessive Use of Unconditional Branching",
-	"description": "A backward goto in C or C++: goto <label>; where the label is defined earlier in the same function, so the goto builds a loop (retry, again, restart, top) out of unconditional jumps instead of a while/for/do statement. Backward jumps are what make goto-heavy code hard to follow and are how a retry path loops forever or re-enters with stale state. Not reported: forward gotos to a cleanup or error label (goto out, goto err, goto cleanup, the idiomatic C error-unwinding pattern), a label of the same name in an earlier function, gotos in comments and string literals, computed gotos (goto *ptr), a goto to a label that leaves through continue or break (a shared loop tail, not a loop), and a goto whose same-name label also appears below it in the same function (it is forward).",
+	"description": "A backward goto in C++ (.cc, .cpp, .cxx, .hpp, .hh files): goto <label>; where the label is defined earlier in the same function, so the goto builds a loop (retry, again, restart, top) out of unconditional jumps instead of a while/for/do statement. Backward jumps are what make goto-heavy code hard to follow and are how a retry path loops forever or re-enters with stale state. Not reported: forward gotos to a cleanup or error label (goto out, goto err, goto cleanup, the idiomatic C error-unwinding pattern), a label of the same name in an earlier function, gotos in comments and string literals, computed gotos (goto *ptr), a goto to a label that leaves through continue or break (a shared loop tail, not a loop), and a goto whose same-name label also appears below it in the same function (it is forward), and gotos inside a /* */ block whose lines carry no leading *. Backward gotos in C files (.c, .h) are reported by VNX-1075.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1119/",
-	"languages": ["c", "cpp"],
+	"languages": ["cpp"],
 	"severity": "low",
 	"level": "note",
 	"kind": "sast",
@@ -22,7 +22,28 @@ metadata := {
 	"tags": ["excessive-unconditional-branching", "cwe-1119", "maintainability", "c", "cpp"],
 }
 
-_ext(path) if regex.match(`\.(c|h|cc|cpp|cxx|hpp|hh)$`, path)
+# C++ sources and headers. A backward goto in C (.c, .h) is the same loop
+# and is reported by VNX-1075; one line is one finding.
+_ext(path) if regex.match(`\.(cc|cpp|cxx|hpp|hh)$`, path)
+
+# String literals blanked, so a "/*" inside one opens no comment.
+_nostr(line) := regex.replace(line, `"(?:[^"\\]|\\.)*"`, `""`)
+
+# The line sits inside a /* ... */ block opened at most 60 lines above (a
+# commented-out or documented example whose lines carry no leading `*`).
+_in_block_comment(lines, i) if {
+	opens := [k | some k in numbers.range(max([0, i - 60]), i - 1); contains(_nostr(lines[k]), "/*")]
+	count(opens) > 0
+	o := opens[count(opens) - 1]
+	not contains(regex.replace(_nostr(lines[o]), `^.*?/\*`, ""), "*/")
+	not _closed_between(lines, o, i)
+}
+
+_closed_between(lines, o, i) if {
+	some k in numbers.range(o + 1, i)
+	k < i
+	contains(lines[k], "*/")
+}
 
 _goto_re := `^(?:[^"'/]|/[^/*])*\bgoto\s+([A-Za-z_]\w*)\s*;`
 
@@ -98,6 +119,7 @@ findings contains finding if {
 	not _crosses_function(lines, k, i)
 	not _exits_between(lines, k, i)
 	not _forward_label(lines, i, name)
+	not _in_block_comment(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("Backward goto %s: the label is defined %d lines above, so this jump is a loop written as an unconditional branch", [name, i - k]),

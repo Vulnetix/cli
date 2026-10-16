@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Passwords in Java EE server files are reported by VNX-555, not VNX-260. -->
+<Server port="8005" shutdown="SHUTDOWN">
+  <Service name="Billing">
+    <Connector port="9443" SSLEnabled="true" scheme="https" secure="true"
+               keystoreFile="conf/billing.p12" keystorePass="B1llingKs!" truststorePass="Tru5tB1ll"/>
+    <Engine name="Billing" defaultHost="localhost">
+      <Realm className="org.example.realm.StaticRealm" />
+    </Engine>
+  </Service>
+</Server>

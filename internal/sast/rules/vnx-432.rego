@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-432",
 	"name": "Dangerous Signal Handler not Disabled During Sensitive Operations",
-	"description": "One signal handler that does non-reentrant work is installed for two or more signals without blocking the others while it runs, in C and C++, so a second signal interrupts the handler half way through its own sensitive operation (the CWE-432 example: one handler for SIGHUP and SIGTERM that frees a global, freed twice when the signals arrive together). Reported: signal()/std::signal/sigset/bsd_signal registering the same function (plain or class-qualified, Server::OnSignal) for two or more different signals, and a struct sigaction whose sa_handler/sa_sigaction is that function (assigned, or set by a designated initialiser { .sa_handler = f }) passed to sigaction() for two or more different signals in the thirty lines after the handler is assigned (before the struct gets another handler) while its sa_mask is not filled nearby (no sigfillset or sigaddset on that struct's sa_mask); in both cases only when the handler is defined in the same file and its body calls a function that is not async-signal-safe (free, malloc, calloc, realloc, the printf family, syslog, puts, fputs, fwrite, fflush, fopen, fclose, exit, strtok, localtime, gmtime, ctime, strerror, perror, longjmp, siglongjmp, pthread_mutex_lock, system, popen) or uses new/delete or std::cout/cerr; names inside string literals in the handler do not count. The registration lines are reported. Not reported: a handler installed for one signal, a crash handler shared only between synchronous fault signals (SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGABRT, SIGTRAP, SIGSYS), a sigaction whose sa_mask blocks other signals, SIG_IGN/SIG_DFL, handlers that only set a flag or call async-signal-safe functions (write, _exit), handlers defined in another file, comments. A handler writing an unprotected global is VNX-364.",
+	"description": "A C/C++ signal handler that does non-reentrant work is installed with sigaction() and SA_NODEFER (or the old SA_NOMASK spelling), which stops the kernel from blocking the signal while its own handler runs, so a second delivery of the same signal re-enters the handler half way through its sensitive operation (a global freed twice, a stdio buffer or lock state corrupted). Reported: the line that puts SA_NODEFER/SA_NOMASK into a struct sigaction's sa_flags (sa.sa_flags = ..., sa.sa_flags |= ..., or a designated initialiser { .sa_flags = SA_NODEFER }) when the same struct's sa_handler/sa_sigaction is a function defined in the same file whose body calls something that is not async-signal-safe (free, malloc, calloc, realloc, the printf family, syslog, puts, fputs, fwrite, fflush, fopen, fclose, exit, strtok, localtime, gmtime, ctime, strerror, perror, longjmp, siglongjmp, pthread_mutex_lock, system, popen, new/delete, std::cout/cerr) and the struct is passed to sigaction() for at least one asynchronous signal within thirty lines. Not reported: SA_NODEFER together with SA_RESETHAND (the second delivery takes the default action, it does not re-enter), handlers installed only for synchronous fault signals (SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGABRT, SIGTRAP, SIGSYS; crash reporters), handlers that only set a flag or call async-signal-safe functions, handlers defined in another file, SIG_IGN/SIG_DFL, comments and strings. One handler installed for two or more signals without a mask is reported by VNX-831, and a non-async-signal-safe call inside a handler by VNX-828; this rule reports only the flag that disables the handler's own blocking.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-432/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
@@ -26,49 +26,29 @@ _exts := {".c", ".cc", ".cpp", ".cxx"}
 
 _not_handlers := {"SIG_IGN", "SIG_DFL", "SIG_ERR", "NULL", "nullptr"}
 
-_signal_re := `\b(?:std::)?(?:signal|sigset|bsd_signal)\s*\(\s*(SIG[A-Z0-9]+)\s*,\s*(?:\(\s*\w+\s*\)\s*)?&?\s*(?:[A-Za-z_]\w*::)*([A-Za-z_]\w*)\s*\)`
-
 _sa_handler_re := `\b([A-Za-z_]\w*)\s*(?:\.|->)\s*sa_(?:handler|sigaction)\s*=\s*(?:\(\s*\w+\s*\)\s*)?&?\s*([A-Za-z_]\w*)\s*;`
 
 # struct sigaction sa = { .sa_handler = on_stop, ... }, possibly over a few lines.
 _sa_init_re := `^\s*(?:static\s+)?(?:const\s+)?struct\s+sigaction\s+([A-Za-z_]\w*)\s*=\s*\{[^}]*?\.sa_(?:handler|sigaction)\s*=\s*(?:\(\s*\w+\s*\)\s*)?&?\s*([A-Za-z_]\w*)`
 
-# [struct, handler] pairs whose handler is set on line k.
-_assignments(lines, k) := {[a[1], a[2]] | some a in regex.find_all_string_submatch_n(_sa_handler_re, lines[k], -1)} | {[a[1], a[2]] |
+# [struct, handler, designated-initialiser?] triples whose handler is set on line k.
+_assignments(lines, k) := {[a[1], a[2], false] | some a in regex.find_all_string_submatch_n(_sa_handler_re, _strip_strings(lines[k]), -1)} | {[a[1], a[2], true] |
 	regex.match(`struct\s+sigaction\s+\w+\s*=`, lines[k])
 	text := concat("\n", [lines[j] | some j in numbers.range(k, min([count(lines) - 1, k + 4]))])
-	some a in regex.find_all_string_submatch_n(_sa_init_re, text, 1)
+	some a in regex.find_all_string_submatch_n(_sa_init_re, _strip_strings(text), 1)
 }
 
-_sigaction_re :=`\bsigaction\s*\(\s*(SIG[A-Z0-9]+)\s*,\s*&\s*([A-Za-z_]\w*)\s*,`
-
-# Code with whole-line comments removed, so a commented-out registration
-# never counts.
-_code(lines) := _strip_strings(helpers.code_text(lines))
+_sigaction_re := `\bsigaction\s*\(\s*(SIG[A-Z0-9]+)\s*,\s*&\s*([A-Za-z_]\w*)\s*,`
 
 _strip_strings(s) := regex.replace(s, `"(?:\\.|[^"\\\n])*"`, `""`)
 
 # Synchronous fault signals are raised by the faulting thread itself; a crash
-# handler shared between them is the conventional design, not a re-entry risk.
+# handler (often deliberately SA_NODEFER) is not a re-entry risk this rule owns.
 _fault_signals := {"SIGSEGV", "SIGBUS", "SIGFPE", "SIGILL", "SIGABRT", "SIGTRAP", "SIGSYS"}
 
-_signal_regs(code) := [[m[1], m[2]] |
-	some m in regex.find_all_string_submatch_n(_signal_re, code, -1)
-	not m[2] in _not_handlers
-	not m[1] in _fault_signals
-]
-
-_multi_signal_handlers(code) := {h |
-	regs := _signal_regs(code)
-	some r in regs
-	h := r[1]
-	count({s | some q in regs; q[1] == h; s := q[0]}) > 1
-}
-
-_mask_filled(code, v) if regex.match(concat("", [`\bsig(?:fill|add)set\s*\(\s*&\s*`, v, `\s*(?:\.|->)\s*sa_mask\b`]), code)
-
-# sigaction() calls on struct v in the thirty lines after line k assigned its
-# handler, up to the next handler assignment on the same struct.
+# sigaction() calls on struct v for an asynchronous signal in the thirty lines
+# after line k assigned its handler, up to the next handler assignment on the
+# same struct.
 _sigaction_calls(lines, k, v) := {[i, m[1]] |
 	e := min([count(lines) - 1, k + 30])
 	reassign := concat("", [`\b`, v, `\s*(?:\.|->)\s*sa_(?:handler|sigaction)\s*=`])
@@ -85,6 +65,40 @@ _reassigned_between(lines, k, i, re) if {
 	i - 1 >= k + 1
 	some x in numbers.range(k + 1, i - 1)
 	regex.match(re, lines[x])
+}
+
+_nodefer_re := `\bSA_(?:NODEFER|NOMASK)\b`
+
+# Lines near the handler assignment on line k that put SA_NODEFER into v's
+# sa_flags by assignment.
+_flag_lines(lines, k, v, false) := {i |
+	re := concat("", [`\b`, v, `\s*(?:\.|->)\s*sa_flags\s*\|?=[^;]*`, _nodefer_re])
+	some i in numbers.range(max([0, k - 15]), min([count(lines) - 1, k + 30]))
+	contains(lines[i], "sa_flags")
+	not helpers.is_comment_line(lines[i])
+	regex.match(re, _strip_strings(lines[i]))
+}
+
+# A designated initialiser carrying .sa_flags = ... SA_NODEFER.
+_flag_lines(lines, k, _, true) := {i |
+	some i in numbers.range(k, min([count(lines) - 1, k + 4]))
+	not helpers.is_comment_line(lines[i])
+	regex.match(_nodefer_re, _strip_strings(lines[i]))
+	text := concat("\n", [lines[j] | some j in numbers.range(k, i)])
+	regex.match(`\.\s*sa_flags\s*=[^}]*$`, regex.replace(_strip_strings(text), `\n`, " "))
+}
+
+# SA_RESETHAND anywhere in the struct's flags: the second delivery takes the
+# default action instead of re-entering the handler.
+_resethand(lines, k, v) if {
+	txt := _strip_strings(helpers.code_window(lines, k, 15, 30))
+	regex.match(concat("", [`\b`, v, `\s*(?:\.|->)\s*sa_flags\s*\|?=[^;]*\bSA_RESETHAND\b`]), txt)
+}
+
+_resethand(lines, k, _) if {
+	regex.match(`struct\s+sigaction\s+\w+\s*=`, lines[k])
+	text := concat(" ", [lines[j] | some j in numbers.range(k, min([count(lines) - 1, k + 4]))])
+	regex.match(`\{[^}]*\.\s*sa_flags\s*=[^},]*\bSA_RESETHAND\b`, _strip_strings(text))
 }
 
 _def_line(lines, h) := d if {
@@ -115,51 +129,25 @@ findings contains finding if {
 	some path, content in input.file_contents
 	some ext in _exts
 	endswith(path, ext)
-	regex.match(`signal\s*\(|sigset\s*\(|sigaction\s*\(`, content)
-	lines := split(content, "\n")
-	code := _code(lines)
-	hs := _multi_signal_handlers(code)
-	count(hs) > 0
-	some h in hs
-	call := _unsafe_handler(lines, h)
-	some i, line in lines
-	contains(line, h)
-	not helpers.is_comment_line(line)
-	some m in regex.find_all_string_submatch_n(_signal_re, _strip_strings(line), -1)
-	m[2] == h
-	finding := {
-		"rule_id": metadata.id,
-		"message": sprintf("Signal handler %s() is installed for more than one signal with signal(), which does not block the other signals while it runs, and it calls %s(), which is not async-signal-safe: a second signal re-enters it mid-operation. Use sigaction() with sa_mask filled (sigfillset) or only set a volatile sig_atomic_t flag in the handler", [h, call]),
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
-
-findings contains finding if {
-	some path, content in input.file_contents
-	some ext in _exts
-	endswith(path, ext)
 	contains(content, "sigaction")
-	contains(content, "sa_")
+	regex.match(_nodefer_re, content)
 	lines := split(content, "\n")
 	some k, assign in lines
 	regex.match(`sa_|struct\s+sigaction\s+\w+\s*=`, assign)
 	not helpers.is_comment_line(assign)
 	some p in _assignments(lines, k)
 	not p[1] in _not_handlers
+	flags := _flag_lines(lines, k, p[0], p[2])
+	count(flags) > 0
+	not _resethand(lines, k, p[0])
 	calls := _sigaction_calls(lines, k, p[0])
-	count({c[1] | some c in calls}) > 1
-	not _mask_filled(helpers.code_window(lines, k, 15, 30), p[0])
+	count(calls) > 0
 	call := _unsafe_handler(lines, p[1])
-	some c in calls
-	i := c[0]
+	some i in flags
 	line := lines[i]
 	finding := {
 		"rule_id": metadata.id,
-		"message": sprintf("Signal handler %s() is installed with sigaction() for more than one signal while %s.sa_mask is left empty, so the other signal interrupts it, and it calls %s(), which is not async-signal-safe. Fill sa_mask (sigfillset(&%s.sa_mask)) or only set a volatile sig_atomic_t flag in the handler", [p[1], p[0], call, p[0]]),
+		"message": sprintf("SA_NODEFER on %s.sa_flags stops the kernel blocking the signal while handler %s() runs, and the handler calls %s(), which is not async-signal-safe: a second delivery re-enters it mid-operation. Drop SA_NODEFER (or add SA_RESETHAND), fill sa_mask, or make the handler only set a volatile sig_atomic_t flag", [p[0], p[1], call]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

@@ -3,16 +3,16 @@ from jwt import decode
 
 
 def current_user(token):
-~>    claims = jwt.decode(token, options={"verify_signature": False})
+    claims = jwt.decode(token, options={"verify_signature": False})
     return claims["sub"]
 
 
 def identity(token):
-~>    return decode(token, options={"verify_signature":False, "verify_exp":False}).get("identity")
+    return decode(token, options={"verify_signature":False, "verify_exp":False}).get("identity")
 
 
 def legacy(token):
-~>    return jwt.decode(token, SECRET, verify=False)
+    return jwt.decode(token, SECRET, verify=False)
 
 
 def lenient(token):

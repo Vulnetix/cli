@@ -14,7 +14,7 @@ public class TokenService {
     }
 
     public String apiKey(String seed) {
-~>        return DigestUtils.md5Hex(seed);
+        return DigestUtils.md5Hex(seed);
     }
 
     public String guava(String seed) {

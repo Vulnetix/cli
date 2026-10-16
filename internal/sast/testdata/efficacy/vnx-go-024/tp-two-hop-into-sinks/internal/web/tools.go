@@ -23,7 +23,7 @@ func Lookup(w http.ResponseWriter, r *http.Request) {
 	term := r.FormValue("term")
 	notFound := fmt.Sprintf("<b>%s</b> not found", term)
 	data := map[string]any{}
-~>	data["msg"] = template.HTML(notFound)
+	data["msg"] = template.HTML(notFound) // reported by VNX-GO-020
 	msg := "<p>" + term + "</p>"
 ~>	w.Write([]byte(msg))
 }

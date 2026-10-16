@@ -1,11 +1,11 @@
 ---
 title: "VNX-NODE-005 – innerHTML or dangerouslySetInnerHTML Usage"
-description: "Reports HTML written into the DOM from a non-constant value (innerHTML/outerHTML assignment, insertAdjacentHTML, document.write, React dangerouslySetInnerHTML) that is not sanitized."
+description: "Reports HTML written into the DOM of a JavaScript or TypeScript file from a non-constant value (insertAdjacentHTML, document.write, React dangerouslySetInnerHTML) that is not sanitized. innerHTML/outerHTML assignments are reported by VNX-NODE-027."
 ---
 
 ## Overview
 
-This rule flags `.innerHTML =` assignments and uses of React's `dangerouslySetInnerHTML` prop in JavaScript and TypeScript source files. Both mechanisms inject raw HTML directly into the DOM. When the injected content includes any user-controlled data — from a database record, URL parameter, API response, or user profile field — an attacker can embed `<script>` tags or event handler attributes that execute arbitrary JavaScript in other users' browsers. This is CWE-79 (Improper Neutralization of Input During Web Page Generation — Cross-site Scripting).
+This rule flags `insertAdjacentHTML()`, `document.write()`/`writeln()` and React's `dangerouslySetInnerHTML` prop in JavaScript and TypeScript source files. An assignment to `.innerHTML` or `.outerHTML` is the same weakness and is reported by [VNX-NODE-027](../vnx-node-027/), so one sink is never shown twice; the same sinks in HTML pages and Vue or Svelte components are [VNX-NODE-012](../vnx-node-012/)'s. These mechanisms inject raw HTML directly into the DOM. When the injected content includes any user-controlled data — from a database record, URL parameter, API response, or user profile field — an attacker can embed `<script>` tags or event handler attributes that execute arbitrary JavaScript in other users' browsers. This is CWE-79 (Improper Neutralization of Input During Web Page Generation — Cross-site Scripting).
 
 **Severity:** Medium | **CWE:** [CWE-79 – Improper Neutralization of Input During Web Page Generation (XSS)](https://cwe.mitre.org/data/definitions/79.html)
 
@@ -18,24 +18,22 @@ React specifically named its prop `dangerouslySetInnerHTML` to make developers p
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: URL data into innerHTML
-document.getElementById('results-title').innerHTML = term;
-
 // FLAGGED: template literal / concatenation
-el.innerHTML = `<h2>${user.name}</h2>`;
-list.innerHTML += "<li>" + text + "</li>";
-
-// FLAGGED: other HTML sinks
-node.outerHTML = html;
 container.insertAdjacentHTML('beforeend', `<div>${message}</div>`);
-node["innerHTML"] = msg;
 document.write("<a href='" + ref + "'>back</a>");
+
+// FLAGGED: one part encoded, the raw value spliced into another
+document.write('<a href="/s?q=' + encodeURIComponent(q) + '">' + q + '</a>');
 
 // FLAGGED: React prop, also when split over lines
 <div dangerouslySetInnerHTML={{ __html: body }} />
+
+// NOT FLAGGED here: reported by VNX-NODE-027
+el.innerHTML = `<h2>${user.name}</h2>`;
+node["innerHTML"] = msg;
 ```
 
-Not flagged: string literals without interpolation (`el.innerHTML = ''`), `null`, number and boolean literals, ALL_CAPS constants (`el.innerHTML = SPINNER_SVG`), copying another element's `innerHTML`, values passed through `DOMPurify.sanitize`, `sanitize-html` or an escape/encode helper, reads and comparisons of `innerHTML`, `textContent`/`innerText`, comments and strings, minified and vendored files (`vendor/`, `libs/`, `plugins/`, `jquery*.js`).
+Not flagged: string literals without interpolation, `null`, number and boolean literals, ALL_CAPS constants (`SPINNER_SVG`), values passed whole through `DOMPurify.sanitize`, `sanitize-html` or an escape/encode helper (`unescape()` decodes and is not one), `textContent`/`innerText`, comments and strings, minified and vendored files (`vendor/`, `libs/`, `plugins/`, `jquery*.js`).
 
 ## Remediation
 

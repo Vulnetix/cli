@@ -2,7 +2,7 @@
 <Context>
   <Resource name="jdbc/app" auth="Container" type="javax.sql.DataSource"
             maxTotal="20" maxIdle="10"
-~>            username="app" password="Tomc4tDb!9"
+            username="app" password="Tomc4tDb!9"
             driverClassName="org.postgresql.Driver"
             url="jdbc:postgresql://db:5432/app"/>
 </Context>

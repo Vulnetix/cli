@@ -19,7 +19,7 @@ Developers often reach for `eval()` as a shortcut to parse structured data (JSON
 
 A call to the `eval()` or `exec()` builtin (bare or as `builtins.eval`/`builtins.exec`), or to Pillow's `ImageMath.eval()`/`ImageMath.unsafe_eval()`, whose code argument is not a constant string: a variable, a request value, an f-string, a concatenation or a format call.
 
-Not flagged: `ast.literal_eval()`, methods and definitions that happen to be named `eval`/`exec` (`model.eval()`, `app.exec()`), a constant literal such as `eval("6 * 7")`, executing the source of a file the code opens itself (`exec(compile(f.read(), path, "exec"))`, `exec(open(path).read())`), and comments or strings that mention the functions.
+Not flagged: `ast.literal_eval()`, methods and definitions that happen to be named `eval`/`exec` (`model.eval()`, `app.exec()`), a constant literal such as `eval("6 * 7")`, executing the source of a file the code opens itself (`exec(compile(f.read(), path, "exec"))`, `exec(open(path).read())`), and comments or strings that mention the functions. Two shapes are reported by a more specific rule instead, so the line appears once: `eval`/`exec` of Flask or Django request data (`eval(request.args.get("expr"))`, or through a variable assigned from it) is reported by VNX-94 (code injection), and `exec`/`eval` of an embedded blob decoded on the spot (`exec(zlib.decompress(base64.b64decode(BLOB)))`) is reported by VNX-506 (embedded malicious code). Request data that only reaches the call through a longer chain VNX-94 does not follow, such as an encode/decode round trip, is still reported here.
 
 ```python
 # FLAGGED: two-line flow from the request

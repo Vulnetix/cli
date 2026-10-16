@@ -1,6 +1,6 @@
 module Token
   def self.read(token)
-~>    JWT.decode(token, nil, false)
+    JWT.decode(token, nil, false)
   end
 
   def self.read_none(token)

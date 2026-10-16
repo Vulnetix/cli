@@ -19,7 +19,7 @@ public class AccountSearch {
         try {
             dao.find(id);
         } catch (SQLException e) {
-~>            response.getWriter().println("Database error: " + e.getMessage());
+            response.getWriter().println("Database error: " + e.getMessage());
         }
     }
 }

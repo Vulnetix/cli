@@ -10,6 +10,7 @@ async def login(request):
 
 
 async def dashboard(request):
-~>    if request.cookies.get('is_admin') == "1":
+    # Reported by VNX-784 (a security decision on a cookie), not by this rule.
+    if request.cookies.get('is_admin') == "1":
         return admin_view(request)
     return user_view(request)

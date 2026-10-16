@@ -1,11 +1,11 @@
 ---
 title: "VNX-PHP-004 – PHP Open Redirect"
-description: "Detect header('Location: ...') and Refresh headers, wp_redirect(), redirect(), Redirect::to(), RedirectResponse and withHeader('Location') whose destination is decided by a request value, enabling open redirects."
+description: "Detect header('Location: ...') and Refresh headers, wp_redirect() and PSR-7 withHeader('Location') whose destination is decided by a request value, enabling open redirects. Framework redirect helpers are reported by VNX-PHP-022."
 ---
 
 ## Overview
 
-This rule flags PHP code that constructs an HTTP redirect using `header('Location: ...')` or a framework redirect function where the target URL is taken directly from user-supplied superglobals (`$_GET`, `$_POST`, `$_REQUEST`) without validation. An attacker can supply any URL as the redirect target and use your legitimate domain as a launchpad to deliver phishing pages, malware downloads, or OAuth token theft pages. This maps to [CWE-601: URL Redirection to Untrusted Site (Open Redirect)](https://cwe.mitre.org/data/definitions/601.html).
+This rule flags PHP code that sends an HTTP redirect itself, with `header('Location: ...')` (also `header(sprintf('Location: %s', ...))`, a `Refresh: N; URL=` header, and a `header(` call split across lines), WordPress `wp_redirect()` or a PSR-7 `withHeader('Location', ...)`, where the target URL is taken from a request value (superglobals, `filter_input()`, `getallheaders()`, PSR-7 request accessors) without validation. Framework redirect helpers (Laravel and CodeIgniter `redirect()`, `redirect()->to()`/`away()`, `Redirect::to()`/`away()`, Symfony `new RedirectResponse()` and `$this->redirect()`) are the same weakness and are reported by [VNX-PHP-022](../vnx-php-022/), so one redirect is one finding. An attacker can supply any URL as the redirect target and use your legitimate domain as a launchpad to deliver phishing pages, malware downloads, or OAuth token theft pages. This maps to [CWE-601: URL Redirection to Untrusted Site (Open Redirect)](https://cwe.mitre.org/data/definitions/601.html).
 
 **Severity:** Medium | **CWE:** [CWE-601 – URL Redirection to Untrusted Site ('Open Redirect')](https://cwe.mitre.org/data/definitions/601.html)
 
@@ -30,11 +30,14 @@ header("Location: $back");
 $host = $_GET["host"];
 header("Location: https://" . $host . "/welcome");
 
-return redirect()->away($request->query("fallback"));
+header(
+    "Location: " . $_POST["back"]
+);
 wp_redirect( $_POST["redirect_to"] );
+return $response->withHeader("Location", $_GET["r"]);
 ```
 
-Not flagged: a destination whose literal prefix already fixes a host or path (`"Location: /login?next=" . $x`, `"https://shop.example.com/item/" . $sku`, `"info.php?id=" . $id`); a value checked with `in_array()`, `parse_url()` or `preg_match()` first (a `strpos()` substring test does not count); `wp_safe_redirect()`, a value passed through `wp_validate_redirect()`, `redirect()->route()`, `redirect()->back()`; values whose origin is not visible in the file.
+Not flagged: a destination whose literal prefix already fixes a host or path (`"Location: /login?next=" . $x`, `"https://shop.example.com/item/" . $sku`, `"info.php?id=" . $id`); a value checked with `in_array()`, `parse_url()` or `preg_match()` first (a `strpos()` substring test does not count); `wp_safe_redirect()`, a value passed through `wp_validate_redirect()`; values whose origin is not visible in the file; framework redirect helpers such as `redirect($request->input("next"))`, which are reported by [VNX-PHP-022](../vnx-php-022/).
 
 ## Remediation
 

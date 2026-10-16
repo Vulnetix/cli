@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CRYPTO-003",
 	"name": "AES in ECB mode",
-	"description": "A block cipher (AES, and any other cipher named the same way) is set up in ECB mode: Python AES.new(key, AES.MODE_ECB) or any MODE_ECB argument, cryptography modes.ECB(), pyaes AESModeOfOperationECB and the legacy PyCrypto AES.new(key) whose default mode is ECB; Node.js crypto.createCipheriv/createDecipheriv/createCipher with an '*-ecb' cipher name (literally or through a constant assigned it), CryptoJS mode.ECB and aes-js ModeOfOperation.ecb; Go NewECBEncrypter/NewECBDecrypter and a cipher.Block's Encrypt/Decrypt called on successive slices inside a loop (ECB written by hand); Java Cipher.getInstance with an '*/ECB/*' transformation or with a bare \"AES\", \"DES\", \"DESede\" or \"Blowfish\" transformation, whose provider default is ECB with PKCS5 padding, given literally, through a variable or constant, or as a getProperty default; Ruby OpenSSL::Cipher.new('aes-*-ecb') and OpenSSL::Cipher::AES.new(n, :ECB); PHP openssl_encrypt/openssl_decrypt with an '*-ecb' method (literal or variable), mcrypt MCRYPT_MODE_ECB/mcrypt_ecb() and phpseclib MODE_ECB or new AES('ecb'). ECB encrypts equal plaintext blocks to equal ciphertext blocks and carries no integrity, so tokens and records leak structure and can be cut and pasted; use AES-GCM (or ChaCha20-Poly1305). Not reported: GCM, CBC, CTR and other modes, RSA/ECB/* transformations (an RSA cipher has no block mode; padding is another rule's concern), AESWrap and AES/KW, a comparison against MODE_ECB (a guard rejecting it), a cipher name in a deny-list, KeyGenerator/SecretKeySpec with \"AES\" (a key, not a mode), a single-block Encrypt outside a loop (CMAC subkeys, key wrapping), ECB named inside a string literal, prose or a comment, documentation, and test files (known-answer vectors are ECB by definition).",
+	"description": "A block cipher (AES, and any other cipher named the same way) is set up in ECB mode: Python AES.new(key, AES.MODE_ECB) or any MODE_ECB argument, cryptography modes.ECB(), pyaes AESModeOfOperationECB and the legacy PyCrypto AES.new(key) whose default mode is ECB; Node.js crypto.createCipheriv/createDecipheriv/createCipher with an '*-ecb' cipher name (literally or through a constant assigned it), CryptoJS mode.ECB and aes-js ModeOfOperation.ecb; Go NewECBEncrypter/NewECBDecrypter and a cipher.Block's Encrypt/Decrypt called on successive slices inside a loop (ECB written by hand); Java Cipher.getInstance with an '*/ECB/*' transformation or with a bare \"AES\", \"DES\", \"DESede\" or \"Blowfish\" transformation, whose provider default is ECB with PKCS5 padding, given literally, through a variable or constant, or as a getProperty default (the bare name only when it is the whole argument, not \"AES\" + \"/GCM/NoPadding\"; a getProperty default the project's .properties overrides with a non-ECB value is not reported; VNX-1240 leaves every Java call this rule reports to it and reports only the Java forms this rule does not, such as a concatenated /ECB suffix and ECB in test sources); Ruby OpenSSL::Cipher.new('aes-*-ecb') and OpenSSL::Cipher::AES.new(n, :ECB); PHP openssl_encrypt/openssl_decrypt with an '*-ecb' method (literal or variable), mcrypt MCRYPT_MODE_ECB/mcrypt_ecb() and phpseclib MODE_ECB or new AES('ecb'). ECB encrypts equal plaintext blocks to equal ciphertext blocks and carries no integrity, so tokens and records leak structure and can be cut and pasted; use AES-GCM (or ChaCha20-Poly1305). Not reported: GCM, CBC, CTR and other modes, RSA/ECB/* transformations (an RSA cipher has no block mode; padding is another rule's concern), AESWrap and AES/KW, a comparison against MODE_ECB (a guard rejecting it), a cipher name in a deny-list, KeyGenerator/SecretKeySpec with \"AES\" (a key, not a mode), a single-block Encrypt outside a loop (CMAC subkeys, key wrapping), ECB named inside a string literal, prose or a comment, documentation, and test files (known-answer vectors are ECB by definition).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-003/",
 	"languages": ["python", "node", "go", "java", "ruby", "php"],
 	"severity": "high",
@@ -89,7 +89,7 @@ _static := {
 		`\bModeOfOperation\.ecb\b`,
 	],
 	"go": [`\bNewECB(?:En|De)crypter\s*\(`],
-	"java": [`\bCipher\.getInstance\s*\(\s*(?:__ECB__|__AESDEF__)`],
+	"java": [`\bCipher\.getInstance\s*\(\s*(?:__ECB__|__AESDEF__\s*[,)])`],
 	"ruby": [
 		`\bOpenSSL::Cipher(?:::Cipher)?\.new\s*\(\s*__ECB__`,
 		`\bOpenSSL::Cipher::\w+\.new\s*\([^)]*(?::ECB\b|__ECB__)`,
@@ -192,7 +192,7 @@ _hit(lang, lines, i, code, _, _) if {
 	end := min([count(lines) - 1, i + 3])
 	i + 1 <= end
 	rest := concat(" ", [_code(lang, lines[k]) | some k in numbers.range(i + 1, end); not helpers.is_comment_line(lines[k])])
-	regex.match(`^[^;]*?(?:__ECB__|^\s*__AESDEF__)`, rest)
+	regex.match(`^[^;]*?(?:__ECB__|^\s*__AESDEF__\s*[,)])`, rest)
 }
 
 # Go: a cipher.Block's Encrypt/Decrypt over successive slices in a loop.

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-775",
 	"name": "Missing Release of File Descriptor or Handle after Effective Lifetime",
-	"description": "Reports a Python function that assigns a file or socket handle to a local name (`x = open(...)`, `io.open`, `codecs.open`, `gzip.open`, `bz2.open`, `lzma.open`, `tarfile.open`, `os.open`, `socket.socket(...)`, `socket.create_connection(...)`, a lowercase receiver's `.open()` such as pathlib's `p.open()`) and never releases it in that function: no `x.close()` or deferred `x.close` (atexit.register, stack.callback), `os.close(x)`, `with x`, `contextlib.closing(x)` or `enter_context(x)`. The descriptor then stays open until the garbage collector happens to finalise the object (never, for os.open's integer), which under load exhausts the process's descriptor limit. Not reported: handles opened in a `with` statement, handles the function returns, yields or wraps (`return x`, `return Wrapper(x)`, `ctx.wrap_socket(x)`), stores on an object or in a collection (`self.sock = ...`, `self.files.append(x)`), handles chained straight into a read (`open(p).read()`), module-level handles (program lifetime), handles opened inside a loop body (VNX-769 reports those), comments, string literals and test files.",
+	"description": "Reports a Python function that assigns a file or socket handle to a local name (`x = open(...)`, `io.open`, `codecs.open`, `gzip.open`, `bz2.open`, `lzma.open`, `tarfile.open`, `os.open`, `socket.socket(...)`, `socket.create_connection(...)`, a lowercase receiver's `.open()` such as pathlib's `p.open()`) and never releases it in that function: no `x.close()` or deferred `x.close` (atexit.register, stack.callback), `os.close(x)`, `with x`, `contextlib.closing(x)` or `enter_context(x)`. The descriptor then stays open until the garbage collector happens to finalise the object (never, for os.open's integer), which under load exhausts the process's descriptor limit. Not reported: handles opened in a `with` statement, handles the function returns, yields or wraps (`return x`, `yield from x`, `return Wrapper(x)`, `ctx.wrap_socket(x)`), stores on an object or in a collection (`self.sock = ...`, `self.files.append(x)`), handles chained straight into a read (`open(p).read()`), module-level handles (program lifetime), handles opened inside a loop body (VNX-769 reports those), `webbrowser.open(url)` (a flag, not a handle), comments, string literals and test files. This rule owns Python handle leaks; VNX-404 reports the Java ones.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-775/",
 	"languages": ["python"],
 	"severity": "low",
@@ -94,7 +94,7 @@ _released(l, v) if regex.match(concat("", [`\b(?:with|async\s+with)\s+`, v, `\b`
 
 _released(l, v) if regex.match(concat("", [`\b(?:closing|enter_context|wrap_socket|register|append|add|put|push)\(\s*`, v, `\s*[,)]`]), l)
 
-_released(l, v) if regex.match(concat("", [`^\s*(?:return|yield)\s+`, v, `\s*(?:,|$|\))`]), l)
+_released(l, v) if regex.match(concat("", [`^\s*(?:return|yield(?:\s+from)?)\s+`, v, `\s*(?:,|$|\))`]), l)
 
 _released(l, v) if regex.match(concat("", [`^\s*(?:return|yield)\s+[A-Z][\w.]*\(\s*(?:[^)]*,\s*)?`, v, `\b`]), l)
 
@@ -120,6 +120,8 @@ findings contains finding if {
 	m := regex.find_all_string_submatch_n(_open_re, line, 1)
 	count(m) > 0
 	not regex.match(`\)\s*\.\w`, line)
+	# webbrowser.open returns a bool, not a handle
+	not regex.match(`=\s*webbrowser\.open\(`, line)
 	not _in_string(toggles, i)
 	v := m[0][1]
 	d := _encloser(lines, i, 200, _def_re)

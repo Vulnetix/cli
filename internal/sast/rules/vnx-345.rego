@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-345",
 	"name": "Insufficient Verification of Data Authenticity",
-	"description": "Python code acts on data from an untrusted channel as though it were authentic, with no signature or digest check in between. Reported: (1) pickle, cPickle, _pickle, dill, cloudpickle or marshal load()/loads()/Unpickler() (through the module, an `import x as y` alias or `from pickle import loads`) and jsonpickle.decode(), and the loaders that unpickle under the hood (torch.load without weights_only=True, joblib.load, pandas.read_pickle, numpy.load with allow_pickle=True), applied to request data (Flask/Django/Starlette request body, form, args, cookies, files, headers), bytes read from a socket, or a body downloaded with requests/httpx get/post or urlopen() (a model or cache fetched from a server), inline (including an argument on the next lines) or through a variable assigned from it, possibly via one further assignment such as a base64 decode, within the 12 lines above; (2) exec()/eval() of content fetched over the network (requests/httpx get/post .text/.content, urlopen().read()), inline or through such a variable; (3) a file downloaded with urlretrieve() and then run with subprocess, os.system or os.exec*. Not reported: when the 15 lines above verify an HMAC or signature (hmac.compare_digest, hmac.new, itsdangerous Signer/unsign/loads with a serializer, .verify()), or a downloaded file's hash (hashlib, sha256, checksum, gpg); json.loads, ast.literal_eval, torch.load(..., weights_only=True) and pandas.read_csv; pickles of local files or of the program's own dumps(); comments and string literals. Any pickle use is reported by VNX-PY-003 regardless of where the bytes come from; this rule is the narrower authenticity finding.",
+	"description": "Python code acts on data from an untrusted channel as though it were authentic, with no signature or digest check in between. Reported: (1) marshal.load()/loads() (through the module, an `import marshal as m` alias or `from marshal import loads`) applied to request data (Flask/Django/Starlette request body, form, args, cookies, files, headers), bytes read from a socket, or a body downloaded with requests/httpx get/post or urlopen() (a model or cache fetched from a server), inline (including an argument on the next lines) or through a variable assigned from it, possibly via one further assignment such as a base64 decode, within the 12 lines above; (2) exec()/eval() of content fetched over the network (requests/httpx get/post .text/.content, urlopen().read()), inline or through such a variable; (3) a file downloaded with urlretrieve() and then run with subprocess, os.system or os.exec*. Not reported: when the 15 lines above verify an HMAC or signature (hmac.compare_digest, hmac.new, itsdangerous Signer/unsign/loads with a serializer, .verify()), or a downloaded file's hash (hashlib, sha256, checksum, gpg); json.loads and ast.literal_eval; marshal of local files or of the program's own dumps(); comments and string literals. Unpickling untrusted bytes is the same weakness and is reported once, by its owner: pickle, cPickle, _pickle, dill, cloudpickle and jsonpickle calls by VNX-PY-003, and the loaders that unpickle under the hood (torch.load, joblib.load, pandas.read_pickle, numpy.load with allow_pickle=True) by VNX-PY-013, wherever the bytes come from.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-345/",
 	"languages": ["python"],
 	"severity": "medium",
@@ -35,30 +35,29 @@ _verify_re :=`hmac\.compare_digest|hmac\.new\(|\bunsign\(|\bSigner\(|Serializer\
 
 _hash_re := `hashlib\.|sha256|sha512|checksum|\bgpg\b|verify_signature|\.verify\(`
 
+# Only marshal is judged here. Every pickle-family call (pickle, cPickle,
+# _pickle, dill, cloudpickle, jsonpickle) is reported by VNX-PY-003 and every
+# loader that unpickles under the hood (torch.load, joblib.load,
+# pandas.read_pickle, numpy.load(allow_pickle=True)) by VNX-PY-013, wherever
+# the bytes come from; reporting them again here would show one problem twice.
 _mods(content) := ms if {
-	aliases := {m[2] |
-		some m in regex.find_all_string_submatch_n(`(?m)^\s*import\s+(pickle|cPickle|_pickle|dill|cloudpickle|marshal)\s+as\s+([A-Za-z_]\w*)`, content, -1)
+	aliases := {m[1] |
+		some m in regex.find_all_string_submatch_n(`(?m)^\s*import\s+marshal\s+as\s+([A-Za-z_]\w*)`, content, -1)
 	}
-	ms := {"pickle", "cPickle", "_pickle", "dill", "cloudpickle", "marshal"} | aliases
+	ms := {"marshal"} | aliases
 }
 
 _deser_re(content) := re if {
 	alt := concat("|", sort(_mods(content)))
-	re := concat("", [`\b(?:`, alt, `)\.(?:loads?|Unpickler)\s*\(|\bjsonpickle\.decode\s*\(|`, _ml_loaders, _bare_loads(content)])
+	re := concat("", [`\b(?:`, alt, `)\.loads?\s*\(`, _bare_loads(content)])
 }
 
-# Loaders that unpickle under the hood: torch.load (unless weights_only=True),
-# joblib.load, pandas.read_pickle and numpy.load(..., allow_pickle=True).
-_ml_loaders := `\btorch\.load\s*\(|\bjoblib\.load\s*\(|\b(?:pd|pandas)\.read_pickle\s*\(|\b(?:np|numpy)\.load\s*\([^\n]*allow_pickle\s*=\s*True`
-
-_safe_loader(text) if regex.match(`\btorch\.load\s*\([^\n]*weights_only\s*=\s*True`, text)
-
 _bare_loads(content) := `|(?:^|[^.\w])loads\s*\(` if {
-	regex.match(`(?m)^\s*from\s+(?:pickle|cPickle|_pickle|dill|cloudpickle|marshal)\s+import\s+[^\n]*\bloads\b`, content)
+	regex.match(`(?m)^\s*from\s+marshal\s+import\s+[^\n]*\bloads\b`, content)
 }
 
 _bare_loads(content) := "" if {
-	not regex.match(`(?m)^\s*from\s+(?:pickle|cPickle|_pickle|dill|cloudpickle|marshal)\s+import\s+[^\n]*\bloads\b`, content)
+	not regex.match(`(?m)^\s*from\s+marshal\s+import\s+[^\n]*\bloads\b`, content)
 }
 
 # Plain string literals are blanked; f-strings keep their text because they
@@ -105,7 +104,7 @@ _guarded(lines, i, re) if {
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".py")
-	regex.match(`(?i)pickle|marshal|dill|torch|joblib`, content)
+	contains(content, "marshal")
 	regex.match(`request|recv|urlopen|httpx`, content)
 	sink := _deser_re(content)
 	lines := split(content, "\n")
@@ -114,9 +113,8 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	not regex.match(`\.dumps?\(`, line)
 	_reaches(lines, i, _call_text(lines, i), _deser_src_re)
-	not _safe_loader(_call_text(lines, i))
 	not _guarded(lines, i, _verify_re)
-	finding := _finding(path, i, line, "Untrusted request or socket bytes are unpickled with no signature check: whoever controls the bytes runs code in this process. Use a data format (JSON) or verify an HMAC over the bytes before loading them")
+	finding := _finding(path, i, line, "Untrusted request, socket or downloaded bytes are loaded with marshal with no signature check: marshal builds code objects, and whoever controls the bytes controls what this process runs. Use a data format (JSON) or verify an HMAC over the bytes before loading them")
 }
 
 # (2) exec/eval of content fetched over the network

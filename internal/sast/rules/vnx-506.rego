@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-506",
 	"name": "Embedded Malicious Code: execution of decoded payload",
-	"description": "Code that decodes an encoded blob and executes the result, the loader shape of embedded malicious code (droppers in install scripts, backdoored packages). Python: exec()/eval() (bare or via builtins/__import__) whose argument decodes base64/base32/base85 (b64decode, decodebytes, a2b_base64), hex (bytes.fromhex, unhexlify), codecs.decode, zlib/bz2/lzma/gzip.decompress or marshal.loads, inline or through a variable assigned from such a decoder (one intermediate assignment allowed) within 15 lines above. JavaScript/TypeScript: eval(), new Function()/Function(), vm.runInThisContext/runInNewContext/runInContext/new vm.Script and child_process exec/execSync whose argument is atob(), Buffer.from(..., 'base64'|'hex'), String.fromCharCode() or a Base64.decode(), inline or through such a variable. Not reported: decoding data that is parsed, written or returned rather than executed (JSON.parse(atob(..)), ast.literal_eval), a regex's .exec(), executing a constant or an unrelated variable, and the pattern inside comments or string literals.",
+	"description": "Code that decodes an encoded blob and executes the result, the loader shape of embedded malicious code (droppers in install scripts, backdoored packages). Python: exec()/eval() (bare or via builtins/__import__) whose argument decodes base64/base32/base85 (b64decode, decodebytes, a2b_base64), hex (bytes.fromhex, unhexlify), codecs.decode, zlib/bz2/lzma/gzip.decompress or marshal.loads, inline or through a variable assigned from such a decoder (one intermediate assignment allowed) within 15 lines above. JavaScript/TypeScript: eval(), new Function()/Function(), vm.runInThisContext/runInNewContext/runInContext/new vm.Script and child_process exec/execSync whose argument is atob(), Buffer.from(..., 'base64'|'hex'), String.fromCharCode() or a Base64.decode(), inline or through such a variable. Not reported: decoding data that is parsed, written or returned rather than executed (JSON.parse(atob(..)), ast.literal_eval), a regex's .exec(), executing a constant or an unrelated variable, a decoder applied to request data or to an encoder's output (an encode/decode round trip: the executed value is the program's own input, not an embedded payload; reported by VNX-94 or VNX-PY-002/VNX-NODE-002), and the pattern inside comments or string literals. On a Python exec/eval of a decoded blob this rule owns the line; VNX-PY-002 does not report it.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-506/",
 	"languages": ["node", "python"],
 	"severity": "medium",
@@ -59,7 +59,39 @@ _code(lang, line) := regex.replace(regex.replace(line, `"(\\.|[^"\\])*"`, `""`),
 
 _code(lang, line) := regex.replace(line, `"(?:[^"\\]|\\.)*(?:exec|eval|Function)\s*\((?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*(?:exec|eval|Function)\s*\((?:[^'\\]|\\.)*'`, `""`) if lang == "js"
 
-_reported(lang, lines, i, c) if _inline(lang, c)
+# What a decoder reads when the decoded value is the program's own data and
+# not an embedded payload: an encoder's output (an encode/decode round trip)
+# or the request. Running that is code injection (VNX-94) or a plain dynamic
+# eval (VNX-PY-002, VNX-NODE-002), not a dropper.
+_plain := {
+	"py": `\b(?:b64encode|b32encode|b16encode|b85encode|a85encode|urlsafe_b64encode|encodebytes|encodestring|b2a_base64|b2a_hex|hexlify|marshal\.dumps|zlib\.compress|bz2\.compress|lzma\.compress|gzip\.compress|codecs\.encode)\s*\(|\.hex\(\)|\brequest\.(?:args|form|values|json|get_json|data|cookies|COOKIES|headers|GET|POST|body|query_params|stream|files)\b`,
+	"js": `\bbtoa\s*\(|\.toString\s*\(\s*["'](?:base64|hex|base64url)["']|\bBase64\.encode\s*\(|\bbase64\.encode\s*\(|\b(?:req|request)\.(?:query|body|params|headers|cookies)\b|\bctx\.(?:query|params|request\.body)\b`,
+}
+
+# The decoder's first argument, when it is a bare name.
+_decoder_arg := {
+	"py": concat("", [`(?:`, _decoder.py, `)\s*([A-Za-z_]\w*)\s*[,)]`]),
+	"js": `\b(?:atob|Buffer\.from|Base64\.decode|base64\.decode)\s*\(\s*([A-Za-z_]\w*)\s*[,)]`,
+}
+
+_plain_input(lang, lines, j, pc) if regex.match(concat("", [`(?:`, _decoder[lang], `)[^;]{0,120}?(?:`, _plain[lang], `)`]), pc)
+
+_plain_input(lang, lines, j, pc) if {
+	m := regex.find_all_string_submatch_n(_decoder_arg[lang], pc, 1)
+	count(m) > 0
+	n := m[0][1]
+	j > 0
+	some k in numbers.range(max([0, j - 15]), j - 1)
+	src := lines[k]
+	not helpers.is_comment_line(src)
+	helpers.assigned_ident(src) == n
+	regex.match(_plain[lang], src)
+}
+
+_reported(lang, lines, i, c) if {
+	_inline(lang, c)
+	not regex.match(concat("", [`(?:`, _decoder[lang], `)[^;]{0,120}?(?:`, _plain[lang], `)`]), c)
+}
 
 # A variable assigned from a decoder in the 15 lines above reaches the sink,
 # directly or through one intermediate assignment.
@@ -69,6 +101,7 @@ _reported(lang, lines, i, c) if {
 	prev := lines[j]
 	not helpers.is_comment_line(prev)
 	regex.match(_decoder[lang], _code(lang, prev))
+	not _plain_input(lang, lines, j, _code(lang, prev))
 	v := helpers.assigned_ident(prev)
 	_sink_arg_mentions(lang, lines, j, i, c, v)
 }

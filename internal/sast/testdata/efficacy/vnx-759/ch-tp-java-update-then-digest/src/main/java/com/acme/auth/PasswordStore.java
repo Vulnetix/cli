@@ -12,7 +12,7 @@ public class PasswordStore {
     }
 
     public String quick(char[] passwd) throws Exception {
-~>        byte[] out = MessageDigest.getInstance("MD5").digest(new String(passwd).getBytes(@@sample:S[t]an[d]ar[d]Ch[a]rs[e]ts[.]UT[F][_]8@@));
+        byte[] out = MessageDigest.getInstance("MD5").digest(new String(passwd).getBytes(@@sample:S[t]an[d]ar[d]Ch[a]rs[e]ts[.]UT[F][_]8@@));
         return HexFormat.of().formatHex(out);
     }
 }

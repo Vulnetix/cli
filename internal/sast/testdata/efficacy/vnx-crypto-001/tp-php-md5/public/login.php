@@ -3,14 +3,14 @@ require_once 'db.php';
 
 $user = $_POST['username'];
 $pass = $_POST['password'];
-~>$pass = md5( $pass );
+$pass = md5( $pass );
 
 $stmt = $db->prepare('SELECT * FROM users WHERE user = ? AND password = ?');
 $stmt->execute([$user, $pass]);
 
-~>$_SESSION['session_token'] = md5(uniqid());
+$_SESSION['session_token'] = md5(uniqid());
 
-~>$checksum = md5_file($_FILES['upload']['tmp_name']);
+$checksum = md5_file($_FILES['upload']['tmp_name']);
 
 ~>$cookie = hash('md5', $user . time());
 

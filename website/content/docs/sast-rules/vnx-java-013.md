@@ -38,6 +38,29 @@ xpath.evaluate("//accounts/account[id='" + request.getParameter("id") + "']",
     doc, XPathConstants.STRING);
 ```
 
+### Following the value through the method
+
+The look-back stops at the enclosing method's declaration (at most 120 lines up), and the method is read before the call is reported:
+
+- a definition on a branch that never runs is dropped: an `if`/`else` or ternary whose condition folds to a constant (integer literals, and `int` locals assigned once from a literal), or a `case` that a `switch` on a constant does not select;
+- a local that provably holds a constant at the call stops carrying the request value: a literal on every path, the element a list index or map key actually holds, or the result of a method in the same file (including a nested class) whose every `return` is a constant;
+- a request value stored in a list, map or builder and read back is followed, so `list.add(request.getParameter("x"))` followed by `list.get(0)` is request data.
+
+```java
+// NOT FLAGGED: 100 / 4 > 20, so channel is always "news"
+int limit = 100;
+if (limit / 4 > 20) channel = "news";
+else channel = request.getParameter("channel");
+xp.evaluate("/rss/channel[@id='" + channel + "']/title", feed);
+
+// FLAGGED: index 0 of the list holds the request value
+tags.add(request.getParameter("tag"));
+tags.add("featured");
+xp.evaluate("//item[category='" + tags.get(0) + "']/title", feed);
+```
+
+Anything the analysis cannot resolve stays reported: a condition on request data, a call into another class, a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter.
+
 ## Remediation
 
 Java's `javax.xml.xpath` API does not natively support parameterized queries in the same way JDBC's `PreparedStatement` does, but the `XPathVariableResolver` interface provides an equivalent mechanism: user-supplied values are bound as typed variables, never interpolated as expression syntax.

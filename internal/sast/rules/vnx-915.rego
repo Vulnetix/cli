@@ -8,9 +8,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-915",
 	"name": "Mass assignment: the whole request body is written onto a model",
-	"description": "The request body is copied wholesale onto a persistent object, so a client can set any field the model has (role, isAdmin, price, ownerId) (CWE-915). Reported in JavaScript/TypeScript: Object.assign(target, ..., req.body) onto a non-empty target; new Model(req.body); ORM writes create/build/insert/insertOne/insertMany/update/updateOne/updateMany/findByIdAndUpdate/findOneAndUpdate/upsert/set/merge given req.body, req.body.<member>, req.query or ctx.request.body as a direct argument or spread into an object literal ({...req.body, owner}); Prisma create/update/upsert with data: req.body; MongoDB update operators ({ $set: req.body }) in update*/findOneAndUpdate/findByIdAndUpdate; and the same through a variable assigned from the bare body in the 15 lines above. Reported in Ruby: every .permit! call, ActiveRecord new/create/update/update_attributes/assign_attributes/attributes= given a raw params[:key] hash or params.to_unsafe_h / to_unsafe_hash, and a strong-parameters permit(...) list that admits a privilege attribute (admin, is_admin, role, role_id, roles, superuser, super_admin, permissions) outside an admin controller. Not reported: explicit fields (create({ name: req.body.name })), bodies filtered through pick/omit or a validator, Object.assign({}, ...) copies, hash/HMAC/cipher update(), built-in constructors (URL, Error, Buffer), Rails params filtered by require().permit(...) of ordinary fields, scalar params (update(title: params[:title])), comments and strings. Overlaps VNX-RUBY-006 (Ruby) and VNX-349 (merges into trusted objects).",
+	"description": "The request body is copied wholesale onto a persistent object, so a client can set any field the model has (role, isAdmin, price, ownerId) (CWE-915). Reported in JavaScript/TypeScript: Object.assign(target, ..., req.body) onto a non-empty target; new Model(req.body); ORM writes create/build/insert/insertOne/insertMany/update/updateOne/updateMany/findByIdAndUpdate/findOneAndUpdate/upsert/set/merge given req.body, req.body.<member>, req.query or ctx.request.body as a direct argument or spread into an object literal ({...req.body, owner}); Prisma create/update/upsert with data: req.body; MongoDB update operators ({ $set: req.body }) in update*/findOneAndUpdate/findByIdAndUpdate; and the same through a variable assigned from the bare body in the 15 lines above. Not reported: explicit fields (create({ name: req.body.name })), bodies filtered through pick/omit or a validator, Object.assign({}, ...) copies, hash/HMAC/cipher update(), built-in constructors (URL, Error, Buffer), comments and strings. Ruby mass assignment (permit!, raw params hashes, params.to_unsafe_h, a permit list admitting admin/role) is reported by VNX-RUBY-006, not here. Overlaps VNX-349 (merges into trusted objects).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-915/",
-	"languages": ["node", "ruby"],
+	"languages": ["node"],
 	"severity": "high",
 	"level": "error",
 	"kind": "sast",
@@ -100,39 +100,7 @@ findings contains finding if {
 	}
 }
 
-_rb_raw := `\.(?:new|create!?|update!?|update_attributes!?|assign_attributes)\s*\(?\s*params\[\s*(?::\w+|"")\s*\](?:\s*\)|\s*,|\s*$)|\.attributes\s*=\s*params\[\s*(?::\w+|"")\s*\]\s*$`
-
-_rb_priv := `\.permit\s*\([^)]*:(?:admin|is_admin|role|role_id|roles|superuser|super_admin|permissions)\b`
-
-_rb_hit(_, code) if regex.match(`\.permit!`, code)
-
-_rb_hit(_, code) if regex.match(_rb_raw, code)
-
-# to_unsafe_h / to_unsafe_hash strips strong-parameters protection.
-_rb_hit(_, code) if regex.match(`\.(?:new|create!?|update!?|update_attributes!?|assign_attributes|insert|upsert)\s*\(?\s*params(?:\.require\([^)]*\))?\.to_unsafe_h(?:ash)?\b`, code)
-
-_rb_hit(path, code) if {
-	regex.match(_rb_priv, code)
-	not regex.match(`(^|/)admin/|admin_[^/]*controller\.rb$`, path)
-}
-
-findings contains finding if {
-	some path, content in input.file_contents
-	endswith(path, ".rb")
-	contains(content, "params")
-	lines := split(content, "\n")
-	some i, line in lines
-	contains(line, "params")
-	not helpers.is_comment_line(line)
-	code := regex.replace(line, `"[^"]*"|'[^']*'`, `""`)
-	_rb_hit(path, code)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "Request parameters reach model attributes without a field allow-list (permit!, a raw params hash, or a permit list that admits a privilege attribute): a client can set admin, role or any other column",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
+# Ruby mass assignment (permit!, raw params hashes, to_unsafe_h, a permit list
+# admitting a privilege attribute) is the same weakness and is reported by
+# VNX-RUBY-006, which follows params through variables and multi-line permit
+# lists; this rule does not read Ruby.

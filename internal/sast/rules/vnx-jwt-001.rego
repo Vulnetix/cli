@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JWT-001",
 	"name": "JWT signature verification disabled",
-	"description": "A JWT is accepted without its signature being checked. Reported: PyJWT/python-jose options {\"verify_signature\": False} (in the decode call or a dict built for it) and the PyJWT 1.x verify=False argument; jsonwebtoken jwt.decode() applied to a request-derived token in a file that never calls verify(); jwt-simple decode(token, key, true) (noVerify); golang-jwt ParseUnverified() in a file that never calls Parse/ParseWithClaims; jjwt (pre-0.12 API) Jwts.parser()...setSigningKey(...).parse(), which accepts an unsigned token, and Auth0 java-jwt JWT.decode() in a Java/Kotlin file that never builds a JWT.require() verifier; ruby-jwt JWT.decode(token, key, false); .NET TokenValidationParameters RequireSignedTokens = false or a SignatureValidator that returns a new JwtSecurityToken/JsonWebToken without checking it. Not reported: decode with options that only relax exp/aud, a decode of the header followed by verify, a browser-side decode of a token read from storage, jjwt parseClaimsJws/parseSignedClaims and the 0.12 verifyWith() builder, comments and string literals. Accepting the 'none' algorithm is reported by VNX-JWT-004.",
+	"description": "A JWT is accepted without its signature being checked. Reported: PyJWT/python-jose options {\"verify_signature\": False} or verify_signature=False (in the decode call or a dict built for it) and the PyJWT 1.x verify=False argument (also on a continuation line of the decode call); jsonwebtoken jwt.decode() applied to a request-derived token in a file that never calls verify(); jwt-simple decode(token, key, true) (noVerify); golang-jwt ParseUnverified() in a file that never calls Parse/ParseWithClaims; jjwt (pre-0.12 API) Jwts.parser()...setSigningKey(...).parse(), which accepts an unsigned token, and Auth0 java-jwt JWT.decode() in a Java/Kotlin file that never builds a JWT.require() verifier; ruby-jwt JWT.decode(token, key, false); .NET TokenValidationParameters RequireSignedTokens = false or a SignatureValidator that returns a new JwtSecurityToken/JsonWebToken without checking it. Not reported: decode with options that only relax exp/aud, a decode of the header followed by verify, a browser-side decode of a token read from storage, jjwt parseClaimsJws/parseSignedClaims and the 0.12 verifyWith() builder, comments and string literals. Accepting the 'none' algorithm is reported by VNX-JWT-004, and an unsigned-token API (jjwt unsecured()/parseClaimsJwt, PlainJWT, UnsecuredJWT) by VNX-SEC-015; the shapes above are owned by this rule, and VNX-SEC-015 does not report them again.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-jwt-001/",
 	"languages": ["python", "javascript", "typescript", "go", "java", "kotlin", "ruby", "csharp"],
 	"severity": "critical",
@@ -65,7 +65,7 @@ findings contains f if {
 	some i, line in lines
 	contains(line, "verify_signature")
 	not helpers.is_comment_line(line)
-	m := regex.find_all_string_submatch_n(`^(.*?)["']verify_signature["']\s*:\s*False\b`, line, 1)
+	m := regex.find_all_string_submatch_n(`^(.*?)(?:["']verify_signature["']\s*:\s*False\b|\bverify_signature\s*=\s*False\b)`, line, 1)
 	count(m) > 0
 	not _quoted(m[0][1])
 	f := _finding(path, i, line, "JWT signature verification disabled (verify_signature: False): any forged token is accepted; remove the option and pass the key and algorithms")
@@ -74,9 +74,9 @@ findings contains f if {
 findings contains f if {
 	some path, content in input.file_contents
 	endswith(path, ".py")
-	contains(content, "verify=False")
+	contains(content, "verify")
 	contains(content, "decode")
-	regex.match(`\bjwt\b`, content)
+	regex.match(`(?i)jwt`, content)
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(`\bverify\s*=\s*False\b`, line)
@@ -291,6 +291,6 @@ findings contains f if {
 	contains(line, "SignatureValidator")
 	not helpers.is_comment_line(line)
 	regex.match(`\bSignatureValidator\s*=`, line)
-	regex.match(`\bnew\s+(JwtSecurityToken|JsonWebToken)\s*\(`, helpers.code_window(lines, i, 0, 3))
+	regex.match(`\bnew\s+(JwtSecurityToken|JsonWebToken)\s*\(`, helpers.code_window(lines, i, 0, 4))
 	f := _finding(path, i, line, "A SignatureValidator that returns a new token without checking it disables JWT signature verification")
 }
