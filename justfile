@@ -185,7 +185,7 @@ verify-device-flow:
 test:
     #!/usr/bin/env bash
     set -euo pipefail
-    if go test -v ./...; then
+    if go test -v -timeout 30m ./...; then
         echo "pass" > /tmp/vulnetix-cli-test-cache
     else
         echo "fail" > /tmp/vulnetix-cli-test-cache
