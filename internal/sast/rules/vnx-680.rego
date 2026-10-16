@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-680",
 	"name": "Integer Overflow to Buffer Overflow",
-	"description": "A C or C++ heap or stack allocation whose size is a multiplication involving a count read from outside the program, with no overflow or range check in between, so a large count wraps the product and the buffer is allocated far smaller than the code then writes. Reported: malloc, realloc, alloca, xmalloc, g_malloc, kmalloc, vmalloc, HeapAlloc, LocalAlloc and GlobalAlloc, and C++ new T[...], whose size multiplies a value parsed or received on the same line (atoi, strtol and friends, ntohl/ntohs/beNNtoh, getenv) or a variable that one of the 20 lines above assigned from such a call or filled through scanf/fscanf/sscanf, fread, read, recv/recvfrom, ReadFile or std::cin >>; also an allocation sized by a variable that one of the 10 lines above computed as such a product (size_t bytes = n * sizeof *e; malloc(bytes)). A comparison only against 0 or 1 (n <= 0, n > 0) bounds nothing and does not count as a check. Not reported: calloc and reallocarray (which check the product), a product of constants or of internal counts, a count compared against any other bound (<, >, <=, >= or == on the variable) or guarded by SIZE_MAX, INT_MAX, __builtin_mul_overflow or ckd_mul between the read and the allocation, comments and string literals.",
+	"description": "A C or C++ heap or stack allocation whose size is a multiplication involving a count read from outside the program, with no overflow or range check in between, so a large count wraps the product and the buffer is allocated far smaller than the code then writes. Reported: malloc, realloc, alloca, xmalloc, g_malloc, kmalloc, vmalloc, HeapAlloc, LocalAlloc and GlobalAlloc, and C++ new T[...], whose size multiplies a value parsed or received on the same line (atoi, strtol and friends, ntohl/ntohs/beNNtoh, getenv) or a variable that one of the 20 lines above assigned from such a call or filled through scanf/fscanf/sscanf, fread, read, recv/recvfrom, ReadFile, std::cin >> or an extraction statement from any stream (in >> w >> h;); also an allocation sized by a variable that one of the 10 lines above computed as such a product (size_t bytes = n * sizeof *e; malloc(bytes)). A comparison only against 0 or 1 (n <= 0, n > 0) bounds nothing and does not count as a check. Not reported: calloc and reallocarray (which check the product), a product of constants or of internal counts, a count compared against any other bound (<, >, <=, >= or == on the variable) or guarded by SIZE_MAX, INT_MAX, __builtin_mul_overflow or ckd_mul between the read and the allocation, comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-680/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
@@ -82,13 +82,19 @@ _sourced(lines, i) := {[v, j] |
 	contains(l, "cin")
 	some g in regex.find_all_string_submatch_n(`>>\s*(\w+)`, l, -1)
 	v := g[1]
+} | {[v, j] |
+	some j in numbers.range(max([0, i - 20]), i - 1)
+	l := lines[j]
+	regex.match(`^\s*[\w:.]+\s*>>\s*\w+(?:\s*>>\s*\w+)*\s*;`, l)
+	some g in regex.find_all_string_submatch_n(`>>\s*(\w+)`, l, -1)
+	v := g[1]
 }
 
 _guard_re := `SIZE_MAX|INT_MAX|UINT_MAX|UINT32_MAX|SSIZE_MAX|__builtin_mul_overflow|ckd_mul|_overflow\s*\(`
 
 _guarded(lines, j, i, v) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	l := lines[k]
 	not helpers.is_comment_line(l)
 	regex.match(concat("", [`\b`, v, `\s*(?:[<>]=?|==)\s*[\w(-]|[\w)]\s*[<>]=?\s*`, v, `\b`]), l)
@@ -151,7 +157,7 @@ findings contains finding if {
 	some path, content in input.file_contents
 	_is_c(path)
 	regex.match(`alloc|new\s`, content)
-	regex.match(`\b(?:ato|strto|ntoh|be\d\dtoh|le\d\dtoh|getenv|scanf|fread|read|recv|ReadFile|cin)`, content)
+	regex.match(`\b(?:ato|strto|ntoh|be\d\dtoh|le\d\dtoh|getenv|\w*scanf|fread|read|recv|ReadFile|cin)|>>\s*\w`, content)
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(`alloc|new\s`, line)

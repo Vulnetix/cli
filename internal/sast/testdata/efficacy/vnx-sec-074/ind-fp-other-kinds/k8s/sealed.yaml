@@ -1,0 +1,30 @@
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: billing
+spec:
+  encryptedData:
+    password: AgBy8hCi2Xk4Lm9Qp3Zr7TvW1nJd5sUe
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cfg
+data:
+  password: Ums5eVcyczlMcTd6
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: billing
+                  key: password

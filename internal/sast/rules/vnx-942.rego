@@ -71,6 +71,17 @@ _problem("reflect", lines, i, line) if {
 	v := _acao_value(line)
 	regex.match(_origin_src, v)
 	not _client_nearby(lines, i)
+	not _checked_above(lines, i)
+}
+
+# An enclosing condition a few lines up tests the request's Origin against
+# an allowlist (if (allowed.has(req.headers.origin)) { ... }).
+_checked_above(lines, i) if {
+	some j in numbers.range(max([0, i - 4]), i - 1)
+	not helpers.is_comment_line(lines[j])
+	regex.match(`\b(if|else\s+if|while)\s*\(|&&|\?`, lines[j])
+	regex.match(_origin_src, lines[j])
+	regex.match(_guard_re, lines[j])
 }
 
 # the request's own Origin, through a variable, with no allowlist test between

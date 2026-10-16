@@ -1,0 +1,4 @@
+### export orders
+GET https://api.acme-corp.io/v2/orders/export
+~>Authorization: Basic ZXhwb3J0ZXI6SG41YlY4Y1gxbVF6NFRq
+Accept: text/csv

@@ -153,7 +153,7 @@ _fixed(lines, _, i, _, rest) if {
 
 _touched(lines, j, i, v) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`\b`, v, `\b`]), lines[k])
 }
 

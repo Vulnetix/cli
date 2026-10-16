@@ -61,6 +61,33 @@ subprocess.run(command, shell=True)   # not flagged: every part is constant
 
 Anything the analysis cannot resolve stays reported: a condition on run-time data, a function in another module, a collection passed to a call or aliased, a value assigned inside `try` or a loop, or rebound by a tuple, `for`, `with` or walrus target.
 
+### Calls that cannot bring data in
+
+A call into code the scan cannot see (another class or module) is treated as **inert**, and its value as a constant, when all of these hold:
+
+- its name is not that of a source (`read*`, `input`, `getenv`, `get_*` of a parameter, header, cookie or value, `query`, `execute`, `popen`);
+- every argument is a constant: a literal, or a name the method fixes;
+- its receiver is a class, an imported module, or a local built from such a call or from a constructor with constant arguments, and that local is only ever called with constant arguments.
+
+```python
+# NOT REPORTED: the helper is given literals only
+book = CommandBook.standard()
+command = book.entry("listing")
+subprocess.run(command, shell=True)
+
+# REPORTED: a run-time argument
+command = book.entry(name)
+
+# REPORTED: the receiver was built from, or fed, a run-time value
+book = CommandBook(request.args.get("book", ""))
+command = book.entry("listing")
+
+# REPORTED: a source-like method name
+command = helpers.commands.read_line("command")
+```
+
+Anything that fails one of the tests stays reported, so a helper that hands back its argument is never mistaken for a constant.
+
 ## Remediation
 
 1. **Pass a list of arguments with `shell=False` (the default).** This bypasses the shell entirely. Python calls `execve()` directly with the program path and an argument vector, so no shell metacharacter parsing occurs. The user-supplied values are passed as arguments to the program, not interpreted by a shell:

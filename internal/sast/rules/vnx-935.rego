@@ -8,9 +8,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-935",
 	"name": "Administrative endpoint declared without a function-level access check",
-	"description": "CWE-935 is the OWASP Top Ten 2013 category 'Missing Function Level Access Control'. This rule reports its most concrete code shape: a route whose path names an administrative function (an /admin, /administrator, /superadmin, /sysadmin, /management, /manage, /backoffice or /staff path segment) declared with nothing that restricts who may call it. Reported: Express-style routes (app, router, *Router, routes, api, server receivers with get/post/put/patch/delete/all) whose only argument after the path is the handler (an inline function or arrow function, or a single handler expression), and router.route('/admin/...').get/post/...(handler) chains whose verb takes only the handler, when the handler's first lines check no role or session and the file mounts no auth middleware with .use(); Flask routes (@app.route, @bp.get/post/put/patch/delete) with no login/admin/role/permission/auth decorator before the def and no current_user, session, g.user, role or abort(401/403) check in the first lines of the function, in a file with no before_request hook; and Spring/JAX-RS handlers (Java and Kotlin) mapped to such a path but annotated @PermitAll, @PreAuthorize(\"permitAll()\"), @Secured(\"IS_AUTHENTICATED_ANONYMOUSLY\") or @AnonymousAllowed, which explicitly open the function to everyone. Not reported: routes with any middleware between path and handler, routers that some file mounts on an admin path behind middleware, handlers that check a role, guarded Flask views and blueprints, Spring handlers without an annotation (Spring Security is configured centrally and VNX-931 judges that configuration), non-admin paths, test files, comments and string literals. Authorization performed in another module (a gateway, a global filter) is not visible to this rule.",
+	"description": "CWE-935 is the OWASP Top Ten 2013 category 'Missing Function Level Access Control'. This rule reports the shape of it that only an annotation can produce: a Spring or JAX-RS handler (Java and Kotlin) mapped to a path that names an administrative function (an /admin, /administrator, /superadmin, /sysadmin, /management, /manage, /backoffice or /staff path segment) and annotated @PermitAll, @PreAuthorize(\"permitAll()\"), @Secured(\"IS_AUTHENTICATED_ANONYMOUSLY\") or @AnonymousAllowed, which explicitly opens the function to everyone. Not reported: Spring handlers without such an annotation (Spring Security is configured centrally and VNX-931 judges that configuration), handlers that require a role, non-admin paths, test files, comments and string literals. An administrative route registered with nothing in front of it is reported by VNX-306 for Python (Flask, FastAPI) and by VNX-425 for JavaScript, TypeScript and Go (Express, Koa, Fastify, net/http, gin, echo), so one route is one finding.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-935/",
-	"languages": ["node", "python", "java", "kotlin"],
+	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",
@@ -63,7 +63,7 @@ _same_annotation_block(lines, k, i) if {
 
 _non_annotation_between(lines, lo, hi) if {
 	lo + 1 <= hi - 1
-	some x in numbers.range(lo + 1, hi - 1)
+	some x in helpers.span(lo + 1, hi - 1)
 	not regex.match(`^\s*@`, lines[x])
 }
 

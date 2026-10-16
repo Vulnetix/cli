@@ -179,7 +179,7 @@ _py_return(lines, i, j) if {
 # the block.
 _py_closed(lines, i, fi, j) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	not _blank_or_comment(lines[k])
 	_indent(lines[k]) <= fi
 }
@@ -187,7 +187,7 @@ _py_closed(lines, i, fi, j) if {
 # A def or class inside the block encloses j.
 _py_nested_def(lines, i, j) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	regex.match(`^\s*(?:async\s+def|def|class)\b`, lines[k])
 	ik := _indent(lines[k])
 	_indent(lines[j]) > ik

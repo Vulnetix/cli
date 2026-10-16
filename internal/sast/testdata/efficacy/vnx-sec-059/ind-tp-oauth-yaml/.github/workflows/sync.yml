@@ -1,0 +1,9 @@
+name: sync
+on: push
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+~>      LINEAR_TOKEN: lin_oauth_@@sample:[a-f0-9]{64}@@
+    steps:
+      - run: ./sync.sh

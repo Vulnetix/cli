@@ -101,13 +101,13 @@ findings contains finding if {
 # The declaring block ends before j: a line shallower than the declaration.
 _scope_closed(lines, d, j) if {
 	id := _indent(lines[d])
-	some k in numbers.range(d + 1, j - 1)
+	some k in helpers.span(d + 1, j - 1)
 	trim_space(lines[k]) != ""
 	_indent(lines[k]) < id
 }
 
 _in_loop(lines, d, j) if {
-	some k in numbers.range(d + 1, j - 1)
+	some k in helpers.span(d + 1, j - 1)
 	regex.match(_loop_re, lines[k])
 	not helpers.is_comment_line(lines[k])
 	ik := _indent(lines[k])
@@ -117,7 +117,7 @@ _in_loop(lines, d, j) if {
 
 _loop_closed(lines, k, j, ik) if {
 	k + 1 <= j - 1
-	some m in numbers.range(k + 1, j - 1)
+	some m in helpers.span(k + 1, j - 1)
 	trim_space(lines[m]) != ""
 	_indent(lines[m]) <= ik
 }

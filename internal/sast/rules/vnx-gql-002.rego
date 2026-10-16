@@ -70,7 +70,7 @@ _in_py_view(lines, i, line) if {
 	regex.match(_view_open, lines[j])
 	parts := regex.split(_view_open, lines[j])
 	tail := parts[count(parts) - 1]
-	middle := [lines[k] | some k in numbers.range(j + 1, i - 1); k > j; k < i; not helpers.is_comment_line(lines[k])]
+	middle := [lines[k] | some k in helpers.span(j + 1, i - 1); k > j; k < i; not helpers.is_comment_line(lines[k])]
 	head := regex.split(`\bbatch\s*=\s*True`, line)[0]
 	_unclosed(concat("\n", array.concat(array.concat([tail], middle), [head])))
 }

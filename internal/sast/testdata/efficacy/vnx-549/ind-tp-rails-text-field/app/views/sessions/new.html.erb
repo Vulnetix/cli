@@ -1,0 +1,7 @@
+<%= form_with url: login_path do |f| %>
+  <%= f.label :email %>
+  <%= f.email_field :email %>
+  <%= f.label :password %>
+~>  <%= f.text_field :password, class: "input" %>
+  <%= f.submit "Sign in" %>
+<% end %>

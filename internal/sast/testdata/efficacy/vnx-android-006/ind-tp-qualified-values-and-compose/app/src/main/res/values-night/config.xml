@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="use_dark_map">true</bool>
+~>    <string name="map_style_api_key">mS9vT2qXw6Rk1Bz8LnYd</string>
+</resources>

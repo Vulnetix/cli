@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-647",
 	"name": "Authorization decided on a non-canonical request path",
-	"description": "An access-control check compares the raw request path or URL with a protected prefix or route, so a different spelling of the same resource (/ADMIN, //admin, /admin;jsessionid=x, /%61dmin, /public/../admin, a query string) slips past the check while the router still serves it (CWE-647). Reported in Java and Kotlin (getRequestURI(), getRequestURL(), getPathInfo(), Kotlin request.requestURI/requestURL/pathInfo), JavaScript/TypeScript (req.path, req.url, req.originalUrl, req.baseUrl, ctx.path/url, Lambda event.path/rawPath) and Python (request.path, path_info, full_path, url, get_full_path(), environ['PATH_INFO'], ASGI scope['path']): a startsWith/startswith/endsWith/equals/includes/contains/indexOf/match/test call, a ==/===/!= comparison or a Python in-tuple test against a literal beginning with '/', or a JavaScript regex literal anchored on '/' (/^\\/admin/.test(...)), applied to that value directly or to a variable assigned from it up to 15 lines above, when the line or the three after it take an access decision (401/403, Forbidden, Unauthorized, sendError, deny, login, auth, role, admin, permission, session, principal, abort). Not reported: a path that is normalised first (normalize, normpath, getServletPath, canonical/realpath, cleanPath, safe_join), route registration (app.get('/admin', ...)), path checks with no access decision near them (caching, SPA fallback, health checks), test code, comments and string literals. vnx-551 covers the related order where the check happens before decoding.",
+	"description": "An access-control check compares the raw request path or URL with a protected prefix or route, so a different spelling of the same resource (/ADMIN, //admin, /admin;jsessionid=x, /%61dmin, /public/../admin, a query string) slips past the check while the router still serves it (CWE-647). Reported in Java and Kotlin (getRequestURI(), getRequestURL(), getPathInfo(), Kotlin request.requestURI/requestURL/pathInfo), JavaScript/TypeScript (req.path, req.url, req.originalUrl, req.baseUrl, ctx.path/url, Lambda event.path/rawPath) and Python (request.path, path_info, full_path, url, get_full_path(), environ['PATH_INFO'], ASGI scope['path']): a startsWith/startswith/endsWith/equals/includes/contains/indexOf/match/test call, a ==/===/!= comparison or a Python in-tuple test against a literal beginning with '/', or a JavaScript regex literal anchored on '/' (/^\\/admin/.test(...)), applied to that value directly or to a variable assigned from it up to 15 lines above, when the line or the three after it take an access decision (401/403, Forbidden, Unauthorized, sendError, deny, login, auth, role, admin, permission, session, principal, abort). A template file name such as 'admin.html' is not an access decision. Not reported: a path that is normalised first (normalize, normpath, getServletPath, canonical/realpath, cleanPath, safe_join), route registration (app.get('/admin', ...)), path checks with no access decision near them (caching, SPA fallback, health checks), test code, comments and string literals. vnx-551 covers the related order where the check happens before decoding.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-647/",
 	"languages": ["java", "kotlin", "node", "python"],
 	"severity": "high",
@@ -61,6 +61,9 @@ _strip_prose(line) := c if {
 	c := strings.replace_n({l[0]: `""` | some l in lits}, line)
 }
 
+# Template file names ("dashboard/admin.html") name a view, not a decision.
+_strip_templates(s) := regex.replace(s, `["'][^"'\s]*\.(?:html?|jinja2?|j2|tpl|twig|jsp|ftl|mustache|hbs|ejs|pug)["']`, `""`)
+
 # A raw-path variable assigned within 15 lines above i (not normalised).
 _raw_vars(lines, i, lang) := {v |
 	some j in numbers.range(max([0, i - 15]), i - 1)
@@ -98,7 +101,7 @@ findings contains finding if {
 	regex.match(_cmp_re, c)
 	not regex.match(_normalised, c)
 	_raw(lines, i, c, lang)
-	regex.match(_decision, _strip_prose(helpers.code_window(lines, i, 0, 3)))
+	regex.match(_decision, _strip_templates(_strip_prose(helpers.code_window(lines, i, 0, 3))))
 	not _docstring(lines, i, lang)
 	finding := {
 		"rule_id": metadata.id,

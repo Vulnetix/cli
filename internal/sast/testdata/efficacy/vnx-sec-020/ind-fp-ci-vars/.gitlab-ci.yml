@@ -1,0 +1,4 @@
+deploy:
+  script:
+    - curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" "$CI_API_V4_URL/projects"
+    - curl --header "PRIVATE-TOKEN: ${DEPLOY_PAT}" "$CI_API_V4_URL/projects"

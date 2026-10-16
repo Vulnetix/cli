@@ -35,6 +35,8 @@ const io = new Server(httpServer, {
 });
 ```
 
+For Socket.IO the finding is reported on the `origin: '*'` line.
+
 Not flagged: `verifyClient: ({ origin }) => ALLOWED.has(origin)`, a `noServer` server whose `upgrade` handler checks `req.headers.origin`, Socket.IO with a list of origins, Express `cors({ origin: '*' })` middleware, browser `new WebSocket(...)` clients and test files.
 
 ## Remediation

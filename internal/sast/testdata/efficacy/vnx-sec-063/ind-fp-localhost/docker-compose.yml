@@ -1,0 +1,6 @@
+services:
+  api:
+    environment:
+      A: mongodb://app:Zk4mQ8vT2xLp@localhost:27017/app
+      B: mongodb://app:Zk4mQ8vT2xLp@127.0.0.1:27017/app
+      C: mongodb://app:Zk4mQ8vT2xLp@db.example.com:27017/app

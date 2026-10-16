@@ -144,6 +144,13 @@ _ctx(_, _, prefix) if {
 	_secure_name(m[1])
 }
 
+# A setter named for a secret receiving the value: user.setConfirmationToken(raw).
+_ctx(_, _, prefix) if {
+	ms := regex.find_all_string_submatch_n(`\bset([A-Z]\w*)\s*\(\s*$`, prefix, 1)
+	count(ms) > 0
+	_secure_name(ms[0][1])
+}
+
 # A cookie set under a session or auth name: setcookie("dvwaSession", ...).
 _ctx(_, _, prefix) if {
 	ms := regex.find_all_string_submatch_n(`(?i)(?:setcookie|setrawcookie|set_cookie|\.cookie|new\s+Cookie|cookies\.set)\s*\(\s*["']([^"']+)["']\s*,[^,]*$`, prefix, -1)
@@ -245,6 +252,33 @@ _flows(lines, i, prefix) if {
 	some idx in indexof_n(lines[j], v)
 	_word_at(lines[j], idx, v)
 	_ctx(lines, j, substring(lines[j], 0, idx))
+}
+
+# Two hops: the variable is copied into a second one (`raw = id.toString()`)
+# which reaches the security context.
+_flows(lines, i, prefix) if {
+	v := _last_key(prefix)
+	count(v) > 0
+	not _secure_name(v)
+	pat := concat("", [`(^|[^\w$@])`, strings.replace_n({"$": `\$`}, v), `([^\w$@]|$)`])
+	some j in numbers.range(i + 1, min([i + 6, count(lines) - 1]))
+	not helpers.is_comment_line(lines[j])
+	regex.match(pat, lines[j])
+	count(lines[j]) <= 400
+	some idx in indexof_n(lines[j], v)
+	_word_at(lines[j], idx, v)
+	w := _last_key(substring(lines[j], 0, idx))
+	count(w) > 0
+	w != v
+	not _secure_name(w)
+	pat2 := concat("", [`(^|[^\w$@])`, strings.replace_n({"$": `\$`}, w), `([^\w$@]|$)`])
+	some k in numbers.range(j + 1, min([j + 6, count(lines) - 1]))
+	not helpers.is_comment_line(lines[k])
+	regex.match(pat2, lines[k])
+	count(lines[k]) <= 400
+	some idx2 in indexof_n(lines[k], w)
+	_word_at(lines[k], idx2, w)
+	_ctx(lines, k, substring(lines[k], 0, idx2))
 }
 
 # v at idx is the whole identifier, not part of a longer name and not a

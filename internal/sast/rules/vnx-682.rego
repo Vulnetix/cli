@@ -49,7 +49,7 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(`[/%]=?\s*0|Math\.abs`, line)
-	not helpers.is_comment_line(line)
+	not _comment(line)
 	_bad(path, _code(line))
 	finding := {
 		"rule_id": metadata.id,
@@ -60,4 +60,11 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# A line opening with `*name` is a dereferenced assignment target (*pos = ...),
+# not the continuation of a block comment (` * text`, ` */`).
+_comment(line) if {
+	helpers.is_comment_line(line)
+	not regex.match(`^\s*\*[A-Za-z_(]`, line)
 }

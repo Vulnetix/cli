@@ -76,7 +76,7 @@ _inner_opener(content, o) if _line_start(content, o)
 _inner_opener(content, o) if {
 	s := max([0, o - 200])
 	before := substring(content, s, o - s)
-	m := regex.find_all_string_submatch_n(`(?:^|\n)([^\n]*[;{})][ \t]+)$`, before, 1)
+	m := regex.find_all_string_submatch_n(`(?:^|\n)([^\n]*\S[ \t]+)$`, before, 1)
 	count(m) > 0
 	count(indexof_n(m[0][1], `"`)) % 2 == 0
 	count(indexof_n(m[0][1], "`")) == 0

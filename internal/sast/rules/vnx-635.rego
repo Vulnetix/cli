@@ -31,7 +31,7 @@ _exts := {".go", ".java", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".php", 
 
 # A work marker after a comment opener, with no quote between them (so the
 # marker is not inside a string literal on a code line).
-_marker_re := `(?://|#|/\*|^\s*\*)[^"'\x60\n]*?\b(?:TODO|FIXME|XXX|HACK)\b(.*)$`
+_marker_re := `^(?:[^"'\x60]|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\x60[^\x60]*\x60)*?(?://|#|/\*|^\s*\*)[^"'\x60\n]*?\b(?:TODO|FIXME|XXX|HACK)\b(.*)$`
 
 _auth := `(?:auth|authn|authz|authenticat\w*|authori[sz]\w*)\b`
 

@@ -91,6 +91,22 @@ _off_by_one(lines, i, c, decls) if {
 	_same_scope(lines, i, m[k][1], m[k][2])
 }
 
+# rec.name[N] = ... / p->name[N] = ... where a struct member is declared name[N]
+# and every declaration of that name in the file has that bound.
+_off_by_one(_, _, c, decls) if {
+	contains(c, "]")
+	m := regex.find_all_string_submatch_n(`(?:\.|->)\s*(\w+)\s*\[\s*(\d+)\s*\]\s*=[^=]`, c, -1)
+	some k
+	[m[k][1], m[k][2]] in decls
+	_all_same_bound(decls, m[k][1], m[k][2])
+}
+
+_all_same_bound(decls, name, n) if {
+	every d in decls {
+		not _other_bound(d, name, n)
+	}
+}
+
 _same_scope(_, _, _, n) if not regex.match(`^\d+$`, n)
 
 _same_scope(lines, i, name, n) if {
@@ -104,7 +120,7 @@ _same_scope(lines, i, name, n) if {
 }
 
 _block_ends(lines, j, i) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	startswith(lines[k], "}")
 }
 
@@ -160,4 +176,9 @@ _off_by_one(lines, i, line, _) if {
 _has_any(content) if {
 	some n in _needles
 	contains(content, n)
+}
+
+_other_bound(d, name, n) if {
+	d[0] == name
+	d[1] != n
 }

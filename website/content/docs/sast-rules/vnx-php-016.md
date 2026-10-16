@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-016 – PHP weak hash function (md5/sha1)"
-description: "Detects passwords hashed with MD5 or SHA-1: md5(), sha1(), hash('md5'|'sha1', ...) or MD5-crypt whose argument names a password, or whose result is stored under a password name. MD5/SHA-1 of cache keys, checksums and other non-credential data is left to VNX-327 and VNX-CRYPTO-001/002."
+description: "A password is hashed with MD5 or SHA-1, fast unsalted digests that GPUs and rainbow tables reverse in bulk. Reported: md5(), sha1(), hash('md5'|'sha1'|'md4'|'md2', ...) and MD5-crypt (crypt() with a '$1$' salt) when an argument names a password (a variable, property or array key such as $pass, $pass_new, $password, $userPassword, $pwd, $_POST['password'], $input['passwd']) or when the result is assigned to one ($user->password = md5(...), $hashedPassword = sha1(...), 'password' => md5(...)). Not reported: password_hash()/password_verify(), md5/sha1 of non-credential data (cache keys, ETags, checksums, md5_file(), the SHA-1 prefix sent to the Have I Been Pwned range API), hash('sha256', ...) (a fast hash for passwords is still weak but outside this rule), a digest of nothing but a random generator stored under a password name (substr(md5(rand()), 0, 8) generating a temporary password), password-reset tokens, lookalike names such as $bypass, and the call inside a comment or a string literal. A password passed straight into md5()/sha1()/hash('md5'|'sha1', ...) ($pass = md5($pass), md5($_POST['password']), sha1($salt . $password)) is reported by VNX-CRYPTO-007, a password hashed with a fast hash, and not here; this rule keeps the PHP shapes that rule does not read: MD5-crypt, hash('md4'|'md2'), and a digest stored under a password name ($user->password = md5($input['secret']), 'password' => md5(...)). Other MD5/SHA-1 uses are reported by VNX-327, VNX-CRYPTO-001 and VNX-CRYPTO-002."
 ---
 
 ## Overview
@@ -10,6 +10,8 @@ This rule detects calls to `md5()` or `sha1()` in code where the surrounding con
 Password hashing requires a function that is deliberately slow and includes a salt to prevent precomputation attacks. MD5 and SHA1 are so fast on modern hardware that billions of hashes can be computed per second using commodity GPUs. When an attacker obtains a database of MD5 or SHA1 password hashes, they can crack most common passwords in minutes using rainbow tables or brute-force attacks.
 
 Beyond speed, both algorithms have known cryptographic weaknesses: MD5 has been broken for collision resistance since 2004 and for preimage resistance in certain contexts, and SHA1 is considered weak against collision attacks. Neither should be used for any security-sensitive purpose. The rule reports `md5()`/`sha1()`/`hash('md5'|'sha1', ...)`/MD5-crypt when an argument names a password or the result is stored under a password name.
+
+A password passed straight into the call (`$pass = md5($pass)`, `md5($_POST['password'])`, `sha1($salt . $password)`) is reported by [VNX-CRYPTO-007](vnx-crypto-007), a password hashed with a fast hash, so the line is reported once; this rule keeps the PHP shapes that rule does not read: MD5-crypt (`crypt()` with a `$1$` salt), `hash('md4'|'md2', ...)`, and a digest stored under a password name.
 
 **Severity:** Medium | **CWE:** [CWE-328 – Use of Weak Hash](https://cwe.mitre.org/data/definitions/328.html)
 
@@ -24,16 +26,13 @@ PHP provides `password_hash()` and `password_verify()` as purpose-built function
 ## What Gets Flagged
 
 ```php
-// FLAGGED: md5 used for password hashing
+// REPORTED BY VNX-CRYPTO-007: a password passed straight into the digest
 $hashedPassword = md5($password);
-$storedHash = md5($_POST['passwd']);
-
-// FLAGGED: legacy login code re-hashing the submitted password
 $pass = md5( $pass );
-$pass_new = md5($pass_new);
-
-// FLAGGED: hash() with a weak algorithm, and the result stored as a password
 $h = hash('sha1', $userPassword . $salt);
+
+// FLAGGED: MD5-crypt, and the result stored as a password
+$hash = crypt($input, '$1$' . $salt);
 $user->password = md5($input['secret']);
 return ['password' => md5($input['p'])];
 ```

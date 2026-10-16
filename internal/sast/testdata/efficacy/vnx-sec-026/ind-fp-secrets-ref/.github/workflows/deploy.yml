@@ -1,0 +1,9 @@
+name: deploy
+on: push
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}

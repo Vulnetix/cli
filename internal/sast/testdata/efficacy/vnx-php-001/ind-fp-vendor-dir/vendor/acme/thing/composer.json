@@ -1,0 +1,7 @@
+{
+    "name": "acme/thing",
+    "type": "project",
+    "require": {
+        "psr/container": "^2.0"
+    }
+}

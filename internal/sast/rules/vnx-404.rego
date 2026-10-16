@@ -71,7 +71,7 @@ _java_local(m, lines, i, v) if {
 _java_end(lines, i, ind) := e if {
 	hi := min([count(lines), i + 80])
 	ends := [k |
-		some k in numbers.range(i + 1, hi - 1)
+		some k in helpers.span(i + 1, hi - 1)
 		l := lines[k]
 		_indent(l) < ind
 		regex.match(`^\s*((public|private|protected|static)\s[^;=]*\(|\}\s*$)`, l)
@@ -118,7 +118,7 @@ findings contains finding if {
 }
 
 _java_any_release(lines, i, e, v) if {
-	some k in numbers.range(i + 1, e - 1)
+	some k in helpers.span(i + 1, e - 1)
 	k < e
 	contains(lines[k], v)
 	_java_released(lines[k], v)

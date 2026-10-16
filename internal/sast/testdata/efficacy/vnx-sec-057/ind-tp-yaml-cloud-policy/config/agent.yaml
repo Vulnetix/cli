@@ -1,0 +1,5 @@
+remote_write:
+  - url: https://prometheus-prod.grafana.net/api/prom/push
+    basic_auth:
+      username: "123456"
+~>      password: glc_eyJ@@sample:[A-Za-z0-9+/]{120}@@

@@ -1,0 +1,8 @@
+~>[package]
+name = "worker"
+version = "0.3.1"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = "1"

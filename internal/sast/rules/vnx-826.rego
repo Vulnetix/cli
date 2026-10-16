@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_826
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-826",
 	"name": "Premature Release of Resource During Expected Lifetime",
@@ -109,7 +111,7 @@ _joined(lines, k, n) := concat(" ", [lines[k], lines[k + 1]]) if {
 } else := lines[k]
 
 _interrupted(lines, i, j, v) if {
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	k > i
 	k < j
 	code := _strip(lines[k])

@@ -32,6 +32,8 @@ _collect_re := concat("", [`\.(?:append|add|put|extend)\(\s*`, _opener])
 
 _comprehension_re := concat("", [`[\[{]\s*(?:[\w.]+\s*:\s*)?`, _opener, `[^()]*(?:\([^()]*\)[^()]*)*\)\s+for\b`])
 
+_strip_strings(line) := regex.replace(regex.replace(line, `"(?:[^"\\]|\\.)*"`, `""`), `'(?:[^'\\]|\\.)*'`, `''`)
+
 _indent(line) := count(line) - count(trim_left(line, " \t"))
 
 _code_line(line) if {
@@ -72,7 +74,7 @@ _encloser(lines, i, span, re) := j if {
 _dedent_between(lines, k, i) if {
 	k + 1 <= i - 1
 	ik := _indent(lines[k])
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	_code_line(lines[m])
 	_indent(lines[m]) <= ik
 }
@@ -101,7 +103,7 @@ _released(l, v) if regex.match(concat("", [`\bclose\(\s*`, v, `\s*\)`]), l)
 
 _released(l, v) if regex.match(concat("", [`\b(?:with|async\s+with)\s+`, v, `\b`]), l)
 
-_released(l, v) if regex.match(concat("", [`\b(?:closing|enter_context|wrap_socket|register|append|add|put|push)\(\s*`, v, `\s*[,)]`]), l)
+_released(l, v) if regex.match(concat("", [`\b(?:closing|enter_context|wrap_socket|register)\(\s*`, v, `\s*[,)]`]), l)
 
 _released(l, v) if regex.match(concat("", [`^\s*(?:return|yield)\s+`, v, `\s*(?:,|$|\))`]), l)
 
@@ -143,9 +145,10 @@ findings contains finding if {
 	some i, line in lines
 	contains(line, "(")
 	not helpers.is_comment_line(line)
-	_candidate(line)
+	sline := _strip_strings(line)
+	_candidate(sline)
 	not _in_string(toggles, i)
-	_leaks(lines, i, line)
+	_leaks(lines, i, sline)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "A new file or socket handle is opened per iteration and kept open; close it in the loop (with-block) or bound how many are held at once",

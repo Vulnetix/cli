@@ -19,7 +19,7 @@ Unlike SQL injection, command injection has no parameterized equivalent in the s
 
 ## What Gets Flagged
 
-The rule reports `Runtime.getRuntime().exec()` (or a variable assigned from `Runtime.getRuntime()`) whose command is concatenated or formatted with a non-constant value, reads a request value, or is a variable assigned that way within the 40 lines above. It also reports a `ProcessBuilder` or `pb.command()` that runs a shell (`sh -c`, `bash -c`, `cmd /c`, `powershell -Command`), inline or through a list built with `add("-c")`, whose script is built the same way.
+The rule reports `Runtime.getRuntime().exec()` (or a variable assigned from `Runtime.getRuntime()`) whose command is concatenated or formatted with a non-constant value, reads a request value, or is a variable assigned that way within the 40 lines above. It also reports a `ProcessBuilder` or `pb.command()` that runs a shell (`sh -c`, `bash -c`, `cmd /c`, `powershell -Command`), inline or through a list built with `add("-c")`, whose script is built the same way. Two further shapes are reported: `Runtime.exec(cmd, envp[, dir])` whose environment array carries a request value (one attacker-chosen entry such as `LD_PRELOAD`, `PATH` or `BASH_ENV` changes what the child runs), and a shell started through an argument array held in a local (`String[] args = {a1, a2, ...}` handed to `new ProcessBuilder(args)`, `pb.command(args)` or `exec(args)`, where the first two elements are a shell and its flag, directly or through locals assigned as literals on any branch) when a later element carries a request value or a non-constant operand.
 
 ```java
 // FLAGGED: concatenation into the command
@@ -31,9 +31,17 @@ Runtime.getRuntime().exec(cmd);
 
 // FLAGGED: a shell parses the built script
 new ProcessBuilder("sh", "-c", "grep " + pattern + " /var/log/app.log");
+
+// FLAGGED: a request value in the child's environment
+String[] env = {"HOME=" + req.getParameter("home")};
+Runtime.getRuntime().exec("/usr/bin/backup", env);
+
+// FLAGGED: a shell started through an array held in a local
+String[] args = {a1, a2, "echo " + arg};   // a1 = "sh", a2 = "-c" on one branch
+new ProcessBuilder(args).start();
 ```
 
-Not flagged: a constant command, concatenation of literals and `UPPER_CASE` constants only, an argument list that does not invoke a shell (`new ProcessBuilder("convert", input, output)`), a command that arrives as a plain method parameter of a wrapper, comments and string literals.
+Not flagged: a constant command, `exec(args)` where `args` is a `String[]` local (the argument-array rule alone judges it), concatenation of literals and `UPPER_CASE` constants only, an argument list that does not invoke a shell (`new ProcessBuilder("convert", input, output)`), a command that arrives as a plain method parameter of a wrapper, comments and string literals.
 
 ### Operands the method fixes
 
@@ -59,7 +67,61 @@ String file = logs.get("custom");
 new ProcessBuilder("sh", "-c", "tail -n 50 " + file).start();
 ```
 
-Anything the analysis cannot resolve stays reported: a condition on run-time data, a call into another class, a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter.
+Anything the analysis cannot resolve stays reported: a condition on run-time data, a call into another class that is handed a run-time value (a call with constant arguments is read as inert, below), a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter, which stays as tainted as the argument it is handed (see Helpers in other files).
+
+### Helpers in other files
+
+A call into another class of the project is read from that class's own source instead of being guessed at. For `obj.m(args)`, `Cls.m(args)` and `new Cls(args).m(args)` the class is found by the declared type of `obj` (a local, a parameter, or the `new Cls(...)` it was assigned from) or by the static class name, and the method (at most 60 lines, overloads told apart by arity) is summarised as one of:
+
+- **constant**: every return is a literal, an `UPPER_CASE` name, a field initialised to a literal and never assigned again, or the result of a constant method of the same class. The call is as constant as that literal, whatever it is handed.
+- **a function of its arguments**: every return is constant once the parameters, and the fields the class's one constructor stores from its own parameters, are taken as constants. The call is only as risky as the arguments it depends on: a getter of a value stored by `new Cls(arg)` is as tainted as `arg`, and a method that ignores one of its parameters is not tainted by it.
+- **opaque**: anything else, such as a method that reads a request value or a header, a field a setter can change, or a call the summary cannot see through.
+
+A value of an interface or base class type runs the method of every project class that extends or implements it, so one implementation that returns its parameter keeps the call as tainted as that parameter. What is still reported: opaque calls, a simple class name that two files declare (ambiguous), a class outside the project, a type with an anonymous subclass, and a callee that hands the value to a third class (a callee is read one level deep). A method of the same file called without a receiver is summarised the same way.
+
+```java
+// NOT FLAGGED: Sanitizer.clean ignores its argument and returns a literal
+String value = sanitizer.clean(request.getParameter("value"));
+Runtime.getRuntime().exec("ls " + value);
+
+// NOT FLAGGED: the constructor argument is a literal, so the getter is too
+Holder holder = new Holder("report");
+Runtime.getRuntime().exec("ls " + holder.get());
+
+// FLAGGED: Echo.same returns its argument
+String value = echo.same(request.getParameter("value"));
+Runtime.getRuntime().exec("ls " + value);
+
+// FLAGGED: the getter returns what the constructor was given
+Holder holder = new Holder(request.getParameter("value"));
+Runtime.getRuntime().exec("ls " + holder.get());
+```
+
+### Calls that cannot bring data in
+
+A call into code the scan cannot see (another class or module) is treated as **inert**, and its value as a constant, when all of these hold:
+
+- its name is not that of a source (`read*`, `next*`, `getParameter*`, `getHeader*`, `getCookie*`, `getenv`, `getProperty`, `query`, `execute`);
+- every argument is a constant: a literal, or a name the method fixes;
+- its receiver is a type name, a `new` expression with constant arguments, or a local built from such a call, and that local is only ever called with constant arguments.
+
+```java
+// NOT REPORTED: the helper is given literals only
+CommandBook book = CommandBooks.standard();
+String flags = book.entry("listing");
+Runtime.getRuntime().exec("ls " + flags);
+
+// REPORTED: a run-time argument
+String flags = book.entry(request.getParameter("tool"));
+
+// REPORTED: the receiver was built from, or fed, a run-time value
+CommandBook book = new CommandBook(request.getParameter("book"));
+
+// REPORTED: a source-like method name
+String flags = Console2.readLine("flags");
+```
+
+Anything that fails one of the tests stays reported, so a helper that hands back its argument is never mistaken for a constant.
 
 ## Remediation
 

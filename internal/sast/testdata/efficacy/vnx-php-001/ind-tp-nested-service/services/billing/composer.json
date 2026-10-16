@@ -1,0 +1,8 @@
+~>{
+    "name": "acme/billing-service",
+    "type": "project",
+    "require": {
+        "slim/slim": "^4.12",
+        "monolog/monolog": "^3.5"
+    }
+}

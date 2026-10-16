@@ -43,7 +43,7 @@ _reassigns(l, x) if regex.match(concat("", [`&\s*`, _esc(x), `\b`]), l)
 
 # The path from release j to release k is broken.
 _broken(lines, j, k, x, _) if {
-	some m in numbers.range(j + 1, k - 1)
+	some m in helpers.span(j + 1, k - 1)
 	_reassigns(lines[m], x)
 	not helpers.is_comment_line(lines[m])
 }
@@ -55,7 +55,7 @@ _broken(lines, j, _, x, _) if _reassigns(_after_release(lines[j]), x)
 _broken(lines, j, _, _, _) if regex.match(`\b(?:return|goto|break|continue)\b|\bexit\s*\(`, _after_release(lines[j]))
 
 _broken(lines, j, k, _, ij) if {
-	some m in numbers.range(j + 1, k - 1)
+	some m in helpers.span(j + 1, k - 1)
 	_indent(lines[m]) == ij
 	regex.match(_exit_re, lines[m])
 	not _closed_before(lines, j, m, ij)
@@ -77,13 +77,13 @@ _broken(lines, j, k, _, ij) if {
 }
 
 _broken(lines, j, k, _, _) if {
-	some m in numbers.range(j + 1, k - 1)
+	some m in helpers.span(j + 1, k - 1)
 	regex.match(`^\s*#\s*(?:else|elif)\b`, lines[m])
 }
 
 # function boundary
 _broken(lines, j, k, _, _) if {
-	some m in numbers.range(j + 1, k - 1)
+	some m in helpers.span(j + 1, k - 1)
 	regex.match(`^\}`, lines[m])
 }
 
@@ -91,7 +91,7 @@ _broken(lines, j, k, _, _) if {
 # (indented) methods of a class or namespace, or different scopes
 _broken(lines, j, k, _, ij) if {
 	floor := min([ij, _indent(lines[k])])
-	some m in numbers.range(j + 1, k - 1)
+	some m in helpers.span(j + 1, k - 1)
 	regex.match(`^\s*\}`, lines[m])
 	_indent(lines[m]) < floor
 }
@@ -101,7 +101,7 @@ _after_release(l) := regex.replace(l, `^.*?(?:(?:free|close|closedir|closesocket
 
 _closed_before(lines, j, m, ij) if {
 	j + 1 <= m - 1
-	some n in numbers.range(j + 1, m - 1)
+	some n in helpers.span(j + 1, m - 1)
 	_indent(lines[n]) < ij
 	regex.match(`^\s*\}`, lines[n])
 }
@@ -179,7 +179,7 @@ _goto_level(lines, j, m, ij) if {
 
 _reassign_between(lines, j, m, x) if {
 	j + 1 <= m - 1
-	some n in numbers.range(j + 1, m - 1)
+	some n in helpers.span(j + 1, m - 1)
 	_reassigns(lines[n], x)
 }
 
@@ -190,7 +190,7 @@ _label_line(lines, j, label) := l if {
 }
 
 _fn_end_between(lines, j, l) if {
-	some n in numbers.range(j + 1, l - 1)
+	some n in helpers.span(j + 1, l - 1)
 	regex.match(`^\}`, lines[n])
 }
 
@@ -207,13 +207,13 @@ _label_releases(lines, l, x, rel) if {
 
 _stop_between(lines, l, k, x) if {
 	l + 1 <= k - 1
-	some n in numbers.range(l + 1, k - 1)
+	some n in helpers.span(l + 1, k - 1)
 	regex.match(`^\}|^\s*return\b`, lines[n])
 }
 
 _stop_between(lines, l, k, x) if {
 	l + 1 <= k - 1
-	some n in numbers.range(l + 1, k - 1)
+	some n in helpers.span(l + 1, k - 1)
 	_reassigns(lines[n], x)
 }
 

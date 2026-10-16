@@ -68,9 +68,28 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(`preg_replace|mb_eregi?_replace|['"]`, line)
 	not helpers.is_comment_line(line)
+	not _call_in_string(line)
 	_php_exec(lines, i, line)
 	finding := _finding(path, i, line, _message_php)
 }
+
+# The call name is text inside a string literal: an odd number of quotes of
+# one kind precede it on the line.
+_call_in_string(line) if {
+	parts := regex.split(`preg_replace|mb_eregi?_replace`, line)
+	count(parts) > 1
+	prefix := parts[0]
+	_odd(prefix, "\"")
+}
+
+_call_in_string(line) if {
+	parts := regex.split(`preg_replace|mb_eregi?_replace`, line)
+	count(parts) > 1
+	prefix := parts[0]
+	_odd(prefix, "'")
+}
+
+_odd(s, q) if (count(split(s, q)) - 1) % 2 == 1
 
 _lit_re := `'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"`
 

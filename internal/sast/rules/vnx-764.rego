@@ -114,7 +114,7 @@ _same_block(lines, i, j) if {
 }
 
 _shallower_between(lines, i, j, ii) if {
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	k >= i + 1
 	k <= j - 1
 	trim_space(lines[k]) != ""
@@ -122,7 +122,7 @@ _shallower_between(lines, i, j, ii) if {
 }
 
 _released_between(lines, i, j, re) if {
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	k >= i + 1
 	k <= j - 1
 	regex.match(re, lines[k])
@@ -131,7 +131,7 @@ _released_between(lines, i, j, re) if {
 # A goroutine, func literal, lambda or anonymous class opened in between runs
 # the second acquisition elsewhere.
 _closure_between(lines, i, j) if {
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	k >= i + 1
 	k <= j - 1
 	regex.match(`\bfunc\s*\(|->\s*\{|\bnew\s+[\w.<>]+\s*\([^)]*\)\s*\{`, lines[k])

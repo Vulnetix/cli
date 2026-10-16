@@ -205,7 +205,7 @@ _length_carried(lines, i, n) if {
 
 _len_adjusted(lines, j, i, n) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`\b`, n, `\s*(?:[-+]?=[^=]|\+\+|--)`]), lines[k])
 }
 

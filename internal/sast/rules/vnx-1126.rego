@@ -50,13 +50,20 @@ _in_string(lines, d, k) if {
 	n % 2 == 1
 }
 
+# Line i starts inside a triple-quoted string, counted from the file start.
+_in_doc(lines, i) if {
+	i > 0
+	n := sum([_tq(lines[j]) | some j in numbers.range(0, i - 1)])
+	n % 2 == 1
+}
+
 _skip_path(path) if helpers.is_test_path(path)
 
 _skip_path(path) if regex.match(`(^|/)conftest\.py$`, path)
 
 _closed(lines, d, i, id) if {
 	d + 1 <= i - 1
-	some k in numbers.range(d + 1, i - 1)
+	some k in helpers.span(d + 1, i - 1)
 	l := lines[k]
 	trim_space(l) != ""
 	not helpers.is_comment_line(l)
@@ -82,6 +89,7 @@ findings contains finding if {
 	m := regex.find_all_string_submatch_n(_global_re, line, 1)
 	count(m) > 0
 	not _all_dunder(m[0][2])
+	not _in_doc(lines, i)
 	_in_function(lines, i)
 	finding := {
 		"rule_id": metadata.id,

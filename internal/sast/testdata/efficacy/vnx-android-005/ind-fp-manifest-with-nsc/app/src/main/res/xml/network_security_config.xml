@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Was: <base-config cleartextTrafficPermitted="true" /> before the TLS migration. -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

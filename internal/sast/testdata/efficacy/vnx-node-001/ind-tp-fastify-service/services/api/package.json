@@ -1,0 +1,10 @@
+~>{
+  "name": "billing-api",
+  "version": "2.3.1",
+  "private": true,
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "fastify": "^4.26.0",
+    "pino": "^8.19.0"
+  }
+}

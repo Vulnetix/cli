@@ -1,0 +1,6 @@
+[package]
+name = "demo"
+version = "0.0.0"
+
+[dependencies]
+reqwest = "0.11"

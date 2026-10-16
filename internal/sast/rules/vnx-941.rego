@@ -123,13 +123,18 @@ _intent_decl(line, v) if {
 	not regex.match(`\.class\b|::class`, m[0][1])
 }
 
+# The latest construction of the variable decides: an explicit Intent built
+# after an earlier implicit one of the same name is the one being sent.
+_any_intent_decl(line, v) if regex.match(concat("", [`\b`, v, `\s*=\s*(?:new\s+)?Intent\s*\(`]), line)
+
 _targeted(l) if regex.match(`\b(setPackage|setComponent|setClass|setClassName|setSelector)\s*\(|\b(package|component)\s*=\s*[^=]`, l)
 
 _implicit_with_extras(lines, i, v) if {
 	start := max([0, i - 30])
-	decls := [j | some j in numbers.range(start, i - 1); _intent_decl(lines[j], v); not helpers.is_comment_line(lines[j])]
+	decls := [j | some j in numbers.range(start, i - 1); _any_intent_decl(lines[j], v); not helpers.is_comment_line(lines[j])]
 	count(decls) > 0
 	d := max(decls)
+	_intent_decl(lines[d], v)
 	between := [lines[k] | some k in numbers.range(d, i - 1); not helpers.is_comment_line(lines[k])]
 	some l in between
 	regex.match(`\bputExtras?\s*\(`, l)

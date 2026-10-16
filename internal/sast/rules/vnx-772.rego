@@ -27,7 +27,7 @@ _file_stream := `(?:FileInputStream|FileOutputStream|FileReader|FileWriter|Rando
 _acquire := concat("", [
 	`(?:new\s+(?:Socket|DatagramSocket|ServerSocket|ZipFile|JarFile|`, _file_stream, `)\s*\(`,
 	`|new\s+(?:BufferedReader|BufferedWriter|InputStreamReader|OutputStreamWriter|PrintWriter|PrintStream|Scanner|ObjectInputStream|ObjectOutputStream|DataInputStream|DataOutputStream|BufferedInputStream|BufferedOutputStream)\s*\(\s*new\s+(?:File|`, _file_stream, `)\s*\(`,
-	`|DriverManager\.getConnection\s*\(|(?:[\w.]+\.)?\w*[dD]ataSource\.getConnection\s*\(|(?:[\w.]+\.)?get[dD]ataSource\(\s*\)\.getConnection\s*\(`,
+	`|DriverManager\.getConnection\s*\(|\b(?:[\w.]+\.)?(?:\w*[dD]ataSource|ds|\w*[pP]ool)\.getConnection\s*\(|(?:[\w.]+\.)?get[dD]ataSource\(\s*\)\.getConnection\s*\(`,
 	`|Files\.(?:lines|list|walk|find|newInputStream|newOutputStream|newBufferedReader|newBufferedWriter|newByteChannel)\s*\()`,
 ])
 

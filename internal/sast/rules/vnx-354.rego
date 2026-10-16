@@ -132,7 +132,7 @@ _rejected_when_missing(lines, i, name) if {
 	l := lines[j]
 	contains(l, name)
 	not helpers.is_comment_line(l)
-	regex.match(concat("", [`(?:if\s+not\s+`, _q(name), `\b|`, _q(name), `\s+is\s+None|!\s*`, _q(name), `\s*(?:\)|\|\|)|`, _q(name), `\s*===?\s*(?:null|undefined|""|'')|`, _q(name), `\.isEmpty\(\)|len\(\s*`, _q(name), `\s*\)\s*==\s*0|`, _q(name), `\s+is\s+not\s+None\s+else|(?:requireNonNull|checkNotNull|requireNonEmpty)\(\s*`, _q(name), `\b|^\s*assert\s+`, _q(name), `\b)`]), l)
+	regex.match(concat("", [`(?:if\s+not\s+`, _q(name), `\b|`, _q(name), `\s+is\s+None|!\s*`, _q(name), `\s*(?:\)|\|\|)|`, _q(name), `\s*===?\s*(?:null|undefined|""|'')\s*(?:[^?\s]|$)|`, _q(name), `\.isEmpty\(\)|len\(\s*`, _q(name), `\s*\)\s*==\s*0|`, _q(name), `\s+is\s+not\s+None\s+else|(?:requireNonNull|checkNotNull|requireNonEmpty)\(\s*`, _q(name), `\b|^\s*assert\s+`, _q(name), `\b)`]), l)
 }
 
 # The guarded branch rejects (raise/throw/abort/4xx/return false) on the

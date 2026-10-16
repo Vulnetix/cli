@@ -68,7 +68,7 @@ _status_read(lines, i) if regex.match(`(\|\||&&|\$\?)`, _next(lines, i))
 _status_read(lines, i) if regex.match(`^\s*(\}|fi\b|done\b|esac\b)`, _next(lines, i))
 
 _status_read(lines, i) if {
-	rest := [k | some k in numbers.range(i + 1, count(lines) - 1); _code(lines[k])]
+	rest := [k | some k in helpers.span(i + 1, count(lines) - 1); _code(lines[k])]
 	count(rest) == 0
 }
 
@@ -123,7 +123,7 @@ _deletes_after(lines, i, _) if {
 
 _cd_between(lines, i, k) if {
 	k - 1 >= i + 1
-	some q in numbers.range(i + 1, k - 1)
+	some q in helpers.span(i + 1, k - 1)
 	_code(lines[q])
 	_cd_like(lines[q])
 }

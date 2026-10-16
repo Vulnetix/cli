@@ -99,7 +99,7 @@ findings contains finding if {
 	regex.match(_kind_re, kl)
 	start := max(array.concat([-1], [j | some j in seps; j < k]))
 	stop := min(array.concat([count(lines)], [j | some j in seps; j > k]))
-	some h in numbers.range(start + 1, stop - 1)
+	some h in helpers.span(start + 1, stop - 1)
 	hm := regex.find_all_string_submatch_n(_block_re, lines[h], 1)
 	count(hm) == 1
 	block := hm[0][1]

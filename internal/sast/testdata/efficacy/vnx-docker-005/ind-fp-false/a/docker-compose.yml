@@ -1,0 +1,13 @@
+services:
+  app:
+    image: nginx:1.27
+    privileged: false
+    cap_add:
+      - NET_ADMIN
+  other:
+    image: alpine:3.20
+    privileged: ${PRIV:-false}
+    environment:
+      privileged: "true"
+    labels:
+      privileged: true

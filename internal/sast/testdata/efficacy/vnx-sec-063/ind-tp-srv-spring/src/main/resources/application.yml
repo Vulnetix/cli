@@ -1,0 +1,4 @@
+spring:
+  data:
+    mongodb:
+~>      uri: mongodb+srv://svc:Zk4mQ8vT2xLp@prod.x7y8z.mongodb.net/catalog

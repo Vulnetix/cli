@@ -1,0 +1,10 @@
+<h1><%= @post.title %></h1>
+<%= link_to 'Destroy', @post, method: :delete, data: { confirm: 'Are you sure?' } %>
+<%= link_to "Delete", post_path(@post),
+      data: {
+        turbo_method: :delete,
+        turbo_confirm: "Delete this post?"
+      } %>
+<%= button_to "Archive and delete", post_path(@post), method: :delete, form: { data: { turbo_confirm: "Really?" } } %>
+<a href="/posts/3" data-method="delete" data-confirm="Delete post 3?" rel="nofollow">Delete</a>
+<a href="/posts/4" data-turbo-method="delete" data-turbo-confirm="Delete post 4?">Delete</a>

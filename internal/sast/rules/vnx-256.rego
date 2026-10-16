@@ -101,7 +101,7 @@ _destructured(lang, _, _) := set() if lang != "node"
 # The variable was re-assigned through a hash between taint and sink.
 _rehashed(lines, k, i, v) if {
 	k + 1 <= i - 1
-	some j in numbers.range(k + 1, i - 1)
+	some j in helpers.span(k + 1, i - 1)
 	regex.match(concat("", [`^\s*\$?`, v, `\s*=[^=]`]), lines[j])
 	regex.match(_hash_words, lines[j])
 }
@@ -273,7 +273,7 @@ _ml_opener("go") := `(?:\b(?:models?|entity|entities|db|domain)\.\w+|\b(?:User|A
 # password line.
 _closed_between(lines, k, i) if {
 	k + 1 <= i - 1
-	some j in numbers.range(k + 1, i - 1)
+	some j in helpers.span(k + 1, i - 1)
 	regex.match(`^\s*[\}\)]\s*\)|^\s*\}\s*$|\w\s*\(\s*\{?\s*$`, lines[j])
 }
 

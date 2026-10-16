@@ -137,7 +137,7 @@ _tainted(lines, src, fs, i) := direct | hop if {
 # A check on v between its assignment and the sink.
 _guarded(lines, v, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	l := lines[k]
 	contains(l, v)
 	regex.match(_word(v), l)

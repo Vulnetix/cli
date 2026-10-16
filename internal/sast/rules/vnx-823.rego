@@ -70,7 +70,7 @@ _shape(content, lines, i, code) := "a pointer to a non-byte type is offset by a 
 # Shape C: an inclusive loop bound at the array's size, indexing that array.
 _shape(_, lines, i, code) := "the loop runs while the index is <= the array's size and indexes the array with it, so the last iteration reads or writes one element past the end; use <" if {
 	contains(code, "<=")
-	m := regex.find_all_string_submatch_n(`\bfor\s*\([^;]*;\s*([A-Za-z_]\w*)\s*<=\s*(?:sizeof\s*\(?\s*([A-Za-z_]\w*)\s*\)?|(?:ARRAY_SIZE|N_ELEMENTS|_countof|countof|std::size|G_N_ELEMENTS)\s*\(\s*([A-Za-z_]\w*)\s*\)|([A-Za-z_]\w*)\s*(?:\.|->)\s*(?:size|length)\s*\(\s*\))\s*;`, code, 1)
+	m := regex.find_all_string_submatch_n(`\bfor\s*\([^;]*;\s*([A-Za-z_]\w*)\s*<=\s*(?:sizeof\s*\(?\s*([A-Za-z_]\w*)\s*\)?(?:\s*/\s*sizeof\s*\(\s*\*?\s*[A-Za-z_]\w*\s*(?:\[\s*0\s*\])?\s*\))?|(?:ARRAY_SIZE|N_ELEMENTS|_countof|countof|std::size|G_N_ELEMENTS)\s*\(\s*([A-Za-z_]\w*)\s*\)|([A-Za-z_]\w*)\s*(?:\.|->)\s*(?:size|length)\s*\(\s*\))\s*;`, code, 1)
 	count(m) > 0
 	idx := m[0][1]
 	arr := concat("", [m[0][2], m[0][3], m[0][4]])

@@ -24,7 +24,7 @@ metadata := {
 # which PHP's json_encode and some serialisers write by default.
 _patterns := [
 	`hooks\.slack\.com\\?/services\\?/(T[A-Z0-9]{8,12})\\?/B[A-Z0-9]{8,12}\\?/([A-Za-z0-9]{24})(?:[^A-Za-z0-9]|$)`,
-	`hooks\.slack\.com\\?/(?:workflows|triggers)\\?/(T[A-Z0-9]{8,12})\\?/(?:[A-Z0-9]{8,12}\\?/)?[0-9]{8,20}\\?/([A-Za-z0-9]{32})(?:[^A-Za-z0-9]|$)`,
+	`hooks\.slack\.com\\?/(?:workflows|triggers)\\?/([TE][A-Z0-9]{8,12})\\?/(?:[A-Z0-9]{8,12}\\?/)?[0-9]{8,20}\\?/([A-Za-z0-9]{32})(?:[^A-Za-z0-9]|$)`,
 ]
 
 # lib secrets.skip_path knows *_test.py but not pytest's other spelling,

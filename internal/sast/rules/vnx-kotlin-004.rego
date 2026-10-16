@@ -147,7 +147,7 @@ _single_assignment(lines, id) := js[0] if {
 
 _socket_ctor := `(?:^|[^\w.])(?:java\.net\.)?Socket\s*\(`
 
-_unconnected := `(?:(?:java\.net\.)?Socket\s*\(\s*\)|(?:java\.nio\.channels\.)?(?:Asynchronous)?SocketChannel\s*\.\s*open\s*\(\s*\))`
+_unconnected := `(?:^|[^\w.])(?:(?:java\.net\.)?Socket\s*\(\s*\)|(?:java\.nio\.channels\.)?(?:Asynchronous)?SocketChannel\s*\.\s*open\s*\(\s*\))`
 
 # Socket(host, port, ...)
 _client(lines, i, code) if {
@@ -211,7 +211,7 @@ _client(lines, i, code) if {
 
 _server_ctor := `(?:^|[^\w.])(?:java\.net\.)?ServerSocket\s*\(`
 
-_unbound := `(?:(?:java\.net\.)?ServerSocket\s*\(\s*\)|(?:java\.nio\.channels\.)?(?:Asynchronous)?ServerSocketChannel\s*\.\s*open\s*\(\s*\))`
+_unbound := `(?:^|[^\w.])(?:(?:java\.net\.)?ServerSocket\s*\(\s*\)|(?:java\.nio\.channels\.)?(?:Asynchronous)?ServerSocketChannel\s*\.\s*open\s*\(\s*\))`
 
 # ServerSocket(port[, backlog[, address]]) with a non-loopback address
 _server(lines, i, code) if {

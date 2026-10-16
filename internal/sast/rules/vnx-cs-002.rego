@@ -216,7 +216,7 @@ _in_psi_initializer(lines, i) if {
 }
 
 _closed_between(lines, k, i) if {
-	some j in numbers.range(k + 1, i - 1)
+	some j in helpers.span(k + 1, i - 1)
 	regex.match(`^\s*\}`, lines[j])
 }
 

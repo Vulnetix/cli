@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.20)
+project(legacy C)
+
+add_executable(legacy main.c)
+if(MSVC)
+  target_compile_definitions(legacy PRIVATE _CRT_SECURE_NO_WARNINGS)
+  target_compile_options(legacy PRIVATE /wd4996)
+else()
+  target_compile_options(legacy PRIVATE -Wno-format-security -Wno-array-bounds)
+endif()

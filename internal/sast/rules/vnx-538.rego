@@ -163,8 +163,16 @@ findings contains finding if {
 	not helpers.is_comment_line(w)
 	c := _code(w)
 	regex.match(concat("", [`\b`, fh, `\.write(lines)?\s*\(|\b(json|yaml|pickle|toml)\.dump\s*\(.*\b`, fh, `\b`]), c)
-	regex.match(_secret_re, c)
+	_names_secret(w, c)
 	finding := _finding(path, k, w)
+}
+
+_names_secret(_, c) if regex.match(_secret_re, c)
+
+# A dict literal handed to json/yaml/toml.dump names its secret in a quoted key.
+_names_secret(w, c) if {
+	regex.match(`\b(json|yaml|toml)\.dump\s*\(`, c)
+	regex.match(`(?i)['"][^'"]*(password|passwd|secret|api_?key|private_?key|token|credential)[^'"]*['"]\s*:`, w)
 }
 
 _finding(path, i, line) := {

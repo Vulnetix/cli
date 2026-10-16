@@ -9,7 +9,7 @@ VNX-93 maps to [CWE-93: Improper Neutralization of CRLF Sequences ('CRLF Injecti
 
 - a line that builds text from a `\r\n` literal with request data placed before that terminator, or from a header-name literal (`"From: "`, `"To: "`, `"Subject: "`, `"Reply-To: "`, `"MAIL FROM:"`, `"RCPT TO:"`...) with request data anywhere on the line;
 - PHP `mail()`/`mb_send_mail()` whose to, subject, headers or additional-parameters argument (not the body) carries request data;
-- Python `email.mime` message headers (`msg["Subject"] = ...`, `add_header`, `replace_header`) assigned request data.
+- Python `email.mime` message headers (`msg["Subject"] = ...`, `add_header` and `replace_header` with any literal header name) assigned request data.
 
 Request data can be used inline, interpolated, or through a variable assigned from it in the 25 lines above. Not reported: values passed through CR/LF replacement, `filter_var`/`FILTER_VALIDATE_EMAIL` or an encoding call, values validated before use, request data only in a mail body, Python `EmailMessage` (its default policy rejects CR/LF in headers), and lines that write a response body or a log. HTTP response headers are covered by VNX-GO-012, VNX-JAVA-017 and VNX-644.
 

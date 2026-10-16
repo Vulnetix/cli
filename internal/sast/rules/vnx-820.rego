@@ -140,7 +140,7 @@ _shadowed(lines, j, i, n, line) if {
 # A synchronized block opened in the method still encloses line i.
 _in_sync_block(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(`^\s*synchronized\s*\(`, lines[k])
 	ik := _indent(lines[k])
 	_indent(lines[i]) > ik
@@ -149,7 +149,7 @@ _in_sync_block(lines, j, i) if {
 
 _closed(lines, k, i, ik) if {
 	k + 1 <= i - 1
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	_indent(lines[m]) <= ik
 	startswith(trim_space(lines[m]), "}")
 }
@@ -205,12 +205,12 @@ _kind_of(mods, l, n, content) := "collection" if {
 # released at line i.
 _in_lock(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(`\.\s*(?:lock|lockInterruptibly|tryLock)\s*\([^)]*\)|\.\s*(?:writeLock|readLock)\s*\(\s*\)\s*\.\s*lock\s*\(`, lines[k])
 	not _unlocked(lines, k, i)
 }
 
 _unlocked(lines, k, i) if {
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	regex.match(`\.\s*unlock\s*\(`, lines[m])
 }

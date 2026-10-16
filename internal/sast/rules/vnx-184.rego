@@ -135,6 +135,20 @@ _reported(lines, i, e, v, es) if {
 	regex.match(`\bany\s*\(|\.some\s*\(|replace|\.includes\s*\(|\.contains\s*\(|strpos|str_contains`, lines[j])
 }
 
+# Python loop over the list whose element is then searched for inside some
+# other text: for tok in SQL_TOKENS: if tok in q.lower()
+_reported(lines, i, e, v, es) if {
+	_strong(es)
+	regex.match(_grammar_name, v)
+	some j in numbers.range(e + 1, min([count(lines) - 1, e + 40]))
+	m := regex.find_all_string_submatch_n(concat("", [`^\s*for\s+(\w+)\s+in\s+`, replace(v, "$", `\$`), `\s*:`]), lines[j], 1)
+	count(m) > 0
+	t := m[0][1]
+	some k in numbers.range(j + 1, min([count(lines) - 1, j + 4]))
+	regex.match(concat("", [`\b`, t, `\s+in\s+[A-Za-z_]`]), lines[k])
+	not regex.match(concat("", [`\b`, t, `\s+in\s+`, v, `\b`]), lines[k])
+}
+
 # A lexer's or formatter's table of operators and keywords is a grammar,
 # not a validation list.
 _grammar_name := `(?i)operator|^ops?$|_ops?$|token|delim|separator|punct|keyword|lexer|symbol|grammar|reserved`

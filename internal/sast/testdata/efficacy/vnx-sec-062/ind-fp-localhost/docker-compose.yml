@@ -1,0 +1,6 @@
+services:
+  app:
+    environment:
+      A: mysql://app:Zk4mQ8vT2xLp@localhost:3306/app
+      B: mysql://app:Zk4mQ8vT2xLp@127.0.0.1:3306/app
+      C: mysql://app:Zk4mQ8vT2xLp@hostname:3306/app

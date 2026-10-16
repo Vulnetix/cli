@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <permission
+        android:name="com.northwind.payroll.permission.BIND_SYNC"
+        android:protectionLevel="signature" />
+
+    <application android:name=".PayrollApplication">
+
+        <service
+            android:name=".sync.PayrollSyncService"
+            android:exported="true"
+            android:permission="com.northwind.payroll.permission.BIND_SYNC">
+            <intent-filter>
+                <action android:name="com.northwind.payroll.action.SYNC" />
+            </intent-filter>
+        </service>
+
+        <provider
+            android:name=".data.PayslipProvider"
+            android:authorities="com.northwind.payroll.payslips"
+            android:exported="true"
+            android:readPermission="com.northwind.payroll.permission.READ_PAYSLIPS"
+            android:writePermission="com.northwind.payroll.permission.WRITE_PAYSLIPS" />
+
+        <!-- <activity android:name=".legacy.OldAdmin" android:exported="true" /> -->
+
+        <activity
+            android:name=".internal.DiagnosticsActivity"
+            android:exported="true"
+            android:enabled="false" />
+    </application>
+</manifest>

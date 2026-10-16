@@ -121,6 +121,7 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(`SO_REUSEPORT|reuse_port`, line)
 	not helpers.is_comment_line(line)
+	not _in_triple_quote(lines, i)
 	_py_reuseport(_pycode(line))
 	finding := _finding(path, i, line, _reuseport_msg)
 }
@@ -128,6 +129,17 @@ findings contains finding if {
 _pycode(line) := c if {
 	s := regex.replace(regex.replace(line, `"(?:[^"\\]|\\.)*"`, `""`), `'(?:[^'\\]|\\.)*'`, `''`)
 	c := regex.replace(s, `#.*$`, "")
+}
+
+# Line i sits inside a triple-quoted string (docstring) opened on an earlier
+# line and not yet closed.
+_in_triple_quote(lines, i) if {
+	i > 0
+	opens := [1 |
+		some j in numbers.range(0, i - 1)
+		some _ in regex.find_n(`"""|'''`, lines[j], -1)
+	]
+	count(opens) % 2 == 1
 }
 
 _py_reuseport(code) if {

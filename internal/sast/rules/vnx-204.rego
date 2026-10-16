@@ -28,7 +28,7 @@ _user_missing_re := `(?i)\b(?:user\s*name|user|account|e-?mail(?:\s+address)?|lo
 
 _log_call_re := `(?i)\b(?:console\.\w+|s?log(?:ger|rus)?\.\w+|_?logger\.\w+|logging\.\w+|print|println|fmt\.Print\w*|System\.(?:out|err)\.print\w*|error_log|puts|Rails\.logger\.\w+)\s*\(`
 
-_bad_password_re := `(?i)\b(?:wrong|invalid|incorrect|bad)\s+password\b|\bpassword\s+(?:is\s+)?(?:incorrect|wrong|invalid|mismatch|not\s+(?:valid|correct|recogni[sz]ed)|does\s*n[o']?t\s+match|did\s*n[o']?t\s+match)\b`
+_bad_password_re := `(?i)\b(?:wrong|invalid|incorrect|bad)\s+password\b|\bpassword\s+(?:you\s+(?:entered|typed|gave|provided|supplied)\s+)?(?:is\s+)?(?:incorrect|wrong|invalid|mismatch|not\s+(?:valid|correct|recogni[sz]ed)|does\s*n[o']?t\s+match|did\s*n[o']?t\s+match)\b`
 
 # One message that covers both cases is the fix, not the flaw.
 _combined_re := `(?i)(?:user\s*name|user|e-?mail|login|account)\s*(?:and\s*/\s*or|or|and|/)\s*password|password\s*(?:and\s*/\s*or|or|/)\s*(?:user\s*name|e-?mail)|credentials`

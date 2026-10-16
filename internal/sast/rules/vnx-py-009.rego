@@ -9,7 +9,7 @@ metadata := {
 	"name": "Jinja2 autoescape disabled",
 	"description": "Template autoescaping is turned off, so values rendered into HTML are emitted verbatim and user data becomes cross-site scripting. Reported: autoescape=False (or None/0) as a keyword argument (jinja2.Environment, SandboxedEnvironment, jinja2.Template, Jinja2Templates and any multi-line call) or as an attribute assignment (app.jinja_env.autoescape = False); an \"autoescape\": False dict entry or subscript (Flask jinja_options, Django TEMPLATES OPTIONS); a jinja2 Environment/SandboxedEnvironment created with no autoescape argument at all (Jinja2 does not escape by default) in a file that imports a web framework or names an .html template; and {% autoescape false %} blocks in .html/.j2/.jinja templates. Not reported: autoescape=True, select_autoescape() or a function, an Environment built from **options or whose autoescape is assigned later in the file, Environments in non-web code (code generators rendering .py.j2), other libraries' Environment classes (aws_cdk), class and def lines, test files and test templates, comparisons (autoescape == False), and the text inside strings, docstrings and comments. Individual |safe filters and Markup() calls are not judged.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-009/",
-	"languages": ["python"],
+	"languages": ["python", "html"],
 	"severity": "high",
 	"level": "error",
 	"kind": "sast",

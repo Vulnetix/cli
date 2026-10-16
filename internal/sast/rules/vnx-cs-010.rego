@@ -114,7 +114,7 @@ _builder_hit(lines, i, line, _) if {
 
 _left_initializer(lines, k, i) if {
 	k + 1 <= i - 1
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	_closes_or_opens(lines[m])
 }
 

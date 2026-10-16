@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Northwind Payroll</string>
+    <string name="login_title">Sign in</string>
+    <string name="password_hint">Password</string>
+
+~>    <string name="payroll_api_key">q7Rm2VxK9pLt4ZwB8nHc</string>
+~>    <string name="reporting_client_secret">9f2e4c7a1b8d6e3f0a5c</string>
+    <string name="support_email">help@northwind-payroll.com</string>
+</resources>

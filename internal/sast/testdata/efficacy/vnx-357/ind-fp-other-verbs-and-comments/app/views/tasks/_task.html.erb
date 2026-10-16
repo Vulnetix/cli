@@ -1,0 +1,7 @@
+<div class="task">
+  <%= link_to "Complete", complete_task_path(task), method: :patch %>
+  <%= button_to "Duplicate", duplicate_task_path(task), method: :post %>
+  <%# link_to 'Destroy', task, method: :delete %>
+  <!-- <a href="/tasks/1" data-method="delete">Delete</a> -->
+  <p>Use the trash icon to delete with method: :delete after confirming.</p>
+</div>

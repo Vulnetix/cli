@@ -1,0 +1,7 @@
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: 1password/load-secrets-action@v2
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}

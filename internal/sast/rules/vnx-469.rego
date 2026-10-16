@@ -77,7 +77,7 @@ _known(lines, objs, name, i) if {
 
 _redefined(lines, name, oj, i) if {
 	oj + 1 <= i - 1
-	some j in numbers.range(oj + 1, i - 1)
+	some j in helpers.span(oj + 1, i - 1)
 	contains(lines[j], name)
 	_defines(_code(lines[j]), name)
 }

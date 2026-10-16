@@ -1,0 +1,5 @@
+from .base import *  # noqa
+
+SESSION_COOKIE_AGE = 1209600
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True

@@ -49,7 +49,7 @@ _num_sinks := [
 	{"exts": {".py"}, "gate": "DSA.generate", "re": `\bDSA\.generate\(\s*(?:bits\s*=\s*)?(\d+)`, "floor": 2048},
 	{"exts": _js_exts, "gate": "createDiffieHellman", "re": `\bcreateDiffieHellman\(\s*(\d+)\s*[,)]`, "floor": 2048},
 	{"exts": {".php"}, "gate": "private_key_bits", "re": `['"]private_key_bits['"]\s*=>\s*(\d+)`, "floor": 2048},
-	{"exts": {".rb"}, "gate": "OpenSSL::PKey::", "re": `\bOpenSSL::PKey::(?:RSA|DSA|DH)\.(?:new|generate)\(?\s*(\d+)\b`, "floor": 2048},
+	{"exts": {".rb", ".rake"}, "gate": "OpenSSL::PKey::", "re": `\bOpenSSL::PKey::(?:RSA|DSA|DH)\.(?:new|generate)\(?\s*(\d+)\b`, "floor": 2048},
 ]
 
 findings contains finding if {
@@ -78,7 +78,7 @@ _name_sinks := [
 	{"exts": _js_exts, "gate": "createECDH", "re": concat("", [`\bcreateECDH\(\s*['"\x60]`, _weak_curve, `['"\x60]`])},
 	{"exts": {".java", ".kt"}, "gate": "ECGenParameterSpec", "re": concat("", [`\bECGenParameterSpec\(\s*"`, _weak_curve, `"`])},
 	{"exts": {".py"}, "gate": "ec.", "re": `\bec\.(SECP192R1|SECT163K1|SECT163R2)\s*\(`},
-	{"exts": {".rb"}, "gate": "OpenSSL::PKey::EC", "re": concat("", [`\bOpenSSL::PKey::EC\.(new|generate)\(?\s*['"]`, _weak_curve, `['"]`])},
+	{"exts": {".rb", ".rake"}, "gate": "OpenSSL::PKey::EC", "re": concat("", [`\bOpenSSL::PKey::EC\.(new|generate)\(?\s*['"]`, _weak_curve, `['"]`])},
 	{"exts": {".py"}, "gate": "ECC.generate", "re": concat("", [`\bECC\.generate\([^)]*\bcurve\s*=\s*['"](?i:`, _weak_curve, `|p192|NIST P-192)['"]`])},
 ]
 
@@ -162,6 +162,23 @@ findings contains finding if {
 	m := regex.find_all_string_submatch_n(concat("", [`\b(\w+)\.`, g.call, `\(\s*(\d+)\s*[,)]`]), _strip(line), 1)
 	count(m) > 0
 	m[0][1] in vars
+	_decl_is(lines, i, m[0][1], g.decl)
 	to_number(m[0][2]) < g.floor
 	finding := _finding(path, i, line, _msg)
 }
+
+# A variable name can be reused for another algorithm ("generator" for DSA and
+# again for RSA): the nearest declaration above the call decides.
+_decls_above(lines, i, v) := [j |
+	some j, l in lines
+	j < i
+	regex.match(concat("", [`\b`, v, `\s*=\s*(?:java\.security\.|javax\.crypto\.)?(?:KeyPairGenerator|KeyGenerator)\.getInstance\(`]), l)
+]
+
+_decl_is(lines, i, v, decl) if {
+	d := _decls_above(lines, i, v)
+	count(d) > 0
+	regex.match(decl, lines[max(d)])
+}
+
+_decl_is(lines, i, v, _) if count(_decls_above(lines, i, v)) == 0

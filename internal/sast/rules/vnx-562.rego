@@ -55,7 +55,7 @@ _fn_start(heads, i) := max(array.concat([0], [k | some k in heads; k <= i]))
 # The nearest indented method header between the column-0 line and i.
 _method_start(lines, fs, i) := max(ks) if {
 	ks := [k |
-		some k in numbers.range(fs + 1, i - 1)
+		some k in helpers.span(fs + 1, i - 1)
 		contains(lines[k], "(")
 		regex.match(_method_hdr, lines[k])
 		not regex.match(_control, lines[k])
@@ -92,7 +92,7 @@ _no_storage := `\b(?:static|extern|thread_local|typedef)\b`
 
 # A local array declaration of v.
 _local_array(lines, s, i, v) if {
-	some k in numbers.range(s + 1, i - 1)
+	some k in helpers.span(s + 1, i - 1)
 	l := lines[k]
 	contains(l, v)
 	regex.match(concat("", [`^\s+[A-Za-z_][\w:<>\s\*,]*?[\s,\*]`, v, `\s*\[[^\]]*\]\s*(?:=|;|,|\[)`]), l)
@@ -102,7 +102,7 @@ _local_array(lines, s, i, v) if {
 
 # A local (non-reference) variable or object declaration of v.
 _local_var(lines, s, i, v, allow_ptr) if {
-	some k in numbers.range(s + 1, i - 1)
+	some k in helpers.span(s + 1, i - 1)
 	l := lines[k]
 	contains(l, v)
 	not helpers.is_comment_line(l)
@@ -163,7 +163,7 @@ _dangling(lines, s, i, "", v, suffix) if {
 _view_return(lines, s) if regex.match(`\b(?:w?string_view|u(?:8|16|32)string_view|span\s*<)`, _ret_type(lines, s))
 
 _owner_decl(lines, s, i, v) if {
-	some k in numbers.range(s + 1, i - 1)
+	some k in helpers.span(s + 1, i - 1)
 	l := lines[k]
 	contains(l, v)
 	regex.match(concat("", [`^\s+(?:const\s+)?(?:std::)?(?:w?string|u(?:8|16|32)string|vector\s*<[^;]*>|array\s*<[^;]*>|basic_string\s*<[^;]*>)\s+`, v, `\s*(?:=|;|\{|\()`]), l)

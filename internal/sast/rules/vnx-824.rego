@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_824
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 
 metadata := {
 	"id": "VNX-824",
@@ -42,7 +44,7 @@ _redeclares(code, v) if regex.match(concat("", [`^\s*(?:(?:const|static|struct|u
 # the declaration was one of its members.
 _nested_member(lines, i, k) if {
 	i + 1 <= k - 1
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	regex.match(`^\s+}\s*[\w\[]`, lines[j])
 }
 
@@ -93,7 +95,7 @@ _continuation(lines, i) if {
 # A K&R parameter declaration: the function body opens after it.
 _knr_param(lines, i, k) if {
 	i + 1 <= k - 1
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	startswith(lines[j], "{")
 }
 

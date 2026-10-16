@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_832
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-832",
 	"name": "Unlock of a Resource that is not Locked",
@@ -53,19 +55,27 @@ _java_unlock_re := concat("", [`(?:^|[\s{;(])`, _java_recv, `\s*\.\s*unlock\s*\(
 _norm(recv) := trim_prefix(recv, "this.")
 
 # Shape 1: a bare tryLock statement above the unlock.
-_java_reason(lines, u, recv) := sprintf("the result of %s.tryLock() on line %d is discarded, so this unlock runs even when the lock was not acquired", [recv, t + 1]) if {
+_java_reason1(lines, u, recv) := sprintf("the result of %s.tryLock() on line %d is discarded, so this unlock runs even when the lock was not acquired", [recv, t + 1]) if {
 	re := concat("", [`^\s*(?:this\.)?`, _esc(_norm(recv)), `\s*\.\s*tryLock\s*\([^;]*\)\s*;`])
 	cands := [t |
 		some t in numbers.range(max([0, u - 40]), u - 1)
 		contains(lines[t], "tryLock")
 		regex.match(re, lines[t])
+		not _block_closed(lines, t, u)
 	]
 	count(cands) > 0
 	t := max(cands)
 }
 
+# A line between t and u closes the block that holds line t (another method).
+_block_closed(lines, t, u) if {
+	some k in helpers.span(t + 1, u - 1)
+	regex.match(`^\s*\}\s*$`, lines[k])
+	_indent(lines[k]) < _indent(lines[t])
+}
+
 # Shape 2: the unlock is in a finally whose try acquires interruptibly or by tryLock.
-_java_reason(lines, u, recv) := sprintf("the try block that this finally closes acquires %s on line %d with %s, which can fail or be skipped, and the finally still unlocks it; acquire the lock before try", [recv, a + 1, how]) if {
+_java_reason2(lines, u, recv) := sprintf("the try block that this finally closes acquires %s on line %d with %s, which can fail or be skipped, and the finally still unlocks it; acquire the lock before try", [recv, a + 1, how]) if {
 	f := _finally_line(lines, u)
 	t := _try_line(lines, f)
 	re := concat("", [`(?:^|[^\w.])(?:this\.)?`, _esc(_norm(recv)), `\s*\.\s*(tryLock|lockInterruptibly)\s*\(`])
@@ -84,7 +94,7 @@ _java_reason(lines, u, recv) := sprintf("the try block that this finally closes 
 # Shape 3: no line of the file acquires this lock.
 # Only for a lock field or variable this file declares, which no line of
 # the file acquires and which is never handed to other code as an argument.
-_java_reason(lines, _, recv) := sprintf("nothing in this file locks %s, so this unlock releases a lock the code never took", [recv]) if {
+_java_reason3(lines, _, recv) := sprintf("nothing in this file locks %s, so this unlock releases a lock the code never took", [recv]) if {
 	name := split(_norm(recv), ".")[0]
 	regex.match(`^[A-Za-z_]\w*$`, name)
 	_any_match(lines, concat("", [`\b(?:ReentrantLock|ReentrantReadWriteLock|ReadWriteLock|Lock)\s+`, name, `\s*[=;]`]), name)
@@ -126,7 +136,7 @@ _java_hit(lines, u, line) := [recv, reason] if {
 	m := regex.find_all_string_submatch_n(_java_unlock_re, _strip(line), 1)
 	count(m) > 0
 	recv := m[0][1]
-	reasons := {r | r := _java_reason(lines, u, recv)}
+	reasons := {r | r := _java_reason1(lines, u, recv)} | {r | r := _java_reason2(lines, u, recv)} | {r | r := _java_reason3(lines, u, recv)}
 	count(reasons) > 0
 	reason := sort(reasons)[0]
 }

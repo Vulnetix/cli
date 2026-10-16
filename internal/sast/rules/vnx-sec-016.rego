@@ -203,6 +203,7 @@ findings contains finding if {
 	some i, line in lines
 	_line_candidate(line)
 	not _comment(cls, line)
+	not _print_line(cls, line)
 	_reported(cls, path, lines, i, line)
 	finding := {
 		"rule_id": metadata.id,
@@ -223,6 +224,12 @@ _comment(cls, line) if {
 }
 
 _comment("code", line) if helpers.is_comment_line(line)
+
+# echo/printf only print text; a setting named inside is prose, not a command.
+_print_line("shell", line) if {
+	regex.match(`^\s*(?:echo|printf)\s`, line)
+	not regex.match(`[|;&]\s*(?:sudo\s+)?(?:curl|wget|git|npm|pip|kubectl)\b`, line)
+}
 
 _mentions_downloader(content) if contains(content, "curl ")
 

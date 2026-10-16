@@ -1,0 +1,20 @@
+{
+  "projects": {
+    "admin": {
+      "architect": {
+        "build": {
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "sourceMap": false
+            },
+            "development": {
+              "optimization": false,
+              "sourceMap": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

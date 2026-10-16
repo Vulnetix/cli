@@ -40,7 +40,7 @@ _annotated(lines, i, _) if {
 
 _code_between(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	t := trim_space(lines[k])
 	t != ""
 	not startswith(t, "@")

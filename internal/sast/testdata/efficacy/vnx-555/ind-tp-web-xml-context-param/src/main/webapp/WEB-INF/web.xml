@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee" version="4.0">
+  <display-name>Mailer</display-name>
+  <context-param>
+    <param-name>smtpUser</param-name>
+    <param-value>notifications@acme.example</param-value>
+  </context-param>
+  <context-param>
+    <param-name>smtpPassword</param-name>
+~>    <param-value>Mail-Relay-2024</param-value>
+  </context-param>
+</web-app>

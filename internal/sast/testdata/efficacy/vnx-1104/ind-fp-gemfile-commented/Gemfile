@@ -1,0 +1,6 @@
+source "https://rubygems.org"
+
+gem "rails", "~> 7.0"
+gem "sass-rails", "~> 6.0"
+gem "kt-paperclip", "~> 7.2"
+# gem "paperclip", "~> 6.1"

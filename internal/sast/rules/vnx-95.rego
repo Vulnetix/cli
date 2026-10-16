@@ -129,12 +129,38 @@ _t2(lang, lines, i, n1) := {v |
 	not helpers.is_comment_line(l)
 }
 
+# A triple-quoted f-string assigned over several lines takes taint from any
+# {expression} inside it that names a tainted variable.
+_fblock(lines, j) := concat(" ", array.slice(lines, j, min(ends) + 1)) if {
+	regex.match(`=\s*[fF][rR]?(?:"""|''')`, lines[j])
+	ends := [k |
+		some k in numbers.range(j + 1, min([j + 20, count(lines) - 1]))
+		_closes(lines[k])
+	]
+	count(ends) > 0
+}
+
+_closes(l) if contains(l, `"""`)
+
+_closes(l) if contains(l, "'''")
+
+_t3(lang, lines, i, n1) := {v |
+	lang == "py"
+	i > 0
+	count(n1) > 0
+	some j in numbers.range(max([0, i - 25]), i - 1)
+	v := _assigned(lines[j])
+	not v in n1
+	some n in n1
+	regex.match(concat("", [`\{[^}]*\b`, n, `\b`]), _fblock(lines, j))
+}
+
 _tainted(lang, lines, i, src, arg) if regex.match(src, arg)
 
 _tainted(lang, lines, i, src, arg) if {
 	not regex.match(src, arg)
 	n1 := _t1(lines, i, src)
-	names := n1 | _t2(lang, lines, i, n1)
+	names := (n1 | _t2(lang, lines, i, n1)) | _t3(lang, lines, i, n1)
 	some n in names
 	regex.match(concat("", [`\b`, n, `\b`]), arg)
 }

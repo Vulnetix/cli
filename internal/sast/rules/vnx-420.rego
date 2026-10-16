@@ -184,7 +184,7 @@ _in_goroutine(lines, k) if {
 
 _closed(lines, j, k) if {
 	k > j + 1
-	some x in numbers.range(j + 1, k - 1)
+	some x in helpers.span(j + 1, k - 1)
 	regex.match(`^\s*\}`, lines[x])
 }
 

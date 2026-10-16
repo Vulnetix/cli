@@ -1,0 +1,9 @@
+name: release
+on: push
+jobs:
+  r:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sentry-cli releases new $GITHUB_SHA
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

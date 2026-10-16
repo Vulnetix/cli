@@ -207,7 +207,7 @@ _other_branch(lines, md, k) if {
 
 # Range-for whose body modifies the container being iterated.
 _hit_cpp(conts, lines, i, line) := [j, "the body of a range-for modifies the container it iterates; a reallocation invalidates the loop's hidden iterator and the element reference. Collect the changes and apply them after the loop"] if {
-	m := regex.find_all_string_submatch_n(`\bfor\s*\(\s*(?:const\s+)?auto\s*&{0,2}\s*\w+\s*:\s*([A-Za-z_]\w*)\s*\)`, line, 1)
+	m := regex.find_all_string_submatch_n(`\bfor\s*\(\s*(?:const\s+)?[A-Za-z_][\w:]*(?:<[^;()]*>)?\s*(?:const\s*)?&{0,2}\s*\w+\s*:\s*([A-Za-z_]\w*)\s*\)`, line, 1)
 	count(m) > 0
 	c := m[0][1]
 	_seq_container(conts, c)

@@ -170,10 +170,24 @@ _leeway_line(lang, line) if contains(line, _leeway_needle_alt[lang])
 
 _timed_ctor := `\b(URLSafe)?Timed(JSONWebSignature)?Serializer\s*\(|\bTimestampSigner\s*\(`
 
+# Functions that return a timed serializer: "def f(...):" then "return Ctor(" within three lines.
+_factories(lines) := {m[0][1] |
+	some i, l in lines
+	m := regex.find_all_string_submatch_n(`^\s*(?:async\s+)?def\s+(\w+)\s*\(`, l, 1)
+	count(m) > 0
+	some k in numbers.range(i + 1, min([count(lines) - 1, i + 3]))
+	regex.match(`^\s*return\s+(?:[\w\.]+\.)?((URLSafe)?Timed(JSONWebSignature)?Serializer|TimestampSigner)\s*\(`, lines[k])
+}
+
 _timed_names(lines) := {m[0][1] |
 	some l in lines
 	contains(l, "Time")
 	m := regex.find_all_string_submatch_n(`^\s*(?:self\.)?(\w+)\s*(?::\s*[\w\[\]\.]+\s*)?=\s*(?:[\w\.]+\.)?((URLSafe)?Timed(JSONWebSignature)?Serializer|TimestampSigner)\s*\(`, l, 1)
+	count(m) > 0
+} | {m[0][1] |
+	some f in _factories(lines)
+	some l in lines
+	m := regex.find_all_string_submatch_n(concat("", [`^\s*(?:self\.)?(\w+)\s*(?::\s*[\w\[\]\.]+\s*)?=\s*`, f, `\s*\(\s*\)\s*$`]), l, 1)
 	count(m) > 0
 }
 
@@ -201,6 +215,11 @@ _timed_call(lines, line) if {
 
 _timed_call(_, line) if {
 	regex.match(`\b((URLSafe)?Timed(JSONWebSignature)?Serializer|TimestampSigner)\s*\([^)]*\)\s*\.(loads|unsign|loads_unsafe)\s*\(`, line)
+}
+
+_timed_call(lines, line) if {
+	some f in _factories(lines)
+	regex.match(concat("", [`\b`, f, `\s*\(\s*\)\s*\.(loads|unsign|loads_unsafe)\s*\(`]), line)
 }
 
 _timed_call(_, line) if regex.match(`\bsigning\.loads\s*\(`, line)

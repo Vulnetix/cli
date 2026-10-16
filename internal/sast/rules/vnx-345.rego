@@ -95,6 +95,19 @@ _reaches(lines, i, text, src) if {
 	regex.match(concat("", [`\b`, v, `\b`]), _code(text))
 }
 
+# The line sits inside a triple-quoted string (a docstring) opened above it.
+_in_docstring(lines, i) if {
+	i > 0
+	before := concat("\n", array.slice(lines, 0, i))
+	strings.count(before, "\"\"\"") % 2 == 1
+}
+
+_in_docstring(lines, i) if {
+	i > 0
+	before := concat("\n", array.slice(lines, 0, i))
+	strings.count(before, "'''") % 2 == 1
+}
+
 _guarded(lines, i, re) if {
 	w := helpers.code_window(lines, i, 15, 0)
 	regex.match(re, w)
@@ -111,6 +124,7 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(sink, _code(line))
 	not helpers.is_comment_line(line)
+	not _in_docstring(lines, i)
 	not regex.match(`\.dumps?\(`, line)
 	_reaches(lines, i, _call_text(lines, i), _deser_src_re)
 	not _guarded(lines, i, _verify_re)
@@ -127,6 +141,7 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(`(?:^|[^.\w])(?:exec|eval)\s*\(`, _code(line))
 	not helpers.is_comment_line(line)
+	not _in_docstring(lines, i)
 	_reaches(lines, i, _call_text(lines, i), _fetch_src_re)
 	not _guarded(lines, i, _hash_re)
 	finding := _finding(path, i, line, "Code downloaded over the network is executed with no integrity check: whoever controls the server or the connection controls this process. Pin the content by digest or verify a signature before running it")
@@ -141,6 +156,7 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(`\b(?:subprocess\.(?:run|call|Popen|check_call|check_output)|os\.(?:system|exec\w*|spawn\w*|startfile))\s*\(`, line)
 	not helpers.is_comment_line(line)
+	not _in_docstring(lines, i)
 	some v in helpers.tainted_names(lines, i, 12, `urlretrieve\(`)
 	regex.match(concat("", [`\b`, v, `\b`]), _code(_call_text(lines, i)))
 	not _guarded(lines, i, _hash_re)

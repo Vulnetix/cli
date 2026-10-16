@@ -1,0 +1,12 @@
+- name: Create upload directory
+  ansible.builtin.file:
+    path: /var/www/uploads
+    state: directory
+    owner: www-data
+~>    mode: '0777'
+
+- name: Install app config
+  ansible.builtin.template:
+    src: app.conf.j2
+    dest: /etc/app/app.conf
+~>    mode: 0666

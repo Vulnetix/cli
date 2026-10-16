@@ -1,0 +1,9 @@
+{
+    "name": "acme/app",
+    "type": "project",
+    "require": {
+        "php": "^8.2",
+        "ext-json": "*",
+        "ext-mbstring": "*"
+    }
+}

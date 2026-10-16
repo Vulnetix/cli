@@ -164,7 +164,7 @@ _in_tainted_loop(src_idx, srcs, lines, i) if {
 # allocating.
 _capped_in_loop(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(`^\s*(?:\}\s*)?(?:else\s+)?if\b.*(?:>=?|<=?)\s*[A-Za-z_(]`, lines[k])
 	not helpers.is_comment_line(lines[k])
 }

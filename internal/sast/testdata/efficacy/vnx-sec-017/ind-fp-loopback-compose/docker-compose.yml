@@ -1,0 +1,10 @@
+services:
+  web:
+    image: acme/web:1.4
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DEV_REDIS: redis://localhost:6379
+      LOCAL_MQ: amqp://127.0.0.1:5672
+      TEMPLATE: redis://${REDIS_HOST}:6379
+  redis:
+    image: redis:7

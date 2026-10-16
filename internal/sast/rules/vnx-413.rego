@@ -77,7 +77,7 @@ _is_lock(content, recv) if {
 _method_end(lines, i) := e if {
 	hi := min([count(lines), i + 60])
 	ends := [k |
-		some k in numbers.range(i + 1, hi - 1)
+		some k in helpers.span(i + 1, hi - 1)
 		regex.match(`^\s*(@\w+|(public|private|protected|static|final|synchronized)\s[^;=]*\(.*\{?\s*$)`, lines[k])
 	]
 	e := min(array.concat([hi], ends))

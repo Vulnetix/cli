@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+
+    <!-- Legacy media CDN never got a certificate. -->
+~>    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">media.harbourline-ferries.com</domain>
+        <domain includeSubdomains="false">img.legacycdn.net</domain>
+    </domain-config>
+</network-security-config>

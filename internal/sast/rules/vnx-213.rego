@@ -73,7 +73,7 @@ findings contains f if {
 	lines := split(content, "\n")
 	some a, al in lines
 	contains(al, "process.env")
-	m := regex.find_all_string_submatch_n(`^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::\s*[\w<>\[\], ]+)?=\s*(\{\s*\.\.\.\s*process\.env\s*\}|process\.env\s*;?\s*$|Object\.assign\(\s*\{\s*\}\s*,\s*process\.env\s*\))`, al, 1)
+	m := regex.find_all_string_submatch_n(`^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::\s*[\w<>\[\], ]+)?=\s*(\{\s*\.\.\.\s*process\.env\s*[,}]|process\.env\s*;?\s*$|Object\.assign\(\s*\{\s*\}\s*,\s*process\.env\s*\))`, al, 1)
 	count(m) > 0
 	v := m[0][1]
 	some i in numbers.range(a + 1, min([count(lines) - 1, a + 6]))
@@ -139,7 +139,7 @@ _py_route_above(lines, i) if {
 # decorator belongs to a different function.
 _def_between(lines, j, i) if {
 	defs := [k |
-		some k in numbers.range(j + 1, i - 1)
+		some k in helpers.span(j + 1, i - 1)
 		k > j
 		k < i
 		regex.match(`^\s*(async\s+)?def\s`, lines[k])
@@ -253,4 +253,47 @@ _java_returns(content, code, v) if {
 _java_returns(_, code, v) if {
 	regex.match(`\bResponseEntity\b|\.body\s*\(|\.addAttribute\s*\(|\.addObject\s*\(|\.getWriter\(\)|\bout\.print|\.entity\s*\(`, code)
 	regex.match(concat("", [`[(,]\s*`, v, `\s*[,)]`]), code)
+}
+
+# ── Argument of a call spread over several lines ─────────────────────────
+
+_pd(l) := count(split(l, "(")) - count(split(l, ")"))
+
+# A sink call opened up to eight lines above line i and still open on it.
+_open_sink(lines, i, sink) if {
+	some j in numbers.range(max([0, i - 8]), i - 1)
+	regex.match(sink, _strip_q(lines[j]))
+	sum([_pd(_strip_q(lines[k])) | some k in numbers.range(j, i - 1)]) > 0
+}
+
+# res.json({\n  env: process.env,\n})
+findings contains f if {
+	some path, content in input.file_contents
+	_js_file(path)
+	contains(content, "process.env")
+	not helpers.is_test_path(path)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "process.env")
+	not helpers.is_comment_line(line)
+	code := regex.replace(_strip_q(line), `Object\.keys\s*\(\s*process\.env\s*\)`, "")
+	regex.match(_js_env, code)
+	_open_sink(lines, i, _js_sink)
+	f := _finding(path, i, line)
+}
+
+# jsonify(\n  environment=dict(os.environ),\n)
+findings contains f if {
+	some path, content in input.file_contents
+	endswith(path, ".py")
+	regex.match(`os\.environ|app\.config|settings`, content)
+	not helpers.is_test_path(path)
+	lines := split(content, "\n")
+	some i, line in lines
+	not helpers.is_comment_line(line)
+	code := _strip_q(line)
+	regex.match(_py_env, code)
+	not regex.match(_py_filtered, code)
+	_open_sink(lines, i, _py_sink)
+	f := _finding(path, i, line)
 }

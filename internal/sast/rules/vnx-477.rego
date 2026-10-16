@@ -6,7 +6,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-477",
 	"name": "Use of Obsolete Function",
-	"description": "Reports calls to, and imports of, standard-library APIs that the platform has deprecated (most of them for removal) or already removed, each with its replacement. Java: Thread.stop/suspend/resume/countStackFrames, runFinalizersOnExit, the boxed-primitive constructors (new Integer(...), new Boolean(...)), one-argument URLEncoder.encode/URLDecoder.decode (platform charset), new Date(String) and Date.parse, Class.newInstance(), DataInputStream.readLine(), overriding finalize(), System.setSecurityManager and AccessController.doPrivileged, Character.isSpace/isJavaLetter, the BigDecimal.ROUND_* int constants. Python: the modules removed by PEP 594 and 632 (imp, asyncore, asynchat, smtpd, distutils, cgi, cgitb, pipes, telnetlib, crypt, nntplib, imghdr, sndhdr, audioop, uu, xdrlib, msilib, spwd, nis, ossaudiodev, mailcap, aifc, sunau, chunk), ssl.wrap_socket, platform.linux_distribution/dist, base64.encodestring/decodestring, cgi.escape, inspect.getargspec, os.tempnam/tmpnam, time.clock, logging.warn, sys.setcheckinterval, locale.format, unittest.makeSuite/findTestCases/getTestCaseNames, Element.getchildren/getiterator in a file that uses xml.etree (not lxml, which keeps them), collections.<ABC> without .abc, xml.etree.cElementTree, asyncio.async and @asyncio.coroutine, and the removed unittest aliases (assertEquals, assertNotEquals, assertItemsEqual, assertRegexpMatches, failUnless). Not reported: declarations marked @Deprecated or warnings.warn calls (they deprecate the project's own API, which is not use of an obsolete function), the supported replacements (URLEncoder.encode(s, UTF_8), Integer.valueOf, collections.abc, ssl.SSLContext.wrap_socket), names in strings and comments.",
+	"description": "Reports calls to, and imports of, standard-library APIs that the platform has deprecated (most of them for removal) or already removed, each with its replacement. Java: Thread.stop/suspend/resume/countStackFrames, runFinalizersOnExit, the boxed-primitive constructors (new Integer(...), new Boolean(...)), one-argument URLEncoder.encode/URLDecoder.decode (platform charset), new Date(String) and Date.parse, Class.newInstance(), DataInputStream.readLine(), overriding finalize(), System.setSecurityManager and AccessController.doPrivileged, Character.isSpace/isJavaLetter, the BigDecimal.ROUND_* int constants. Python: the modules removed by PEP 594 and 632 (imp, asyncore, asynchat, smtpd, distutils, cgi, cgitb, pipes, telnetlib, crypt, nntplib, imghdr, sndhdr, audioop, uu, xdrlib, msilib, spwd, nis, ossaudiodev, mailcap, aifc, sunau, chunk), ssl.wrap_socket, platform.linux_distribution/dist, base64.encodestring/decodestring, cgi.escape, inspect.getargspec, os.tempnam/tmpnam, time.clock, logging.warn (and Logger.warn on a logger created by logging.getLogger in the same file), sys.setcheckinterval, locale.format, unittest.makeSuite/findTestCases/getTestCaseNames, Element.getchildren/getiterator in a file that uses xml.etree (not lxml, which keeps them), collections.<ABC> without .abc, xml.etree.cElementTree, asyncio.async and @asyncio.coroutine, and the removed unittest aliases (assertEquals, assertNotEquals, assertItemsEqual, assertRegexpMatches, failUnless). Not reported: declarations marked @Deprecated or warnings.warn calls (they deprecate the project's own API, which is not use of an obsolete function), the supported replacements (URLEncoder.encode(s, UTF_8), Integer.valueOf, collections.abc, ssl.SSLContext.wrap_socket), names in strings and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-477/",
 	"languages": ["java", "python"],
 	"severity": "low",
@@ -142,6 +142,27 @@ findings contains finding if {
 	spec := _hit(line, _python)
 	not _in_docstring(lines, i)
 	finding := _finding(path, i, line, spec.msg)
+}
+
+# Logger.warn is the same deprecated alias: a receiver assigned from
+# logging.getLogger(...) / logging.Logger(...) in the same file.
+findings contains finding if {
+	some path, content in input.file_contents
+	endswith(path, ".py")
+	contains(content, "getLogger")
+	regex.match(`\.warn\(`, content)
+	lines := split(content, "\n")
+	names := {m[1] |
+		some l in lines
+		some m in regex.find_all_string_submatch_n(`^\s*(?:self\.)?(\w+)\s*(?::[^=]+)?=\s*(?:logging\.)?(?:getLogger|Logger)\(`, l, -1)
+	}
+	count(names) > 0
+	some i, line in lines
+	not _is_comment(line)
+	some v in names
+	regex.match(concat("", [`\b`, v, `\.warn\(`]), _strip_strings(line))
+	not _in_docstring(lines, i)
+	finding := _finding(path, i, line, "logging.warn is a deprecated alias; use logging.warning")
 }
 
 # Element.getchildren()/getiterator() were removed from xml.etree in Python 3.9

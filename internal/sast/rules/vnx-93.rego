@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-93",
 	"name": "CRLF Injection into mail or protocol headers",
-	"description": "HTTP request data is placed into a CRLF-delimited protocol line or mail header without removing CR/LF, so a requester can end the line and add their own headers or commands (mail header injection, SMTP command injection). Reported, in Go, Java, JavaScript/TypeScript, PHP, Python and Ruby: a line that builds text from a string literal containing an escaped \\r\\n and request data placed before that line terminator, or from a header-name literal (\"From: \", \"To: \", \"Cc: \", \"Bcc: \", \"Reply-To: \", \"Subject: \", \"Sender: \", \"Return-Path: \", \"MAIL FROM:\", \"RCPT TO:\") and request data anywhere on the line or in the next two lines of a call left open (concatenation, interpolation, Sprintf/format, fmt.Fprintf(conn, \"RCPT TO:<%s>\\r\\n\", ...)); PHP mail() and mb_send_mail() whose to, subject, additional-headers or additional-parameters argument (not the body) carries request data, including a call split over several lines; and, in a file using email.mime (MIMEText/MIMEMultipart), message headers (msg['Subject'] = ..., add_header, replace_header for To/From/Cc/Bcc/Reply-To/Subject/Sender) assigned request data. Request data is the usual per-language request accessor, inline or through a variable assigned from it (or from such a variable) in the 25 lines above. Not reported: values passed through CR/LF replacement (including a replacer or helper named for CRLF/newlines), filter_var/FILTER_VALIDATE_EMAIL, an encoding call or a numeric conversion, or validated with preg_match/filter_var/a validator between the read and the use; request data only in a mail body (after the final CRLF, or the body argument of mail()); Python EmailMessage with the default policy, which rejects CR/LF in header values; lines that write the response body or a log (echo/print, res.send/write, fmt.Fprint* to w/os.Stdout/os.Stderr, console, loggers); comments. HTTP response headers are reported by VNX-GO-012, VNX-JAVA-017 and VNX-644, not here.",
+	"description": "HTTP request data is placed into a CRLF-delimited protocol line or mail header without removing CR/LF, so a requester can end the line and add their own headers or commands (mail header injection, SMTP command injection). Reported, in Go, Java, JavaScript/TypeScript, PHP, Python and Ruby: a line that builds text from a string literal containing an escaped \\r\\n and request data placed before that line terminator, or from a header-name literal (\"From: \", \"To: \", \"Cc: \", \"Bcc: \", \"Reply-To: \", \"Subject: \", \"Sender: \", \"Return-Path: \", \"MAIL FROM:\", \"RCPT TO:\") and request data anywhere on the line or in the next two lines of a call left open (concatenation, interpolation, Sprintf/format, fmt.Fprintf(conn, \"RCPT TO:<%s>\\r\\n\", ...)); PHP mail() and mb_send_mail() whose to, subject, additional-headers or additional-parameters argument (not the body) carries request data, including a call split over several lines; and, in a file using email.mime (MIMEText/MIMEMultipart), message headers (msg['Subject'] = ..., add_header and replace_header with any literal header name; item assignment for To/From/Cc/Bcc/Reply-To/Subject/Sender) assigned request data. Request data is the usual per-language request accessor, inline or through a variable assigned from it (or from such a variable, including a multi-line triple-quoted f-string that interpolates one) in the 25 lines above. Not reported: values passed through CR/LF replacement (including a replacer or helper named for CRLF/newlines), filter_var/FILTER_VALIDATE_EMAIL, an encoding call or a numeric conversion, or validated with preg_match/filter_var/a validator between the read and the use; request data only in a mail body (after the final CRLF, or the body argument of mail()); Python EmailMessage with the default policy, which rejects CR/LF in header values; lines that write the response body or a log (echo/print, res.send/write, fmt.Fprint* to w/os.Stdout/os.Stderr, console, loggers); comments. HTTP response headers are reported by VNX-GO-012, VNX-JAVA-017 and VNX-644, not here.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-93/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "medium",
@@ -203,7 +203,17 @@ _php_mail_call("php", line) if regex.match(`(?:^|[^\w>$:])(?:mb_send_)?mail\s*\(
 # its arguments from the next two lines.
 _continued(lines, i, line) := line if _depth(line) <= 0
 
-_continued(lines, i, line) := concat(" ", array.concat([line], array.slice(lines, i + 1, i + 3))) if _depth(line) > 0
+# A line ending in a concatenation operator continues the same string, and
+# the next line is judged on its own.
+_continued(lines, i, line) := line if {
+	_depth(line) > 0
+	endswith(trim_space(line), "+")
+}
+
+_continued(lines, i, line) := concat(" ", array.concat([line], array.slice(lines, i + 1, i + 3))) if {
+	_depth(line) > 0
+	not endswith(trim_space(line), "+")
+}
 
 # A call split over several lines is joined (up to 6 more lines) before its
 # arguments are cut.
@@ -250,7 +260,7 @@ findings contains finding if {
 
 _py_header := `(?i)\[\s*['"](?:to|from|cc|bcc|reply-to|subject|sender)['"]\s*\]\s*=\s*(.*)$`
 
-_py_add_header := `\.(?:add_header|replace_header)\s*\(\s*['"](?i:to|from|cc|bcc|reply-to|subject|sender)['"]\s*,(.*)$`
+_py_add_header := `\.(?:add_header|replace_header)\s*\(\s*['"][\w-]+['"]\s*,(.*)$`
 
 findings contains finding if {
 	some path, content in input.file_contents

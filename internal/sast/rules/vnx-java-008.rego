@@ -181,6 +181,21 @@ _guarded(lines, i, v) if {
 	regex.match(_guard_re, lines[j])
 }
 
+# A guard on a value parsed from v (URI uri = URI.create(v); if (!HOSTS.contains(uri.getHost())) throw ...).
+_guarded(lines, i, v) if {
+	some j in numbers.range(_win(i), i - 1)
+	contains(lines[j], v)
+	m := regex.find_all_string_submatch_n(concat("", [`(\w+)\s*=\s*[^=;]*\b`, v, `\b`]), _strip(lines[j]), 1)
+	count(m) > 0
+	w := m[0][1]
+	w != v
+	some k in helpers.span(j + 1, i - 1)
+	contains(lines[k], w)
+	regex.match(`^\s*(?:\}\s*else\s+)?if\s*\(|^\s*(?:return\s+)?\w*(?:valid|allow|safe)\w*\s*\(`, lines[k])
+	regex.match(concat("", [`\b`, w, `\b`]), lines[k])
+	regex.match(_guard_re, lines[k])
+}
+
 # A fixed scheme and host in front of the value.
 _fixed_prefix(raw) if regex.match(`^\s*(?:(?:URI\.create|new\s+URI|new\s+URL)\s*\(\s*)?"https?://[^/"]+/`, raw)
 

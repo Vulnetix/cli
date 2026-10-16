@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.acme.guarded">
+    <application android:permission="com.acme.permission.ALL" android:label="G">
+        <service android:name=".S" android:exported="true" />
+        <receiver android:name=".R" android:exported="true" />
+    </application>
+</manifest>

@@ -62,6 +62,15 @@ _fetches_all(lines, i) if {
 	some k in numbers.range(i, end)
 	contains(lines[k], ".fetchall()")
 	not helpers.is_comment_line(lines[k])
+	not _boundary_between(lines, i, k)
+}
+
+# Another statement execution or a new function between the execute and the
+# fetchall: that fetchall belongs to a different query.
+_boundary_between(lines, i, k) if {
+	i + 1 <= k
+	some m in numbers.range(i + 1, k)
+	regex.match(`\.execute\(|^\s*(async\s+)?def\s|\.fetch(one|many)\(`, lines[m])
 }
 
 findings contains finding if {

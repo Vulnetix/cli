@@ -1,0 +1,5 @@
+deploy:
+  variables:
+~>    GITLAB_TOKEN: glpat-@@sample:[A-Za-z0-9_-]{26}@@
+  script:
+    - ./deploy.sh

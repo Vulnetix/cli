@@ -50,7 +50,7 @@ _is_code(line) if {
 
 # The label opened at i falls through to the label at j.
 _falls_through(lines, i, j, rest) if {
-	body := [k | some k in numbers.range(i + 1, j - 1); k > i; k < j; _is_code(lines[k])]
+	body := [k | some k in helpers.span(i + 1, j - 1); k > i; k < j; _is_code(lines[k])]
 	_has_body(lines, body, rest)
 	braced := _is_braced(lines, i, body)
 	last := _last_stmt(lines, body, rest, braced)
@@ -185,7 +185,7 @@ findings contains finding if {
 # in different switches (the first one ended).
 _closed(lines, i, j, ii) if {
 	j - 1 >= i + 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	_is_code(lines[k])
 	_indent(lines[k]) < ii
 }
@@ -193,7 +193,7 @@ _closed(lines, i, j, ii) if {
 _closed(lines, i, j, ii) if {
 	not endswith(trim_right(lines[i], " \t"), "{")
 	j - 1 >= i + 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	_indent(lines[k]) == ii
 	startswith(trim_space(lines[k]), "}")
 }

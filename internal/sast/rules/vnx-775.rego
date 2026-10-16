@@ -64,7 +64,7 @@ _encloser(lines, i, span, re) := j if {
 _dedent_between(lines, k, i) if {
 	k + 1 <= i - 1
 	ik := _indent(lines[k])
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	_code_line(lines[m])
 	_indent(lines[m]) <= ik
 }

@@ -64,7 +64,32 @@ sb.append(column);
 stmt.executeQuery(sb.toString());
 ```
 
-Anything the analysis cannot resolve stays reported: a condition on run-time data, a call into another class, a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter.
+Anything the analysis cannot resolve stays reported: a condition on run-time data, a call into another class that is handed a run-time value (a call with constant arguments is read as inert, below), a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter.
+
+### Calls that cannot bring data in
+
+A call into code the scan cannot see (another class or module) is treated as **inert**, and its value as a constant, when all of these hold:
+
+- its name is not that of a source (`read*`, `next*`, `getParameter*`, `getHeader*`, `getCookie*`, `getenv`, `getProperty`, `query`, `execute`);
+- every argument is a constant: a literal, or a name the method fixes;
+- its receiver is a type name, a `new` expression with constant arguments, or a local built from such a call, and that local is only ever called with constant arguments.
+
+```java
+// NOT REPORTED: the helper is given literals only
+sb.append(Columns.name("total")).append(" FROM orders");
+
+// REPORTED: a run-time argument
+sb.append(Columns.name(column));
+
+// REPORTED: the receiver was built from, or fed, a run-time value
+quoter.setStyle(region);
+sb.append(quoter.quote("eu"));
+
+// REPORTED: a source-like method name
+sb.append(Prompts.readLine("region"));
+```
+
+Anything that fails one of the tests stays reported, so a helper that hands back its argument is never mistaken for a constant.
 
 ## Remediation
 

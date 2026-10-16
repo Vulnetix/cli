@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Atlas</string>
+~>    <string name="google_maps_key">@@sample:AIza[A-Za-z0-9_-]{35}@@</string>
+</resources>

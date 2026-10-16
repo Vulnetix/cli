@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-408",
 	"name": "Incorrect Behavior Order: Early Amplification",
-	"description": "Reports a request-supplied number used, with no upper bound, as an amplification factor: the work an anonymous request triggers grows with a number the client chose rather than with data it sent. Python: `range(n)`, a `while i < n:` bound, `\"x\" * n` / `[0] * n`, `bcrypt.gensalt(n)`, `hashlib.pbkdf2_hmac(..., n)` and `iterations=n`. Node/TypeScript: a `for (...; i < n; ...)` or `while (i < n)` bound, `.repeat(n)`, `new Array(n)`, `Array(n).fill`, `Array.from({ length: n })`, `Buffer.alloc(n)`, `bcrypt.hash(pw, n)`/`genSalt(n)` and `crypto.pbkdf2(..., n, ...)`. n is read from the request (Flask/Django `request.args/form/json/GET/POST/...`, Express/Koa `req.query/body/params/headers`) on the sink line or assigned from it (including destructuring) in the 15 lines above. Not reported: a value clamped with min()/Math.min or compared with a bound on the lines in between, lengths of request data (`len(...)`, `.length`), constants, test files, comments and strings. The CWE's ordering aspect (expensive work before authentication) cannot be seen line by line, so the rule reports the unbounded factor itself.",
+	"description": "Reports a request-supplied number used, with no upper bound, as an amplification factor: the work an anonymous request triggers grows with a number the client chose rather than with data it sent. Python: `range(n)`, a `while i < n:` bound, `\"x\" * n` / `[0] * n`, `bcrypt.gensalt(n)`, `hashlib.pbkdf2_hmac(..., n)` and `iterations=n`. Node/TypeScript: a `for (...; i < n; ...)` or `while (i < n)` / countdown `while (n > 0)` bound, `.repeat(n)`, `new Array(n)`, `Array(n).fill`, `Array.from({ length: n })`, `Buffer.alloc(n)`, `bcrypt.hash(pw, n)`/`genSalt(n)` and `crypto.pbkdf2(..., n, ...)`. n is read from the request (Flask/Django `request.args/form/json/GET/POST/...`, Express/Koa `req.query/body/params/headers`) on the sink line or assigned from it (including destructuring) in the 15 lines above. Not reported: a value clamped with min()/Math.min or compared with a bound on the lines in between, lengths of request data (`len(...)`, `.length`), constants, test files, comments and strings. The CWE's ordering aspect (expensive work before authentication) cannot be seen line by line, so the rule reports the unbounded factor itself.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-408/",
 	"languages": ["node", "python"],
 	"severity": "medium",
@@ -44,6 +44,7 @@ _py_sinks := [
 _js_sinks := [
 	`\bfor\s*\([^;]*;\s*[\w.]+\s*<=?\s*([^;]+);`,
 	`\bwhile\s*\(\s*[\w.]+\s*<=?\s*([^)]+)\)`,
+	`\bwhile\s*\(\s*([\w.]+)\s*>=?\s*[^&|)]+(?:&&|\|\||\))`,
 	`\.repeat\(\s*([^)]+)\)`,
 	`\bnew\s+Array\(\s*([^),]+)\)`,
 	`\bArray\(\s*([^),]+)\)\s*\.fill`,

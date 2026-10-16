@@ -105,7 +105,7 @@ _copy_text(lines, j) := concat(" ", [lines[j], lines[j + 1]]) if {
 
 _checked_between(lines, a, b) if {
 	a + 1 <= b - 1
-	some k in numbers.range(a + 1, b - 1)
+	some k in helpers.span(a + 1, b - 1)
 	regex.match(`\bstrn?len\s*\(`, lines[k])
 	not helpers.is_comment_line(lines[k])
 }

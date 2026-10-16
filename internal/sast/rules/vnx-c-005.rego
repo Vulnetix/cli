@@ -2,6 +2,8 @@ package vulnetix.rules.vnx_c_005
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-C-005",
 	"name": "Integer overflow in malloc/calloc size arithmetic",
@@ -181,7 +183,7 @@ _guarded(lines, j, i, v) if {
 # Reassigned (clamped, recomputed) after the read.
 _guarded(lines, j, i, v) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	l := _mask(lines[k])
 	regex.match(concat("", [`(?:^|[^\w.>*])`, v, `\s*=[^=]`]), l)
 	not regex.match(_parse_re, l)

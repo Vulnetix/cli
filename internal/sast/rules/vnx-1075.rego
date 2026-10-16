@@ -57,7 +57,7 @@ _is_label(line, name) if {
 # A column-0 closing brace ends a function: a label above one belongs to an
 # earlier function.
 _crosses_function(lines, k, i) if {
-	some j in numbers.range(k + 1, i - 1)
+	some j in helpers.span(k + 1, i - 1)
 	startswith(lines[j], "}")
 }
 
@@ -77,7 +77,7 @@ _exits_between(lines, k, i) if {
 	b := helpers.next_code_index(lines, k, 6)
 	bi := _indent(lines[b])
 	exits := [j |
-		some j in numbers.range(k + 1, i - 1)
+		some j in helpers.span(k + 1, i - 1)
 		regex.match(`^\s*(?:return\b|continue\s*;|break\s*;|goto\s+\w+\s*;|exit\s*\(|abort\s*\(|_exit\s*\()`, lines[j])
 		_indent(lines[j]) <= bi
 	]
@@ -86,12 +86,12 @@ _exits_between(lines, k, i) if {
 }
 
 _loops_back(lines, k, jx, i) if {
-	some m in numbers.range(jx + 1, i - 1)
+	some m in helpers.span(jx + 1, i - 1)
 	lm := regex.find_all_string_submatch_n(_label_re, lines[m], 1)
 	count(lm) > 0
 	name := lm[0][1]
 	not _not_label[name]
-	some p in numbers.range(k + 1, jx - 1)
+	some p in helpers.span(k + 1, jx - 1)
 	_goto_target(lines[p]) == name
 }
 

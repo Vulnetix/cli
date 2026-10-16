@@ -1,0 +1,9 @@
+<nav>
+  <%= link_to "Home", root_path %>
+  <%= content_tag :span, @user.name, class: "who" %>
+  <%= sanitize @post.body %>
+  <%= h @comment.body %>
+  <%= j @comment.body %>
+  <%# raw @comment.body is dangerous %>
+  <%= @user.name %>
+</nav>

@@ -1,0 +1,4 @@
+task :publish do
+~>  ENV["GEM_HOST_API_KEY"] = "@@sample:rubygems_[a-f0-9]{48}@@"
+  sh "gem push pkg/mygem-1.0.0.gem"
+end

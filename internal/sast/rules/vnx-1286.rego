@@ -93,7 +93,7 @@ _py_in_try(lines, i) if {
 
 _py_closed(lines, j, i, ij) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	trim_space(lines[k]) != ""
 	not helpers.is_comment_line(lines[k])
 	_indent(lines[k]) <= ij
@@ -147,7 +147,7 @@ _in_block_comment(lines, i) if {
 
 _comment_closed(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	contains(lines[k], "*/")
 }
 
@@ -274,7 +274,7 @@ _v229_in_try(lines, i) if {
 
 _v229_dedented_between(lines, j, i, ij) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	not _v229_blank_or_comment(lines[k])
 	_indent(lines[k]) <= ij
 }

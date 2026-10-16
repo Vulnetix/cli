@@ -1,0 +1,5 @@
+services:
+  api:
+    image: acme/api:1.4
+    environment:
+~>      DATABASE_URL: postgres://svc_api:Zk4mQ8vT2xLp@db.prod.acme.io:5432/api

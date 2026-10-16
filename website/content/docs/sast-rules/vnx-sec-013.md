@@ -5,7 +5,7 @@ description: "Detects cookies whose HttpOnly or Secure protection is switched of
 
 ## Overview
 
-This rule reports a cookie whose HttpOnly or Secure protection is switched off: `httpOnly: false` / `secure: false` in cookie or session options (Express, Go `http.Cookie` and gorilla `sessions.Options`, ASP.NET `CookieOptions`, Rails `session_store`, Spring YAML), Django and Flask `SESSION_COOKIE_SECURE` / `SESSION_COOKIE_HTTPONLY` / `CSRF_COOKIE_SECURE = False`, `set_cookie(..., secure=False)`, Java `setHttpOnly(false)` / `setSecure(false)`, Spring `server.servlet.session.cookie.*=false`, `CookieSecurePolicy.None`, web.config `httpOnlyCookies="false"`, PHP `ini_set('session.cookie_httponly', 0)` and php.ini, and `false` as the secure/httponly argument of PHP `setcookie()` or gin's `c.SetCookie()`. It also reports a session, token, auth, JWT, remember-me or user-id cookie issued with no HttpOnly setting at all (`res.cookie('session', id)`, `set_cookie('token', t)`, a Go `http.Cookie{}` with no `HttpOnly` field, Java `new Cookie("access_token", t)` with no `setHttpOnly`, PHP `setcookie('appSession', $v)`). It does not report the CSRF/XSRF cookie's HttpOnly (the page must read it), theme or language cookies, flags read from variables or the environment, options passed as a variable, cookies being cleared, development settings files, tests and documentation. SameSite is not checked. These settings control three distinct attack surfaces: HttpOnly prevents JavaScript from reading the cookie (blocking XSS-based session theft), Secure ensures the cookie is only sent over HTTPS (blocking cleartext interception), and SameSite restricts cross-origin sending (blocking CSRF).
+This rule reports a cookie whose HttpOnly or Secure protection is switched off: `httpOnly: false` / `secure: false` in cookie or session options (Express, Go `http.Cookie` and gorilla `sessions.Options`, ASP.NET `CookieOptions`, Rails `session_store`, Spring YAML), Django and Flask `SESSION_COOKIE_SECURE` / `SESSION_COOKIE_HTTPONLY` / `CSRF_COOKIE_SECURE = False`, `set_cookie(..., secure=False)`, Java `setHttpOnly(false)` / `setSecure(false)`, Spring `server.servlet.session.cookie.*=false`, `CookieSecurePolicy.None`, web.config `httpOnlyCookies="false"`, PHP `ini_set('session.cookie_httponly', 0)` and php.ini, and `false` as the secure/httponly argument of PHP `setcookie()` or gin's `c.SetCookie()`. It also reports a session, token, auth, JWT, remember-me or user-id cookie issued with no HttpOnly setting at all (`res.cookie('session', id)`, `set_cookie('token', t)`, a Go `http.Cookie{}` with no `HttpOnly` field, Java `new Cookie("access_token", t)` with no `setHttpOnly`, PHP `setcookie('appSession', $v)`). It does not report the CSRF/XSRF cookie's HttpOnly (the page must read it), theme or language cookies, flags read from variables or the environment, options passed as a variable, cookies being cleared, development settings files, tests and documentation. SameSite is not checked. Where a rule for one flag reports the same line, the line is left to it, so a missing flag is one finding: Secure in Java, JavaScript/TypeScript and Python is reported by [VNX-614](../vnx-614/); HttpOnly in Go, PHP, Python and Java and on `document.cookie` by [VNX-1004](../vnx-1004/); HttpOnly on an Express/Fastify `res.cookie()`/`reply.setCookie()` and `httpOnly: false` beside a cookie call by [VNX-NODE-029](../vnx-node-029/). This rule keeps the rest: Ruby, C#, Kotlin, web.config, php.ini and `.htaccess`, YAML, gin and fiber cookies, Next.js `cookies().set`, PHP and Go Secure, `setHttpOnly(false)` lines, and cookies only its name list counts as sensitive. These settings control three distinct attack surfaces: HttpOnly prevents JavaScript from reading the cookie (blocking XSS-based session theft), Secure ensures the cookie is only sent over HTTPS (blocking cleartext interception), and SameSite restricts cross-origin sending (blocking CSRF).
 
 **Severity:** Medium | **CWE:** [CWE-614 – Sensitive Cookie in HTTPS Session Without 'Secure' Attribute](https://cwe.mitre.org/data/definitions/614.html), [CWE-1004 – Sensitive Cookie Without 'HttpOnly' Flag](https://cwe.mitre.org/data/definitions/1004.html)
 
@@ -21,29 +21,26 @@ Many frameworks set these flags to `False` by default in development for conveni
 
 ## What Gets Flagged
 
-```python
-# FLAGGED: Django insecure cookie settings
-SESSION_COOKIE_SECURE = False
-SESSION_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SECURE = False
+```ruby
+# FLAGGED: Rails session cookie readable by script
+Rails.application.config.session_store :cookie_store, key: "_shop_session", httponly: false
+cookies[:auth_token] = { value: user.api_token, expires: 1.day.from_now }
 ```
 
-```javascript
-// FLAGGED: Express cookie with security disabled
-app.use(session({
-    secret: 'keyboard cat',
-    cookie: {
-        secure: false,
-        httpOnly: false,
-    }
-}));
+```csharp
+// FLAGGED: ASP.NET cookie options with both flags off
+Response.Cookies.Append("auth_token", token, new CookieOptions { HttpOnly = false, Secure = false });
+o.Cookie.SecurePolicy = CookieSecurePolicy.None;
 ```
 
-```python
-# FLAGGED: Flask insecure session cookie
-app.config['SESSION_COOKIE_SECURE'] = False
-# FLAGGED: session cookie with no httponly
-response.set_cookie("session_id", token)
+```yaml
+# FLAGGED: Spring session cookie flags in application.yml
+server:
+  servlet:
+    session:
+      cookie:
+        http-only: false
+        secure: false
 ```
 
 ```go
@@ -61,6 +58,23 @@ setcookie("auth_token", $token, time() + 3600, "/", "", false, false);
 ```
 
 Not flagged: `res.cookie('XSRF-TOKEN', req.csrfToken(), { httpOnly: false, secure: true })`, `res.cookie('theme', 'dark')`, `secure: process.env.NODE_ENV === 'production'`.
+
+Reported by the rule for that flag, not by VNX-SEC-013:
+
+```python
+SESSION_COOKIE_SECURE = False                     # VNX-614
+SESSION_COOKIE_HTTPONLY = False                   # VNX-1004
+response.set_cookie("session_id", token)          # VNX-1004 (HttpOnly) and VNX-614 (Secure)
+```
+
+```javascript
+app.use(session({ cookie: { secure: false } }));  // VNX-614
+res.cookie('token', token);                       // VNX-NODE-029 (HttpOnly) and VNX-614 (Secure)
+```
+
+```java
+cookie.setSecure(false);                          // VNX-614
+```
 
 ## Remediation
 

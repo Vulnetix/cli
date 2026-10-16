@@ -110,7 +110,7 @@ findings contains finding if {
 	some o in numbers.range(max([0, c - 20]), c - 1)
 	regex.match(`\b(?:const|let|var)\s*\{\s*$`, _code(lines[o]))
 	not _brace_between(lines, o + 1, c - 1)
-	some i in numbers.range(o + 1, c - 1)
+	some i in helpers.span(o + 1, c - 1)
 	km := regex.find_all_string_submatch_n(`^\s*([A-Za-z_$][\w$]*)\s*(?::\s*[A-Za-z_$][\w$]*)?\s*(?:=[^,]*)?,?\s*$`, _code(lines[i]), 1)
 	count(km) > 0
 	_price_or_priv(km[0][1])

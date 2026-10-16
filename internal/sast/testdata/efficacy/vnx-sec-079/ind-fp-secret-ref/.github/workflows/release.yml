@@ -1,0 +1,9 @@
+name: release
+on: push
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - run: git clone https://x-access-token:${{ secrets.RELEASE_PAT }}@github.com/acme/infra.git
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}

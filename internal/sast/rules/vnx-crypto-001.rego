@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CRYPTO-001",
 	"name": "MD5 usage detected",
-	"description": "MD5 is computed through a hash or signature API: Python hashlib.md5()/hashlib.new('md5') (module and from-import aliases resolved), PyCryptodome MD5.new() and cryptography hashes.MD5(); Node.js crypto.createHash('md5')/createSign('RSA-MD5'), CryptoJS.MD5() and the md5/blueimp-md5/js-md5/spark-md5 packages under the name they are imported as; Go crypto/md5 md5.New/md5.Sum (aliased import resolved) and x509.MD5WithRSA; Java MessageDigest/Signature.getInstance(\"MD5\"/\"MD5withRSA\") with the name given literally, through a variable or constant assigned \"MD5\" or as a getProperty default, commons-codec DigestUtils.md5*, Guava Hashing.md5() and BouncyCastle MD5Digest; Ruby Digest::MD5 and OpenSSL::Digest.new('MD5'); PHP md5(), md5_file(), hash('md5') and openssl_digest(..., 'md5'). MD5 collisions are cheap to produce, so it must not protect integrity, signatures, tokens or passwords; use SHA-256 or stronger (argon2/bcrypt/scrypt for passwords). Not reported: HMAC-MD5 (hmac.new(k, m, hashlib.md5), createHmac('md5'), hmac.New(md5.New, k), HmacMD5, hash_hmac('md5')), PBKDF2 or HKDF over MD5, Python calls declaring usedforsecurity=False, a field, header or method merely named md5, the import alone and constants such as md5.Size, the algorithm named inside a string literal (an SQL md5() call) or a comment, documentation, and test files.",
+	"description": "MD5 is computed through a hash or signature API: Python hashlib.md5()/hashlib.new('md5') (module and from-import aliases resolved), PyCryptodome MD5.new() and cryptography hashes.MD5(); Node.js crypto.createHash('md5')/createSign('RSA-MD5'), CryptoJS.MD5() and the md5/blueimp-md5/js-md5/spark-md5 packages under the name they are imported as; Go crypto/md5 md5.New/md5.Sum (aliased import resolved) and x509.MD5WithRSA; Java MessageDigest/Signature.getInstance(\"MD5\"/\"MD5withRSA\") with the name given literally, through a variable, field or constant (also one declared on another class) that holds it, directly, in a ternary, or from a getProperty/@Value lookup that resolves to the value the project's .properties or YAML files give the key, else the lookup default, commons-codec DigestUtils.md5*, Guava Hashing.md5() and BouncyCastle MD5Digest; Ruby Digest::MD5 and OpenSSL::Digest.new('MD5'); PHP md5(), md5_file(), hash('md5') and openssl_digest(..., 'md5'). MD5 collisions are cheap to produce, so it must not protect integrity, signatures, tokens or passwords; use SHA-256 or stronger (argon2/bcrypt/scrypt for passwords). Not reported: HMAC-MD5 (hmac.new(k, m, hashlib.md5), createHmac('md5'), hmac.New(md5.New, k), HmacMD5, hash_hmac('md5')), PBKDF2 or HKDF over MD5, Python calls declaring usedforsecurity=False, a field, header or method merely named md5, the import alone and constants such as md5.Size, the algorithm named inside a string literal (an SQL md5() call) or a comment, documentation, and test files. An MD5 digest that protects a security value is reported by a more precise rule instead, so the line is reported once: a password passed straight into it by VNX-CRYPTO-007 (a password hashed with a fast hash), and one with a password, secret, token, session id, cookie, signature, salt, nonce, CSRF value or API key named around the call by VNX-327 (a broken hash protecting a security value).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-001/",
 	"languages": ["python", "node", "go", "java", "ruby", "php"],
 	"severity": "medium",
@@ -145,7 +145,7 @@ _bound("node", content) := pats if {
 
 _bound("go", content) := {concat("", [`(?:^|[^\w.])`, n, `\.(?:New|Sum)\b`]) | some n in _go_names(content)}
 
-_bound("java", content) := {concat("", [`\b(?:MessageDigest|Signature)\.getInstance\s*\(\s*`, v, `\s*[,)]`]) | some v in _java_vars(content)}
+_bound("java", content) := {concat("", [`\b(?:MessageDigest|Signature)\.getInstance\s*\(\s*(?:[\w.]+\.)?`, v, `\s*[,)]`]) | some v in helpers.java_global_consts(_weak_alg)}
 
 _bound("ruby", _) := set()
 
@@ -157,11 +157,13 @@ _go_names(content) := {n |
 	n := _alias_or(m[1], "md5")
 }
 
-# Java: a variable or constant assigned the "MD5" literal, directly or as the
-# default of a properties lookup.
-_java_vars(content) := {m[1] |
-	some m in regex.find_all_string_submatch_n(`\b(\w+)\s*=\s*(?:"(?i:md5)"|[\w.]*getProperty\s*\(\s*"[^"]*"\s*,\s*"(?i:md5)"\s*\))\s*[;,)]`, content, -1)
-}
+# Java: a variable, field or constant that holds the algorithm name: assigned
+# the literal, a ternary of literals, a properties lookup (the value the
+# project's own configuration gives the key, else the default) or a Spring
+# @Value placeholder.
+_weak_alg := `^(?i:(?:rsa-)?md5(?:with\w*)?)$`
+
+_java_vars(content) := helpers.java_alg_vars(content, _weak_alg)
 
 # Cheap substrings (compared case-insensitively) for skipping lines that
 # cannot match.
@@ -192,6 +194,66 @@ _may(line, _) if endswith(trim_right(line, " \t\r"), "(")
 _hit(_, _, _, code, pats) if {
 	some p in pats
 	regex.match(p, code)
+}
+
+# an inline lookup or ternary as the algorithm argument
+_hit("java", lines, i, _, _) if helpers.java_inline_alg(lines[i], _weak_alg)
+
+# getInstance(name): the assignments to name in the enclosing method decide; a
+# name with none there (a field, a constant) falls back to the file's.
+_hit("java", lines, i, code, _) if {
+	m := regex.find_all_string_submatch_n(`\b(?:MessageDigest|Signature)\.getInstance\s*\(\s*([A-Za-z_]\w*)\s*[,)]`, code, 1)
+	count(m) > 0
+	v := m[0][1]
+	vals := _local_alg_values(lines, i, v)
+	count(vals) > 0
+	some x in vals
+	regex.match(_weak_alg, x)
+}
+
+_hit("java", lines, i, code, _) if {
+	m := regex.find_all_string_submatch_n(`\b(?:MessageDigest|Signature)\.getInstance\s*\(\s*([A-Za-z_]\w*)\s*[,)]`, code, 1)
+	count(m) > 0
+	v := m[0][1]
+	count(_local_assigns(lines, i, v)) == 0
+	not _declared_here(lines, i, v)
+	v in _java_vars(concat("\n", lines))
+}
+
+_local_assigns(lines, i, v) := [{"k": k, "rhs": m[1]} |
+	some k in helpers.span(helpers.flow_method_start(lines, i), i - 1)
+	not helpers.is_comment_line(lines[k])
+	some m in regex.find_all_string_submatch_n(concat("", [`(?:^|[^=!<>\w.])`, v, `\s*=\s*([^;=][^;]*);`]), lines[k], -1)
+]
+
+_indent(l) := count(l) - count(trim_left(l, " \t"))
+
+# An assignment at the call's own block level (or shallower) replaces every one
+# above it; those in branches after it, and all of them when none is at that
+# level (a switch, an if/else), can each be the value that runs.
+_dom_floor(lines, i, all) := max(doms) if {
+	doms := [a.k | some a in all; _indent(lines[a.k]) <= _indent(lines[i])]
+	count(doms) > 0
+} else := 0
+
+_scoped_assigns(lines, i, v) := [a |
+	all := _local_assigns(lines, i, v)
+	b := _dom_floor(lines, i, all)
+	some a in all
+	a.k >= b
+]
+
+_local_alg_values(lines, i, v) := {x |
+	some a in _scoped_assigns(lines, i, v)
+	some x in helpers.java_rhs_values(a.rhs)
+}
+
+# v is a parameter or a local of the enclosing method, so a field or constant of
+# the same name elsewhere in the file is not what it holds
+_declared_here(lines, i, v) if {
+	s := helpers.flow_method_start(lines, i)
+	some k in helpers.span(max([0, s - 3]), i - 1)
+	regex.match(concat("", [`\b(?:String|var)\s+`, v, `\b`]), lines[k])
 }
 
 _hit(lang, lines, i, code, _) if {
@@ -226,10 +288,16 @@ _excluded("python", _, _, code) if regex.match(`^\s*(?:async\s+)?def\s`, code)
 
 _excluded("php", _, _, code) if regex.match(`(?i)\bfunction\s+&?\s*md5`, code)
 
+# the algorithm name is in the text, or a Java getInstance is handed something
+# other than a literal (a variable, a lookup) that configuration may resolve
+_gate(content) if regex.match(`(?i)md5`, content)
+
+_gate(content) if regex.match(`\b(?:MessageDigest|Signature)\.getInstance\s*\(\s*[^")\s]`, content)
+
 findings contains finding if {
 	some path, content in input.file_contents
 	lang := _lang(path)
-	regex.match(`(?i)md5`, content)
+	_gate(content)
 	not helpers.is_test_path(path)
 	pats := {p | some p in _static[lang]} | _bound(lang, content)
 	toks := _tokens(lang, content)

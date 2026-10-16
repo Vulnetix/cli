@@ -74,7 +74,7 @@ _in_loop(lines, h, k) if {
 	ind := _indent(lines[h])
 	_indent(lines[k]) > ind
 	count([m |
-		some m in numbers.range(h + 1, k - 1)
+		some m in helpers.span(h + 1, k - 1)
 		m > h
 		m < k
 		not _body_line(lines[m], ind)

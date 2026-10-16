@@ -141,7 +141,7 @@ findings contains finding if {
 	stop := min(array.concat([n], [k | some k in terms; k > e; ind[k] <= d]))
 	stop - e > 12
 	bs := _start_or_sig(lines, e)
-	cc := sum([dec[k] | some k in numbers.range(bs + 1, stop - 1)])
+	cc := sum([dec[k] | some k in helpers.span(bs + 1, stop - 1)])
 	cc >= _threshold
 	finding := {
 		"rule_id": metadata.id,

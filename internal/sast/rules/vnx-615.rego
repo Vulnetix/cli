@@ -91,6 +91,7 @@ findings contains finding if {
 	regex.match(`[0-9!@#^&*+?]`, v)
 	not regex.match(_placeholder, v)
 	not contains(v, "://")
+	not regex.match(concat("", [`://\S*`, _cue]), text)
 	not startswith(v, "/")
 	not regex.match(`^[A-Za-z_][\w]*(?:\.[A-Za-z_]\w*)+$`, v)
 	finding := {

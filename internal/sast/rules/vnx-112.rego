@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-112",
 	"name": "Missing XML Validation",
-	"description": "An XML document received in an HTTP request is parsed and used with no schema or structural validation anywhere in the file, so the application trusts whatever element structure, types and cardinality the requester sends (CWE-112). Reported: Java DocumentBuilder/SAXParser/XMLReader .parse, JAXB .unmarshal and StAX createXMLStreamReader/createXMLEventReader (in a file importing javax.xml, org.xml.sax or JAXB); Python lxml/ElementTree/cElementTree/defusedxml fromstring/XML/parse, minidom/pulldom parseString/parse, xmltodict.parse, objectify and untangle; Node xml2js parseString/parseStringPromise, libxmljs parseXml/parseXmlString, DOMParser parseFromString, xml-js xml2js/xml2json, and fast-xml-parser XMLParser .parse. The parsed argument must be the request body or a request value (Java getInputStream/getReader/getParameter or an @RequestBody parameter; Python request.data/body/get_data/stream/files/form/args/values/json/GET/POST; Node req/request body/query/params or Koa ctx.request.body), inline or through a variable assigned from it (or from such a variable) in the 25 lines above. Not reported: a file that mentions schema validation or a validator in code (setSchema, SchemaFactory/newSchema, Validator, .validate(, setValidating(true), XMLSchema/xmlschema, assertValid, RelaxNG, schema=, an XSD, or a Joi/ajv/pydantic-style schema check of the parsed result), XML read from files or constants, Java .parse calls on a static receiver or one named for dates, formats, URIs, numbers or JSON (LocalDate.parse, sdf.parse, JSON.parse), and calls in comments. XXE (external entity) processing is a different weakness, reported by the XXE rules.",
+	"description": "An XML document received in an HTTP request is parsed and used with no schema or structural validation anywhere in the file, so the application trusts whatever element structure, types and cardinality the requester sends (CWE-112). Reported: Java DocumentBuilder/SAXParser/XMLReader .parse, JAXB .unmarshal and StAX createXMLStreamReader/createXMLEventReader (in a file importing javax.xml, org.xml.sax or JAXB); Python lxml/ElementTree/cElementTree/defusedxml fromstring/XML/parse, minidom/pulldom parseString/parse, xmltodict.parse, objectify and untangle; Node xml2js parseString/parseStringPromise (also destructured imports), libxmljs parseXml/parseXmlString, DOMParser parseFromString, xml-js xml2js/xml2json, and fast-xml-parser XMLParser .parse. The parsed argument must be the request body or a request value (Java getInputStream/getReader/getParameter or an @RequestBody parameter; Python request.data/body/get_data/stream/files/form/args/values/json/GET/POST; Node req/request body/query/params or Koa ctx.request.body), inline or through a variable assigned from it (or from such a variable) in the 25 lines above. Not reported: a file that mentions schema validation or a validator in code (setSchema, SchemaFactory/newSchema, Validator, .validate(, setValidating(true), XMLSchema/xmlschema, assertValid, RelaxNG, schema=, an XSD, or a Joi/ajv/pydantic-style schema check of the parsed result), XML read from files or constants, Java .parse calls on a static receiver or one named for dates, formats, URIs, numbers or JSON (LocalDate.parse, sdf.parse, JSON.parse), and calls in comments. XXE (external entity) processing is a different weakness, reported by the XXE rules.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-112/",
 	"languages": ["java", "node", "python"],
 	"severity": "high",
@@ -54,7 +54,7 @@ _sinks := {
 		`\b(?:minidom|pulldom|xmltodict|untangle)\.(?:parseString|parse)\s*\((.*)$`,
 	],
 	"js": [
-		`(?:\bxml2js\.|\.)parseString(?:Promise)?\s*\((.*)$`,
+		`(?:\bxml2js\.|\.|(?:^|[^\w]))parseString(?:Promise)?\s*\((.*)$`,
 		`(?:\blibxmljs\d?\.|^|[^\w.])parseXml(?:String)?\s*\((.*)$`,
 		`\.parseFromString\s*\((.*)$`,
 		`\b(?:convert\.)?xml2(?:js|json)\s*\((.*)$`,
@@ -73,7 +73,7 @@ _non_xml_receiver("java", code) if {
 	_static_or_non_xml(m[1])
 }
 
-_static_or_non_xml(r) if regex.match(`^[A-Z]`, r)
+_static_or_non_xml(r) if regex.match(`^[A-Z]\w*[a-z]`, r)
 
 _static_or_non_xml(r) if regex.match(`(?i)format|fmt|json|mapper|gson|date|time|uri|url|number`, r)
 

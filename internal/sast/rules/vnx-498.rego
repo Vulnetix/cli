@@ -56,7 +56,7 @@ _first(a, d) := d if count(a) == 0
 _body_end(lines, i, ind) := _first(ends, lim) if {
 	lim := min([count(lines), i + 800])
 	ends := [k |
-		some k in numbers.range(i + 1, lim - 1)
+		some k in helpers.span(i + 1, lim - 1)
 		startswith(lines[k], concat("", [ind, "}"]))
 	]
 }

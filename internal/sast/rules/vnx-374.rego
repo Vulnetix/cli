@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-374",
 	"name": "Passing Mutable Objects to an Untrusted Method",
-	"description": "A public or protected Java method or constructor stores a mutable object it was passed straight into a field, so the caller keeps a live reference to the object's internal state and can change it after any validation the object did (the object and its untrusted caller share one mutable value). Reported: `this.field = param;` (or `field = param;` for a field declared in the file) inside a public or protected method or constructor whose parameter `param` is an array or a mutable collection or date type (List, ArrayList, LinkedList, Map, HashMap, TreeMap, LinkedHashMap, Set, HashSet, TreeSet, LinkedHashSet, Collection, Deque, Queue, Date, Calendar, StringBuilder), or varargs (byte... p), including a signature that spans lines and a one-line setter (`public void setX(List<T> x) { this.x = x; }`). Not reported: a defensive copy or view (new ArrayList<>(p), List.copyOf(p), p.clone(), Arrays.copyOf(p, ...), new Date(p.getTime()), Collections.unmodifiable*), immutable parameter types (String, primitives, ImmutableList), private and package-private methods, a value derived from the parameter rather than the parameter itself, JPA/document entity and JAXB-bound classes (@Entity, @Embeddable, @MappedSuperclass, @Document, @XmlRootElement, @XmlType), whose setters a framework drives, test sources and comments.",
+	"description": "A public or protected Java method or constructor stores a mutable object it was passed straight into a field, so the caller keeps a live reference to the object's internal state and can change it after any validation the object did (the object and its untrusted caller share one mutable value). Reported: `this.field = param;` (or `field = param;` for a field declared in the file) inside a public or protected method or constructor whose parameter `param` is an array or a mutable collection or date type (List, ArrayList, LinkedList, Map, HashMap, TreeMap, LinkedHashMap, Set, HashSet, TreeSet, LinkedHashSet, Collection, Deque, Queue, Date, Calendar, StringBuilder), or varargs (byte... p), including a signature that spans lines and a one-line setter or fluent builder (`public void setX(List<T> x) { this.x = x; }`, `{ this.x = x; return this; }`). Not reported: a defensive copy or view (new ArrayList<>(p), List.copyOf(p), p.clone(), Arrays.copyOf(p, ...), new Date(p.getTime()), Collections.unmodifiable*), immutable parameter types (String, primitives, ImmutableList), private and package-private methods, a value derived from the parameter rather than the parameter itself, JPA/document entity and JAXB-bound classes (@Entity, @Embeddable, @MappedSuperclass, @Document, @XmlRootElement, @XmlType), whose setters a framework drives, test sources and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-374/",
 	"languages": ["java"],
 	"severity": "low",
@@ -99,12 +99,12 @@ findings contains finding if {
 }
 
 # A one-line setter or constructor: `public void setX(List<T> x) { this.x = x; }`.
-_one_line_re := `^\s*(?:@\w+(?:\([^)]*\))?\s+)*(?:public|protected)\s+[^=;{(]*\(([^)]*)\)\s*(?:throws\s[^{]*)?\{\s*(this\s*\.\s*)?([A-Za-z_]\w*)\s*=\s*([A-Za-z_]\w*)\s*;\s*\}`
+_one_line_re := `^\s*(?:@\w+(?:\([^)]*\))?\s+)*(?:public|protected)\s+[^=;{(]*\(([^)]*)\)\s*(?:throws\s[^{]*)?\{\s*(this\s*\.\s*)?([A-Za-z_]\w*)\s*=\s*([A-Za-z_]\w*)\s*;\s*(?:return\s+this\s*;\s*)?\}`
 
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".java")
-	regex.match(`(?m)\{\s*(?:this\s*\.\s*)?\w+\s*=\s*\w+\s*;\s*\}`, content)
+	regex.match(`(?m)\{\s*(?:this\s*\.\s*)?\w+\s*=\s*\w+\s*;\s*(?:return\s+this\s*;\s*)?\}`, content)
 	not helpers.is_test_path(path)
 	not regex.match(_entity_re, content)
 	lines := split(content, "\n")

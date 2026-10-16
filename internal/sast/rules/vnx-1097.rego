@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_1097
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-1097",
 	"name": "Persistent Storable Data Element without Associated Comparison Control Element",
@@ -155,7 +157,7 @@ findings contains finding if {
 
 _earlier_order(lines, k, i) if {
 	k + 1 <= i - 1
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	regex.match(_py_order_re, lines[m])
 }
 

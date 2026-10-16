@@ -1,0 +1,4 @@
+auth:
+  header: "Authorization: Bearer {{ .Values.token }}"
+  example: "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  bad: "Authorization: Bearer invalid_token_format"

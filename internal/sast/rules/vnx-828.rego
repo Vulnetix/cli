@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_828
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-828",
 	"name": "Signal Handler with Functionality that is not Asynchronous-Safe",
@@ -33,9 +35,11 @@ _reg_res := [
 
 _not_handlers := {"SIG_IGN", "SIG_DFL", "SIG_ERR", "SIG_HOLD", "NULL", "nullptr", "0"}
 
+_nocomment(content) := regex.replace(regex.replace(content, `"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'`, `""`), `(?s)/\*.*?\*/|//[^\n]*`, "")
+
 _handlers(content) := {h |
 	some re in _reg_res
-	some m in regex.find_all_string_submatch_n(re, content, -1)
+	some m in regex.find_all_string_submatch_n(re, _nocomment(content), -1)
 	h := m[1]
 	not h in _not_handlers
 }
@@ -130,7 +134,7 @@ _body(lines, d) := [k |
 	n := count(lines)
 	ends := [e | some e in numbers.range(d + 1, min([d + 120, n - 1])); startswith(lines[e], "}")]
 	count(ends) > 0
-	some k in numbers.range(d + 1, min(ends) - 1)
+	some k in helpers.span(d + 1, min(ends) - 1)
 ]
 
 _code_lines(lines, d) := [code |

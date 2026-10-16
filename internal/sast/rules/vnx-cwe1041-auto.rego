@@ -86,7 +86,7 @@ _cond(re, line) := _norm(m[1]) if {
 }
 
 _chain_open(lines, j, k, ind, lang) if {
-	every m in numbers.range(j + 1, k - 1) {
+	every m in helpers.span(j + 1, k - 1) {
 		_inside_chain(lines[m], ind, lang)
 	}
 }

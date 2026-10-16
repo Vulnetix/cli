@@ -1,0 +1,13 @@
+{
+  "name": "legacy-gateway",
+  "version": "2.4.1",
+  "private": true,
+  "scripts": {
+~>    "start": "node --insecure-http-parser dist/index.js",
+    "build": "tsc -p .",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

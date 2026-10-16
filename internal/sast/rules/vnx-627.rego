@@ -103,9 +103,16 @@ _bound(lang, lines, i) := {v |
 	v := m[0][1]
 }
 
-_from_request(lang, _, _, k) if regex.match(_source[lang], k)
+# A bare symbol literal (:@theme) is a constant name, whatever it spells.
+_symbol_literal(k) if regex.match(`^\s*:@{0,2}\w+\s*$`, k)
+
+_from_request(lang, _, _, k) if {
+	not _symbol_literal(k)
+	regex.match(_source[lang], k)
+}
 
 _from_request(lang, lines, i, k) if {
+	not _symbol_literal(k)
 	names := _tainted(lang, lines, i) | _bound(lang, lines, i)
 	some v in names
 	_names(lang, k, v)

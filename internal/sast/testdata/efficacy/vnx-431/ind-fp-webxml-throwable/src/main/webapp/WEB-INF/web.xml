@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee" version="5.0">
+  <display-name>orders</display-name>
+  <error-page>
+    <error-code>404</error-code>
+    <location>/errors/404.html</location>
+  </error-page>
+  <error-page>
+    <exception-type>java.lang.Throwable</exception-type>
+    <location>/errors/generic.html</location>
+  </error-page>
+</web-app>

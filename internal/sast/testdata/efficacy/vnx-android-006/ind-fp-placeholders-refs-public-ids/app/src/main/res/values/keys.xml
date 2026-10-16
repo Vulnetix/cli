@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- <string name="payments_api_key">q7Rm2VxK9pLt4ZwB8nHc</string> moved to the backend -->
+    <string name="payments_api_key">YOUR_API_KEY_HERE</string>
+    <string name="crash_reporting_token">changeme</string>
+    <string name="maps_api_key">@string/maps_key_from_ci</string>
+    <string name="sentry_token">${SENTRY_TOKEN}</string>
+    <string name="api_token_endpoint">https://auth.quayside.io/oauth/token</string>
+    <string name="google_api_key" translatable="false">AIzaSyPublicFirebaseClientIdentifier01</string>
+    <string name="facebook_client_token">f0e1d2c3b4a5968778695a4b3c2d1e0f</string>
+    <string name="signing_key">xxxxxxxxxxxxxxxx</string>
+</resources>

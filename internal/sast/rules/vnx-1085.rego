@@ -80,7 +80,7 @@ findings contains finding if {
 	e := _body_end(lines, i, ind)
 	e > i + _min_lines
 	n := count([k |
-		some k in numbers.range(i + 1, e - 1)
+		some k in helpers.span(i + 1, e - 1)
 		_indent(lines[k]) > ind
 		regex.match(_code_comment_re, lines[k])
 		not _in_string(tq, i, k)

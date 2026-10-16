@@ -9,7 +9,7 @@ metadata := {
 	"name": "Unquoted command substitution in shell script",
 	"description": "Reports a command substitution, $(...) or `...`, used outside double quotes as an argument of a command, where the shell word-splits and globs its output: cd $(dirname \"$f\"), chmod 600 $(find ...), tar czf out.tgz $(cat list), export $(grep -v '^#' .env | xargs), a continued command line, and a for loop over a file or text listing (for f in $(ls ...), $(find ...), $(cat ...), $(grep ...), $(git ls-files/diff --name-only ...)). A file name or line with a space or glob character then becomes several arguments or expands to other files, which is argument injection when the output is attacker-influenced. Not reported: substitutions inside double quotes (including nested ones and multi-line strings), assignments and ${VAR:-$(...)} defaults, [[ ]] tests, (( )) and $(( )) arithmetic, case words, here-strings, here-document bodies, a substitution in command position (if ! $(grep -q ...)), commands whose output is a number or a single token (seq, nproc, jobs -p, id, date, wc, uname, whoami, hostname, git rev-parse, tput, getconf, pgrep, docker/podman ... -q id lists), for loops over other tool output, comments, echo/printf text, test paths and .bats files. Shell files are .sh, .bash and extensionless files with a sh/bash/dash/ksh shebang.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-bash-007/",
-	"languages": ["bash"],
+	"languages": ["bash", "generic"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",

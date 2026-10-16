@@ -9,7 +9,7 @@ metadata := {
 	"name": "Global IFS reassignment in shell script",
 	"description": "Reports an IFS change that escapes the code that needed it: IFS assigned as a statement (IFS=, or IFS=':'; read ...) inside a function that never declares local IFS and never restores it before the function ends, so the caller's word splitting silently changes; IFS assigned at script level and never restored in the next 300 lines (no IFS=$saved, IFS=$' \\t\\n' or unset IFS); export IFS, which passes the separator to every child process; and IFS taken from a positional parameter or OPTARG, which hands word splitting to the caller. Not reported: a command-prefix assignment (while IFS= read -r line, IFS=, read -r a b), IFS set inside a subshell or command substitution ($(IFS=,; echo \"${a[*]}\")), local IFS, an assignment restored from a saved variable or by unset IFS, the restore line itself, the strict-mode IFS=$'\\n\\t', variables merely named like IFS, comments, strings, test paths and .bats files. Shell files are .sh, .bash and extensionless files with a sh/bash/dash/ksh shebang.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-bash-006/",
-	"languages": ["bash"],
+	"languages": ["bash", "generic"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",

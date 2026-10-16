@@ -35,7 +35,7 @@ _sink_ref(code, raw, v, _) if {
 }
 
 _sink_ref(code, raw, v, body) if {
-	regex.match(concat("", [`\.join\s*\(\s*[^)]*(?:^|[^.\w])`, v, `\b`]), code)
+	regex.match(concat("", [`\.join\s*\((?:[^)]*[^.\w])?`, v, `\b`]), code)
 	not regex.match(`\bUrl::|\b\w*url\w*\s*\.join|\.join\s*\(\s*""`, code)
 	not _url_receiver(code, body)
 }

@@ -145,6 +145,17 @@ _relayed(lines, i, lang) if {
 	regex.match(_relay(lang), lines[k])
 }
 
+# return Response(
+#     upstream.content, ...): the wrapper opens on one line, the body is the next.
+_relayed(lines, i, "py") if {
+	end := _relay_end(lines, i)
+	some k in numbers.range(i, end)
+	not helpers.is_comment_line(lines[k])
+	regex.match(`(?:\breturn\b|Response\(|render\(|jsonify\(|make_response\()\s*\(?\s*$`, lines[k])
+	k + 1 <= end
+	regex.match(`^\s*(?:await\s+)?[A-Za-z_][\w.]*\.(?:content|text|raw|read\(\)|json\(\)|iter_content\()`, lines[k + 1])
+}
+
 # body = await resp.read() / data = r.content, then return web.Response(body=body).
 _relayed(lines, i, "py") if {
 	end := _relay_end(lines, i)

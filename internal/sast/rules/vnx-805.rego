@@ -236,7 +236,7 @@ _src_arg(fn, _) := "" if {
 # A function body closes (a `}` in column 0) between the declaration and the
 # call: the array belonged to another function.
 _fn_end_between(lines, j, i) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	startswith(lines[k], "}")
 }
 

@@ -30,7 +30,7 @@ _lang(path) := "php" if endswith(path, ".php")
 # by VNX-NODE-010, so neither language is read here.
 
 _source_needles := {
-	"py": {"request."},
+	"py": {"request.", ".route(", ".get(", ".post(", ".put(", ".delete("},
 	"php": {"$_"},
 }
 
@@ -163,7 +163,7 @@ _reaches(lang, lines, i, arg) if {
 }
 
 _guarded(lines, j, i, re) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	l := lines[k]
 	regex.match(re, l)
 	regex.match(_guard, l)

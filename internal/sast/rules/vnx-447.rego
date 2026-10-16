@@ -73,7 +73,7 @@ _body(lines, i, o) := b if {
 	count(ends) > 0
 	k := ends[0]
 	after := regex.replace(lines[o], `^[^{]*\{`, "")
-	inner := [_strip(l) | some j in numbers.range(o + 1, k - 1); j > o; j < k; l := lines[j]; not helpers.is_comment_line(l)]
+	inner := [_strip(l) | some j in helpers.span(o + 1, k - 1); j > o; j < k; l := lines[j]; not helpers.is_comment_line(l)]
 	b := trim_space(concat(" ", array.concat([_strip(after)], inner)))
 }
 

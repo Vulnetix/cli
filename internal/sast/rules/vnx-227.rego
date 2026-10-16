@@ -106,7 +106,7 @@ _continues(lines, i) if {
 
 _code_between(lines, k, i) if {
 	k + 1 <= i - 1
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	trim_space(lines[m]) != ""
 	not helpers.is_comment_line(lines[m])
 }

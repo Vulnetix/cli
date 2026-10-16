@@ -132,7 +132,7 @@ _security_related(_, _, exc) if regex.match(_sec_exc, exc)
 
 _security_related(lines, i, _) if {
 	t := _try_line(lines, i)
-	some k in numbers.range(t + 1, i - 1)
+	some k in helpers.span(t + 1, i - 1)
 	l := lines[k]
 	not helpers.is_comment_line(l)
 	regex.match(_verify, l)

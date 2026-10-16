@@ -1,0 +1,6 @@
+services:
+  mq:
+    image: rabbitmq:3
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+~>      RABBITMQ_DEFAULT_PASS: guest

@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_sec_050
 
 import rego.v1
+import data.vulnetix.helpers
 import data.vulnetix.lib.secrets
 
 metadata := {
@@ -33,6 +34,7 @@ _firebase_config := `authDomain|firebaseapp\.com|messagingSenderId`
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
+	not helpers.is_test_path(path)
 	contains(content, "AIza")
 	regex.match(_context, content)
 	lines := split(content, "\n")

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-643",
 	"name": "XPath injection: query built from a dynamic string",
-	"description": "An XPath query is built by splicing a variable into the expression text and then compiled or evaluated, so a value such as ' or '1'='1 rewrites the query (CWE-643). Reported in Java: javax.xml.xpath XPath.compile()/evaluate() on an XPath receiver (a variable declared as XPath, or named xpath/xp) and dom4j selectNodes()/selectSingleNode()/selectObject()/createXPath(); in Python: lxml .xpath() and etree.XPath(), elementpath.select()/iter_select(), and ElementTree find()/findall()/iterfind()/findtext() when the path has an XPath predicate. The expression argument (also when it starts on the next line) must be concatenation of a literal with a non-constant value, String.format/formatted/MessageFormat.format, a Python f-string with a placeholder, %-formatting or .format(), or a variable assigned from such an expression up to 20 lines above. The enclosing method or function (at most 120 lines up) is read first, and an operand that provably holds a constant at the call is not spliced data: a literal it was last assigned on every live path, the taken side of an if/else (Python if/elif/else) or conditional expression whose condition folds to a constant (integer literals and int locals assigned once; in Python also a literal tested with in/not in against a string local), the selected case of a switch or match on a constant, the element a list index or map, dict or ConfigParser key actually holds when that is a literal, and the result of a same-file method or function (including a nested class) whose every return is constant. In Python, inside an apostrophe-quoted XPath literal, a value whose apostrophes are replaced (.replace(\"'\", ...)) or that an early return has proven free of them (if \"'\" in v: return) is not reported either. A value the analysis cannot resolve (a condition on run-time data, a call into another file, a collection passed elsewhere, a try block, a loop) stays reported. Not reported: constant expressions (literals, ALL_CAPS constants), a single numeric %-conversion (\"%d\" % int(x)), parameterised queries (XPathVariableResolver, lxml $name variables bound by keyword), other evaluate() receivers (ScriptEngine, browser document.evaluate), comments and string literals. A Java expression traced to request data (a servlet parameter, header or cookie, an annotated handler parameter, or a String method parameter spliced into a quoted value) is reported by VNX-JAVA-013, the Java taint rule for the same injection, so the line is reported once; this rule keeps the Java expressions built from other non-constant values. Whether a non-constant value is attacker-controlled is not judged.",
+	"description": "An XPath query is built by splicing a variable into the expression text and then compiled or evaluated, so a value such as ' or '1'='1 rewrites the query (CWE-643). Reported in Java: javax.xml.xpath XPath.compile()/evaluate() on an XPath receiver (a variable declared as XPath, or named xpath/xp) and dom4j selectNodes()/selectSingleNode()/selectObject()/createXPath(); in Python: lxml .xpath() and etree.XPath(), elementpath.select()/iter_select(), and ElementTree find()/findall()/iterfind()/findtext() when the path has an XPath predicate. The expression argument (also when it starts on the next line) must be concatenation of a literal with a non-constant value, String.format/formatted/MessageFormat.format, a Python f-string with a placeholder, %-formatting or .format(), an io.StringIO buffer that a non-constant value is written into with write() and read back with getvalue(), or a variable assigned from such an expression up to 20 lines above. The enclosing method or function (at most 120 lines up) is read first, and an operand that provably holds a constant at the call is not spliced data: a literal it was last assigned on every live path, the taken side of an if/else (Python if/elif/else) or conditional expression whose condition folds to a constant (integer literals and int locals assigned once; in Python also a literal tested with in/not in against a string local), the selected case of a switch or match on a constant, the element a list index or map, dict or ConfigParser key actually holds when that is a literal, and the result of a same-file method or function (including a nested class) whose every return is constant. In Python, inside an apostrophe-quoted XPath literal, a value whose apostrophes are replaced (.replace(\"'\", ...)) or that an early return has proven free of them (if \"'\" in v: return) is not reported either. A value the analysis cannot resolve (a condition on run-time data, a call into another file, a collection passed elsewhere, a try block, a loop) stays reported. A call into code the analysis cannot see is read as inert, and its value is constant, when it is not named like a source (read*, input, getenv, get_*param/header/cookie/value, query, execute, popen), every argument is a constant, and its receiver is a class, an imported module, or a local built from such a call or from a constructor with constant arguments that is only ever called with constant arguments; a call handed a run-time argument, made on a run-time receiver or named like a source stays reported. Not reported: constant expressions (literals, ALL_CAPS constants), a single numeric %-conversion (\"%d\" % int(x)), parameterised queries (XPathVariableResolver, lxml $name variables bound by keyword), other evaluate() receivers (ScriptEngine, browser document.evaluate), comments and string literals. A Java expression traced to request data (a servlet parameter, header or cookie, an annotated handler parameter, or a String method parameter spliced into a quoted value) is reported by VNX-JAVA-013, the Java taint rule for the same injection, so the line is reported once; this rule keeps the Java expressions built from other non-constant values. Whether a non-constant value is attacker-controlled is not judged. A call chain of constant operands nested up to four deep (new String(decode(encode(name.getBytes())))) is folded as constant.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-643/",
 	"languages": ["java", "python"],
 	"severity": "high",
@@ -135,6 +135,34 @@ _var_built(lines, i, arg, lang, C) if {
 	_built(_fold(lines, lines[j], j, C, lang), lang)
 }
 
+# An io.StringIO assembled with write() and read back with getvalue():
+#   buf = io.StringIO(); buf.write("/a[@id='"); buf.write(v); q = buf.getvalue()
+# is the same splice as concatenation when one write is not a constant.
+_var_built(lines, i, arg, "py", C) if {
+	m := regex.find_all_string_submatch_n(`^\s*([A-Za-z_]\w*)\s*(?:[,)]|$)`, arg, 1)
+	count(m) > 0
+	v := m[0][1]
+	re := concat("", [`^\s*`, v, `\s*=\s*([A-Za-z_]\w*)\.getvalue\(\s*\)\s*$`])
+	some j in helpers.span(max([0, i - 20]), i - 1)
+	g := regex.find_all_string_submatch_n(re, lines[j], 1)
+	count(g) > 0
+	b := g[0][1]
+	ctor := concat("", [`^\s*`, b, `\s*=\s*(?:io\.)?StringIO\(`])
+	some c in helpers.span(max([0, j - 25]), j - 1)
+	regex.match(ctor, lines[c])
+	some k in helpers.span(c + 1, j - 1)
+	w := regex.find_all_string_submatch_n(concat("", [`^\s*`, b, `\.write\(\s*(.*?)\s*\)\s*$`]), _fold(lines, lines[k], k, C, "py"), 1)
+	count(w) > 0
+	_sio_dynamic(w[0][1])
+}
+
+_sio_dynamic(a) if _built(a, "py")
+
+_sio_dynamic(a) if {
+	regex.match(`^[A-Za-z_][\w.]*(?:\([^()]*\))?$`, a)
+	not _const(a)
+}
+
 # The method is read first: operands that provably hold a constant at the
 # call (helpers.flow_consts / flow_py_consts) are folded to "" before the
 # "is it built dynamically?" test.
@@ -212,7 +240,7 @@ _at_least(l, _) if startswith(trim_space(l), "#")
 _at_least(l, d) if _ind(l) >= d
 
 _rebound(lines, g, i, v) if {
-	some k in numbers.range(g + 1, i - 1)
+	some k in helpers.span(g + 1, i - 1)
 	k < i
 	regex.match(concat("", [`^\s*`, v, `\s*(?::[^=]+)?(?:[-+*/%|&^]|//)?=(?:[^=]|$)|\bfor\s+.*\b`, v, `\b.*\bin\b|\bas\s+`, v, `\b`]), lines[k])
 }

@@ -66,7 +66,7 @@ _stmt_start(lines, i) := i if {
 
 _code_between(lines, j, s) if {
 	j + 1 <= s - 1
-	some k in numbers.range(j + 1, s - 1)
+	some k in helpers.span(j + 1, s - 1)
 	not helpers.is_comment_line(lines[k])
 }
 
@@ -127,7 +127,7 @@ _in_test(lines, starts, i) if {
 
 _closed(lines, a, b, ind) if {
 	a + 1 <= b - 1
-	some k in numbers.range(a + 1, b - 1)
+	some k in helpers.span(a + 1, b - 1)
 	_indent(lines[k]) == ind
 	startswith(trim_left(lines[k], " \t"), "}")
 }

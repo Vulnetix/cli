@@ -120,7 +120,7 @@ findings contains finding if {
 # A line between the except and r at the except's indent or shallower ends
 # the except body.
 _left_block(lines, i, r, ie) if {
-	some m in numbers.range(i + 1, r - 1)
+	some m in helpers.span(i + 1, r - 1)
 	m > i
 	m < r
 	trim_space(lines[m]) != ""

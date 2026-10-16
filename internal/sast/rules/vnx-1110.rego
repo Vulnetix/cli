@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_1110
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-1110",
 	"name": "Incomplete Design Documentation",
@@ -100,7 +102,7 @@ _incomplete(lines, i, _) := {"idx": i, "msg": "Design document section is empty:
 }
 
 _any_text_after(lines, i) if {
-	some k in numbers.range(i + 1, count(lines) - 1)
+	some k in helpers.span(i + 1, count(lines) - 1)
 	k > i
 	trim_space(lines[k]) != ""
 }

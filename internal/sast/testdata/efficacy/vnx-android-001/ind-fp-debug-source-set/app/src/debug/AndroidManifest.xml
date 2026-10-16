@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Debug-only overrides: StrictMode tooling and a debuggable process. -->
+    <application
+        android:debuggable="true"
+        android:allowBackup="true"
+        android:usesCleartextTraffic="true"
+        tools:replace="android:allowBackup"
+        tools:ignore="HardcodedDebugMode">
+
+        <activity
+            android:name="leakcanary.internal.activity.LeakActivity"
+            android:exported="false" />
+    </application>
+</manifest>

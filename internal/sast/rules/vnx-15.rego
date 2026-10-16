@@ -131,7 +131,7 @@ _guard_re := `(?i)\bnot\s+in\b|\bin\s+[\w.]+\s*:|\.includes\s*\(|\bin_array\s*\(
 
 _allowlisted(lines, j, i, re) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	l := lines[k]
 	regex.match(re, l)
 	regex.match(_guard_re, l)

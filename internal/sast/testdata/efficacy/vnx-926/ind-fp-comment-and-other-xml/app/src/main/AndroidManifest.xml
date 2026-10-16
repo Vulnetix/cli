@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" package="com.acme.c">
+    <application>
+        <!-- <service android:name=".Old" android:exported="true" /> -->
+        <!--
+        <receiver android:name=".Legacy"
+            android:exported="true" />
+        -->
+        <service android:name=".Lib" android:exported="true" tools:node="remove" />
+    </application>
+</manifest>

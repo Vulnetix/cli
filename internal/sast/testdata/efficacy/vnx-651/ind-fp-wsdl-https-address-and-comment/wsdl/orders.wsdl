@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="OrderService"
+    xmlns="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+  <!-- <operation name="debugDumpSessions"> was removed -->
+  <portType name="OrderPort">
+    <operation name="placeOrder"/>
+    <operation name="getPasswordPolicy"/>
+  </portType>
+  <service name="OrderService">
+    <port name="OrderPort" binding="tns:OrderBinding">
+      <soap:address location="https://orders.example.com:8443/orders"/>
+    </port>
+  </service>
+</definitions>

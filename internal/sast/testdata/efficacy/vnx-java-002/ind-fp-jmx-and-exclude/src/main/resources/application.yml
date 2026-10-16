@@ -1,0 +1,9 @@
+management:
+  endpoints:
+    jmx:
+      exposure:
+        include: "*"
+    web:
+      exposure:
+        include: health
+        exclude: env,heapdump

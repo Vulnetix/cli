@@ -1,0 +1,13 @@
+name: publish
+on:
+  release:
+    types: [published]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm publish --access public
+        env:
+~>          NODE_AUTH_TOKEN: @@sample:npm_[A-Za-z0-9]{36}@@

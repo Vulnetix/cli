@@ -1,0 +1,6 @@
+services:
+  api:
+    image: acme/api
+    environment:
+~>      REDIS_URL: redis://:Vt4nq8Zx2m@cache:6379/0
+      LOG_LEVEL: info

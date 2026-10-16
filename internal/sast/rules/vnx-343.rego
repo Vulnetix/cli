@@ -302,7 +302,7 @@ _t := `([$@]{0,2}[A-Za-z_]\w*(?:(?:\.|->|::|\?\.)\$?[A-Za-z_]\w*|\[\s*["':]?[\w-
 # A random draw directly after the `+`, optionally parenthesised or wrapped
 # in one conversion or rounding call: (rand() % 64), Math.floor(Math.random()
 # * 100), uint64(rand.Intn(1000)), ThreadLocalRandom.current().nextInt(9).
-_draw := `\(?\s*(?:[\w.]+\s*\(\s*)?(?:[\w$]+(?:\(\))?(?:\.|->|::))*(?:rand|random|randint|randrange|randbelow|getrandbits|uniform|mt_rand|random_int|random_number|nextInt|nextLong|getInt|Intn|IntN|Int63n|Int31n|Uint32N|arc4random_uniform|arc4random|rand_r|lrand48)\s*\(`
+_draw := `(?:\(\s*(?:unsigned\s+|const\s+|struct\s+)?[A-Za-z_]\w*\s*\**\s*\)\s*)?\(?\s*(?:[\w.]+\s*\(\s*)?(?:[\w$]+(?:\(\))?(?:\.|->|::))*(?:rand|random|randint|randrange|randbelow|getrandbits|uniform|mt_rand|random_int|random_number|nextInt|nextLong|getInt|Intn|IntN|Int63n|Int31n|Uint32N|arc4random_uniform|arc4random|rand_r|lrand48)\s*\(`
 
 _aug_re := concat("", [_t, `\s*\+=\s*`, _draw])
 

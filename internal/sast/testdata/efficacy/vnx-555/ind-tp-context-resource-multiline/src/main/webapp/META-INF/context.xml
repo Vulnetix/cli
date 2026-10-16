@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context antiResourceLocking="false" privileged="false">
+    <Resource name="jdbc/OrdersDB"
+              auth="Container"
+              type="javax.sql.DataSource"
+              driverClassName="org.postgresql.Driver"
+              url="jdbc:postgresql://db.internal:5432/orders"
+              username="orders_app"
+~>              password="Kx7!orders2023"
+              maxTotal="40"
+              maxIdle="10"/>
+</Context>

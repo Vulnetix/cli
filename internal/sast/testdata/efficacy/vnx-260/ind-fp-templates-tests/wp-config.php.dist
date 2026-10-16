@@ -1,0 +1,2 @@
+<?php
+define( 'DB_PASSWORD', 'Dist-Pass-123' );

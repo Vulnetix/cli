@@ -42,7 +42,7 @@ _py_body(lines, i) := [k |
 	ends := [m | some m in numbers.range(i + 1, end); i + 1 <= end; trim_space(lines[m]) != ""; _indent(lines[m]) <= li]
 	e := min(array.concat([end + 1], ends))
 	i + 1 <= e - 1
-	some k in numbers.range(i + 1, e - 1)
+	some k in helpers.span(i + 1, e - 1)
 ]
 
 _java_body(lines, i) := ks if {
@@ -53,7 +53,7 @@ _java_body(lines, i) := ks if {
 		ends := [m | some m in numbers.range(i + 1, end); i + 1 <= end; _indent(lines[m]) <= li; startswith(trim_space(lines[m]), "}")]
 		e := min(array.concat([end + 1], ends))
 		i + 1 <= e - 1
-		some k in numbers.range(i + 1, e - 1)
+		some k in helpers.span(i + 1, e - 1)
 	]
 }
 

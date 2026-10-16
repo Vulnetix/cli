@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence" version="2.2">
+  <persistence-unit name="billing-test" transaction-type="RESOURCE_LOCAL">
+    <properties>
+      <property name="javax.persistence.jdbc.url" value="jdbc:h2:mem:billing"/>
+      <property name="javax.persistence.jdbc.user" value="sa"/>
+      <property name="javax.persistence.jdbc.password" value="h2TestOnly"/>
+    </properties>
+  </persistence-unit>
+</persistence>

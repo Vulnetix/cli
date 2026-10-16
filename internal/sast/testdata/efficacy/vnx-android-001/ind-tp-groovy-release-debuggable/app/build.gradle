@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.northwind.fleet'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.northwind.fleet"
+        minSdk 24
+        targetSdk 34
+        versionCode 42
+        versionName "2.4.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("FLEET_KEYSTORE") ?: "release.jks")
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            debuggable true
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+~>            debuggable true
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+}

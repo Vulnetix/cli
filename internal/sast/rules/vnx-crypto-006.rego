@@ -145,11 +145,23 @@ _hit("java", lines, i, code, _, consts) if {
 }
 
 # Java: gen.initialize(N ...) where gen came from KeyPairGenerator.getInstance("RSA")
-_hit("java", _, _, code, gens, consts) if {
+_hit("java", lines, i, code, gens, consts) if {
 	m := regex.find_all_string_submatch_n(`\b(\w+)\.initialize\s*\(\s*(\w+)\s*[,)]`, code, 1)
 	count(m) > 0
 	m[0][1] in gens
+	_nearest_is_rsa(lines, i, m[0][1])
 	_weak(m[0][2], consts)
+}
+
+# The nearest assignment above of the generator variable is an RSA one (the
+# same name may be reused for a DSA generator elsewhere in the file).
+_nearest_is_rsa(lines, i, v) if {
+	ks := [k |
+		some k in numbers.range(max([0, i - 60]), i)
+		regex.match(concat("", [`\b`, v, `\s*=\s*KeyPairGenerator\s*\.\s*getInstance\s*\(`]), lines[k])
+	]
+	count(ks) > 0
+	regex.match(`getInstance\s*\(\s*"(?i:rsa)"`, lines[max(ks)])
 }
 
 _opened_above(lines, i, re) if {

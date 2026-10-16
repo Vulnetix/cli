@@ -64,7 +64,7 @@ _dup_multiline(lines, i) := js if {
 	end := ends[0]
 	end > i + 1
 	entries := [[k, j] |
-		some j in numbers.range(i + 1, end - 1)
+		some j in helpers.span(i + 1, end - 1)
 		_indent(lines[j]) == kind
 		k := _key(lines[j])
 	]

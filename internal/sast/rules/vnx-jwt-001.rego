@@ -163,6 +163,18 @@ _js_request_arg(lines, i, arg) if {
 	regex.match(concat("", [`^\s*`, v, `\b`]), arg)
 }
 
+# Two hops: `const header = req.headers.authorization; const token = header.split(' ')[1]`.
+_js_request_arg(lines, i, arg) if {
+	some w in helpers.tainted_names(lines, i, 15, _js_req_source)
+	some j in numbers.range(max([0, i - 15]), i - 1)
+	mid := lines[j]
+	not helpers.is_comment_line(mid)
+	regex.match(concat("", [`\b`, w, `\b`]), mid)
+	not regex.match(_js_req_source, mid)
+	v := helpers.assigned_first(mid)
+	regex.match(concat("", [`^\s*`, v, `\b`]), arg)
+}
+
 # ── Go: golang-jwt ───────────────────────────────────────────────────────
 
 findings contains f if {

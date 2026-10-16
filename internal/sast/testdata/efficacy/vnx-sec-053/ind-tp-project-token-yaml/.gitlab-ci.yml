@@ -1,0 +1,5 @@
+sonar:
+  script:
+    - sonar-scanner
+  variables:
+~>    SONAR_TOKEN: "@@sample:sqp_[a-f0-9]{40}@@"

@@ -193,6 +193,7 @@ _redirect_bad(lines, i, a) if regex.match(_src_direct, a)
 _redirect_bad(lines, i, a) if {
 	some v in _idents(a)
 	_req(lines, i, v)
+	not _lookup(a, v)
 	not _guarded(lines, i, v)
 }
 

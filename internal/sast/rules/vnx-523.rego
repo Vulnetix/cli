@@ -89,7 +89,7 @@ _call_re := `(?:\b(?:requests|httpx|session|sess|client|http|aiohttp)\.(?:get|po
 # A function declared with a client-like name (def fetch(token):) is not a call.
 _declaration(line) if {
 	not contains(line, "http://")
-	regex.match(`\b(?:def|function|func|fun)\s+\w+\s*\(|^\s*(?:async\s+)?(?:fetch|get|post|request)\s*\([^)]*\)\s*(?::\s*[\w<>\[\], ]+)?\s*\{\s*$`, line)
+	regex.match(`\b(?:def|function|func|fun)\s+\w+\s*\(|^\s*(?:async\s+)?(?:fetch|get|post|request)\s*\([^)]*\)\s*(?::\s*[\w<>\[\], ]+)?\s*\{\s*$|^\s*(?:(?:public|private|protected|static|final|synchronized)\s+)+[^=;(]*\(`, line)
 }
 
 _cred_re := `(?i)\bauth\s*[=:]|authorization|basicauth|passw(?:or)?d|\bpwd\b|passphrase|api[_-]?key|x-api-key|bearer|\btoken\b|(?:access|auth|id|refresh|session)_?token|cookie`
@@ -167,7 +167,7 @@ findings contains f if {
 
 _boundary_between(lines, i, k) if {
 	i + 1 <= k - 1
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	regex.match(_boundary_re, lines[j])
 }
 
@@ -181,8 +181,25 @@ findings contains f if {
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(`(?i)<form\b`, line)
+	not _in_html_comment(lines, i)
 	ms := regex.find_all_string_submatch_n(`(?i)\baction\s*=\s*["']?http://([A-Za-z0-9][A-Za-z0-9.-]*)`, line, 1)
 	count(ms) > 0
 	_remote(ms[0][1])
 	f := _finding(path, i, line, "This login form posts the password to a plain http:// URL, so it crosses the network in cleartext. Use an https:// action")
+}
+
+# The form tag sits inside an <!-- ... --> comment: opened earlier on its line,
+# or on a previous line and not closed before the tag.
+_in_html_comment(lines, i) if {
+	pre := regex.replace(lines[i], `(?i)<form\b.*$`, "")
+	contains(pre, "<!--")
+	not regex.match(`-->\s*[^<]*$`, pre)
+}
+
+_in_html_comment(lines, i) if {
+	i > 0
+	before := concat("\n", array.slice(lines, 0, i))
+	count(regex.find_n(`<!--`, before, -1)) > count(regex.find_n(`-->`, before, -1))
+	pre := regex.replace(lines[i], `(?i)<form\b.*$`, "")
+	not contains(pre, "-->")
 }

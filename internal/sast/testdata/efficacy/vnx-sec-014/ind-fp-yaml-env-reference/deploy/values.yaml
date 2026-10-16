@@ -1,0 +1,4 @@
+database:
+  host: db.internal
+  password: ${DB_PASSWORD}
+  adminPassword: "{{ .Values.secrets.adminPassword }}"

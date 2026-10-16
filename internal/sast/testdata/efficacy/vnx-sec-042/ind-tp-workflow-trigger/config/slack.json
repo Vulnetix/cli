@@ -1,0 +1,4 @@
+{
+  "channel": "#ops",
+~>  "workflow": "https://hooks.slack.com/triggers/E@@sample:[A-Z0-9]{10}@@/@@sample:[0-9]{13}@@/@@sample:[a-f0-9]{32}@@"
+}

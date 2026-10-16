@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coturn
+spec:
+  template:
+    spec:
+      containers:
+        - name: coturn
+          image: coturn/coturn:4.6
+          args:
+            - "-n"
+~>            - "--allowed-peer-ip=192.168.0.0-192.168.255.255"

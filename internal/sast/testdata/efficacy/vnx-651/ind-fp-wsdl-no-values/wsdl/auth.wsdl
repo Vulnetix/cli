@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="AuthService"
+    xmlns="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+  <types>
+    <xs:schema targetNamespace="http://auth.example.com/ws">
+      <xs:element name="password" type="xs:string"/>
+      <xs:element name="apiKey" type="xs:string"/>
+      <xs:element name="tokenType" type="xs:string" default="opaque"/>
+      <xs:element name="passwordMinLength" type="xs:int" default="12"/>
+      <xs:element name="rememberToken" type="xs:boolean" default="false"/>
+      <xs:element name="authScheme" type="xs:string" default="Bearer"/>
+    </xs:schema>
+  </types>
+  <service name="AuthService">
+    <port name="AuthPort" binding="tns:AuthBinding">
+      <soap:address location="https://auth.example.com/ws/auth"/>
+    </port>
+  </service>
+</definitions>

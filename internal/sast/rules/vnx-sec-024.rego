@@ -9,7 +9,7 @@ metadata := {
 	"name": "OAuth token stored in localStorage",
 	"description": "Reports browser code (JavaScript, TypeScript, and the script in .vue, .svelte and .html files) that writes an access token, refresh token, ID token, JWT or API key into localStorage, where any script that runs on the origin, including an XSS payload, can read it: localStorage.setItem(key, value) or window/$window.localStorage.setItem (the call may span lines), and property writes localStorage.token = ... or localStorage['jwt'] = .... It is reported when the key names a token (token, access_token, refreshToken, id_token, jwt, auth_token, user_api_key, oidc.refreshToken), when the key is a constant or member whose name or value in the same file names one (TOKEN_KEY = \"auth_token\", KEYS.ACCESS_TOKEN), or when the stored value is a token-named field (tokens.access_token, res.data.refreshToken) or a JSON.stringify() of an object with a token-named member ({ email, token: res.data.token }). Not reported: keys that describe a token rather than hold one (tokenExpiry, tokenType, hasToken, tokenCount, tokenRefreshedAt), CSRF and push-notification tokens, preferences, reads and removals (getItem, removeItem), sessionStorage and cookies, the call inside a string literal or a comment line, test, spec and Cypress files, and files of other languages.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-024/",
-	"languages": ["javascript", "typescript"],
+	"languages": ["javascript", "typescript", "html"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",

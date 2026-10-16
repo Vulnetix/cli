@@ -104,6 +104,7 @@ _exposes(lines, i, out) if {
 	prev := lines[j]
 	not helpers.is_comment_line(prev)
 	regex.match(_src_re, _code(prev))
+	not regex.match(_derived_not_text, _code(prev))
 	v := helpers.assigned_ident(prev)
 	_reaches(lines, j, i, v, out)
 }
@@ -112,7 +113,7 @@ _reaches(_, _, _, v, out) if regex.match(concat("", [`\b`, v, `\b`]), out)
 
 _reaches(lines, j, i, v, out) if {
 	i - 1 >= j + 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	mid := lines[k]
 	not helpers.is_comment_line(mid)
 	regex.match(concat("", [`\b`, v, `\b`]), mid)

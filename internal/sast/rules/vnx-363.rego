@@ -110,15 +110,19 @@ _open_parens(t) if count(indexof_n(t, "(")) > count(indexof_n(t, ")"))
 
 _stmt(lines, i) := lines[i] if not _open_parens(lines[i])
 
-_stmt(lines, i) := t if {
+_balanced_at(lines, i) := {k |
+	some k in numbers.range(2, 6)
+	not _open_parens(concat(" ", array.slice(lines, i, i + k)))
+}
+
+_stmt(lines, i) := concat(" ", array.slice(lines, i, i + min(_balanced_at(lines, i)))) if {
 	_open_parens(lines[i])
-	t := concat(" ", array.slice(lines, i, i + 2))
-	not _open_parens(t)
+	count(_balanced_at(lines, i)) > 0
 }
 
 _stmt(lines, i) := concat(" ", array.slice(lines, i, i + 3)) if {
 	_open_parens(lines[i])
-	_open_parens(concat(" ", array.slice(lines, i, i + 2)))
+	count(_balanced_at(lines, i)) == 0
 }
 
 _checked(lines, i, cfg, target) if {

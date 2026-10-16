@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-017 – MD5 or SHA1 Used as Password Hash"
-description: "Detect Python code that hashes a password with MD5 or SHA-1 (hashlib.md5/sha1, hashlib.new('md5'|'sha1'), from-imported md5/sha1, PyCryptodome MD5/SHA1.new, or .update(password) on such a hasher). MD5 or SHA-1 of data that is not a password, and calls with usedforsecurity=False, are not reported."
+description: "A password is hashed with MD5 or SHA-1 in a .py file. Reported: hashlib.md5()/hashlib.sha1() (also through `import hashlib as h` and `from hashlib import md5, sha1 as x`), hashlib.new('md5'|'sha1', ...) and PyCryptodome MD5.new()/SHA1.new()/SHA.new() whose argument names a password (password, passwd, passphrase, pwd, pw, a request field keyed 'pass'/'password'), whose argument is a variable assigned from such a value in the 8 lines above, or an .update(password) on a hasher created by one of those calls in the 10 lines above; a call broken across lines is read on its next line. Both algorithms are fast and broken, so a dumped hash is cracked offline in hours; use argon2id, bcrypt, scrypt or PBKDF2 with a high iteration count. Not reported: MD5/SHA-1 of data that is not a password (cache keys, ETags, file checksums), a call with usedforsecurity=False (HTTP digest auth), hashing a password reset token, SHA-256 and the password KDFs, and the calls in comments or string literals. A password passed straight into the call (hashlib.md5(password.encode()), md5(password) after from hashlib import md5, hashlib.new('sha1', password)) is reported by VNX-CRYPTO-007, which covers the same weakness across more algorithms and languages, and not here; this rule keeps the Python shapes that rule does not read: a password reached through a variable assigned a few lines above, a request field read by key, PyCryptodome MD5.new()/SHA1.new(), and an .update(password) on a hasher created earlier."
 ---
 
 ## Overview
@@ -26,13 +26,9 @@ The attack requires no network access after the initial breach. An offline attac
 ```python
 import hashlib
 
-# FLAGGED: MD5 used as password hash
+# REPORTED BY VNX-CRYPTO-007: the password passed straight into the call
 def hash_password(password: str) -> str:
     return hashlib.md5(password.encode()).hexdigest()
-
-# FLAGGED: SHA1 used as password hash
-def store_password(password: str) -> str:
-    return hashlib.sha1(password.encode()).hexdigest()
 
 # FLAGGED: hashlib.new() with md5
 def create_hash(password: str) -> str:
@@ -61,7 +57,7 @@ key = hashlib.md5(url.encode()).hexdigest()
 hashlib.md5(a1.encode(), usedforsecurity=False).hexdigest()
 ```
 
-The rule applies only to `.py` files. A password hashed by a project helper defined elsewhere is a cross-function gap; VNX-CRYPTO-007 covers the same weakness across more algorithms and languages.
+The rule applies only to `.py` files. A password passed straight into the call (`hashlib.md5(password.encode())`, `md5(password)` after `from hashlib import md5`) is reported by [VNX-CRYPTO-007](vnx-crypto-007), which covers the same weakness across more algorithms and languages, so the line is reported once; this rule keeps what that rule does not read: a password reached through a variable, a request field read by key, PyCryptodome, and `.update(password)` on a hasher created earlier. A password hashed by a project helper defined elsewhere is a cross-function gap.
 
 ## Remediation
 

@@ -76,7 +76,7 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	not helpers.is_comment_line(line)
-	regex.match(_member_re, _code(line))
+	regex.match(_member_re, _without_derived(line))
 	_in_response(lines, i, lang)
 	finding := {
 		"rule_id": metadata.id,
@@ -160,7 +160,7 @@ _is_user_lookup(l, v, "go") if {
 }
 
 _scrubbed_between(lines, j, i) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	not helpers.is_comment_line(lines[k])
 	regex.match(`(?i)password|omit|pick\s*\(|sanitiz|toPublic|toSafe|serializ`, lines[k])
 }
@@ -267,3 +267,9 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+# A value derived from the field, not the field: bool(user.password_hash),
+# Boolean(user.password), !!user.password, len(user.password).
+_derived_re := `\b(?:bool|Boolean|len|hasattr|isinstance)\s*\(\s*[\w.$]+\s*\)|!!\s*[\w.$]+`
+
+_without_derived(line) := regex.replace(_code(line), _derived_re, "0")

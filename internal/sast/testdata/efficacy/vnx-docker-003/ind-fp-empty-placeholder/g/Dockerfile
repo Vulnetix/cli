@@ -1,0 +1,5 @@
+FROM alpine:3.20
+ENV PASSWORD=
+ENV AUTH_TOKEN=changeme
+ENV DB_PASSWORD=${DB_PASSWORD:-}
+ENV SERVICE_URL=https://api.example.com/v1

@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_415
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-415",
 	"name": "Double free",
@@ -142,7 +144,7 @@ _clear_between(lines, i, j, e) if {
 }
 
 _any_stop(lines, i, j, e) if {
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	not _comment_line(lines[k])
 	_stops(lines, i, k, e)
 }
@@ -259,7 +261,7 @@ _goto_after(lines, i, n, rest, e) := label if {
 
 _any_stop_before_goto(lines, i, k, e) if {
 	k > i + 1
-	some m in numbers.range(i + 1, k - 1)
+	some m in helpers.span(i + 1, k - 1)
 	not _comment_line(lines[m])
 	c := _mask(lines[m])
 	_branch_or_exit(lines, i, m, c, e)
@@ -294,12 +296,12 @@ _cleanup_releases(lines, i, n, label, e) if {
 }
 
 _function_ends(lines, i, l) if {
-	some k in numbers.range(i + 1, l - 1)
+	some k in helpers.span(i + 1, l - 1)
 	startswith(lines[k], "}")
 }
 
 _reassigned_between(lines, l, r, e) if {
 	r > l + 1
-	some k in numbers.range(l + 1, r - 1)
+	some k in helpers.span(l + 1, r - 1)
 	_reassigned(_mask(lines[k]), e)
 }

@@ -148,7 +148,7 @@ findings contains finding if {
 	b := m[0][3]
 	e := _body_end(k, lines, i)
 	e > i + 1
-	body := concat("\n", [l | some j in numbers.range(i + 1, e - 1); l := _strip(lines[j]); not helpers.is_comment_line(lines[j])])
+	body := concat("\n", [l | some j in helpers.span(i + 1, e - 1); l := _strip(lines[j]); not helpers.is_comment_line(lines[j])])
 	not _writes(body, v)
 	not _exits(body)
 	not _bound_changes(body, b)

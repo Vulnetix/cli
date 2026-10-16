@@ -72,7 +72,7 @@ _grants(lines, i, line) if {
 
 _dedented_between(lines, i, j, ind) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	trim_space(lines[k]) != ""
 	_indent(lines[k]) <= ind
 }
@@ -80,7 +80,7 @@ _dedented_between(lines, i, j, ind) if {
 # A nested condition before the grant is a second check.
 _dedented_between(lines, i, j, _) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	regex.match(`^\s*(?:if|elif|for|while)\b`, lines[k])
 }
 

@@ -1,0 +1,6 @@
+<struts-config>
+  <action-mappings>
+    <action path="/login" type="com.acme.LoginAction" name="loginForm" validate="true"/>
+    <!-- <action path="/old" type="com.acme.Old" validate="false"/> -->
+  </action-mappings>
+</struts-config>

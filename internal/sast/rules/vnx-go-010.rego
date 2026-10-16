@@ -75,7 +75,7 @@ _in_block_comment(lines, i) if {
 
 _closed_between(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	contains(lines[k], "*/")
 }
 
@@ -111,7 +111,7 @@ _suite_vars(content) := {m[1] |
 
 _brace_closed_between(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	contains(lines[k], "}")
 }
 

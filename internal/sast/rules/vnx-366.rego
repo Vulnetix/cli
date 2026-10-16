@@ -117,7 +117,7 @@ _is_handler(lines, d, _, false) if {
 }
 
 _member_end_between(lines, k, d) if {
-	some x in numbers.range(k + 1, d - 1)
+	some x in helpers.span(k + 1, d - 1)
 	t := trim_space(regex.replace(lines[x], `//.*$`, ""))
 	regex.match(`[;}]$|^}`, t)
 }

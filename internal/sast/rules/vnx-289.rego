@@ -96,7 +96,7 @@ _in_if(lines, i, line) if {
 }
 
 _brace_between(lines, k, i) if {
-	some b in numbers.range(k + 1, i - 1)
+	some b in helpers.span(k + 1, i - 1)
 	b < i
 	contains(lines[b], "{")
 }

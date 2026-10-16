@@ -67,10 +67,10 @@ _lone_virtual_dtor(lines, v) if {
 # A virtual member of this class itself: at the class's member indentation
 # (the shallowest member line), so a nested class's virtual does not count.
 _has_virtual_member(lines, i, e) if {
-	virtuals := [v | some v in numbers.range(i + 1, e - 1); _virtual_member(lines, v)]
+	virtuals := [v | some v in helpers.span(i + 1, e - 1); _virtual_member(lines, v)]
 	count(virtuals) > 0
 	indents := [_indent(lines[k]) |
-		some k in numbers.range(i + 1, e - 1)
+		some k in helpers.span(i + 1, e - 1)
 		_member_line(lines[k])
 	]
 	base := min(indents)
@@ -90,7 +90,7 @@ _dtor_re(name) := concat("", [`^\s*(?:(?:inline|explicit|constexpr|virtual)\s+)*
 
 _access_at(lines, i, j, kind) := a if {
 	specs := [regex.find_all_string_submatch_n(`^\s*(public|protected|private)\s*:`, lines[k], 1)[0][1] |
-		some k in numbers.range(i + 1, j - 1)
+		some k in helpers.span(i + 1, j - 1)
 		regex.match(`^\s*(public|protected|private)\s*:`, lines[k])
 	]
 	count(specs) > 0
@@ -108,19 +108,19 @@ _bad_dtor(lines, i, e, name, kind) if {
 
 _bad_dtor(lines, i, e, name, kind) if {
 	dre := _dtor_re(name)
-	some j in numbers.range(i + 1, e - 1)
+	some j in helpers.span(i + 1, e - 1)
 	regex.match(dre, lines[j])
 	not regex.match(`\bvirtual\b`, lines[j])
 	_access_at(lines, i, j, kind) == "public"
 }
 
 _any_dtor(lines, i, e, dre) if {
-	some j in numbers.range(i + 1, e - 1)
+	some j in helpers.span(i + 1, e - 1)
 	regex.match(dre, lines[j])
 }
 
 _virtual_dtor(lines, i, e, name) if {
-	some j in numbers.range(i + 1, e - 1)
+	some j in helpers.span(i + 1, e - 1)
 	regex.match(concat("", [`^\s*virtual\s+~\s*`, name, `\s*\(`]), lines[j])
 }
 

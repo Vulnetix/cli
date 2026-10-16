@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_1047
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-1047",
 	"name": "Modules with Circular Dependencies",
@@ -308,7 +310,7 @@ _js_multi_type_only(lines, j, i) if {
 	i - j >= 2
 	regex.match(`^\s*import\s*\{\s*$`, lines[j])
 	names := [n |
-		some k in numbers.range(j + 1, i - 1)
+		some k in helpers.span(j + 1, i - 1)
 		some p in split(lines[k], ",")
 		n := trim_space(p)
 		n != ""

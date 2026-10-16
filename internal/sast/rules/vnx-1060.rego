@@ -75,7 +75,7 @@ _enclosing_loop(lines, i) := k if {
 
 _closed(lines, k, i, ik) if {
 	k + 1 <= i - 1
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	not _blank_or_comment(lines[m])
 	_indent(lines[m]) <= ik
 }
@@ -89,7 +89,7 @@ _batched(tail) if regex.match(`(?i)(?:\bIN\s*(?:%s|\?|:\w|\$\d|\(\s*(?:%s|\?|:|\
 # `invoice_id = inv["id"]`.
 _derived(lines, k, i, vars) := {d |
 	k + 1 <= i - 1
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	mm := regex.find_all_string_submatch_n(`^\s*([A-Za-z_]\w*)\s*=\s*([^=].*)$`, lines[m], 1)
 	count(mm) > 0
 	some v in vars

@@ -1,0 +1,8 @@
+services:
+  web:
+    image: nginx:1.27
+  dind:
+    image: docker:27.1-dind
+~>    privileged: true
+    ports:
+      - "2375:2375"

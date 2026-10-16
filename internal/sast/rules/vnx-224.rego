@@ -72,8 +72,8 @@ _two_line(lines, i, code) if {
 	some j in numbers.range(max([0, i - 6]), i - 1)
 	prev := lines[j]
 	not helpers.is_comment_line(prev)
-	regex.match(_enc_source_re, prev)
-	not regex.match(_hashed_re, prev)
+	regex.match(_enc_source_re, _code(prev))
+	not regex.match(_hashed_re, _code(prev))
 	v := helpers.assigned_first(prev)
 
 	# The length of an encoded value is not the value.
@@ -127,7 +127,10 @@ findings contains finding if {
 	}
 }
 
-_hit(_, _, code) if _inline(_strip_len(code))
+_hit(_, _, code) if _inline(_strip_hashed(_strip_len(code)))
+
+# An encoding passed straight into a hash function is hashed, not logged.
+_strip_hashed(code) := regex.replace(code, `(?i)\b(?:hashlib\.\w+|sha(?:1|224|256|384|512)|md5|bcrypt\.\w+|hash_password)\s*\((?:[^()]|\([^()]*\)|\((?:[^()]|\([^()]*\))*\))*\)`, "0")
 
 # The length of an encoded value is not the value: btoa(token).length,
 # Buffer.from(token).toString("base64").length and len(b64encode(token)).

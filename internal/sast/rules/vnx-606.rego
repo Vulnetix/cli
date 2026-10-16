@@ -35,12 +35,12 @@ _raw := `\bargv\s*\[|\bgetenv\s*\(|\boptarg\b|\bntoh[ls]\s*\(|\.getParameter\s*\
 # for i := 0; i < N; i++ and Go 1.22 for i := range N.
 # Also the count-down forms while (n-- > 0), while (n--), while (--n >= 0)
 # and for (; n > 0; n--), where the parsed value itself is the counter.
-_loop := `(?:\bfor\b[^;{]*;\s*[A-Za-z_]\w*\s*<=?\s*([A-Za-z_]\w*)\s*(?:;|\))|\bwhile\s*\(\s*[A-Za-z_]\w*\s*<=?\s*([A-Za-z_]\w*)\s*\)|\bfor\s+[A-Za-z_]\w*\s*:?=\s*range\s+([A-Za-z_]\w*)\s*\{|\bwhile\s*\(\s*(?:--\s*([A-Za-z_]\w*)|([A-Za-z_]\w*)\s*--)\s*(?:>=?\s*0\s*)?\)|\bfor\b[^;{]*;\s*([A-Za-z_]\w*)\s*>\s*0\s*;\s*(?:--\s*[A-Za-z_]\w*|[A-Za-z_]\w*\s*--)\s*\))`
+_loop := `(?:\bfor\b[^;{]*;\s*[A-Za-z_]\w*\s*<=?\s*([A-Za-z_]\w*)\s*(?:;|\))|\bwhile\s*\(\s*[A-Za-z_]\w*\s*<=?\s*([A-Za-z_]\w*)\s*\)|\bfor\s+[A-Za-z_]\w*\s*:?=\s*range\s+([A-Za-z_]\w*)\s*\{|\bwhile\s*\(\s*(?:--\s*([A-Za-z_]\w*)|([A-Za-z_]\w*)\s*--)\s*(?:>=?\s*0\s*)?\)|\bfor\b[^;{]*;\s*([A-Za-z_]\w*)\s*>\s*0\s*;\s*(?:--\s*[A-Za-z_]\w*|[A-Za-z_]\w*\s*--)\s*\)|\bfor\s+[A-Za-z_]\w*\s*<=?\s*([A-Za-z_]\w*)\s*\{)`
 
 _bound(line) := n if {
 	m := regex.find_all_string_submatch_n(_loop, line, 1)
 	count(m) > 0
-	some k in [1, 2, 3, 4, 5, 6]
+	some k in [1, 2, 3, 4, 5, 6, 7]
 	n := m[0][k]
 	n != ""
 }
@@ -92,7 +92,8 @@ _guarded(lines, j, i, n) if {
 # A function or method starts between the parse and the loop: the loop's N is
 # another function's variable.
 _guarded(lines, j, i, n) if {
-	some k in numbers.range(j + 1, i - 1)
+	j + 1 < i
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(`^(?:\s*func\s|\s*(?:(?:public|private|protected|static|final)\s+)+[\w<>\[\],.? ]+\s+\w+\s*\([^;]*\)\s*(?:throws\s[^{;]*)?\{?\s*$|[A-Za-z_][\w \*]*\b\w+\s*\([^;]*\)\s*\{?\s*$)`, lines[k])
 	not regex.match(`^\s*(?:if|for|while|switch|else|catch|try|return|do|synchronized|go|defer)\b`, lines[k])
 }
@@ -135,6 +136,7 @@ _network_countdown(loop_line, parse_line) if {
 
 # N passed to a verify/validate/check function between the parse and the loop.
 _guarded(lines, j, i, n) if {
-	some k in numbers.range(j + 1, i - 1)
+	j + 1 < i
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`(?i)\b\w*(?:verify|validate|check|sanitize|bound)\w*\s*\([^)]*\b`, n, `\b`]), lines[k])
 }

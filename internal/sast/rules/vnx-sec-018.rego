@@ -2,6 +2,7 @@ package vulnetix.rules.vnx_sec_018
 
 import rego.v1
 
+import data.vulnetix.helpers
 import data.vulnetix.lib.secrets
 
 metadata := {
@@ -46,6 +47,7 @@ _mixed_case(tok) if {
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
+	not helpers.is_test_path(path)
 	_gate(content)
 
 	lines := split(content, "\n")

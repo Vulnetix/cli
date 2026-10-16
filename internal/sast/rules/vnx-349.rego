@@ -86,7 +86,20 @@ _untrusted(lang, s, lines, i) if regex.match(lang.src, s)
 
 _untrusted(lang, s, lines, i) if {
 	regex.match(`^[A-Za-z_]\w*$`, s)
-	s in helpers.tainted_names(lines, i, 15, lang.src_line)
+	s in _whole_request_names(lines, i, lang.src_line)
+}
+
+# Names assigned from the request in the 15 lines above, except an object or
+# dict literal that picks fields ({theme: req.body.theme}), which holds only
+# what the handler chose to copy.
+_whole_request_names(lines, i, src) := {v |
+	i > 0
+	some j in numbers.range(max([0, i - 15]), i - 1)
+	prev := lines[j]
+	not helpers.is_comment_line(prev)
+	regex.match(src, prev)
+	not regex.match(`[^=!<>]=\s*\{`, prev)
+	v := helpers.assigned_first(prev)
 }
 
 # A Java declaration whose generic type has a comma (Map<String, String[]> p =

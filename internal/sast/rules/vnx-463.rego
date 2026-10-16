@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_463
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-463",
 	"name": "Deletion of Data Structure Sentinel",
@@ -63,7 +65,7 @@ _overwrite(lines, i, l) := [buf, m[0][3]] if {
 
 _changed(lines, j, i, idx) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`\b`, idx, `\s*(?:\+\+|--|[-+]?=[^=])|(?:\+\+|--)\s*`, idx, `\b`]), lines[k])
 }
 

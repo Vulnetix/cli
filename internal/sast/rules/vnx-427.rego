@@ -96,7 +96,7 @@ _set_literal_re := concat("", [
 	`"\s*\)?\s*,\s*`, _str_prefix, `"([^"]*)"`,
 ])
 
-_putenv_re := concat("", [`\b_?w?putenv\s*\(\s*`, _str_prefix, `"`, _path_vars, `=([^"]*)"`])
+_putenv_re := concat("", [`\b_?w?putenv\s*\(\s*(?:const_cast\s*<[^>]*>\s*\(\s*|\(\s*(?:const\s+)?(?:unsigned\s+)?w?char\s*\*\s*\)\s*)?`, _str_prefix, `"`, _path_vars, `=([^"]*)"`])
 
 # The call may be split over up to three lines; the match must start on the
 # first one. Lines are joined with newlines, not split at ';', because a

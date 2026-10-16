@@ -1,0 +1,10 @@
+[Unit]
+Description=Tracing agent
+
+[Service]
+ExecStart=/usr/local/bin/tracer
+User=tracer
+~>AmbientCapabilities=CAP_SYS_PTRACE CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target

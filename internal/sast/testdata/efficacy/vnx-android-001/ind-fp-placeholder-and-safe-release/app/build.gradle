@@ -1,0 +1,26 @@
+android {
+    namespace 'com.harbourline.ferry'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.harbourline.ferry"
+        minSdk 23
+        manifestPlaceholders = [debuggableFlag: "false"]
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            manifestPlaceholders = [debuggableFlag: "true"]
+        }
+        staging {
+            initWith debug
+            debuggable true
+        }
+        release {
+            debuggable false
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}

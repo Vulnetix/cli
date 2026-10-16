@@ -305,12 +305,12 @@ _heredoc_lines(_, _, _, l) := set() if not l in {"php", "rb"}
 
 _heredoc_lines(lines, i, e, l) := {x |
 	l in {"php", "rb"}
-	some k in numbers.range(i + 1, e - 1)
+	some k in helpers.span(i + 1, e - 1)
 	contains(lines[k], "<<")
 	m := regex.find_all_string_submatch_n(`<<[~-]?['"]?([A-Z_][A-Z0-9_]*)['"]?`, lines[k], 1)
 	count(m) > 0
 	term := concat("", [`^\s*`, m[0][1], `\b`])
-	ends := [k2 | some k2 in numbers.range(k + 1, e - 1); regex.match(term, lines[k2])]
+	ends := [k2 | some k2 in helpers.span(k + 1, e - 1); regex.match(term, lines[k2])]
 	count(ends) > 0
 	some x in numbers.range(k + 1, ends[0])
 }
@@ -338,7 +338,7 @@ findings contains finding if {
 	e - i > _min_body
 	_enough_parens(lines, i, e, l)
 	skip := _heredoc_lines(lines, i, e, l)
-	body := regex.replace(concat("\n", [x | some k in numbers.range(i + 1, e - 1); not k in skip; x := lines[k]; not helpers.is_comment_line(x)]), _strings(l), `""`)
+	body := regex.replace(concat("\n", [x | some k in helpers.span(i + 1, e - 1); not k in skip; x := lines[k]; not helpers.is_comment_line(x)]), _strings(l), `""`)
 	callees := _calls(body, l) | _sends(body, l)
 	n := count(callees)
 	n >= _threshold

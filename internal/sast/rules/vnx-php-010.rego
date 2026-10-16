@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-010",
 	"name": "PHP type juggling in comparison",
-	"description": "A loose comparison (== , != or <>) decides an authentication or integrity check, where PHP type juggling lets an attacker pass it: numeric strings compare as numbers (two different '0e...' magic hashes are equal), JSON true equals any non-empty string, and before PHP 8 0 equals any non-numeric string. Reported: (1) the result of md5(), sha1(), hash(), hash_hmac(), crypt() or *_file() compared loosely with a variable, call or property, or with a '0e<digits>' literal; (2) user input (a $_GET/$_POST/$_REQUEST/$_COOKIE/$_SERVER/$_FILES element, or a variable assigned within the 30 lines above from a superglobal, json_decode(), php://input or $request->input()/get()/query()/header()/cookie()) compared loosely with a variable, call or property when either side names a secret as a whole identifier word, split at underscores and camelCase (password, pass, pwd, token, secret, hash, sig/signature, hmac, otp, nonce, csrf, api key, auth, digest, answer, code, pin), so author, hashtag, passenger or encoding do not count; (3) strcmp()/strcasecmp()/strncmp() of user input whose result is compared loosely with 0 or negated, which an array argument (NULL) bypasses. Not reported: strict === / !== comparisons, hash_equals() and password_verify(), user input compared with a constant literal (a request value is always a string, so a non-numeric literal does not juggle), comparisons of names that do not denote a secret, in_array()/switch loose matching, and the comparison inside a comment or a string literal.",
+	"description": "A loose comparison (== , != or <>) decides an authentication or integrity check, where PHP type juggling lets an attacker pass it: numeric strings compare as numbers (two different '0e...' magic hashes are equal), JSON true equals any non-empty string, and before PHP 8 0 equals any non-numeric string. Reported: (1) the result (or a variable assigned it within the 30 lines above) of md5(), sha1(), hash(), hash_hmac(), crypt() or *_file() compared loosely with a variable, call or property, or with a '0e<digits>' literal; (2) user input (a $_GET/$_POST/$_REQUEST/$_COOKIE/$_SERVER/$_FILES element, or a variable assigned within the 30 lines above from a superglobal, json_decode(), php://input or $request->input()/get()/query()/header()/cookie()) compared loosely with a variable, call or property when either side names a secret as a whole identifier word, split at underscores and camelCase (password, pass, pwd, token, secret, hash, sig/signature, hmac, otp, nonce, csrf, api key, auth, digest, answer, code, pin), so author, hashtag, passenger or encoding do not count; (3) strcmp()/strcasecmp()/strncmp() of user input whose result is compared loosely with 0 or negated, which an array argument (NULL) bypasses. Not reported: strict === / !== comparisons, hash_equals() and password_verify(), user input compared with a constant literal (a request value is always a string, so a non-numeric literal does not juggle), comparisons of names that do not denote a secret, in_array()/switch loose matching, and the comparison inside a comment or a string literal.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-010/",
 	"languages": ["php"],
 	"severity": "high",
@@ -136,7 +136,7 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	code := _masked(line)
 	tainted := _tainted(lines, i)
-	_report(code, tainted)
+	_report(_hash_subst(lines, i, code), tainted)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Loose comparison decides an authentication or integrity check and is open to PHP type juggling; use === , hash_equals() or password_verify()",
@@ -147,6 +147,23 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+# Variables assigned a hash call within the 30 lines above stand for that call.
+_hashed_vars(lines, i) := {v |
+	i > 0
+	some j in numbers.range(max([0, i - 30]), i - 1)
+	m := regex.find_all_string_submatch_n(`^\s*\$(\w+)\s*=\s*(?:md5|sha1|hash|hash_hmac|crypt|md5_file|sha1_file|hash_file)\s*\(`, lines[j], 1)
+	not helpers.is_comment_line(lines[j])
+	v := m[0][1]
+}
+
+_hash_subst(lines, i, code) := out if {
+	vs := _hashed_vars(lines, i)
+	count(vs) > 0
+	out := regex.replace(code, concat("", [`\$(?:`, concat("|", vs), `)\b`]), "md5(0)")
+}
+
+_hash_subst(lines, i, code) := code if count(_hashed_vars(lines, i)) == 0
 
 _report(code, tainted) if _loose(code, tainted)
 

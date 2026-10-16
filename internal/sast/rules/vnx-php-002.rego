@@ -2,6 +2,8 @@ package vulnetix.rules.vnx_php_002
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-PHP-002",
 	"name": "Dangerous function in PHP",
@@ -165,7 +167,7 @@ _literal_match(lines, j) if {
 }
 
 _closed_before(lines, j, k) if {
-	some m in numbers.range(j + 1, k - 1)
+	some m in helpers.span(j + 1, k - 1)
 	m < k
 	regex.match(`^\s*\}`, lines[m])
 }

@@ -50,7 +50,7 @@ _workflow := `(?i)order|payment|invoice|checkout|purchase|transaction|txn|bookin
 _flag := `(?i)^(?:paid|is_?paid|payment_?status|payment_?success|success|status|approved|verified|completed|step|stage|result)$`
 
 # String literals containing whitespace are prose.
-_strip(line) := regex.replace(line, concat("", [`"[^"\n]*\s[^"\n]*"|'[^'\n]*\s[^'\n]*'|`, "`[^`\\n]*`"]), `""`)
+_strip(line) := regex.replace(line, concat("", [`"(?:\\.|[^"\\\n])*(?:[\s()=]|\\.)(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*(?:[\s()=]|\\.)(?:\\.|[^'\\\n])*'|`, "`[^`\\n]*`"]), `""`)
 
 _field_ok(field, _) if regex.match(_strong, field)
 

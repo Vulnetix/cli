@@ -87,7 +87,7 @@ _fn_bounds(lines, i, "c") := [s, e] if {
 
 _fn_bounds(lines, i, "py") := [s, e] if {
 	before := [j | some j in numbers.range(0, i); regex.match(`^\s*(?:async\s+)?def\s`, lines[j])]
-	after := [j | some j in numbers.range(i + 1, count(lines) - 1); regex.match(`^\s*(?:async\s+)?def\s|^class\s`, lines[j])]
+	after := [j | some j in helpers.span(i + 1, count(lines) - 1); regex.match(`^\s*(?:async\s+)?def\s|^class\s`, lines[j])]
 	s := max(array.concat([0], before))
 	e := min(array.concat([count(lines) - 1], after))
 }

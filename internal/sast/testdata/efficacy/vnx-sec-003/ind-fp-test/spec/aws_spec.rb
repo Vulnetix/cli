@@ -1,0 +1,1 @@
+creds = Aws::Credentials.new("AKIAIOSFODNN7EXAMPLE", "Zq8Lm2Vx7Rt4Yp9Wc3Nb6Hd1Kf5Gj0Sa8Uo2Ie4X")

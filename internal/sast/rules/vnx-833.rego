@@ -53,7 +53,7 @@ _acq(line) := ["sync", "this"] if {
 # outer one.
 _deferred(lines, i, j) if {
 	j - 1 >= i + 1
-	some m in numbers.range(i + 1, j - 1)
+	some m in helpers.span(i + 1, j - 1)
 	regex.match(`\b(?:submit|execute|schedule\w*|runAsync|supplyAsync|invokeLater|post(?:Delayed)?|start)\s*\(|\bnew\s+(?:Thread|Runnable|Callable|TimerTask)\b`, lines[m])
 	_indent(lines[m]) < _indent(lines[j])
 	not _closed(lines, m, j, _indent(lines[m]))
@@ -63,7 +63,7 @@ _deferred(lines, i, j) if {
 # outer lock (or its method) has ended.
 _closed(lines, i, j, ii) if {
 	j - 1 >= i + 1
-	some m in numbers.range(i + 1, j - 1)
+	some m in helpers.span(i + 1, j - 1)
 	_indent(lines[m]) <= ii
 	startswith(trim_left(lines[m], " \t"), "}")
 }
@@ -81,13 +81,13 @@ _still_held("lock", lines, i, j, x) if {
 
 _released(lines, i, j, unlock) if {
 	j - 1 >= i + 1
-	some m in numbers.range(i + 1, j - 1)
+	some m in helpers.span(i + 1, j - 1)
 	contains(lines[m], unlock)
 }
 
 _method_left(lines, i, j, ii) if {
 	j - 1 >= i + 1
-	some m in numbers.range(i + 1, j - 1)
+	some m in helpers.span(i + 1, j - 1)
 	_indent(lines[m]) < ii
 	startswith(trim_left(lines[m], " \t"), "}")
 }

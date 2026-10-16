@@ -136,7 +136,7 @@ findings contains finding if {
 }
 
 _guarded(lines, j, i, key) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`^\s*(?:if|elif)\b.*\b`, key, `\b`]), lines[k])
 }
 

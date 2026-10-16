@@ -1,0 +1,7 @@
+# wireguard profiles
+[wireguard]
+~>private-key=@@sample:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=@@
+
+config interface 'wg0'
+	option proto 'wireguard'
+~>	option private_key '@@sample:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=@@'

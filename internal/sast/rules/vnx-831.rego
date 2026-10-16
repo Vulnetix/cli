@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_831
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-831",
 	"name": "Signal Handler Function Associated with Multiple Signals",
@@ -78,7 +80,7 @@ _masked(lines, sa) if {
 # The struct gets a different handler between its assignment and line b.
 _rehandled(lines, sa, a, b) if {
 	b > a + 1
-	some k in numbers.range(a + 1, b - 1)
+	some k in helpers.span(a + 1, b - 1)
 	contains(lines[k], "sa_")
 	regex.match(concat("", [`\b`, sa, `\s*(?:\.|->)\s*sa_(?:handler|sigaction)\s*=`]), lines[k])
 }
@@ -126,20 +128,30 @@ _is_handler_def(lines, h, d) if {
 }
 
 # A function defined at file scope.
-_fn_def_re(f) := concat("", [`^(?:extern\s+"C"\s+)?(?:[A-Za-z_][\w\s\*]*[\s\*])?(?:\w+::)*`, f, `\s*\([^;]*$`])
+_fn_def_re(f) := concat("", [`^(?:extern\s+"C"\s+)?(?:[A-Za-z_][\w\s\*]*[\s\*])?(?:\w+::)*`, f, `\s*(?:\([^;]*$|\([^;{]*\)\s*\{.*\}\s*$)`])
 
 _body(lines, d) := [k |
 	n := count(lines)
 	ends := [e | some e in numbers.range(d + 1, min([d + 120, n - 1])); startswith(lines[e], "}")]
 	count(ends) > 0
-	some k in numbers.range(d + 1, min(ends) - 1)
+	some k in helpers.span(d + 1, min(ends) - 1)
 ]
 
-_code_lines(lines, d) := [code |
+_code_lines(lines, d) := array.concat(_inline_body(lines, d), [code |
 	some k in _body(lines, d)
 	not _is_comment(lines[k])
 	code := _strip(lines[k])
+])
+
+# A function whose whole body sits on its definition line.
+_inline_body(lines, d) := [_strip(m[0][1]) |
+	m := regex.find_all_string_submatch_n(`\)\s*\{(.*)\}\s*$`, lines[d], 1)
+	count(m) > 0
 ]
+
+_no_semi_or_inline(l) if not contains(l, ";")
+
+_no_semi_or_inline(l) if regex.match(`\)\s*\{.*\}\s*$`, l)
 
 # Unsafe library calls on one line of code.
 _direct(code) := {name |
@@ -172,7 +184,7 @@ _indirect(lines, defs, h, code) := {sprintf("%s() (which calls %s)", [f, concat(
 _defs(lines) := {[name, d] |
 	some d, l in lines
 	contains(l, "(")
-	not contains(l, ";")
+	_no_semi_or_inline(l)
 	not startswith(l, " ")
 	not startswith(l, "\t")
 	regex.match(`^[A-Za-z_]`, l)

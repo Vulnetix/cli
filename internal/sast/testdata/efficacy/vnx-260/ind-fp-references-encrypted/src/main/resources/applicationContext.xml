@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans">
+  <bean id="dataSource" class="org.apache.commons.dbcp2.BasicDataSource">
+    <property name="username" value="${db.username}"/>
+    <property name="password" value="${db.password}"/>
+  </bean>
+  <bean id="reportsDs" class="org.apache.commons.dbcp2.BasicDataSource">
+    <property name="password" value="ENC(G6N718UuyPE5bHyWKyuLQSm02auQPUtm)"/>
+  </bean>
+  <bean id="passwordEncoder" class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder"/>
+  <bean id="policy" class="com.acme.security.PasswordPolicy">
+    <property name="passwordHint" value="At least twelve characters"/>
+    <property name="minLength" value="12"/>
+  </bean>
+  <!-- <property name="password" value="Old-Ds-Pass-1"/> -->
+</beans>

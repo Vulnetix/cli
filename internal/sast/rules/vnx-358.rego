@@ -76,7 +76,7 @@ findings contains finding if {
 	e := _body_end(lines, i, 20, `^\s*\}`)
 	body := concat("\n", array.slice(lines, i + 1, e))
 	not regex.match(`\.verify\s*\(`, _strip(body))
-	some j in numbers.range(i + 1, e - 1)
+	some j in helpers.span(i + 1, e - 1)
 	l := lines[j]
 	not helpers.is_comment_line(l)
 	_java_host_partial(host, _strip(l))
@@ -182,7 +182,7 @@ _dn_partial(lines, i, code) if {
 	regex.match(_dn_src, lines[j])
 	not helpers.is_comment_line(lines[j])
 	p := helpers.assigned_ident(lines[j])
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`\b`, p, `\s*\.\s*(?:getName|toString)\s*\(`]), lines[k])
 	v := helpers.assigned_ident(lines[k])
 	regex.match(concat("", [`\b`, v, _partial]), code)

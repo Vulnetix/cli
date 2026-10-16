@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: settings
+data:
+  password: not-a-secret-here-1234
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mailer
+type: Opaque
+stringData:
+  smtp_host: smtp.acme-corp.io
+~>  smtp_password: "Rt7hQ2mVx9LpZ4"
+~>  auth-token: 9fK2mQz7Lp3Xv8Rt

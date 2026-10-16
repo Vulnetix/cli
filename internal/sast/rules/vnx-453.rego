@@ -29,7 +29,7 @@ _off_names := `verify(?:_?(?:ssl|tls|certs?|certificates?|signatures?|host(?:nam
 _on_names := `insecure(?:_?skip_?verify)?|skip_?(?:verify|tls_?verify|ssl_?verify|auth|csrf)|no_?verify|disable_?(?:ssl|tls|cert)_?verif\w*|disable_?(?:auth|csrf)|allow_?(?:insecure|unsafe|pickle)\w*|shell|debug|unsafe|csrf_?exempt`
 
 _param(names, value) := concat("", [
-	`(?i:(?:^|[(,{])\s*(`, names, `))\s*(?::\s*[\w\[\]. |]+?)?\s*=\s*`, value,
+	`(?i:(?:^|[(,{])\s*(?:(?:public|private|protected|readonly)\s+)*(`, names, `))\s*(?::\s*[\w\[\]. |]+?)?\s*=\s*`, value,
 	`\s*(?:[,)}]|$)`,
 ])
 
@@ -58,7 +58,7 @@ _closed_between(lines, d, i) if {
 }
 
 _closed_between(lines, d, i) if {
-	some j in numbers.range(d + 1, i - 1)
+	some j in helpers.span(d + 1, i - 1)
 	regex.match(_py_def, lines[j])
 }
 
@@ -97,7 +97,7 @@ _js_param_shape(line) if regex.match(`^\s*\{?\s*[A-Za-z_$][\w$]*\s*(?::\s*[\w\[\
 _js_param_shape(line) if regex.match(`^\s*\{[^{}]*=\s*(?:true|false)[^{}]*\}\s*(?::\s*(?:\{[^{}]*\}|[\w$.<>\[\] |]+))?\s*(?:=\s*\{\s*\})?\s*,?\s*$`, line)
 
 _js_closed_between(lines, d, i) if {
-	some j in numbers.range(d + 1, i - 1)
+	some j in helpers.span(d + 1, i - 1)
 	regex.match(`^\s*\)|\)\s*(?::[^{]*)?(?:=>)?\s*\{\s*$`, lines[j])
 }
 

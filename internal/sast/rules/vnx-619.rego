@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-619",
 	"name": "Database cursor opened in a function and never closed (Python DB-API)",
-	"description": "Reports a Python DB-API cursor (sqlite3, psycopg2, MySQLdb/pymysql, Django connection.cursor(), get_db().cursor(), await db.cursor()) assigned to a local variable inside a function and left open: the rest of the function never calls <cursor>.close(), never closes the connection it came from, does not use it as a context manager (with cur: / with closing(cur):), and does not return, yield or store it for a caller to close. An unclosed cursor holds its result set and server-side resources (a named PostgreSQL cursor, a MySQL unbuffered result) until garbage collection, and a pooled connection is handed to the next request with it still attached. Not reported: with conn.cursor() as cur, a close() in a finally block or later in the function, cur.close registered as a callback (ExitStack.callback, atexit) or wrapped in closing(cur), widget .cursor() calls in files importing PyQt/PySide/tkinter/wx, a cursor returned or yielded to the caller, a cursor stored on self, module-level scripts, comments and string literals.",
+	"description": "Reports a Python DB-API cursor (sqlite3, psycopg2, MySQLdb/pymysql, Django connection.cursor(), get_db().cursor(), connections[\"replica\"].cursor(), await db.cursor()) assigned to a local variable inside a function and left open: the rest of the function never calls <cursor>.close(), never closes the connection it came from, does not use it as a context manager (with cur: / with closing(cur):), and does not return, yield or store it for a caller to close. An unclosed cursor holds its result set and server-side resources (a named PostgreSQL cursor, a MySQL unbuffered result) until garbage collection, and a pooled connection is handed to the next request with it still attached. Not reported: with conn.cursor() as cur, a close() in a finally block or later in the function, cur.close registered as a callback (ExitStack.callback, atexit) or wrapped in closing(cur), widget .cursor() calls in files importing PyQt/PySide/tkinter/wx, a cursor returned or yielded to the caller, a cursor stored on self, module-level scripts, comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-619/",
 	"languages": ["python"],
 	"severity": "low",
@@ -22,7 +22,7 @@ metadata := {
 	"tags": ["dangling-db-cursor", "resource-leak", "cwe-619"],
 }
 
-_assign_re := `^(\s*)([A-Za-z_]\w*)\s*=\s*(?:await\s+)?((?:[A-Za-z_][\w\.]*\.)?([A-Za-z_]\w*)(?:\(\s*\))?)\.cursor\(`
+_assign_re := `^(\s*)([A-Za-z_]\w*)\s*=\s*(?:await\s+)?((?:[A-Za-z_][\w\.]*\.)?([A-Za-z_]\w*)(?:\(\s*\)|\[[^\]]*\])?)\.cursor\(`
 
 # GUI toolkits have a widget .cursor() that returns a mouse cursor, not a DB cursor.
 _gui_module(content) if regex.match(`(?m)^\s*(from|import)\s+(PyQt\d|PySide\d?|qtpy|tkinter|wx)\b`, content)

@@ -132,7 +132,7 @@ _hop1(lang, lines, i) := {[j, v] |
 _hop2(lines, i, h1) := {[j0, w] |
 	some [j0, v] in h1
 	j0 + 1 <= i - 1
-	some k in numbers.range(j0 + 1, i - 1)
+	some k in helpers.span(j0 + 1, i - 1)
 	l := lines[k]
 	regex.match(_word(v), l)
 	not helpers.is_comment_line(l)
@@ -159,7 +159,7 @@ _params("py", _, _) := set()
 
 _guarded(lang, lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	l := lines[k]
 	not helpers.is_comment_line(l)
 	regex.match(_guard(lang), l)

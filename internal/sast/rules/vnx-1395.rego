@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1395",
 	"name": "Dependency on a third-party component release with a well-known vulnerability",
-	"description": "CWE-1395 (Dependency on Vulnerable Third-Party Component) is fully answered by dependency scanning (vulnetix sca), which matches every component against the vulnerability database. This rule is the offline floor: it reports the handful of JavaScript and Python components whose vulnerable releases are exploited in the wild, when a manifest, lockfile or page pins one. npm (package.json dependency entries pinned exactly, =X, or bounded <X / <=X below the fix; package-lock.json / npm-shrinkwrap.json entries by their \"version\", yarn.lock v1 and Berry entries by their version line):lodash before 4.17.21 (CVE-2021-23337, CVE-2020-8203), minimist before 0.2.4 / 1.2.6 (CVE-2021-44906), jsonwebtoken before 9.0.0 (CVE-2022-23529, CVE-2015-9235), handlebars before 4.7.7 (CVE-2021-23369), jquery before 3.5.0 (CVE-2020-11022), the compromised releases event-stream 3.3.6, ua-parser-js 0.7.29/0.8.0/1.0.0 and node-ipc 10.1.1-10.1.3, and any version of vm2 (sandbox escapes, discontinued) and node-serialize (CVE-2017-5941, no fix). Python (requirements*.txt, Pipfile, pyproject.toml, setup.py/setup.cfg pins ==X, <=X or <X): PyYAML before 5.4 (CVE-2020-14343) and Jinja2 before 2.10.1 (CVE-2019-10906). Pages and templates (script src / href): jQuery before 3.5.0, AngularJS 1.x (end of life with unfixed CVEs) and Bootstrap JavaScript 3.x before 3.4.1 and 4.x before 4.3.1 (CVE-2019-8331), from a CDN path or a versioned file name. Not reported: fixed releases, caret/tilde/>= ranges that admit a fixed release (the lockfile decides), lookalike packages (lodash.merge, @types/lodash, types-PyYAML, jquery-ui, jquery-migrate), stylesheets, versions in scripts or descriptions, manifests under node_modules or test/fixture paths, and comments. Java components are VNX-937 and unmaintained components VNX-1104.",
+	"description": "CWE-1395 (Dependency on Vulnerable Third-Party Component) is fully answered by dependency scanning (vulnetix sca), which matches every component against the vulnerability database. This rule is the offline floor: it reports the handful of JavaScript and Python components whose vulnerable releases are exploited in the wild, when a manifest, lockfile or page pins one. npm (package.json dependency entries pinned exactly, =X, or bounded <X / <=X below the fix; package-lock.json / npm-shrinkwrap.json entries by their \"version\", yarn.lock v1 and Berry entries by their version line):lodash before 4.17.21 (CVE-2021-23337, CVE-2020-8203), minimist before 0.2.4 / 1.2.6 (CVE-2021-44906), jsonwebtoken before 9.0.0 (CVE-2022-23529, CVE-2015-9235), handlebars before 4.7.7 (CVE-2021-23369), jquery before 3.5.0 (CVE-2020-11022), the compromised releases event-stream 3.3.6, ua-parser-js 0.7.29/0.8.0/1.0.0 and node-ipc 10.1.1-10.1.3, and any version of vm2 (sandbox escapes, discontinued) and node-serialize (CVE-2017-5941, no fix). Python (requirements*.txt, Pipfile, pyproject.toml, setup.py/setup.cfg pins ==X, <=X or <X): PyYAML before 5.4 (CVE-2020-14343) and Jinja2 before 2.10.1 (CVE-2019-10906). Pages and templates (script src / href): jQuery before 3.5.0, AngularJS 1.x (end of life with unfixed CVEs) and Bootstrap JavaScript 3.x before 3.4.1 and 4.x before 4.3.1 (CVE-2019-8331), from a CDN path or a versioned file name. Not reported: fixed releases, caret/tilde/>= ranges that admit a fixed release (the lockfile decides), lookalike packages (lodash.merge, @types/lodash, types-PyYAML, jquery-ui, jquery-migrate), stylesheets, versions in scripts or descriptions, manifests under node_modules or test/fixture paths, and comments. Java components are VNX-937 and unmaintained components VNX-1104. The engine evaluates this rule only when the scanned tree holds a file it recognises as JavaScript, Python or HTML (a lone requirements-dev.txt does not count; requirements.txt, Pipfile and package manifests do).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1395/",
 	"languages": ["node", "python", "html"],
 	"severity": "low",
@@ -113,6 +113,9 @@ _skip(path) if regex.match(`(?i)(?:^|/)docs?/`, path)
 
 _npm_names_re := `"(lodash|jsonwebtoken|handlebars|jquery|minimist|event-stream|flatmap-stream|ua-parser-js|node-ipc|vm2|node-serialize)"`
 
+# Lockfile keys may carry a node_modules/ path before the name.
+_lock_names_re := `"(?:[^"]*/)?(lodash|jsonwebtoken|handlebars|jquery|minimist|event-stream|flatmap-stream|ua-parser-js|node-ipc|vm2|node-serialize)"`
+
 _msg(name, spec, adv) := sprintf("Dependency %s %s is a release with a well-known vulnerability (%s). Upgrade to a fixed release (or replace a component that has none) and run vulnetix sca for the full picture", [name, spec, adv])
 
 _finding(path, i, line, msg) := {
@@ -173,7 +176,7 @@ findings contains f if {
 	some path, content in input.file_contents
 	regex.match(`(?:^|/)(?:package-lock|npm-shrinkwrap)\.json$`, path)
 	not _skip(path)
-	regex.match(_npm_names_re, content)
+	regex.match(_lock_names_re, content)
 	lines := split(content, "\n")
 	some i, line in lines
 	contains(line, "{")
@@ -188,7 +191,7 @@ findings contains f if {
 
 _closed_before(lines, i, j) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	regex.match(`^\s*\}`, lines[k])
 }
 
@@ -302,6 +305,6 @@ _yarn_names_re := `(?m)^"?(?:lodash|jsonwebtoken|handlebars|jquery|minimist|even
 # Another entry header (or a blank line) between the header and the version.
 _yarn_between(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	not startswith(lines[k], " ")
 }

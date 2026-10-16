@@ -1,0 +1,11 @@
+<!doctype html>
+<html>
+  <body>
+    <div id="out"></div>
+    <script>
+      window.addEventListener('message', function (e) {
+~>        document.getElementById('out').innerHTML = e.data.html;
+      });
+    </script>
+  </body>
+</html>

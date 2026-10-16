@@ -57,7 +57,7 @@ _catch_var(lines, i) := v if {
 _closed(lines, c, i) if {
 	ic := _indent(lines[c])
 	c + 1 <= i - 1
-	some k in numbers.range(c + 1, i - 1)
+	some k in helpers.span(c + 1, i - 1)
 	_indent(lines[k]) <= ic
 	startswith(trim_space(lines[k]), "}")
 }
@@ -115,7 +115,22 @@ findings contains f if {
 
 # ── JSP ──────────────────────────────────────────────────────────────────
 
-_jsp_re := `<%=\s*(?:exception|e|ex|err|t)\s*(?:%>|\.(?:getMessage|getLocalizedMessage|toString|getStackTrace|getCause)\s*\()|\b\w+\.printStackTrace\(\s*(?:new\s+(?:java\.io\.)?PrintWriter\(\s*)?out\b`
+# Line i is inside a <%-- ... --%> comment that opened on an earlier line.
+_in_jsp_comment(lines, i) if {
+	i > 0
+	before := concat("\n", array.slice(lines, 0, i))
+	count(regex.find_n(`<%--`, before, -1)) > count(regex.find_n(`--%>`, before, -1))
+}
+
+# A comment opened on this line and still open at the match.
+_in_jsp_comment(lines, i) if {
+	pre := regex.replace(lines[i], `<%=.*$`, "")
+	regex.match(`<%--(?:.*?--%>)?`, pre)
+	not regex.match(`--%>`, pre)
+	contains(pre, "<%--")
+}
+
+_jsp_re :=`<%=\s*(?:exception|e|ex|err|t)\s*(?:%>|\.(?:getMessage|getLocalizedMessage|toString|getStackTrace|getCause)\s*\()|\b\w+\.printStackTrace\(\s*(?:new\s+(?:java\.io\.)?PrintWriter\(\s*)?out\b`
 
 findings contains f if {
 	some path, content in input.file_contents
@@ -125,6 +140,7 @@ findings contains f if {
 	not helpers.is_test_path(path)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(_jsp_re, line)
+	regex.match(_jsp_re, regex.replace(line, `<%--.*?--%>`, ""))
+	not _in_jsp_comment(lines, i)
 	f := _finding(path, i, line)
 }

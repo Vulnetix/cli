@@ -49,7 +49,7 @@ _in_try(lines, i) if {
 
 _dedented_between(lines, j, i, ij) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	not _blank_or_comment(lines[k])
 	_indent(lines[k]) <= ij
 }

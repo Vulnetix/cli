@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_479
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-479",
 	"name": "Signal Handler Use of a Non-reentrant Function",
@@ -116,7 +118,7 @@ findings contains finding if {
 	_fault_only(lines, h)
 	j := _def_line(lines, h)
 	e := _body_end(lines, j)
-	some k in numbers.range(j + 1, e - 1)
+	some k in helpers.span(j + 1, e - 1)
 	line := lines[k]
 	not _is_comment(line)
 	m := regex.find_all_string_submatch_n(_unsafe, _code(line), 1)

@@ -1,0 +1,6 @@
+- name: Install setuid helper
+  ansible.builtin.copy:
+    src: helper
+    dest: /usr/local/bin/helper
+    owner: root
+~>    mode: '4755'

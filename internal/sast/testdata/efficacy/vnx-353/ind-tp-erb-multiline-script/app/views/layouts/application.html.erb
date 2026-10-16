@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Inventory</title>
+    <%= csrf_meta_tags %>
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+~>    <script
+      src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"
+      defer></script>
+  </head>
+  <body>
+    <%= yield %>
+  </body>
+</html>

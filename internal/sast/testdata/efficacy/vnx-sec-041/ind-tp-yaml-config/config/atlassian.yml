@@ -1,0 +1,5 @@
+atlassian:
+  site: acme.atlassian.net
+  user: svc-deploy@acme.com
+~>  token: @@sample:ATATT3[A-Za-z0-9_-]{184}=[A-F0-9]{8}@@
+  timeout: 30

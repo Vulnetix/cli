@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_457
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-457",
 	"name": "Use of Uninitialized Variable",
@@ -85,9 +87,16 @@ _first_mention(lines, i, ind, v) := j if {
 
 _block_ends(lines, i, j, ind) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	not _blank_or_pp(lines[k])
+	not _goto_label(lines[k])
 	_indent(lines[k]) < ind
+}
+
+# A C label ("out:", "cleanup:") sits at a smaller indent without closing the block.
+_goto_label(l) if {
+	regex.match(`^\s*[A-Za-z_]\w*\s*:\s*(?://.*|/\*.*)?$`, l)
+	not regex.match(`^\s*(?:default|public|private|protected)\s*:`, l)
 }
 
 # Comment lines; a leading "*" counts only when it is not a dereference.

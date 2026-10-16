@@ -93,7 +93,7 @@ _in_raw_string(lines, i) if {
 
 _raw_closed(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	contains(lines[k], "\"#")
 }
 
@@ -108,7 +108,7 @@ _justified_above(lines, i) if {
 
 _code_between(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	not helpers.is_comment_line(lines[k])
 	not startswith(trim_space(lines[k]), "#[")
 }

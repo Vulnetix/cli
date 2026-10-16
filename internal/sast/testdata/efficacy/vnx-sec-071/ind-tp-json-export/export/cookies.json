@@ -1,0 +1,8 @@
+[
+  {
+    "domain": "gitlab.acme-corp.io",
+    "name": "_gitlab_session",
+    "path": "/",
+~>    "value": "@@sample:[a-f0-9]{32}@@"
+  }
+]

@@ -1,0 +1,4 @@
+server:
+  port: 8080
+~>jwt_secret: "committed-yaml-jwt-secret-value-42"
+log_level: info

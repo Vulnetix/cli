@@ -9,7 +9,7 @@ metadata := {
 	"name": "TURN server allowing reserved IP addresses",
 	"description": "Reports a TURN relay that will forward traffic to loopback, private or link-local addresses, which lets any TURN client reach internal services and the cloud metadata endpoint through the relay. Three concrete signals: a node-turn server constructed in JavaScript/TypeScript (new <name>(...) where <name> is bound by require/import of 'node-turn', a library with no peer-address deny list); a coturn configuration (turnserver.conf, coturn.conf) or coturn command-line argument (in YAML manifests or JS) that enables allow-loopback-peers or sets allowed-peer-ip to a loopback/RFC 1918/link-local range; and a turnserver.conf that sets no denied-peer-ip at all (coturn relays to RFC 1918 and link-local peers by default; reported once, on the file's first setting). Not reported: WebRTC client ICE configuration (iceServers), generic IP comparisons in application code, a coturn configuration that denies peer ranges, commented-out settings, and classes merely named Turn.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-030/",
-	"languages": ["javascript", "typescript"],
+	"languages": ["generic"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",

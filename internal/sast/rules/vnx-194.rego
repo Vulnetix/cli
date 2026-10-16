@@ -46,7 +46,7 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	line in srcs
-	not helpers.is_comment_line(line)
+	not _comment(line)
 	code := regex.replace(line, `"(\\.|[^"\\])*"`, `""`)
 	some m in regex.find_all_string_submatch_n(_call_re, code, -1)
 	_plain_char(_nearest_decl(lines, i, m[2]), m[2], _kind(m))
@@ -140,8 +140,15 @@ _nearest_decl(lines, i, v) := lines[j] if {
 		some k in numbers.range(max([0, i - 80]), i)
 		contains(lines[k], v)
 		regex.match(re, lines[k])
-		not helpers.is_comment_line(lines[k])
+		not _comment(lines[k])
 	]
 	count(cands) > 0
 	j := cands[count(cands) - 1]
+}
+
+# A line is a comment, except that `*p = tolower(*p);` starts with a dereference
+# and helpers.is_comment_line takes a leading `*` for a block-comment body.
+_comment(line) if {
+	helpers.is_comment_line(line)
+	not regex.match(`^\s*\*[A-Za-z_(]`, line)
 }

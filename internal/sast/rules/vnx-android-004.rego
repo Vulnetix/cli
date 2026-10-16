@@ -152,8 +152,25 @@ _excl := `(?i)((fcm|push|gcm|firebase|messaging|registration|notification|device
 
 _sensitive_re := `(?i)(passw(or)?d|passwd|passphrase|passcode|\bpwd\b|_pwd\b|\bpin\b|_pin\b|pin_?code|secret|api_?key|private_?key|access_?key|auth_?key|token|session_?(id|key|token|cookie)|\bsid\b|cookie|credential|bearer|jwt|\bcvv\b|card_?number)`
 
+# A dotted path (tokens.scope) is judged by its last member: the receiver
+# name says what holds the value, not what the value is.
+_value_name(value) := value if {
+	not regex.match(`^[A-Za-z_]\w*(\.[A-Za-z_]\w*)+$`, value)
+} else := v if {
+	parts := split(value, ".")
+	last := parts[count(parts) - 1]
+	last in {"value", "raw", "text", "string"}
+	v := concat(".", array.slice(parts, count(parts) - 2, count(parts)))
+} else := parts[count(parts) - 1] if parts := split(value, ".")
+
+# A key that only describes a credential (fcm_token) settles the question; the
+# value it holds (token) is then not read for a second opinion.
+_judged_text(key, value) := key if regex.match(_excl, key)
+
+else := concat(" ", [key, _value_name(value)])
+
 _sensitive(key, value) := m[0] if {
-	t := regex.replace(concat(" ", [key, value]), _excl, " ")
+	t := regex.replace(_judged_text(key, value), _excl, " ")
 	m := regex.find_n(_sensitive_re, t, 1)
 	count(m) > 0
 }

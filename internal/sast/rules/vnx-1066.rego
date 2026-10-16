@@ -50,12 +50,12 @@ _close(lines, i, h) := min(ends) if {
 
 # Indentation of the class's own members.
 _member_indent(lines, h, e) := _indent(lines[m]) if {
-	m := min([k | some k in numbers.range(h + 1, e - 1); trim_space(lines[k]) != ""])
+	m := min([k | some k in helpers.span(h + 1, e - 1); trim_space(lines[k]) != ""])
 }
 
 _has_uid(lines, h, e) if {
 	mi := _member_indent(lines, h, e)
-	some k in numbers.range(h + 1, e - 1)
+	some k in helpers.span(h + 1, e - 1)
 	contains(lines[k], "serialVersionUID")
 	_indent(lines[k]) == mi
 	regex.match(`\bstatic\b.*\bserialVersionUID\s*=`, lines[k])

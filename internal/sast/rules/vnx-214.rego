@@ -79,38 +79,42 @@ _line_cred(l, lang) if {
 
 # Inside an exec call, also a credential flag followed by a variable as the
 # next list element: ["--token", tok], ("sshpass", "-p", pw).
-_cred_arg(txt, lang) if _line_cred(txt, lang)
+_cred_arg_core(txt, lang) if _line_cred(txt, lang)
 
-_cred_arg(txt, _) if regex.match(concat("", ["[\"'`]", _flag, "[\"'`]\\s*,\\s*[A-Za-z_$]"]), txt)
+_cred_arg_core(txt, _) if regex.match(concat("", ["[\"'`]", _flag, "[\"'`]\\s*,\\s*[A-Za-z_$]"]), txt)
 
-_cred_arg(txt, _) if {
+_cred_arg_core(txt, _) if {
 	contains(txt, "sshpass")
 	regex.match("[\"'`]-p[\"'`]\\s*,\\s*[A-Za-z_$]", txt)
 }
 
 # redis-cli -a <password>, as a list element or in a command string.
-_cred_arg(txt, lang) if {
+_cred_arg_core(txt, lang) if {
 	contains(txt, "redis-cli")
 	regex.match(concat("", ["[\"'`]-a[\"'`]\\s*,\\s*[A-Za-z_$]|\\s-a\\s+", _valre(lang)]), txt)
 }
 
 # openssl -pass/-passin/-passout pass:<value>.
-_cred_arg(txt, lang) if {
+_cred_arg_core(txt, lang) if {
 	contains(txt, "pass:")
 	regex.match(concat("", ["\\bpass:", _valre(lang)]), txt)
 }
 
 # npm's //registry/:_authToken=<value> passed as an argument.
-_cred_arg(txt, lang) if {
+_cred_arg_core(txt, lang) if {
 	contains(txt, "_auth")
 	regex.match(concat("", [":_(authToken|auth|password)=", _valre(lang)]), txt)
 }
 
+_cred_arg(txt, lang) if _cred_arg_core(txt, lang)
+
 # Credentials inside a URL argument: postgresql://{user}:{password}@host.
-_cred_arg(txt, _) if {
+_url_cred(txt) if {
 	contains(txt, "://")
 	regex.match("://[^\\s/:@\"'`]*:(\\{[^}\\s]+\\}|\\$\\{[^}\\s]+\\}|\\$\\w+|%s|%\\(\\w+\\)s|[\"'`]\\s*\\+\\s*[\\w.]+\\s*\\+\\s*[\"'`])@", txt)
 }
+
+_cred_arg(txt, _) if _url_cred(txt)
 
 # mysql -p<value> on a line whose binary is named on a nearby line
 # (FileName = "mysqldump"; Arguments = $"-u{u} -p{p}").
@@ -227,7 +231,7 @@ _reported(lines, i, txt, lang) if {
 	v := helpers.assigned_first(al)
 	als := _call_lines(lines, a)
 	not _any_line_cred(als, lang)
-	_cred_arg(concat("\n", als), lang)
+	_cred_arg_core(concat("\n", als), lang)
 	regex.match(concat("", [`(^|[^\w.])`, v, `\b`]), txt)
 }
 
@@ -344,4 +348,30 @@ _maybe_sh(line) if contains(line, "htpasswd")
 _maybe_sh(line) if {
 	contains(line, "://")
 	contains(line, "@")
+}
+
+# cmd = [..., f"--dbname=postgresql://{user}:{password}@host/db"] on a line above,
+# passed to the call by name: the line that builds the URL is the finding.
+findings contains f if {
+	some path, content in input.file_contents
+	lang := _lang(path)
+	_has_any(content, _exec_file[lang])
+	contains(content, "://")
+	not helpers.is_test_path(path)
+	lines := split(content, "\n")
+	some i, line in lines
+	_has_any(line, _exec_needles[lang])
+	not helpers.is_comment_line(line)
+	regex.match(_exec[lang], line)
+	txt := concat("\n", _call_lines(lines, i))
+	not _url_cred(txt)
+	some a in numbers.range(max([0, i - 8]), i - 1)
+	al := lines[a]
+	not helpers.is_comment_line(al)
+	v := helpers.assigned_first(al)
+	als := _call_lines(lines, a)
+	regex.match(concat("", [`(^|[^\w.])`, v, `\b`]), txt)
+	some b, bl in als
+	_url_cred(bl)
+	f := _finding(path, a + b, bl)
 }

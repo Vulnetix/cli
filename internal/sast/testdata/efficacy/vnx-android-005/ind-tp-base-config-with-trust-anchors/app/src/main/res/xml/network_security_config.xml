@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+~>    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <domain-config>
+        <domain includeSubdomains="true">api.northwind-payroll.com</domain>
+        <pin-set expiration="2027-01-01">
+            <pin digest="SHA-256">7HIpactkIAq2Y49orFOOQKurWxmmSFZhBCoQYcRhJ3Y=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-RUBY-003",
 	"name": "Insecure deserialization in Ruby",
-	"description": "Untrusted bytes reach a Ruby deserializer that instantiates arbitrary classes: Marshal.load/Marshal.restore, Oj.load in its default object mode (no mode: :strict/:compat/:json/:null/:rails/:wab) or Oj.object_load, JSON.load, and JSON.parse with create_additions: true. Untrusted means request input (params, request.params/body/raw_post/headers/cookies, cookies, Rack env request keys), a Base64-decoded blob, an HTTP or message body (.body) or a socket read (a read on a *sock* variable, or recv/recvfrom/recv_nonblock/recvmsg on any receiver), used in the call or through a variable assigned from it (up to two assignments) in the 12 lines above. Not reported: data the process wrote itself or read from a local file (Marshal.load(File.binread(path)), the Marshal.load(Marshal.dump(obj)) deep copy, even of params), Oj with a non-object mode, JSON.parse without create_additions, comments and strings. YAML.load and its relatives are VNX-RUBY-007.",
+	"description": "Untrusted bytes reach a Ruby deserializer that instantiates arbitrary classes: Marshal.load/Marshal.restore, Oj.load in its default object mode (no mode: :strict/:compat/:json/:null/:rails/:wab) or Oj.object_load, JSON.load, and JSON.parse with create_additions: true. Untrusted means request input (params, request.params/body/raw_post/headers/cookies, cookies, Rack env request keys), a Base64-decoded blob, an HTTP or message body (.body) or a socket read (a read on a *sock* variable or on a connection assigned from accept, or recv/recvfrom/recv_nonblock/recvmsg on any receiver), used in the call or through a variable assigned from it (up to two assignments) in the 12 lines above. Not reported: data the process wrote itself or read from a local file (Marshal.load(File.binread(path)), the Marshal.load(Marshal.dump(obj)) deep copy, even of params), Oj with a non-object mode, JSON.parse without create_additions, comments and strings. YAML.load and its relatives are VNX-RUBY-007.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-003/",
 	"languages": ["ruby"],
 	"severity": "critical",
@@ -23,7 +23,7 @@ metadata := {
 
 # Data from outside the process: request input, a decoded transport blob, a
 # message or response body, a socket.
-_src_re := `\bparams\b\s*(?:[\[\.\),]|$)|\brequest\.(?:params|query_parameters|request_parameters|body|raw_post|query_string|headers|env|cookies|POST|GET)\b|\bcookies\s*[\[\.]|\benv\[\s*["'](?:QUERY_STRING|HTTP_\w+|rack\.input)|\breq\.(?:params|body|cookies)\b|\bBase64\.(?:decode64|strict_decode64|urlsafe_decode64)\b|\.unpack1?\(\s*["']m|\.body\b|\b\w*sock(?:et)?\w*\.(?:read|recv|gets|readpartial)\b|\.(?:recv|recvfrom|recv_nonblock|recvmsg)\s*\(`
+_src_re := `\bparams\b\s*(?:[\[\.\),]|$)|\brequest\.(?:params|query_parameters|request_parameters|body|raw_post|query_string|headers|env|cookies|POST|GET)\b|\bcookies\s*[\[\.]|\benv\[\s*["'](?:QUERY_STRING|HTTP_\w+|rack\.input)|\breq\.(?:params|body|cookies)\b|\bBase64\.(?:decode64|strict_decode64|urlsafe_decode64)\b|\.unpack1?\(\s*["']m|\.body\b|\b\w*sock(?:et)?\w*\.(?:read|recv|gets|readpartial)\b|\.(?:recv|recvfrom|recv_nonblock|recvmsg)\s*\(|=\s*\w+\.accept\b`
 
 _assign_re := `^\s*(@{0,2}[A-Za-z_]\w*)\s*(?:\|\|)?=\s*[^=~>]`
 
