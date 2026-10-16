@@ -146,7 +146,7 @@ func explainAdvisory(p Package, a Advisory, o Options, s *Style) string {
 		fmt.Fprintf(&b, "   %s\n", s.Dim("Not counted by --fail-on. Use --strict to count it."))
 	}
 	if v.Verdict == "likely_not_affected" {
-		fmt.Fprintf(&b, "   %s %s\n", s.Dim("Think it still applies? Count it anyway:"), s.Cmd("vulnetix scan --strict"))
+		fmt.Fprintf(&b, "   %s %s\n", s.Dim("Think it still applies? Count it anyway:"), s.Cmd(strictCommand(o)))
 	}
 	return b.String()
 }

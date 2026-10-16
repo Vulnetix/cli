@@ -22,5 +22,5 @@
    The CLI cannot verify it is deployed. This is your statement.
 
  NEXT
-   vulnetix scan --explain libexample   why each advisory applies, with the evidence
-   vulnetix scan -v                     scores, version checks and match evidence
+   vulnetix sca --explain libexample   why each advisory applies, with the evidence
+   vulnetix scan -v                    scores, version checks and match evidence

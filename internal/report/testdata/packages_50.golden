@@ -62,5 +62,5 @@
 
  NEXT
    vulnetix fix
-   vulnetix scan --explain log4j-core
+   vulnetix sca --explain log4j-core
    vulnetix scan -v

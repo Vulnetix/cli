@@ -50,6 +50,6 @@
  + fastapi 0.135.1   PYSEC-2024-38 is fixed in 0.109.1 | you are past it | --explain PYSEC-2024-38
 
  NEXT
-   vulnetix fix                         apply 5 upgrades
-   vulnetix scan --explain log4j-core   why each advisory applies, with the evidence
-   vulnetix scan -v                     scores, version checks and match evidence
+   vulnetix fix                        apply 5 upgrades
+   vulnetix sca --explain log4j-core   why each advisory applies, with the evidence
+   vulnetix scan -v                    scores, version checks and match evidence

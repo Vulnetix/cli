@@ -332,11 +332,14 @@ func codeLabel(r CodeReport) string {
 	return "SAST"
 }
 
-func codeCommand(o Options) string {
-	if o.Command == "" {
-		return "vulnetix scan"
+// ruleExplainCommand explains one rule through the scanner that owns its kind,
+// loading the pack that supplied it.
+func ruleExplainCommand(r *codeRule, o Options) string {
+	kind := ""
+	if len(r.places) > 0 {
+		kind = r.places[0].Kind
 	}
-	return "vulnetix " + o.Command
+	return explainCommand(o, codeScanner(kind, o), r.id, r.id)
 }
 
 func indentFor(s *Style) string {
@@ -594,7 +597,6 @@ func renderVendored(rules []*codeRule, s *Style) string {
 // codeNext is the NEXT block: the commands that take the reader from this
 // summary to the detail, one per thing they can do next.
 func codeNext(v codeView, o Options, s *Style) string {
-	cmd := codeCommand(o)
 	type step struct{ cmd, why string }
 	var steps []step
 
@@ -614,24 +616,24 @@ func codeNext(v codeView, o Options, s *Style) string {
 		if n := len(top.places); n > 1 {
 			why = fmt.Sprintf("the rule, and all %d places with the matched code", n)
 		}
-		steps = append(steps, step{cmd + " --explain " + top.id, why})
+		steps = append(steps, step{ruleExplainCommand(top, o), why})
 	}
 	if len(v.action) > 1 {
-		steps = append(steps, step{cmd + " --explain " + v.action[1].id, "the next rule to look at"})
+		steps = append(steps, step{ruleExplainCommand(v.action[1], o), "the next rule to look at"})
 	}
 	if o.Verbosity == 0 {
 		why := "one snippet per rule, and every file it fired in"
 		if len(v.wait) > 7 {
 			why = "one snippet per rule, and every rule that can wait"
 		}
-		steps = append(steps, step{cmd + " -v", why})
+		steps = append(steps, step{rerunCommand(o, "-v"), why})
 	}
 	if len(v.tests) > 0 {
-		steps = append(steps, step{cmd + " --show tests", "rank test code with the rest"})
+		steps = append(steps, step{rerunCommand(o, "--show", "tests"), "rank test code with the rest"})
 	}
 	if len(v.vendored) > 0 {
 		if dirs := vendoredDirsOf(v.vendored); len(dirs) > 0 {
-			steps = append(steps, step{cmd + " --exclude " + dirs[0].dir, "stop scanning code you did not write"})
+			steps = append(steps, step{rerunCommand(o, "--exclude", dirs[0].dir), "stop scanning code you did not write"})
 		}
 	}
 	if len(steps) == 0 {
@@ -930,7 +932,6 @@ func explainPlaces(places []CodeFinding, files []ruleFile, o Options, s *Style) 
 }
 
 func explainNext(id, kind string, n int, o Options, s *Style) string {
-	cmd := codeCommand(o)
 	type step struct{ cmd, why string }
 	var steps []step
 	if o.Verbosity == 0 && n > 1 {
@@ -938,9 +939,9 @@ func explainNext(id, kind string, n int, o Options, s *Style) string {
 		if kind == "secrets" {
 			why = "every place, with how it got there"
 		}
-		steps = append(steps, step{cmd + " --explain " + id + " -v", why})
+		steps = append(steps, step{explainCommand(o, codeScanner(kind, o), id, id) + " -v", why})
 	}
-	steps = append(steps, step{cmd, "back to every rule"})
+	steps = append(steps, step{rerunCommand(o), "back to every rule"})
 	var b strings.Builder
 	b.WriteString("\n " + s.Bold("NEXT") + "\n")
 	w := 0

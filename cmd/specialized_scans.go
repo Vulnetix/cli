@@ -135,7 +135,9 @@ package dependencies, licenses, or other security issues.`,
 		// the filesystem for ELF binaries and analyzes them. It is non-fatal —
 		// errors are logged to stderr inside runBinaryScan — so the container
 		// (Dockerfile) scan result governs the command's exit code.
-		_ = runBinaryScan(cmd)
+		if !explainRequested(cmd) {
+			_ = runBinaryScan(cmd)
+		}
 		return scanErr
 	},
 }

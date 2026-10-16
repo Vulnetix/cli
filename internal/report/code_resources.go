@@ -587,7 +587,10 @@ func renderCards(v resourceView, o Options, s *Style) string {
 }
 
 func resourceNext(v resourceView, o Options, s *Style, containers bool, noun string) []nextStep {
-	cmd := codeCommand(o)
+	scanner := codeScanner("iac", o)
+	if containers {
+		scanner = codeScanner("oci", o)
+	}
 	var steps []nextStep
 	blocks := append(append([]*resBlock{}, v.action...), v.wait...)
 	seen := map[string]bool{}
@@ -597,29 +600,35 @@ func resourceNext(v resourceView, o Options, s *Style, containers bool, noun str
 		}
 		seen[bl.path] = true
 		n := 0
+		// A path query explains every rule that fired there, so the command
+		// loads every pack those rules came from.
+		var ids []string
 		for _, other := range blocks {
 			if other.path == bl.path {
 				n += len(other.problems)
+				for _, p := range other.problems {
+					ids = append(ids, p.ids...)
+				}
 			}
 		}
 		why := fmt.Sprintf("the %s on %s, with the lines", plural(n, "problem"), bl.name)
 		if containers {
 			why = fmt.Sprintf("the %s on this image, with the lines", plural(n, "problem"))
 		}
-		steps = append(steps, nextStep{cmd + " --explain " + bl.path, why})
+		steps = append(steps, nextStep{explainCommand(o, scanner, bl.path, ids...), why})
 	}
 	if !containers && len(blocks) > 0 && len(blocks[0].problems) > 0 {
 		p := blocks[0].problems[0]
-		steps = append(steps, nextStep{cmd + " --explain " + p.ids[0], "why it matters, and every place it fires"})
+		steps = append(steps, nextStep{explainCommand(o, scanner, p.ids[0], p.ids[0]), "why it matters, and every place it fires"})
 	}
 	if o.Verbosity == 0 {
-		steps = append(steps, nextStep{cmd + " -v", "every finding with each rule id, nothing folded"})
+		steps = append(steps, nextStep{rerunCommand(o, "-v"), "every finding with each rule id, nothing folded"})
 	}
 	if len(v.tests) > 0 {
-		steps = append(steps, nextStep{cmd + " --show tests", "rank test files with the rest"})
+		steps = append(steps, nextStep{rerunCommand(o, "--show", "tests"), "rank test files with the rest"})
 	}
 	if dirs := vendoredDirsOf(v.vendored.vendored); len(dirs) > 0 {
-		steps = append(steps, nextStep{cmd + " --exclude " + dirs[0].dir, "stop scanning code you did not write"})
+		steps = append(steps, nextStep{rerunCommand(o, "--exclude", dirs[0].dir), "stop scanning code you did not write"})
 	}
 	return steps
 }

@@ -42,6 +42,7 @@ var flagToOption = map[string]string{
 	"jail":                    "Jail",
 	"results-only":            "ResultsOnly",
 	"dry-run":                 "DryRun",
+	"explain":                 "Explain",
 	"ignore":                  "IgnoreGlobs",
 	"ignore-git":              "IgnoreGit",
 	"ignore-binaries":         "IgnoreBinaries",
@@ -137,7 +138,6 @@ var notAnalysisInput = map[string]string{
 	"sort":                       "display: carried in scanopts.Surface, never reaches the analysis",
 	"show":                       "display: carried in scanopts.Surface; `paths` also sets Options.ShowPaths",
 	"hide":                       "display: carried in scanopts.Surface; `exploits` and `fixes` also set Options.NoExploits and NoRemediation",
-	"explain":                    "display: carried in scanopts.Surface, never reaches the analysis",
 	"color":                      "display: carried in scanopts.Surface, never reaches the analysis",
 	"ascii":                      "display: carried in scanopts.Surface, never reaches the analysis",
 	"width":                      "display: carried in scanopts.Surface, never reaches the analysis",
@@ -258,6 +258,7 @@ func TestOptionsFieldsAreReachable(t *testing.T) {
 		"SysInfo",           //
 		"SeedBOM",           //
 		"VulnetixSeedBOM",   //
+		"PreloadedModules",  // loaded by the --explain pre-pass to find its rule
 	} {
 		mapped[field] = true
 	}

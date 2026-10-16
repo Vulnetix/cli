@@ -169,3 +169,24 @@ func TestCountByKindIgnoresLibraries(t *testing.T) {
 	})
 	require.Equal(t, map[string]int{KindSAST: 1}, counts)
 }
+
+func TestRuleSourcesNamesThePackARuleCameFrom(t *testing.T) {
+	rule := func(id string) string {
+		return "package x\nmetadata := {\"id\": \"" + id + "\", \"kind\": \"iac\"}\n"
+	}
+	got := RuleSources(map[string]string{
+		"rules/vnx-go-001.rego":                    rule("VNX-GO-001"),
+		"Vulnetix/opa-cigna-tf/rules/s3/x.rego":    rule("cigna-s3-001"),
+		"Vulnetix/opa-cigna-tf/rules/lib/lib.rego": "package lib\n",
+		"Acme/pack/rules/dup.rego":                 rule("VNX-GO-001"),
+	})
+	want := map[string]string{"VNX-GO-001": "", "CIGNA-S3-001": "Vulnetix/opa-cigna-tf"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for id, pack := range want {
+		if got[id] != pack {
+			t.Errorf("%s: got %q, want %q", id, got[id], pack)
+		}
+	}
+}

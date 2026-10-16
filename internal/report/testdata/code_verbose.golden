@@ -14,5 +14,5 @@
  ● LOW       VNX-1117      Function without docstring summary                         2 in 1 file
 
  NEXT
-   vulnetix scan --explain VNX-SEC-001  the rule, why it matters, and the matched code
-   vulnetix scan --explain VNX-PY-004   the next rule to look at
+   vulnetix secrets --explain VNX-SEC-001  the rule, why it matters, and the matched code
+   vulnetix sast --explain VNX-PY-004      the next rule to look at

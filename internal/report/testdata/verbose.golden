@@ -18,5 +18,5 @@
                fixed in  2.31.0  recommended
 
  NEXT
-   vulnetix fix                       apply 1 upgrade
-   vulnetix scan --explain requests   why each advisory applies, with the evidence
+   vulnetix fix                      apply 1 upgrade
+   vulnetix sca --explain requests   why each advisory applies, with the evidence
