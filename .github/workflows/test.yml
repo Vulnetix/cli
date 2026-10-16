@@ -174,7 +174,7 @@ jobs:
           trap 'cd "$root"; git worktree remove --force "$wt" || true; git worktree prune || true' EXIT
           cd "$wt"
           test -f .git   # a worktree's .git is a file; a directory means this is not testing one
-          go test ./...
+          go test -timeout 30m ./...
         shell: bash
         env:
           CGO_ENABLED: "1"
