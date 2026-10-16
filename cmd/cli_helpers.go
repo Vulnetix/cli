@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vulnetix/cli/v3/internal/ghactx"
@@ -48,8 +49,8 @@ func envForCliWithGit(git *gitctx.GitContext) vdb.CliEnv {
 		env.Shell = sys.Shell
 	}
 	if git == nil {
-		if cwd, _ := os.Getwd(); cwd != "" {
-			git = cwdGitContext(cwd)
+		if dir := cliGitDir(); dir != "" {
+			git = cwdGitContext(dir)
 		}
 	}
 	if git != nil {
@@ -395,6 +396,33 @@ func cliAnswerPending(data map[string]any, key string) bool {
 // whole working directory again; nothing a command does between them changes
 // the repository.
 var cwdGitContexts sync.Map // dir -> func() *gitctx.GitContext
+
+// scanTargetDir is the directory a scan command is scanning, once it has
+// resolved its --path. The cli.* requests a scan sends without a git context of
+// their own (quality gate, suppressions, licences, ...) describe that
+// repository, not the one the CLI happened to be started in: started inside a
+// large repository to scan another directory, the scan used to run git status
+// over the whole working directory before its first request (1.4s on this
+// repository), and sent that repository's branch and remotes.
+var scanTargetDir atomic.Pointer[string]
+
+// setScanTarget records the directory the running scan reads. dir should be
+// absolute, so the scan's own git context and the requests' share one entry in
+// cwdGitContexts.
+func setScanTarget(dir string) {
+	scanTargetDir.Store(&dir)
+}
+
+// cliGitDir is the directory whose git context a cli.* request carries when its
+// caller passes none: the scan target if a scan has set one, else the working
+// directory.
+func cliGitDir() string {
+	if p := scanTargetDir.Load(); p != nil && *p != "" {
+		return *p
+	}
+	cwd, _ := os.Getwd()
+	return cwd
+}
 
 func cwdGitContext(dir string) *gitctx.GitContext {
 	f, _ := cwdGitContexts.LoadOrStore(dir, sync.OnceValue(func() *gitctx.GitContext { return gitctx.Collect(dir) }))
