@@ -1,0 +1,17 @@
+<section>
+  <form action="/login" method="post">
+    <input type="email" name="email">
+    <input type="password" name="password">
+    <button>Sign in</button>
+  </form>
+
+  <form id="change-pw" onsubmit="return submitChange(event)">
+    <input type="password" id="current">
+    <input type="password" id="next">
+    <button>Change password</button>
+  </form>
+
+  <form action="/search">
+    <input type="search" name="q">
+  </form>
+</section>

@@ -59,7 +59,7 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(_c_line, line)
-	not helpers.is_comment_line(line)
+	not _comment(line)
 	code := _blank(line)
 	some re in _c_res
 	regex.match(re, code)
@@ -79,7 +79,7 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	contains(line, "EOF")
-	not helpers.is_comment_line(line)
+	not _comment(line)
 	some g in regex.find_all_string_submatch_n(_eof_re, _blank(line), 1)
 	v := g[1]
 	win := helpers.code_window(lines, i, 40, 0)
@@ -97,7 +97,7 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(_j_line, line)
-	not helpers.is_comment_line(line)
+	not _comment(line)
 	regex.match(_j_re, _blank(line))
 	finding := _finding(path, i, line)
 }
@@ -110,4 +110,11 @@ _finding(path, i, line) := {
 	"level": metadata.level,
 	"start_line": i + 1,
 	"snippet": line,
+}
+
+# A line opening with `*name` is a dereferenced assignment target (*pos = ...),
+# not the continuation of a block comment (` * text`, ` */`).
+_comment(line) if {
+	helpers.is_comment_line(line)
+	not regex.match(`^\s*\*[A-Za-z_(]`, line)
 }

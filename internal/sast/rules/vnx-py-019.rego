@@ -145,7 +145,7 @@ _def_body(lines, i, line) := _body(lines, s, _indent(line)) if {
 # The method body: the code lines after line s that are indented deeper than
 # the def, up to the first dedent (at most 40 lines).
 _body(lines, s, ind) := [lines[k] |
-	some k in numbers.range(s + 1, e - 1)
+	some k in helpers.span(s + 1, e - 1)
 	trim_space(lines[k]) != ""
 	not startswith(trim_space(lines[k]), "#")
 ] if {

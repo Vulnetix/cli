@@ -129,6 +129,13 @@ _last_key(prefix) := concat("", [m[1], m[2]]) if {
 
 _ctx(_, _, prefix) if _secure_name(_last_key(prefix))
 
+# An indexed store: token[i] = letters[rand.Intn(n)]
+_ctx(_, _, prefix) if {
+	ms := regex.find_all_string_submatch_n(`([A-Za-z_$@][\w$@]*)\s*\[[^\]\[]*\]\s*(?::=|\+=|=)(?:[^=:>]|$)`, prefix, -1)
+	count(ms) > 0
+	_secure_name(ms[count(ms) - 1][1])
+}
+
 # name: Type = <sink>
 _ctx(_, _, prefix) if {
 	m := regex.find_all_string_submatch_n(`^\s*(?:(?:export|const|let|var|val|readonly|private|public|protected|static|declare)\s+)*(?:self\.|this\.)?([A-Za-z_$][\w$]*)\s*[?!]?\s*:\s*[A-Za-z_][\w\[\]., |<>]*=[^=:]*$`, prefix, 1)
@@ -412,15 +419,23 @@ _csprng(_, mm, content) if {
 _bad_seed(_, _, arg) if _bad_arg(arg)
 
 _bad_seed(lines, i, arg) if {
-	m := regex.find_all_string_submatch_n(`^\s*(\$?[A-Za-z_]\w*)[\s)]*$`, arg, 1)
-	count(m) > 0
-	v := m[0][1]
+	v := _seed_var(arg)
 	i > 0
 	some j in numbers.range(max([0, i - 8]), i - 1)
 	contains(lines[j], v)
 	a := regex.find_all_string_submatch_n(concat("", [`(?:^|[^\w.$])`, strings.replace_n({"$": `\$`}, v), `\s*(?::=|=)\s*(.+?)\s*;?\s*$`]), lines[j], 1)
 	count(a) > 0
 	_bad_arg(a[0][1])
+}
+
+# The variable a seed argument names, bare or wrapped in a conversion call:
+# seed, String(seed), int(seed), Number(seed).
+_seed_var(arg) := m[0][1] if {
+	m := regex.find_all_string_submatch_n(`^\s*(\$?[A-Za-z_]\w*)[\s)]*$`, arg, 1)
+	count(m) > 0
+} else := m[0][1] if {
+	m := regex.find_all_string_submatch_n(`^\s*(?:[A-Za-z_][\w.]*)\(\s*(\$?[A-Za-z_]\w*)\s*\)\s*$`, arg, 1)
+	count(m) > 0
 }
 
 # Every seeding call whose argument this rule's _bad_arg classifies.

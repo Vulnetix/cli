@@ -1,0 +1,6 @@
+services:
+  db:
+    environment:
+      MYSQL_ROOT_PASSWORD: admin321
+      APP_PASSWORD: changeme
+      APP_TOKEN_PASSWORD: Zx9!vQ2#kLp8

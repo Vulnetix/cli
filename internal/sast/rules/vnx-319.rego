@@ -22,7 +22,7 @@ metadata := {
 	"tags": ["cleartext-transmission", "cwe-319"],
 }
 
-_exts := {".py", ".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs", ".java", ".go", ".php", ".rb"}
+_exts := {".py", ".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs", ".java", ".go", ".php", ".rb", ".html", ".htm", ".jinja", ".j2", ".erb", ".twig", ".phtml", ".jsp"}
 
 _ext_ok(path) if {
 	some e in _exts

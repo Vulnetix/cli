@@ -1,0 +1,4 @@
+webhook:
+  url: https://hooks.acme-corp.io/notify
+  headers:
+~>    Authorization: Bearer @@sample:[A-Za-z0-9]{40}@@

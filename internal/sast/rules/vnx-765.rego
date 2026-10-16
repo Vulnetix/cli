@@ -125,7 +125,7 @@ _double(_, lines, i, j) if {
 # (2) Java: release inside try { }, release again in its finally { }.
 _double("java", lines, i, j) if {
 	ii := _indent(lines[i])
-	some f in numbers.range(i + 1, j - 1)
+	some f in helpers.span(i + 1, j - 1)
 	f >= i + 1
 	f <= j - 1
 	regex.match(`^\s*\}\s*finally\s*\{`, lines[f])
@@ -162,7 +162,7 @@ _try_owns(lines, i, f, fi) if {
 }
 
 _other_at_level(lines, t, f, fi) if {
-	some k in numbers.range(t + 1, f - 1)
+	some k in helpers.span(t + 1, f - 1)
 	k >= t + 1
 	k <= f - 1
 	trim_space(lines[k]) != ""
@@ -171,7 +171,7 @@ _other_at_level(lines, t, f, fi) if {
 }
 
 _shallower_between(lines, i, j, ii) if {
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	k >= i + 1
 	k <= j - 1
 	trim_space(lines[k]) != ""
@@ -179,14 +179,14 @@ _shallower_between(lines, i, j, ii) if {
 }
 
 _relocked_between(lines, i, j, re) if {
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	k >= i + 1
 	k <= j - 1
 	regex.match(re, lines[k])
 }
 
 _closure_between(lines, i, j) if {
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	k >= i + 1
 	k <= j - 1
 	regex.match(`\bfunc\s*\(|->\s*\{|\bnew\s+[\w.<>]+\s*\([^)]*\)\s*\{`, lines[k])

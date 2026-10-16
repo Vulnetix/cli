@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Quayside Tickets</string>
+    <string name="password_hint">Password</string>
+    <string name="password_label">Enter your password</string>
+    <string name="token_expired_error">Your session token has expired. Please sign in again.</string>
+    <string name="api_key_title">API key</string>
+    <string name="reset_password_button">Reset password</string>
+    <string name="secret_question_message">Answer your secret question:</string>
+    <string name="password">Password</string>
+    <string name="token_refresh_failed">token_refresh_failed</string>
+</resources>

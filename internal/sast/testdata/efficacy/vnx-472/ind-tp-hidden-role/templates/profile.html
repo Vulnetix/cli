@@ -1,0 +1,6 @@
+<form method="post" action="/profile">
+  <input type="text" name="display_name" value="{{ user.name }}">
+~>  <input type="hidden" name="role" value="{{ user.role }}">
+~>  <input type="hidden" name="user_id" value="{{ user.id }}">
+  <button>Save</button>
+</form>

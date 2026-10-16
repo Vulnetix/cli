@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_937
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-937",
 	"name": "Build file pins a Java library release with a known remote-code-execution vulnerability",
@@ -96,7 +98,7 @@ _same_block(lines, a, b) if {
 
 _edge_between(lines, lo, hi) if {
 	lo + 1 <= hi - 1
-	some k in numbers.range(lo + 1, hi - 1)
+	some k in helpers.span(lo + 1, hi - 1)
 	regex.match(_block_edge, lines[k])
 }
 

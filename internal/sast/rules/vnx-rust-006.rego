@@ -117,7 +117,7 @@ _guarded(lines, j, i, v) if {
 # A later let rebinds the name from something else (shadowing).
 _rebound(lines, j, i, v) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`^\s*let\s+(?:mut\s+)?`, v, `\b`]), lines[k])
 }
 
@@ -125,7 +125,7 @@ _rebound(lines, j, i, v) if {
 # different variable (a parameter of the next function).
 _rebound(lines, j, i, v) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(`^\s*(?:pub(?:\s*\([^)]*\))?\s+)?(?:(?:const|async|unsafe)\s+)*fn\s`, lines[k])
 }
 

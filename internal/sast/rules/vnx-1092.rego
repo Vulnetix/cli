@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1092",
 	"name": "Use of Same Invokable Control Element in Multiple Architectural Layers",
-	"description": "A Python data-layer module (models.py, a models/, repositories/, repository/, dao/ or dal/ package, repository.py, dao.py) uses the web layer's request or response machinery: it imports request, session, render_template, redirect, make_response, flash or abort from Flask (including a parenthesised multi-line import, reported at its first line), anything from django.http or django.shortcuts, Request from fastapi/starlette or rest_framework.request, or reads the request object (request.args, request.form, request.GET, request.POST, request.json, request.cookies). The same control element then runs in both the presentation and the data layer, so data access depends on whichever HTTP request happens to be active and input validation done in the view can be bypassed or duplicated. Reported: the import or the request read. Not reported: flask.g and current_app (the documented way to share a connection), django.urls.reverse (get_absolute_url), view, route and service modules, test files, comments, and mentions inside docstrings or other triple-quoted strings. Layering that is expressed through names other than these file paths is not inferred.",
+	"description": "A Python data-layer module (models.py, a models/, repositories/, repository/, dao/ or dal/ package, repository.py, dao.py) uses the web layer's request or response machinery: it imports request, session, render_template, redirect, make_response, flash or abort from Flask (including a parenthesised multi-line import, reported at its first line), anything from django.http or django.shortcuts, Request from fastapi/starlette or rest_framework.request, or reads the request object (request.args, request.form, request.GET, request.POST, request.json, request.cookies, session[...] when session is imported from Flask, or the same attributes on a parameter annotated : Request). The same control element then runs in both the presentation and the data layer, so data access depends on whichever HTTP request happens to be active and input validation done in the view can be bypassed or duplicated. Reported: the import or the request read. Not reported: flask.g and current_app (the documented way to share a connection), django.urls.reverse (get_absolute_url), view, route and service modules, test files, comments, and mentions inside docstrings or other triple-quoted strings. Layering that is expressed through names other than these file paths is not inferred.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1092/",
 	"languages": ["python"],
 	"severity": "low",
@@ -56,7 +56,7 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	not helpers.is_comment_line(line)
-	_hit(lines, i, line)
+	_any_hit(content, lines, i, line)
 	not _in_docstring(lines, i)
 	finding := {
 		"rule_id": metadata.id,
@@ -67,6 +67,32 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+_any_hit(_, lines, i, line) if _hit(lines, i, line)
+
+# Flask's session read as a mapping: session["user_id"], when the module
+# imports session from flask.
+_any_hit(content, _, _, line) if {
+	contains(line, "session[")
+	_flask_session(content)
+	regex.match(`\bsession\[`, line)
+}
+
+_flask_session(content) if regex.match(`(?m)^\s*from\s+(flask|quart)\s+import\s+\(?[^#\n]*\bsession\b`, content)
+
+# A parameter annotated as a web Request (req: Request) read like request.
+_any_hit(content, _, _, line) if {
+	contains(content, ": Request")
+	some n in _request_params(content)
+	contains(line, n)
+	regex.match(concat("", [`\b`, n, `\.(args|form|values|json|get_json|files|cookies|headers|query_params|data)\b`]), line)
+}
+
+_request_params(content) := {m[1] |
+	regex.match(`(?m)^\s*from\s+(fastapi|starlette\.requests|rest_framework\.request)\s+import\s+.*\bRequest\b`, content)
+	some m in regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\s*:\s*Request\b`, content, -1)
+	m[1] != "request"
 }
 
 _hit(_, _, line) if _web_import(line)

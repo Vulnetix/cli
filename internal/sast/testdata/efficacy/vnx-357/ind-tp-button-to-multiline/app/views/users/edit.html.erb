@@ -1,0 +1,9 @@
+<%= render "form", user: @user %>
+
+<div class="danger-zone">
+  <h2>Danger zone</h2>
+~>  <%= button_to "Delete account",
+        user_path(@user),
+        method: :delete,
+        class: "btn btn-danger" %>
+</div>

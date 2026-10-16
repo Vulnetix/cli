@@ -254,6 +254,38 @@ _flows(lines, i, prefix) if {
 	_ctx(lines, j, substring(lines[j], 0, idx))
 }
 
+# Two hops: the clock value goes through a second variable (`sum := sha1.Sum(seed)`)
+# which reaches the security context.
+_flows(lines, i, prefix) if {
+	v := _last_key(prefix)
+	count(v) > 0
+	not v in _not_value_names
+	not _secure_name(v)
+	vq := strings.replace_n({"$": `\$`}, v)
+	pat := concat("", [`(^|[^\w$@])`, vq, `([^\w$@]|$)`])
+	some j in numbers.range(i + 1, min([i + 6, count(lines) - 1]))
+	not helpers.is_comment_line(lines[j])
+	regex.match(pat, lines[j])
+	not regex.match(concat("", [`(^|[^\w$@])`, vq, `\s*[+-]\s*(?:\d|[\w:$>.]*(?i:life|ttl|expir|timeout|duration|seconds|minutes|hours|days))`]), lines[j])
+	count(lines[j]) <= 400
+	some idx in indexof_n(lines[j], v)
+	_word_at(lines[j], idx, v)
+	w := _last_key(substring(lines[j], 0, idx))
+	count(w) > 0
+	w != v
+	not w in _not_value_names
+	not _secure_name(w)
+	wq := strings.replace_n({"$": `\$`}, w)
+	pat2 := concat("", [`(^|[^\w$@])`, wq, `([^\w$@]|$)`])
+	some k in numbers.range(j + 1, min([j + 6, count(lines) - 1]))
+	not helpers.is_comment_line(lines[k])
+	regex.match(pat2, lines[k])
+	count(lines[k]) <= 400
+	some idx2 in indexof_n(lines[k], w)
+	_word_at(lines[k], idx2, w)
+	_ctx(lines, k, substring(lines[k], 0, idx2))
+}
+
 # Error and status results (`err = signer.SignHTTP(..., time.Now())` and then
 # `return "", err`) carry no value derived from the clock.
 _not_value_names := {"err", "error", "errs", "ok", "ex", "exc", "e", "status", "res", "resp", "response", "result"}

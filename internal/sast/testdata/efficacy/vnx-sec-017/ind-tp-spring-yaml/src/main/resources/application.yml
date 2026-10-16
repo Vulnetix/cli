@@ -1,0 +1,5 @@
+spring:
+  rabbitmq:
+~>    addresses: amqp://svc:hunter2@mq.internal.acmecorp.io:5672/orders
+  ldap:
+~>    urls: ldap://directory.corp.acmecorp.io:389

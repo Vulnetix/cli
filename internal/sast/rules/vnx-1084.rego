@@ -77,7 +77,7 @@ findings contains finding if {
 	ind := _indent(line)
 	e := _body_end(lines, i, ind)
 	e > i + _max_ops
-	n := count([k | some k in numbers.range(i + 1, e - 1); _is_op(lines[k])])
+	n := count([k | some k in helpers.span(i + 1, e - 1); _is_op(lines[k])])
 	n > _max_ops
 	finding := {
 		"rule_id": metadata.id,

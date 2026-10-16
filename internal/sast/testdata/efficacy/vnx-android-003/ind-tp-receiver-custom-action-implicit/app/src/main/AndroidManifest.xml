@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application android:name=".FleetApp">
+
+~>        <receiver android:name=".sync.ForceSyncReceiver">
+            <intent-filter>
+                <action android:name="com.northwind.fleet.action.FORCE_SYNC" />
+                <action android:name="com.northwind.fleet.action.WIPE_CACHE" />
+            </intent-filter>
+        </receiver>
+
+~>        <service android:name=".telemetry.UploadService">
+            <intent-filter>
+                <action android:name="com.northwind.fleet.action.UPLOAD_TRIPS" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

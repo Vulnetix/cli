@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://example.com/client">
+  <xs:complexType name="ClientConfig">
+    <xs:sequence>
+      <xs:element name="endpoint" type="xs:string"/>
+      <xs:element name="timeoutSeconds" type="xs:int" default="30"/>
+~>      <xs:element name="client_secret" type="xs:string" default="k9Jx2mQpL7vRw3Zt"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-603",
 	"name": "Authentication decided in browser code",
-	"description": "Browser JavaScript decides on its own that the user is authenticated or privileged, so anyone can pass the check by editing the page, the console or storage. Reported: a login or role flag written to localStorage/sessionStorage as a literal (setItem('isLoggedIn', 'true'), sessionStorage.isAdmin = true) or to document.cookie (loggedIn=true, role=admin); such a flag read back from storage and compared, negated or tested to gate the page (if (!localStorage.isLoggedIn)); and a password, passcode or PIN (a variable so named, or the .value of an element whose id names one) compared with a non-empty string literal in a file that uses the DOM or is a React/Vue/Svelte component (.jsx, .tsx, .vue, .svelte). Flag names are isLoggedIn/loggedIn/logged_in, isAuthenticated/authenticated/auth, isAdmin/admin, role/userRole, isAuthorized/authorized. Not reported: a storage read used as a fallback value (props.role || localStorage.getItem('role')), tokens stored or sent to the server (the server verifies them), flags set from a server response rather than a literal, clearing a flag (removeItem, 'false'), unrelated preferences (theme, consent), empty-string checks, server-side password comparison (bcrypt.compare, req.body), comments and prose inside string literals.",
+	"description": "Browser JavaScript decides on its own that the user is authenticated or privileged, so anyone can pass the check by editing the page, the console or storage. Reported: a login or role flag written to localStorage/sessionStorage as a literal (setItem('isLoggedIn', 'true'), sessionStorage.isAdmin = true) or to document.cookie (loggedIn=true, role=admin); such a flag read back from storage and compared, negated or tested to gate the page (if (!localStorage.isLoggedIn)), including when it was first read into a variable that a condition tests within the next 10 lines; and a password, passcode or PIN (a variable so named, or the .value of an element whose id names one) compared with a non-empty string literal in a file that uses the DOM or is a React/Vue/Svelte component (.jsx, .tsx, .vue, .svelte). Flag names are isLoggedIn/loggedIn/logged_in, isAuthenticated/authenticated/auth, isAdmin/admin, role/userRole, isAuthorized/authorized. Not reported: a storage read used as a fallback value (props.role || localStorage.getItem('role')), tokens stored or sent to the server (the server verifies them), flags set from a server response rather than a literal, clearing a flag (removeItem, 'false'), unrelated preferences (theme, consent), empty-string checks, server-side password comparison (bcrypt.compare, req.body), comments and prose inside string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-603/",
 	"languages": ["node"],
 	"severity": "medium",
@@ -94,6 +94,42 @@ findings contains finding if {
 	regex.match(concat("", [`^\s*(?:window\.)?`, _cookie_re]), trim_left(line, " \t"))
 	finding := _finding(path, i, line)
 }
+
+# const role = sessionStorage.getItem('role'); ... if (role !== 'admin'):
+# the flag is read into a variable and the page is gated on it a few lines
+# later. The finding is the line that decides.
+findings contains finding if {
+	some path, content in input.file_contents
+	_ext_of(path) in _ext
+	contains(content, "Storage")
+	lines := split(content, "\n")
+	some j, l in lines
+	contains(l, "Storage")
+	not helpers.is_comment_line(l)
+	m := regex.find_all_string_submatch_n(concat("", [`^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*`, _get, `\s*;?\s*$`]), l, 1)
+	count(m) > 0
+	v := m[0][1]
+	some i in numbers.range(j + 1, min([count(lines) - 1, j + 10]))
+	count(lines[i]) < 2000
+	contains(lines[i], v)
+	not helpers.is_comment_line(lines[i])
+	_var_gate(_norm(lines[i]), v)
+	finding := _finding(path, i, lines[i])
+}
+
+_var_gate(n, v) if {
+	x := concat("", [`(?:^|[^\w$.])`, v, `\b`])
+	regex.match(concat("", [x, `\s*(?:===?|!==?)\s*\S`]), n)
+	not regex.match(concat("", [x, `\s*(?:===?|!==?)\s*(?:null|undefined)\b`]), n)
+}
+
+_var_gate(n, v) if {
+	x := concat("", [`(?:^|[^\w$.])`, v, `\b`])
+	regex.match(concat("", [`(?:===?|!==?)\s*`, x]), n)
+	not regex.match(concat("", [`(?:null|undefined)\s*(?:===?|!==?)\s*`, x]), n)
+}
+
+_var_gate(n, v) if regex.match(concat("", [`\b(?:if|while)\s*\(\s*!?\s*`, v, `\s*\)`]), n)
 
 _finding(path, i, line) := {
 	"rule_id": metadata.id,

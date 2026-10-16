@@ -1,0 +1,6 @@
+gpg:
+  private_key: |
+~>    -----BEGIN PGP PRIVATE KEY BLOCK-----
+
+    lQdGBF@@sample:[A-Za-z0-9+/]{64}@@
+    -----END PGP PRIVATE KEY BLOCK-----

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+             xmlns:beans="http://www.springframework.org/schema/beans">
+  <http auto-config="true">
+    <intercept-url pattern="/**" access="isAuthenticated()"/>
+    <form-login login-page="/login"/>
+~>    <csrf disabled="true"/>
+  </http>
+</beans:beans>

@@ -19,7 +19,7 @@ JNDI lookups (particularly in Log4j-style contexts) can also trigger network req
 
 ## What Gets Flagged
 
-The rule reports the search call when its filter or base DN carries request data (a servlet request value, an annotated handler parameter, or a local built from one earlier in the same method). Filters with `{0}` placeholders, values passed through `LdapEncoder.filterEncode` or `Filter.encodeValue`, and `EqualsFilter`/`AndFilter` objects are not reported.
+The rule reports the search call when its filter or base DN carries request data (a servlet request value, an annotated handler parameter, or a local built from one earlier in the same method). For UnboundID, a `SearchRequest` built from request data is reported where it is constructed; the `conn.search(sr)` that merely runs a prebuilt request is not reported a second time. Filters with `{0}` placeholders, values passed through `LdapEncoder.filterEncode` or `Filter.encodeValue`, and `EqualsFilter`/`AndFilter` objects are not reported.
 
 ```java
 // FLAGGED: user input directly in search() filter
@@ -56,7 +56,62 @@ attrs.put("user", request.getHeader("X-User"));
 ctx.search(BASE, "(uid=" + attrs.get("user") + ")", controls);
 ```
 
-Anything the analysis cannot resolve stays reported: a condition on request data, a call into another class, a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter.
+Anything the analysis cannot resolve stays reported: a condition on request data, a call into another class that is handed a run-time value (a call with constant arguments is read as inert, below), a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter, which stays as tainted as the argument it is handed (see Helpers in other files).
+
+### Helpers in other files
+
+A call into another class of the project is read from that class's own source instead of being guessed at. For `obj.m(args)`, `Cls.m(args)` and `new Cls(args).m(args)` the class is found by the declared type of `obj` (a local, a parameter, or the `new Cls(...)` it was assigned from) or by the static class name, and the method (at most 60 lines, overloads told apart by arity) is summarised as one of:
+
+- **constant**: every return is a literal, an `UPPER_CASE` name, a field initialised to a literal and never assigned again, or the result of a constant method of the same class. The call is as constant as that literal, whatever it is handed.
+- **a function of its arguments**: every return is constant once the parameters, and the fields the class's one constructor stores from its own parameters, are taken as constants. The call is only as risky as the arguments it depends on: a getter of a value stored by `new Cls(arg)` is as tainted as `arg`, and a method that ignores one of its parameters is not tainted by it.
+- **opaque**: anything else, such as a method that reads a request value or a header, a field a setter can change, or a call the summary cannot see through.
+
+A value of an interface or base class type runs the method of every project class that extends or implements it, so one implementation that returns its parameter keeps the call as tainted as that parameter. What is still reported: opaque calls, a simple class name that two files declare (ambiguous), a class outside the project, a type with an anonymous subclass, and a callee that hands the value to a third class (a callee is read one level deep). A method of the same file called without a receiver is summarised the same way.
+
+```java
+// NOT FLAGGED: Sanitizer.clean ignores its argument and returns a literal
+String value = sanitizer.clean(request.getParameter("value"));
+ctx.search(BASE, "(uid=" + value + ")", controls);
+
+// NOT FLAGGED: the constructor argument is a literal, so the getter is too
+Holder holder = new Holder("report");
+ctx.search(BASE, "(uid=" + holder.get() + ")", controls);
+
+// FLAGGED: Echo.same returns its argument
+String value = echo.same(request.getParameter("value"));
+ctx.search(BASE, "(uid=" + value + ")", controls);
+
+// FLAGGED: the getter returns what the constructor was given
+Holder holder = new Holder(request.getParameter("value"));
+ctx.search(BASE, "(uid=" + holder.get() + ")", controls);
+```
+
+### Calls that cannot bring data in
+
+A call into code the scan cannot see (another class or module) is treated as **inert**, and its value as a constant, when all of these hold:
+
+- its name is not that of a source (`read*`, `next*`, `getParameter*`, `getHeader*`, `getCookie*`, `getenv`, `getProperty`, `query`, `execute`);
+- every argument is a constant: a literal, or a name the method fixes;
+- its receiver is a type name, a `new` expression with constant arguments, or a local built from such a call, and that local is only ever called with constant arguments.
+
+```java
+// NOT REPORTED: the helper is given literals only
+Roles roles = RolesFactory.create();
+String role = roles.lookupName("staff");
+ctx.search(BASE, "(employeeType=" + role + ")", controls);
+
+// REPORTED: a run-time argument
+String role = roles.lookupName(param);
+
+// REPORTED: the receiver was built from, or fed, a run-time value
+Roles roles = new Roles(request.getParameter("realm"));
+String role = roles.lookupName("staff");
+
+// REPORTED: a source-like method name
+String role = Prompts.readLine("role");
+```
+
+Anything that fails one of the tests stays reported, so a helper that hands back its argument is never mistaken for a constant.
 
 ## Remediation
 

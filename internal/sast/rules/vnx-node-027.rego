@@ -9,7 +9,7 @@ metadata := {
 	"name": "Assignment to innerHTML without sanitization",
 	"description": "Reports an assignment (= or +=) to an element's innerHTML or outerHTML (also el[\"innerHTML\"]), in JavaScript/TypeScript files and inline scripts of HTML/template pages, whose value is not a constant: a variable, a property, a call, a concatenation with one, or a template literal with an interpolation (the value may continue on the next line, and a template literal is read to its closing backtick). The browser parses that string as HTML, so a value carrying user, URL, message or server data runs script. This rule is the one finding for that sink: VNX-NODE-005 and VNX-NODE-012 do not report it again. A value that encodes one part and splices the raw value into another (encodeURIComponent(q) + q) is still reported, and unescape() is not an encoder. Not reported: string, template or numeric literals, numbers rendered as text (x.length, n.toFixed(2), String(x.length)), a ternary choosing between literals, a const assigned a literal, a value passed whole through DOMPurify.sanitize or an escape/encode/sanitize helper (inline or assigned a few lines above), comparisons (innerHTML === x), textContent/innerText, comments and strings, and third-party library copies (vendor/, libs/, node_modules/, dist/, jquery/bootstrap/angular/three files, minified files).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-027/",
-	"languages": ["javascript", "typescript"],
+	"languages": ["javascript", "typescript", "html"],
 	"severity": "high",
 	"level": "error",
 	"kind": "sast",

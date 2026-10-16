@@ -249,6 +249,21 @@ _composed(lines, i, x) if {
 	_builds(raw, code, x)
 }
 
+# One hop: x = oss.str() (or .c_str()/.string()) where oss was composed above.
+_composed_via(lines, i, x) if {
+	some j in numbers.range(max([0, i - 25]), i - 1)
+	j < i
+	raw := lines[j]
+	contains(raw, x)
+	not _comment_line(raw)
+	code := _mask(raw)
+	_assigned_c(code) == x
+	m := regex.find_all_string_submatch_n(`=\s*([A-Za-z_]\w*)\s*\.\s*(?:str|c_str|string)\s*\(`, code, 1)
+	count(m) > 0
+	m[0][1] != x
+	_composed(lines, j, m[0][1])
+}
+
 # A validation, allow-list or quoting call in the lines above the sink.
 _validated(lines, i) if {
 	some j in numbers.range(max([0, i - 25]), i - 1)
@@ -277,6 +292,11 @@ _unsafe_cmd(a, _, _, _) if _direct_source(a)
 _unsafe_cmd(a, _, lines, i) if {
 	not _constant(a)
 	_composed(lines, i, _root(a))
+}
+
+_unsafe_cmd(a, _, lines, i) if {
+	not _constant(a)
+	_composed_via(lines, i, _root(a))
 }
 
 # popen(("ls " + dir).c_str(), "r"): composed inside the call itself.

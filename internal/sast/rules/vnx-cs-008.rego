@@ -78,7 +78,7 @@ _rests(re, stmt) := [rest |
 	pieces := regex.split(re, stmt)
 	some k, _ in ms
 	rest := concat("", [concat("", [pieces[j], _ms_at(ms, j)]) |
-		some j in numbers.range(k + 1, count(pieces) - 1)
+		some j in helpers.span(k + 1, count(pieces) - 1)
 	])
 ]
 
@@ -126,6 +126,10 @@ _inert_type := `^(int|long|short|byte|sbyte|uint|ulong|ushort|bool|Guid|DateTime
 
 _member_header(line) if regex.match(`^\s*(?:\[[^\]]*\]\s*)*(?:(?:public|private|protected|internal|static|async|virtual|override|sealed|partial)\s+)+[\w<>\[\],.?\s]*?\b\w+\s*\(`, line)
 
+# A constructor: modifiers then the class name, no return type. Its parameters
+# are injected services, not request data.
+_ctor_header(line) if regex.match(`^\s*(?:\[[^\]]*\]\s*)*(?:(?:public|private|protected|internal|static)\s+)+\w+\s*\(`, line)
+
 _map_header(line) if regex.match(`\.Map(Get|Post|Put|Delete|Patch|Methods)?\s*\(`, line)
 
 _param_names(text) := {p[2] |
@@ -165,6 +169,7 @@ _ctl_params(lines, content, i) := ps if {
 	_is_controller(content)
 	h := _nearest_header(lines, i)
 	regex.match(`^\s*(?:\[[^\]]*\]\s*)*public\b`, lines[h])
+	not _ctor_header(lines[h])
 	ps := _param_names(_header_params(lines, h))
 }
 

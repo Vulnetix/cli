@@ -89,7 +89,8 @@ _decl_min(line) := n if {
 _pw_context(lines, i, raw) if regex.match(_pw, regex.replace(raw, `"[^"]*\s[^"]*"|'[^']*\s[^']*'`, `""`))
 
 # ... the nearest key opened above it is a password key ("user[password]": {) ...
-_pw_context(lines, i, _) if {
+_pw_context(lines, i, raw) if {
+	not regex.match(`^\s*(?:@(?:Size|Length)|\[\s*(?:StringLength|MinLength))\(`, raw)
 	opens := [j |
 		some j in numbers.range(max([0, i - 3]), i - 1)
 		regex.match(`[{\[(]\s*$`, lines[j])

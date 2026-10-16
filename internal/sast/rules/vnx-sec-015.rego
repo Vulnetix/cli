@@ -70,7 +70,7 @@ _unsafe(path, line) if {
 
 _unsafe(path, line) if {
 	regex.match(`\.(java|kt|kts)$`, path)
-	regex.match(`\bSignatureAlgorithm\.NONE\b|\bAlgorithm\.none\(\)|\bPlainJWT\.parse\(|\bnew\s+PlainJWT\(|\.parse(?:ClaimsJwt|PlaintextJwt|UnsecuredClaims|UnsecuredContent)\(`, line)
+	regex.match(`\bSignatureAlgorithm\.NONE\b|\bAlgorithm\.none\(\)|\bPlainJWT\.parse\(|\bnew\s+(?:[\w.]+\.)?PlainJWT\(|\.parse(?:ClaimsJwt|PlaintextJwt|UnsecuredClaims|UnsecuredContent)\(`, line)
 }
 
 _unsafe(path, line) if {

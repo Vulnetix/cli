@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_926
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-926",
 	"name": "Android component exported with no permission protecting it",
@@ -46,7 +48,7 @@ _in_comment_block(lines, i) if {
 	contains(lines[j], "<!--")
 	parts := split(lines[j], "<!--")
 	not contains(parts[count(parts) - 1], "-->")
-	every k in numbers.range(j + 1, i - 1) {
+	every k in helpers.span(j + 1, i - 1) {
 		not contains(lines[k], "-->")
 	}
 	not _closed_before_tag(lines[i])

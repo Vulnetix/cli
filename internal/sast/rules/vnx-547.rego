@@ -180,7 +180,7 @@ _c_repeats(lines, bufs, "", name, lit, i) if {
 
 _left_function(lines, d, i) if {
 	regex.match(`^\s+\S`, lines[d])
-	some j in numbers.range(d + 1, i - 1)
+	some j in helpers.span(d + 1, i - 1)
 	startswith(lines[j], "}")
 }
 

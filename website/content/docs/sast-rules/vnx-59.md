@@ -43,6 +43,8 @@ lock := filepath.Join(os.TempDir(), "agent.lock")
 return os.Create(lock)
 ```
 
+When `access()` and `open()` are on different lines, the finding is on the `access()` check line.
+
 Not flagged: `mkstemp`, `NamedTemporaryFile`, `os.CreateTemp`, `os.MkdirTemp` names, opens with `O_EXCL` or `O_NOFOLLOW`, Python mode `"x"`, reads, writes outside shared temporary directories, test code, the same text in comments or strings, and the C/C++ temporary-file creation that VNX-378 reports.
 
 ## Remediation

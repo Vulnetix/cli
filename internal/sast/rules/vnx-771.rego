@@ -102,7 +102,7 @@ _self_realloc(l, v) if regex.match(concat("", [`realloc\s*\(\s*`, v, `\s*,`]), l
 
 _released_between(lines, i, k, v) if {
 	i + 1 <= k - 1
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	not helpers.is_comment_line(lines[j])
 	_handed_off(lines[j], v)
 }
@@ -110,7 +110,7 @@ _released_between(lines, i, k, v) if {
 # The two assignments sit in alternative branches.
 _released_between(lines, i, k, _) if {
 	i + 1 <= k - 1
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	regex.match(`^\s*(?:\}\s*)?else\b|^\s*case\b|^\s*default\s*:|^\s*#\s*(?:else|elif)\b`, lines[j])
 }
 

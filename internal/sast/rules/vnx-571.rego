@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-571",
 	"name": "Expression is Always True",
-	"description": "A comparison that is always true, in C, C++, Go and Java, so the check it was meant to make (a bounds, error or loop-termination check) never rejects anything. Five shapes are reported: a length or size compared with zero from above (len(x) >= 0, s.length() >= 0, a.length >= 0, list.size() >= 0, sizeof(x) >= 0, strlen(s) >= 0, and 0 <= len(x)); an unsigned variable compared >= 0 (a C/C++ unsigned, size_t or uintN_t variable, or a Go uint variable, declared above in the same file with no later signed redeclaration), which also makes for (size_t i = n; i >= 0; i--) loop forever; the same operand required to differ from one of two different constants (x != 1 || x != 2); two ranges on one operand that cover every value (x > 10 || x < 20); and an operand compared with itself (a == a, n >= n). Not reported: a constant condition written on purpose (if (true), while (1), for (;;)), x != x and v == v on a float or double declared above (the NaN tests), a cast operand ((int)n >= 0), a member of another object (p->n), comparisons inside string literals or comments, and test code.",
+	"description": "A comparison that is always true, in C, C++, Go and Java, so the check it was meant to make (a bounds, error or loop-termination check) never rejects anything. Five shapes are reported: a length or size compared with zero from above (len(x) >= 0, s.length() >= 0, a.length >= 0, list.size() >= 0, sizeof(x) >= 0, strlen(s) >= 0, and 0 <= len(x)); an unsigned variable compared >= 0 (a C/C++ unsigned, size_t or uintN_t variable, or a Go uint variable, declared above in the same file with no later signed redeclaration), which also makes for (size_t i = n; i >= 0; i--) loop forever; the same operand required to differ from one of two different constants (x != 1 || x != 2); two ranges on one operand that cover every value (x > 10 || x < 20); and an operand compared with itself (a == a, n >= n, or a no-argument getter on both sides: a.getId() == a.getId()). Not reported: a constant condition written on purpose (if (true), while (1), for (;;)), x != x and v == v on a float or double declared above (the NaN tests), a cast operand ((int)n >= 0), a member of another object (p->n), comparisons inside string literals or comments, and test code.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-571/",
 	"languages": ["c", "cpp", "go", "java"],
 	"severity": "low",
@@ -148,6 +148,13 @@ _hit(lines, i, _, c) if {
 	not _floating(lines, i, m[1])
 }
 
+# A no-argument getter compared with itself (a.getId() == a.getId()).
+_hit(_, _, _, c) if {
+	re := concat("", [`(?:^|[(,;?:=]|&&|\|\||\breturn\b|\bif\b)\s*([A-Za-z_][\w.]*\.(?:get|is|has)\w*\(\))\s*(==|<=|>=)\s*([A-Za-z_][\w.]*\.(?:get|is|has)\w*\(\))`, _end])
+	some m in regex.find_all_string_submatch_n(re, c, -1)
+	m[1] == m[3]
+}
+
 # v == v on a floating-point value is the NaN test (false only for NaN), so a
 # name declared float or double in the 60 lines above is not reported.
 _floating(lines, i, v) if {
@@ -231,6 +238,10 @@ _candidate_file(content, _) if {
 	some name in names
 	v := regex.replace(name, `\.`, `\.`)
 	regex.match(concat("", [v, `\s*`, op, `\s*`, v, `\b`]), content)
+}
+
+_candidate_file(content, "java") if {
+	regex.match(`\.(?:get|is|has)\w*\(\)\s*(?:==|<=|>=)\s*[\w.]+\.(?:get|is|has)\w*\(\)`, content)
 }
 
 # An unsigned declaration whose name the file also compares >= 0.

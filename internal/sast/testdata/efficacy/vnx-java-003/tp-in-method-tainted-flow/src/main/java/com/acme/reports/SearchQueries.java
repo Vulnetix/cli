@@ -91,7 +91,7 @@ public class SearchQueries {
         if (request.getParameter("raw") != null) {
             column = region;
         }
-        String table = TableNames.forRegion("eu");
+        String table = TableNames.forRegion(region);
         Statement st = connection.createStatement();
 ~>        st.executeQuery("SELECT id FROM orders ORDER BY " + column);
 ~>        return st.executeQuery("SELECT id FROM " + table);

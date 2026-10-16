@@ -141,7 +141,7 @@ findings contains finding if {
 	ends := [k | some k in shallow; k > e; ind[k] <= d]
 	stop := min(array.concat([n], ends))
 	stop - e > _min_body
-	body := count([k | some k in numbers.range(e + 1, stop - 1); ind[k] > d])
+	body := count([k | some k in helpers.span(e + 1, stop - 1); ind[k] > d])
 	body >= _min_body
 	_method_or_top(lines, ind, i, d)
 	b := _first_body(lines, e)

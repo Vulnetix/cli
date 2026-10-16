@@ -1,0 +1,7 @@
+[project]
+name = "core"
+version = "0.1.0"
+dependencies = ["httpx>=0.27"]
+
+[tool.uv]
+dev-dependencies = ["pytest>=8"]

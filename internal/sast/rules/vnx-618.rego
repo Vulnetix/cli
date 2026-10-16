@@ -127,6 +127,7 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(`(?i)classid|ActiveXObject|CreateObject`, line)
 	not helpers.is_comment_line(line)
+	not regex.match(`^\s*<!--`, line)
 	_page_unsafe(_unwrap_handler(line))
 	finding := {
 		"rule_id": metadata.id,

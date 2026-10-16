@@ -97,7 +97,7 @@ _weak_secret(lang, content, code) if {
 # ── (2) Reset link from the Host header ──────────────────────────────────
 
 _host := {
-	"py": `\brequest\.(?:host|host_url|url_root|META\[\s*['"]HTTP_(?:X_FORWARDED_)?HOST['"]\s*\])\b|\brequest\.headers(?:\.get\(|\[)\s*['"]X-Forwarded-Host['"]`,
+	"py": `\brequest\.(?:host|host_url|url_root)\b|\brequest\.META\[\s*['"]HTTP_(?:X_FORWARDED_)?HOST['"]\s*\]|\brequest\.headers(?:\.get\(|\[)\s*['"]X-Forwarded-Host['"]`,
 	"js": `\breq\.(?:headers\.host\b|headers\[\s*['"](?:x-forwarded-)?host['"]\s*\]|get\(\s*['"](?:x-forwarded-)?host['"]\s*\)|hostname\b)`,
 	"java": `\.getHeader\(\s*(?:HttpHeaders\.HOST|"[Hh]ost")\s*\)|\.getServerName\(\)`,
 }

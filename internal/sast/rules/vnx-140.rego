@@ -85,7 +85,17 @@ _tainted(lines, i, src) := {v |
 	not helpers.is_comment_line(l)
 	regex.match(src, l)
 	not _sanitised(l)
+	not _cleaned_by_local(lines, l, src)
 	v := _assigned(l)
+}
+
+# `x = clean(request...)` where clean is defined in this file and escapes.
+_cleaned_by_local(lines, l, src) if {
+	m := regex.find_all_string_submatch_n(concat("", [`=\s*([A-Za-z_]\w*)\(\s*(?:`, src, `)`]), l, 1)[0]
+	some d, dl in lines
+	regex.match(concat("", [`^\s*(?:def|function)\s+`, m[1], `\b`]), dl)
+	some e in numbers.range(d + 1, min([count(lines) - 1, d + 8]))
+	_sanitised(lines[e])
 }
 
 _assigned(line) := v if {

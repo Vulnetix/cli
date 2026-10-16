@@ -90,7 +90,7 @@ _name(expr) := n if {
 
 # A member at indent mi closes between lines a and b.
 _member_closed(lines, a, b, mi) if {
-	some k in numbers.range(a + 1, b - 1)
+	some k in helpers.span(a + 1, b - 1)
 	_indent(lines[k]) <= mi
 	startswith(trim_space(lines[k]), "}")
 }
@@ -141,6 +141,7 @@ findings contains finding if {
 	not regex.match(`\bstatic\b`, decl)
 	some i in numbers.range(s + 1, min([count(lines) - 1, s + 60]))
 	line := lines[i]
+	_indent(line) > mi
 	not helpers.is_comment_line(line)
 	not _member_closed(lines, s, i, mi)
 	not _in_class_lock(lines, s, i)
@@ -180,7 +181,7 @@ _in_ctor(lines, k, mi, content) if {
 
 # Line i sits inside a synchronized (X.class) block opened after line s.
 _in_class_lock(lines, s, i) if {
-	some k in numbers.range(s + 1, i - 1)
+	some k in helpers.span(s + 1, i - 1)
 	regex.match(`^\s*synchronized\s*\(\s*[\w.]+\.class\s*\)`, lines[k])
 	ik := _indent(lines[k])
 	_indent(lines[i]) > ik
@@ -188,7 +189,7 @@ _in_class_lock(lines, s, i) if {
 }
 
 _block_closed(lines, k, i, ik) if {
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	_indent(lines[m]) <= ik
 	startswith(trim_space(lines[m]), "}")
 }

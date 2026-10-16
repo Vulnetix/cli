@@ -144,6 +144,8 @@ findings contains f if {
 	some i, line in lines
 	regex.match(`\b(?:strto(?:u?ll?|[iu]max)|inet_aton|inet_addr|sto(?:u?ll?|i)|[sf]?scanf)\s*\(`, line)
 	not helpers.is_comment_line(line)
+	# a call named only inside a string literal is not a call
+	_call_in_code(line)
 	msg := _c_message(line)
 	f := _finding(path, i, line, msg)
 }
@@ -175,3 +177,10 @@ _c_message(line) := "inet_aton()/inet_addr() accept octal and hexadecimal octets
 	not regex.match(_c_scanf_i_re, line)
 	regex.match(`(?:^|[^\w])inet_(?:aton|addr)\s*\(\s*[^"\s)]`, line)
 }
+
+_c_call_re := `\b(?:strto(?:u?ll?|[iu]max)|inet_aton|inet_addr|sto(?:u?ll?|i)|[sf]?scanf)\s*\(`
+
+# A line with no string literal needs no stripping.
+_call_in_code(line) if not contains(line, "\"")
+
+_call_in_code(line) if regex.match(_c_call_re, _code(line))

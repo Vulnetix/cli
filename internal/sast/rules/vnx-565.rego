@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-565",
 	"name": "Reliance on Cookies without Validation and Integrity Checking",
-	"description": "A security decision is taken on a plain cookie, which the client can set to anything. Reported in JavaScript/TypeScript (Express req.cookies, Koa ctx.cookies.get without signed, Next.js cookies().get and NextRequest request.cookies.get), Python (Flask request.cookies, Django request.COOKIES) and PHP ($_COOKIE, filter_input(INPUT_COOKIE, ...)): a read of a cookie whose name says it carries identity or privilege (role, admin, isAdmin, is_staff, superuser, user_id, userId, uid, username, user, email, login, logged_in, authenticated, authorized, access_level, level, privilege, permission, group, user_type, account_id...) that is compared, tested in a condition or ternary, checked with isset, or used in a lookup (find/filter/get/query/where/objects/SQL), on the same line or through a variable assigned from it and so used in the next 10 lines; and writing such a privilege or user-id cookie without signing it (Express res.cookie without signed: true, Flask/Django set_cookie, PHP setcookie). Not reported: signed cookies (req.signedCookies, ctx.cookies.get(name, {signed: true}), Django get_signed_cookie/set_signed_cookie), a value verified on the same or next two lines (jwt.verify, itsdangerous loads/unsign, an HMAC check), session-id and CSRF-token cookies, preference cookies (theme, language), a cookie that is only displayed, destructuring (const { role } = req.cookies), test files, comments and string literals. JavaScript privilege fields read from req.cookies are also reported by VNX-472.",
+	"description": "A security decision is taken on a plain cookie, which the client can set to anything. Reported in JavaScript/TypeScript (Express req.cookies, Koa ctx.cookies.get without signed, Next.js cookies().get and NextRequest request.cookies.get), Python (Flask request.cookies, Django request.COOKIES) and PHP ($_COOKIE, filter_input(INPUT_COOKIE, ...)): a read of a cookie whose name says it carries identity or privilege (role, admin, isAdmin, is_staff, superuser, user_id, userId, uid, username, user, email, login, logged_in, authenticated, authorized, access_level, level, privilege, permission, group, user_type, account_id...) that is compared, tested in a condition or ternary, checked with isset, or used in a lookup (find/filter/get/query/where/objects/SQL), on the same line or through a variable assigned from it and so used in the next 10 lines; and writing such a privilege, user-id or username cookie without signing it (Express res.cookie without signed: true, Flask/Django set_cookie, PHP setcookie). Not reported: signed cookies (req.signedCookies, ctx.cookies.get(name, {signed: true}), Django get_signed_cookie/set_signed_cookie), a value verified on the same or next two lines (jwt.verify, itsdangerous loads/unsign, an HMAC check), session-id and CSRF-token cookies, preference cookies (theme, language), a cookie that is only displayed, destructuring (const { role } = req.cookies), test files, comments and string literals. JavaScript privilege fields read from req.cookies are also reported by VNX-472. A cookie named for a privilege or login state (admin, role, is_staff, logged_in, access_level...) that is compared or tested on its line, or assigned to a variable a condition uses within 15 lines, is reported by VNX-784 (a security decision on a cookie), and an Express res.cookie() or Python set_cookie() of a cookie whose whole name is a privilege flag or role is reported by VNX-642 (authorization state in a client-controlled cookie); both are left to those rules. This rule keeps lookups, identity cookies (user_id, uid, username, email, level), PHP setcookie() and the other shapes.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-565/",
 	"languages": ["node", "php", "python"],
 	"severity": "medium",
@@ -35,6 +35,11 @@ _lang(path) := "js" if {
 _trust_key := `(?i)^(?:roles?|user_?roles?|is_?admin|admin|is_?staff|staff|is_?superuser|superuser|user_?id|userid|uid|user|username|user_?name|login|logged_?in|is_?logged_?in|authenticated|is_?authenticated|authori[sz]ed|is_?authori[sz]ed|auth_?level|access_?level|level|privileges?|permissions?|groups?|user_?type|account_?type|account_?id|email)$`
 
 _priv_key := `(?i)^(?:roles?|user_?roles?|is_?admin|admin|is_?staff|staff|is_?superuser|superuser|user_?id|userid|uid|logged_?in|is_?logged_?in|authenticated|is_?authenticated|authori[sz]ed|is_?authori[sz]ed|auth_?level|access_?level|level|privileges?|permissions?|user_?type|account_?type|account_?id)$`
+
+# Cookies whose write is reported: privilege fields, user ids and the login name.
+_write_name(n) if regex.match(_priv_key, n)
+
+_write_name(n) if regex.match(`(?i)^(?:user_?name|login_?name)$`, n)
 
 _read_res := {
 	"js": [
@@ -99,6 +104,19 @@ _decides(lines, i, line, _, lang) if {
 	regex.match(_decision, _strip(lines[k]))
 }
 
+# Bound into a prepared statement whose SQL (SELECT/WHERE) is on one of the
+# three lines above the execute/bind call: a lookup keyed by the cookie.
+_decides(lines, i, line, _, lang) if {
+	v := _assigned(lang, line)
+	re := _use_re(lang, v)
+	some k in numbers.range(i + 1, min([count(lines) - 1, i + 10]))
+	not helpers.is_comment_line(lines[k])
+	regex.match(re, lines[k])
+	regex.match(`(?:->|\.)(?:execute\w*|bind_?[Pp]aram|bind_?[Vv]alue|bind_?[Pp]aram)\s*\(`, lines[k])
+	some q in numbers.range(max([i + 1, k - 3]), k)
+	regex.match(`\b(?:SELECT|WHERE|select|where)\b`, lines[q])
+}
+
 _assigned(lang, line) := v if {
 	lang != "php"
 	v := helpers.assigned_first(line)
@@ -152,7 +170,7 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	some re in _set_res[lang]
 	some m in regex.find_all_string_submatch_n(re, line, -1)
-	regex.match(_priv_key, m[1])
+	_write_name(m[1])
 	not _signed_call(lines, i)
 	not _c642_owned(lines, i, line, lang, m[1])
 	finding :=_finding(path, i, line, sprintf("The privilege or identity cookie '%s' is written unsigned, so the client can change it; sign it (signed: true, set_signed_cookie) or keep it in the server-side session", [m[1]]))

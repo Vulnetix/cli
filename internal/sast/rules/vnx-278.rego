@@ -260,7 +260,7 @@ _go_mode_vars(lines, i, src) := {v |
 }
 
 _go_remasked(lines, j, i, v) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`(^|[^\w.])`, v, `\s*&\^?=\s*\(?\s*0[oO]?[0-7]+`]), lines[k])
 }
 

@@ -60,12 +60,28 @@ _names(lines, i, lang) := {v |
 	not _relowered(lines, j, i, v)
 }
 
+# One more hop: a name or extension derived from a name already known to be
+# the upload name (name = up.name, ext = path.extname(original)).
+_names_all(lines, i, lang) := _names(lines, i, lang) | {v |
+	some j in numbers.range(max([0, i - 15]), i - 1)
+	prev := lines[j]
+	not regex.match(_lowered, prev)
+	not helpers.is_comment_line(prev)
+	m := regex.find_all_string_submatch_n(`^\s*(?:const\s+|let\s+|var\s+)?([A-Za-z_$][\w$]*)\s*(?::\s*[\w<>\[\]| ]+)?=\s*([^=].*)$`, prev, 1)
+	count(m) > 0
+	v := m[0][1]
+	rhs := m[0][2]
+	some src in (_names(lines, j, lang) | {x | some f in _django_files(lines, j, lang); x := concat("", [f, ".name"])})
+	regex.match(concat("", [`\b`, src, `\b`]), rhs)
+	not _relowered(lines, j, i, v)
+}
+
 _relowered(lines, j, i, v) if {
 	some k in numbers.range(j + 1, i)
 	regex.match(concat("", [`\b`, v, `\s*=\s*[^=][^\n]*`, _lowered]), lines[k])
 }
 
-_exprs(lines, i, lang) := ({_direct[lang]} | {concat("", [`\b`, v, `\b`]) | some v in _names(lines, i, lang)}) | {concat("", [`\b`, v, `\.name`]) | some v in _django_files(lines, i, lang)}
+_exprs(lines, i, lang) := ({_direct[lang]} | {concat("", [`\b`, v, `\b`]) | some v in _names_all(lines, i, lang)}) | {concat("", [`\b`, v, `\.name`]) | some v in _django_files(lines, i, lang)}
 
 # Django: f = request.FILES["doc"] (or .get(...)), or for f in
 # request.FILES.getlist(...); f.name is then the upload name.

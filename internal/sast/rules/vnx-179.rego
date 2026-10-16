@@ -195,7 +195,7 @@ _rechecked(lines, j) if {
 _raw_then_param(lines, i, v) if {
 	_raw_hint(concat("\n", array.slice(lines, max([0, i - 6]), i + 1)))
 	vs := helpers.tainted_vars(lines, i, 6, _raw_src)
-	vs[v]
+	vs[trim_prefix(v, "$")]
 	some j in numbers.range(i + 1, min([count(lines) - 1, i + 10]))
 	regex.match(_param_read, lines[j])
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datasources xmlns="http://www.jboss.org/ironjacamar/schema">
+  <datasource jndi-name="java:jboss/datasources/InventoryDS" pool-name="InventoryDS" enabled="true">
+    <connection-url>jdbc:oracle:thin:@ora01.internal:1521:INV</connection-url>
+    <driver>oracle</driver>
+    <security>
+      <user-name>inventory</user-name>
+~>      <password>Inv3ntory_Prod</password>
+    </security>
+  </datasource>
+</datasources>

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-656",
 	"name": "Reliance on Security Through Obscurity",
-	"description": "A hidden request parameter, header or cookie with a hard-coded magic value unlocks privileges (CWE-656): an if/elif condition that compares a request value, request.args/form/values/GET/POST/cookies/COOKIES/headers/query_params/json in Python or req.query/body/params/cookies/signedCookies/headers, req.get()/header()/param() in JavaScript/TypeScript, directly or through a variable assigned from one a few lines above, with == or === to a non-empty string literal, and whose branch grants access directly: return next(), next() or await next(), login()/login_user(), a session admin/user/role/authenticated flag set, an is_admin/authenticated = True assignment, return True, or a decorator returning the wrapped view. Also reported without looking at the branch: the same literal comparison on a parameter, header or cookie whose name is itself a privilege (admin, is_admin, role, user_role, superuser, root, backdoor, bypass, override, god_mode, staff, privileged, optionally X-prefixed), because the client is then telling the server what it is allowed to do; that form is skipped when the condition also consults the server-side identity (req.user, request.user, current_user, session) or is negated, and when the branch rejects the request (403/401, abort, raise, throw) or only narrows a query filter (?role=admin in a user listing). The value is protected only by nobody knowing it, and it ships in the source. Not reported: a comparison whose branch only changes presentation (sort, format, language), a grant that follows a nested check (password hash, signature, timingSafeEqual), secrets read from configuration or the environment, != comparisons, client-address and Referer/X-Forwarded-For checks (VNX-654), test files, comments and string literals.",
+	"description": "A hidden request parameter, header or cookie with a hard-coded magic value unlocks privileges (CWE-656): an if/elif condition that compares a request value, request.args/form/values/GET/POST/cookies/COOKIES/headers/query_params/json in Python or req.query/body/params/cookies/signedCookies/headers, req.get()/header()/param() in JavaScript/TypeScript, directly or through a variable assigned from one a few lines above, with == or === to a non-empty string literal, and whose branch grants access directly: return next(), next() or await next(), login()/login_user(), a session admin/user/role/authenticated flag set, an is_admin/authenticated = True assignment, return True, or a decorator returning the wrapped view. Also reported without looking at the branch: the same literal comparison on a parameter, header or cookie whose name is itself a privilege (admin, is_admin, role, user_role, superuser, root, backdoor, bypass, override, god_mode, staff, privileged, optionally X-prefixed), because the client is then telling the server what it is allowed to do; that form is skipped when the condition also consults the server-side identity (req.user, request.user, current_user, session) or is negated, and when the branch rejects the request (403/401, abort, raise, throw) or only narrows a query filter (?role=admin in a user listing). The value is protected only by nobody knowing it, and it ships in the source. Not reported: a comparison whose branch only changes presentation (sort, format, language), a grant that follows a nested check (password hash, signature, timingSafeEqual), secrets read from configuration or the environment, != comparisons, client-address and Referer/X-Forwarded-For checks (VNX-654), test files, comments and string literals. A cookie named for a privilege or login state compared on its line, or through a variable assigned from it, is reported by VNX-784 (a security decision on a cookie) and not here.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-656/",
 	"languages": ["node", "python"],
 	"severity": "low",
@@ -69,14 +69,14 @@ _grants(lines, i, line) if {
 
 _interrupted(lines, i, j, ind) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	trim_space(lines[k]) != ""
 	_indent(lines[k]) <= ind
 }
 
 _interrupted(lines, i, j, _) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	regex.match(`^\s*(?:if|elif|for|while)\b`, lines[k])
 }
 
@@ -87,8 +87,13 @@ _interrupted(lines, i, j, _) if {
 
 _decides(path, lines, i, line) if {
 	_reads_param(path, lines, i, line)
+	not regex.match(_server_session, line)
 	_grants(lines, i, line)
 }
+
+# A condition joined with a check of the server-side user or session is a
+# check of who the caller is, not a hidden key.
+_server_session := `(?i)(?:&&|\band\b|\|\|\s*)\s*!*\(?\s*(?:(?:req|request)\.(?:user|session)\b|current_user)|(?:req|request)\.(?:user|session)\b[^\n]*(?:&&|\band\b)\s*[\w.]*(?:==|===)|current_user\.\w+\s*(?:&&|\band\b)`
 
 # The parameter, header or cookie is itself named for a privilege, compared
 # to a literal on the condition line: the client says who it is.
@@ -105,7 +110,7 @@ _server_identity := `(?i)\breq\.user\b|\brequest\.user\b|current_user|is_superus
 
 # The branch rejects the request, or only narrows a query (?role=admin in a
 # user listing).
-_deny_or_filter := `(?i)\b(?:40[13]|forbidden|unauthori[sz]ed|abort\s*\(|raise\b|throw\b|permissiondenied)|^\s*\w*(?:filter|where|query|criteria|conditions|params)\w*(?:\.\w+|\[[^\]]+\])\s*=[^=]`
+_deny_or_filter := `(?i)\b(?:40[13]|forbidden|unauthori[sz]ed|abort\s*\(|raise\b|throw\b|permissiondenied)|^\s*\w+\s*=\s*[\w.]+\.(?:filter|filter_by|where|exclude|find|order_by)\w*\(|^\s*\w*(?:filter|where|query|criteria|conditions|params)\w*(?:\.\w+|\[[^\]]+\])\s*=[^=]`
 
 _branch_denies_or_filters(lines, i, line) if {
 	regex.match(_deny_or_filter, substring(line, indexof(line, "if"), -1))

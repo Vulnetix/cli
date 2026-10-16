@@ -1,0 +1,14 @@
+~>[tool.poetry]
+name = "orders-api"
+version = "0.4.0"
+description = "Order service"
+authors = ["Dev <dev@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.110"
+uvicorn = {version = "^0.29", extras = ["standard"]}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,9 @@
+name: notify
+on: [push]
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to Slack
+        run: |
+~>          curl -X POST -H 'Content-type: application/json' --data '{"text":"deployed"}' https://hooks.slack.com/services/T@@sample:[A-Z0-9]{9}@@/B@@sample:[A-Z0-9]{10}@@/@@sample:[A-Za-z0-9]{24}@@

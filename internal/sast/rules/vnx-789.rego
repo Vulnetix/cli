@@ -54,7 +54,9 @@ _args(lines, i) := args if {
 	text := _strip_strings(concat(" ", [l | some l in array.slice(lines, i, i + 3); not _is_comment(l)]))
 	ms := regex.find_all_string_submatch_n(_alloc_args, text, 1)
 	count(ms) > 0
-	args := ms[0][1]
+	# the argument list ends at its closing parenthesis, so a function
+	# declaration returning std::vector<T> does not read its body
+	args := regex.find_all_string_submatch_n(`^(?:[^()]|\((?:[^()]|\([^()]*\))*\))*`, ms[0][1], 1)[0][0]
 }
 
 # names assigned from a parse/decode call, or written by scanf, within 10 lines

@@ -1,0 +1,1 @@
+{ "name": "legacy-site", "version": "0.9.0", "dependencies": { "express": "^4.17.1", "helmet": "^7.0.0" } }

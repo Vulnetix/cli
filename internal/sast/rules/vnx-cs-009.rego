@@ -250,7 +250,7 @@ _suppressed(lines, i) if {
 }
 
 _restored_between(lines, k, i) if {
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	regex.match(`^\s*#\s*pragma\s+warning\s+restore\b`, lines[m])
 	regex.match(_suppress_re, lines[m])
 }

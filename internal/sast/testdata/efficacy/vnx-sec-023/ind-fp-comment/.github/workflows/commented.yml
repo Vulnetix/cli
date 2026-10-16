@@ -1,0 +1,8 @@
+name: c
+on: pull_request
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      # do not do: run: echo "${{ github.event.pull_request.title }}"
+      - run: echo "ok ${{ github.repository }}"

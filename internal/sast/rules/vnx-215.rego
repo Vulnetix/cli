@@ -188,7 +188,7 @@ _js_dev_side(_, _, _, l) if not regex.match(_js_prod_eq, l)
 
 _js_dev_side(lines, j, i, l) if {
 	regex.match(_js_prod_eq, l)
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(`^\s*(\}\s*)?else\b`, lines[k])
 }
 
@@ -264,6 +264,6 @@ _cs_ifdebug(lines, i) if {
 }
 
 _endif_between(lines, j, i) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(`^\s*#(endif|else)\b`, lines[k])
 }

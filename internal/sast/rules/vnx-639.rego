@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-639",
 	"name": "Authorization Bypass Through User-Controlled Key",
-	"description": "A record is fetched, changed or deleted by an identifier the client supplies, with nothing nearby tying the record to the caller (insecure direct object reference). Reported: an ORM or repository lookup by id (Express/Mongoose/Sequelize/Prisma findById/findByPk/findOne/findUnique/findFirst/findByIdAndUpdate/findByIdAndDelete/destroy/deleteOne/updateOne/update/delete/upsert and DAO get...By...Id methods; Django objects.get/filter/exclude and get_object_or_404, Flask-SQLAlchemy query.get/get_or_404/filter_by, get_by_id; Spring Data/DAO findById/getById/getOne/getReferenceById/deleteById/findOne/find/findBy...Id and EntityManager.find; Rails Model.find/find_by/find_by_id/destroy/delete) whose arguments carry an id-like key from the request (req.params/query/body, request.GET/POST/args/form/values/json/data/query_params/COOKIES, Rails params, request.getParameter) inline, through a variable assigned or destructured from it in the 12 lines above, or through a Spring @PathVariable/@RequestParam parameter, when no owner or authorization check appears in the call or within 10 lines before and 6 after (owner fields, request.user/req.user/current_user, principal/Authentication, @PreAuthorize/@Secured, authorize!/can?/policy_scope, has_perm/check_object_permissions, Forbidden/PermissionDenied/403). Also reported regardless of nearby checks: an owner-scoping field (UserId, userId, user_id, ownerId, accountId) in a JavaScript lookup filled straight from req.body/params/query, because the key that should come from the session is client-controlled. Not reported: lookups scoped through the current user (current_user.orders.find), lookups by non-identifier fields such as email, keys from function parameters with no request origin, test code, comments and string literals. Authorization enforced in middleware, a policy class or a later function is not visible line by line and still produces a finding.",
+	"description": "A record is fetched, changed or deleted by an identifier the client supplies, with nothing nearby tying the record to the caller (insecure direct object reference). Reported: an ORM or repository lookup by id (Express/Mongoose/Sequelize/Prisma findById/findByPk/findOne/findUnique/findFirst/findByIdAndUpdate/findByIdAndDelete/destroy/deleteOne/updateOne/update/delete/upsert and DAO get...By...Id methods; Django objects.get/filter/exclude and get_object_or_404, Flask-SQLAlchemy query.get/get_or_404/filter_by, get_by_id; Spring Data/DAO findById/getById/getOne/getReferenceById/deleteById/findOne/find/findBy...Id and EntityManager.find; Rails Model.find/find_by/find_by_id/destroy/delete) whose arguments carry an id-like key from the request (req.params/query/body, request.GET/POST/args/form/values/json/data/query_params/COOKIES, Rails params, request.getParameter) inline, through a variable assigned or destructured from it in the 12 lines above, or through a Spring @PathVariable/@RequestParam parameter, when no owner or authorization check appears in the call or within 10 lines before and 6 after (owner fields, request.user/req.user/current_user, principal/Authentication, @PreAuthorize/@Secured, authorize!/can?/policy_scope, has_perm/check_object_permissions, Forbidden/PermissionDenied/403). Also reported regardless of nearby checks: an owner-scoping field (UserId, userId, user_id, ownerId, accountId) in a JavaScript lookup (including findMany/findAll/count/deleteMany/updateMany) filled straight from req.body/params/query, because the key that should come from the session is client-controlled. Not reported: lookups scoped through the current user (current_user.orders.find), lookups by non-identifier fields such as email, keys from function parameters with no request origin, test code, comments and string literals. Authorization enforced in middleware, a policy class or a later function is not visible line by line and still produces a finding.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-639/",
 	"languages": ["java", "node", "python", "ruby"],
 	"severity": "high",
@@ -135,6 +135,18 @@ _idor(lang, lines, i, line) if {
 
 # The owner key itself comes from the client.
 _idor("js", _, _, line) if {
+	regex.match(`(?:\b[A-Z]\w*|\bprisma\.\w+|\bdb\.\w+|\b\w*(?:Model|model|Repository|Repo|repo))\.(?:findMany|findAll|findAndCountAll|find|count|deleteMany|updateMany)\s*\(`, _blank(line))
+	regex.match(`\b(?:UserId|userId|user_id|ownerId|owner_id|accountId|account_id|OwnerId)\s*:\s*req\.(?:body|params|query)\.`, line)
+}
+
+_idor("js", lines, i, line) if {
+	not regex.match(`\.\w+\(`, _blank(line))
+	regex.match(`\b(?:UserId|userId|user_id|ownerId|owner_id|accountId|account_id|OwnerId)\s*:\s*req\.(?:body|params|query)\.`, line)
+	some j in numbers.range(max([0, i - 3]), i - 1)
+	regex.match(`(?:\b[A-Z]\w*|\bprisma\.\w+|\bdb\.\w+|\b\w*(?:Model|model|Repository|Repo|repo))\.(?:findMany|findAll|findAndCountAll|find|findOne|findFirst|count|deleteMany|updateMany)\s*\(\s*\{?[^)]*$`, _blank(lines[j]))
+}
+
+_idor("js", _, _, line) if {
 	_args("js", _blank(line))
 	regex.match(`\b(?:UserId|userId|user_id|ownerId|owner_id|accountId|account_id|OwnerId)\s*:\s*req\.(?:body|params|query)\.`, line)
 }
@@ -146,7 +158,7 @@ findings contains finding if {
 	not helpers.is_test_path(path)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`\.(?:find|get|destroy|delete|update|load|select|query|objects)|get_object_or_404`, line)
+	regex.match(`\.(?:find|get|destroy|delete|update|load|select|query|objects)|get_object_or_404|(?:UserId|userId|user_id|ownerId|owner_id|accountId|account_id|OwnerId)\s*:\s*req\.`, line)
 	not helpers.is_comment_line(line)
 	_idor(lang, lines, i, line)
 	finding := {

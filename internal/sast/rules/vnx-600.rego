@@ -122,7 +122,7 @@ _in_try(lines, start, i) if {
 
 _closed(lines, k, i, ik) if {
 	k + 1 <= i - 1
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	_indent(lines[m]) <= ik
 	startswith(trim_left(lines[m], " \t"), "}")
 }

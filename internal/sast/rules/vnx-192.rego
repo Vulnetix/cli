@@ -121,7 +121,7 @@ _source(line, "java") := [m[0][1], _java_sources[m[0][2]]] if {
 }
 
 _source(line, "c") := [m[0][1], _c_sources[m[0][2]]] if {
-	m := regex.find_all_string_submatch_n(`^\s*(?:const\s+)?(?:long\s+long|unsigned\s+long\s+long|unsigned\s+long|long|intmax_t|int64_t|ssize_t|int)\s+([A-Za-z_]\w*)\s*=\s*(atoi|atol|atoll|strtol|strtoll|strtoul|strtoull)\s*\(`, line, 1)
+	m := regex.find_all_string_submatch_n(`^\s*(?:const\s+)?(?:long\s+long|unsigned\s+long\s+long|unsigned\s+long|long|intmax_t|int64_t|ssize_t|int)\s+([A-Za-z_]\w*)\s*=\s*(?:(?:std)?::)?(atoi|atol|atoll|strtol|strtoll|strtoul|strtoull)\s*\(`, line, 1)
 	count(m) > 0
 }
 
@@ -217,7 +217,7 @@ _inline(line, "java") if {
 }
 
 _inline(line, "c") if {
-	m := regex.find_all_string_submatch_n(concat("", [`^\s*(?:const\s+|static\s+)*(`, _c_type_re, `)\s+([A-Za-z_]\w*)\s*=\s*(?:\(\s*\w+\s*\)\s*)?(atoi|atol|atoll|strtol|strtoll|strtoul|strtoull)\s*\(`]), line, 1)
+	m := regex.find_all_string_submatch_n(concat("", [`^\s*(?:const\s+|static\s+)*(`, _c_type_re, `)\s+([A-Za-z_]\w*)\s*=\s*(?:\(\s*\w+\s*\)\s*)?(?:(?:std)?::)?(atoi|atol|atoll|strtol|strtoll|strtoul|strtoull)\s*\(`]), line, 1)
 	count(m) > 0
 	_loses(_c_sources[m[0][3]], _c_type(m[0][1]))
 }

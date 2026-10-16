@@ -8,7 +8,7 @@ metadata := {
 	"name": "Third-party script or stylesheet loaded without Subresource Integrity",
 	"description": "An HTML page or server-side template loads JavaScript or CSS from another origin with no integrity check, so whoever controls that CDN (or the network path, for http://) can change the code the page runs. Reported: a <script> tag whose src, or a <link rel=\"stylesheet\"> whose href, is an absolute http(s):// or protocol-relative // URL and whose tag (which may span up to six lines) carries no integrity= attribute (every such tag on a line is checked), in .html/.htm/.xhtml and template files (ERB, EJS, Handlebars, Mustache, Jinja/Django/Nunjucks/Twig/Liquid, JSP, Razor, PHP, Vue/Svelte, Go templates). Not reported: tags with integrity= or a framework binding of it (:integrity, v-bind:integrity, [attr.integrity]), same-origin and relative URLs, development servers on localhost/127.0.0.1, a src built from a template expression, other <link> relations (canonical, preconnect, icon, alternate), anchors, HTML-escaped and commented-out tags, prose files, and endpoints that serve per-request content and cannot be pinned by a hash (Google Tag Manager/Analytics, reCAPTCHA, hCaptcha, Turnstile, Google Fonts CSS, Google Maps/APIs/Sign-In, Stripe.js, Font Awesome kits, Facebook/Twitter widgets).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-353/",
-	"languages": ["html"],
+	"languages": ["html", "php"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",

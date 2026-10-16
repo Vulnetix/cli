@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE resources PUBLIC "-//GlassFish.org//DTD GlassFish Application Server 3.1 Resource Definitions//EN"
+    "http://glassfish.org/dtds/glassfish-resources_1_5.dtd">
+<resources>
+  <jdbc-connection-pool name="HrPool" res-type="javax.sql.DataSource"
+                        datasource-classname="org.postgresql.ds.PGSimpleDataSource">
+    <property name="serverName" value="pg-hr.internal"/>
+    <property name="user" value="hr_app"/>
+~>    <property name="password" value="HrPayroll2025"/>
+  </jdbc-connection-pool>
+  <jdbc-resource pool-name="HrPool" jndi-name="jdbc/hr"/>
+</resources>

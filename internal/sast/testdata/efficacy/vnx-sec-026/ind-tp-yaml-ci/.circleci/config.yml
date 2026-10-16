@@ -1,0 +1,9 @@
+version: 2.1
+jobs:
+  deploy:
+    docker:
+      - image: cimg/base:stable
+    environment:
+~>      DO_API_TOKEN: dop_v1_@@sample:[0-9a-f]{64}@@
+    steps:
+      - checkout

@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_763
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-763",
 	"name": "Release of a pointer that never came from the heap",
@@ -109,7 +111,7 @@ _is_array(lines, i, name) if {
 # second method in a class body, whose closing brace is indented.
 _pointer_declared_between(lines, a, i, name) if {
 	ptr_re := concat("", [`\w\s*\*+\s*`, name, `\s*(?:=[^=]|;|,|\))`])
-	some k in numbers.range(a + 1, i - 1)
+	some k in helpers.span(a + 1, i - 1)
 	k >= a + 1
 	k <= i - 1
 	regex.match(ptr_re, lines[k])
@@ -126,7 +128,7 @@ _local_pointer(lines, i, name) if {
 }
 
 _function_ends(lines, a, i) if {
-	some k in numbers.range(a + 1, i - 1)
+	some k in helpers.span(a + 1, i - 1)
 	k >= a + 1
 	k <= i - 1
 	startswith(lines[k], "}")

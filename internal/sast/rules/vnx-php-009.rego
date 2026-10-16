@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-009",
 	"name": "PHP preg_replace with /e modifier",
-	"description": "preg_replace() or preg_filter() is called with a pattern that carries the e (PREG_REPLACE_EVAL) modifier, which evaluates the replacement string as PHP code after substitution, so text matched from the subject becomes code (remote code execution when the subject is user-controlled). The pattern is recognised as a string literal whose closing delimiter (any delimiter, including bracket pairs such as {}) is followed only by valid PCRE modifiers including e: given inline, on the next lines of a call broken across lines, in an array of patterns, or through a variable assigned such a literal within the 15 lines above. The modifier was deprecated in PHP 5.5 and removed in PHP 7.0. Not reported: preg_replace_callback(), patterns without e, a pattern built at run time from non-literal parts, lookalike functions such as my_preg_replace(), the call text inside a comment or a string literal, and an /e pattern quoted only in a trailing // or # comment after a safe call. mb_ereg_replace() with the e option is covered by VNX-PHP-024.",
+	"description": "preg_replace() or preg_filter() is called with a pattern that carries the e (PREG_REPLACE_EVAL) modifier, which evaluates the replacement string as PHP code after substitution, so text matched from the subject becomes code (remote code execution when the subject is user-controlled). The pattern is recognised as a string literal whose closing delimiter (any delimiter, including bracket pairs such as {}) is followed only by valid PCRE modifiers including e: given inline, on the next lines of a call broken across lines, in an array of patterns, or through a variable assigned such a literal within the 15 lines above. The modifier was deprecated in PHP 5.5 and removed in PHP 7.0. Not reported: preg_replace_callback(), patterns without e, a pattern built at run time from non-literal parts (unless its last concatenated literal is the closing delimiter and modifiers including e, such as . ')/ei'), lookalike functions such as my_preg_replace(), the call text inside a comment or a string literal, and an /e pattern quoted only in a trailing // or # comment after a safe call. mb_ereg_replace() with the e option is covered by VNX-PHP-024.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-009/",
 	"languages": ["php"],
 	"severity": "critical",
@@ -106,6 +106,10 @@ _e_call(lines, i) if {
 }
 
 _assignment_has_e(lines, j) if _has_e_literal(_strip_comment(lines[j]))
+
+# A pattern concatenated at run time whose final literal part supplies the
+# closing delimiter and modifiers, e.g. "/(" . preg_quote($w) . ")/ei".
+_assignment_has_e(lines, j) if regex.match(`\.\s*(?:'[^']*[/#~@!%|][imsxuADSUXJe]*e[imsxuADSUXJe]*'|"[^"]*[/#~@!%|][imsxuADSUXJe]*e[imsxuADSUXJe]*")\s*;`, _strip_comment(lines[j]))
 
 # An array assignment spread over the following lines.
 _assignment_has_e(lines, j) if {

@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_464
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-464",
 	"name": "Addition of Data Structure Sentinel",
@@ -67,7 +69,7 @@ _target(lines, i, l) := m[0][1] if {
 
 _tested(lines, j, i, v) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`\b(?:if|while)\s*\(.*\b`, v, `\b`]), lines[k])
 }
 

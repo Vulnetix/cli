@@ -1,0 +1,19 @@
+HKCR
+{
+	NoRemove CLSID
+	{
+		ForceRemove {3F2A8B11-6C0D-4E9A-9A55-1B7E4C2D8F01} = s 'FileHelper Class'
+		{
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Apartment'
+			}
+			'Implemented Categories'
+			{
+~>				{7DD95801-9882-11CF-9FA9-00AA006C42C4}
+~>				{7DD95802-9882-11CF-9FA9-00AA006C42C4}
+			}
+			'TypeLib' = s '{5C1E7A20-3B4F-4D2E-8E61-0A9B3C7D2E44}'
+		}
+	}
+}

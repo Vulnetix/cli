@@ -69,7 +69,7 @@ _validated := `\b(?:cleaned_data|validated_data)\b`
 
 _guarded(lines, j, i, k) if {
 	j + 1 <= i - 1
-	some m in numbers.range(j + 1, i - 1)
+	some m in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`\b`, k, `\s+(?:not\s+)?in\b|\b`, k, `\.startswith\(`]), lines[m])
 }
 

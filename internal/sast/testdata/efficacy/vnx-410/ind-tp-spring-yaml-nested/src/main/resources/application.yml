@@ -1,0 +1,10 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: billing
+  datasource:
+    url: jdbc:mysql://db:3306/billing
+    hikari:
+~>      maximumPoolSize: 2
+      minimumIdle: 1

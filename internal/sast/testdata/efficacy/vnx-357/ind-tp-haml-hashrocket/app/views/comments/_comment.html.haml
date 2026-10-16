@@ -1,0 +1,4 @@
+.comment{ id: dom_id(comment) }
+  %p= comment.body
+  - if can?(:destroy, comment)
+~>    = link_to 'Delete', comment_path(comment), :method => :delete, :class => 'small'

@@ -155,7 +155,7 @@ _header_re := `^\s*(?:(?:async|static|public|private|protected|final|synchronize
 
 _header_between(lines, k, j) if {
 	k + 1 <= j - 1
-	some m in numbers.range(k + 1, j - 1)
+	some m in helpers.span(k + 1, j - 1)
 	regex.match(_header_re, lines[m])
 	_indent(lines[m]) <= _indent(lines[k])
 }

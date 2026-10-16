@@ -89,7 +89,7 @@ _encloses(lines, f, b, i) if {
 
 _closed(lines, a, z, ind) if {
 	a + 1 <= z - 1
-	some k in numbers.range(a + 1, z - 1)
+	some k in helpers.span(a + 1, z - 1)
 	_indent(lines[k]) == ind
 	startswith(trim_left(lines[k], " \t"), "}")
 }

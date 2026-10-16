@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="BillingService"
+    xmlns="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    targetNamespace="http://billing.example.com/ws">
+  <service name="BillingService">
+    <port name="BillingPort" binding="tns:BillingBinding">
+~>      <soap:address location="http://svc_billing:Tr0ub4dor@billing-int.example.com:8443/billing"/>
+    </port>
+  </service>
+</definitions>

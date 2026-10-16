@@ -1,0 +1,4 @@
+production:
+  adapter: postgresql
+  username: shop
+  password: Sample-Pa55word-Here

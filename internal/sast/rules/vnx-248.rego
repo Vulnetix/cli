@@ -145,7 +145,7 @@ _open_try(lang, lines, i) := k if {
 _closed(lines, k, i) if {
 	ik := _indent(lines[k])
 	k + 1 <= i - 1
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	trim_space(lines[m]) != ""
 	_indent(lines[m]) <= ik
 }

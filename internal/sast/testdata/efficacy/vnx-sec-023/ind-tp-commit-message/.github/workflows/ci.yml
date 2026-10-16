@@ -1,0 +1,11 @@
+name: ci
+on: push
+jobs:
+  b:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show message
+        run: |
+~>          MSG='${{ github.event.head_commit.message }}'
+~>          echo "${{ github.event.head_commit.message }}"

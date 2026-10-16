@@ -117,6 +117,6 @@ findings contains finding if {
 
 _regained(lines, u, i, lang) if {
 	u + 1 <= i - 1
-	some k in numbers.range(u + 1, i - 1)
+	some k in helpers.span(u + 1, i - 1)
 	regex.match(_regain_re(lang), _code(lines[k]))
 }

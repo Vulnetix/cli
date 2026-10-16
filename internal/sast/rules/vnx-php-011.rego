@@ -102,7 +102,7 @@ _checked_exprs(v, rhs) := {concat("", ["$", v])} | {e |
 
 _resanitised(lines, i, j, v) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	_assigned(lines[k]) == v
 	not regex.match(concat("", [`\$`, v, `\b`]), _clean(_rhs(lines[k])))
 }
@@ -128,7 +128,7 @@ _stmt_rhs(lines, j, _) := _rhs(lines[j]) if contains(lines[j], ";")
 _stmt_rhs(lines, j, i) := concat("\n", array.concat([_rhs(lines[j])], cont)) if {
 	not contains(lines[j], ";")
 	end := min([i, j + 6])
-	ends := [k | some k in numbers.range(j + 1, end - 1); contains(lines[k], ";")]
+	ends := [k | some k in helpers.span(j + 1, end - 1); contains(lines[k], ";")]
 	stop := _first_or(ends, end - 1)
 	cont := array.slice(lines, j + 1, stop + 1)
 }

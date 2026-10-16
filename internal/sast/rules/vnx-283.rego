@@ -64,6 +64,13 @@ _candidate(lines, i, c) if {
 
 _candidate(lines, i, c) if _var_test(lines, i, c)
 
+_continuation(lines, i) if {
+	i > 0
+	regex.match(`(\|\||&&)\s*$`, _code(lines[i - 1]))
+	regex.match(`st_mode|perms::`, lines[i - 1])
+	_is_test(lines, i - 1, _code(lines[i - 1]))
+}
+
 findings contains finding if {
 	some path, content in input.file_contents
 	_is_c(path)
@@ -76,6 +83,8 @@ findings contains finding if {
 	c := _code(line)
 	_candidate(lines, i, c)
 	not contains(c, "chmod")
+	# The continuation of a condition whose previous line is itself a reported test is one condition.
+	not _continuation(lines, i)
 	# Printing or logging the bits is not a trust decision.
 	not regex.match(`\b(printf|fprintf|snprintf|sprintf|dprintf|syslog|puts|fputs)\s*\(|\bstd::(cout|cerr|format)\b|\b(cout|cerr)\s*<<`, c)
 	# ls-style formatting of a mode string, not a trust decision.

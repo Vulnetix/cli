@@ -71,7 +71,7 @@ _decl_prefix := `^\s*(?:(?:const|static|struct|unsigned|signed|register)\s+)*(?:
 
 _assign_re("ptr") := concat("", [_decl_prefix, `\(?\s*([A-Za-z_]\w*)\s*=\s*(?:\([^()]*\)\s*)?(?:std::)?(?:`, _ptr_fns, `)\s*\(`])
 
-_assign_re("mmap") := concat("", [_decl_prefix, `([A-Za-z_]\w*)\s*=\s*(?:\([^()]*\)\s*)?mmap(?:64)?\s*\(`])
+_assign_re("mmap") := concat("", [_decl_prefix, `([A-Za-z_][\w\.]*(?:->\w+)*)\s*=\s*(?:\([^()]*\)\s*)?mmap(?:64)?\s*\(`])
 
 _assign_re("fd") := concat("", [_decl_prefix, `([A-Za-z_]\w*)\s*=\s*(?:::)?(?:`, _fd_fns, `)\s*\(`])
 
@@ -86,7 +86,9 @@ _bad_check("ptr", v) := concat("", [`\b`, v, _negative])
 
 _bad_check("unsigned", v) := concat("", [`\b`, v, _negative])
 
-_bad_check("mmap", v) := concat("", [`\b`, v, `\s*==\s*(?:NULL|0)\b|\b(?:NULL|0)\s*==\s*`, v, `\b|!\s*`, v, `\b\s*\)`])
+_esc(v) := regex.replace(v, `([\.\[\]\-\>])`, `\$1`)
+
+_bad_check("mmap", v) := concat("", [`\b`, _esc(v), `\s*==\s*(?:NULL|0)\b|\b(?:NULL|0)\s*==\s*`, _esc(v), `\b|!\s*`, _esc(v), `\b\s*\)`])
 
 _bad_check("fd", v) := concat("", [`\b`, v, `\s*==\s*NULL\b|\bNULL\s*==\s*`, v, `\b|\(\s*!\s*`, v, `\s*\)`])
 
@@ -116,7 +118,7 @@ _next_codes(lines, i) := [k |
 
 _reassigned(lines, i, j, v) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	regex.match(concat("", [`^\s*`, v, `\s*=[^=]`]), lines[k])
 }
 

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server xmlns="urn:jboss:domain:20.0">
+  <profile>
+    <subsystem xmlns="urn:jboss:domain:datasources:7.0">
+      <datasources>
+        <datasource jndi-name="java:jboss/datasources/AppDS" pool-name="AppDS">
+          <connection-url>jdbc:postgresql://pg:5432/app</connection-url>
+          <security>
+            <user-name>app</user-name>
+            <password>ENC(9aF3kQx2Lm0pZr7Tw1bV)</password>
+          </security>
+        </datasource>
+        <datasource jndi-name="java:jboss/datasources/AuditDS" pool-name="AuditDS">
+          <security user-name="audit" password="{aes}Q2hhbmdlZEJ5RGVwbG95"/>
+        </datasource>
+        <datasource jndi-name="java:jboss/datasources/ReportDS" pool-name="ReportDS">
+          <security user-name="report" password="********"/>
+        </datasource>
+      </datasources>
+    </subsystem>
+  </profile>
+</server>

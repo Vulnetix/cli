@@ -1,0 +1,3 @@
+service:
+  name: ingest
+~>  client_secret: @@sample:[A-Za-z0-9]{40}@@

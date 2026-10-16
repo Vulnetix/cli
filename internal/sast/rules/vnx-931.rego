@@ -92,7 +92,7 @@ _hit(line, lines, i) if {
 	some j in numbers.range(max([0, i - 15]), i - 1)
 	regex.match(_matcher, lines[j])
 	not helpers.is_comment_line(lines[j])
-	every k in numbers.range(j + 1, i - 1) {
+	every k in helpers.span(j + 1, i - 1) {
 		not regex.match(`\b(antMatchers|requestMatchers|mvcMatchers|regexMatchers|pathMatchers)\s*\(|permitAll|authenticated|hasRole|hasAnyRole|hasAuthority|hasAnyAuthority|denyAll|\.access\s*\(`, lines[k])
 	}
 	args := concat(" ", [l |

@@ -36,7 +36,17 @@ _js_sink_re := `\.(?:innerHTML|outerHTML)\s*\+?=|\binsertAdjacentHTML\s*\(|\bdoc
 
 _js_enc_re := `^(.*?)(?:\bencodeURIComponent|\bencodeURI|(?:^|[^\w.$])escape)\s*\(`
 
-_py_quote_re := `^(.*?)(?:^|[^\w.])(?:urllib\.parse\.|parse\.|urllib\.)?quote(?:_plus)?\s*\(`
+# The file binds its own `escape` (import { escape } from 'lodash', require),
+# so a call to it is not the global URL-style escape().
+_js_enc_re_local := `^(.*?)(?:\bencodeURIComponent|\bencodeURI)\s*\(`
+
+_escape_bound(content) if regex.match(`(?m)(?:import\s[^;\n]*\bescape\b[^;\n]*\sfrom\b|\b(?:const|let|var)\s+(?:\{[^}]*\bescape\b[^}]*\}|escape)\s*=\s*require|\bfunction\s+escape\s*\()`, content)
+
+_enc_re(content) := _js_enc_re_local if _escape_bound(content)
+
+_enc_re(content) := _js_enc_re if not _escape_bound(content)
+
+_py_quote_re :=`^(.*?)(?:^|[^\w.])(?:urllib\.parse\.|parse\.|urllib\.)?quote(?:_plus)?\s*\(`
 
 _py_attr_esc_re := `^(.*?)(?:\bhtml\.escape\s*\([^)]*\bquote\s*=\s*False|\bcgi\.escape\s*\((?:[^)]*\bquote\s*=\s*False)?[^)]*\))`
 
@@ -78,16 +88,16 @@ _markup_context(prefix) if regex.match(`<[A-Za-z]`, prefix)
 
 _markup_context(prefix) if regex.match(`\b(?:Markup|mark_safe)\s*\(`, prefix)
 
-_report(path, line) := "URL encoding (encodeURIComponent/encodeURI/escape) used for a value written into HTML: it is not HTML encoding and leaves quotes and markup injectable. Use textContent or an HTML escaper" if {
+_report(path, line, content) := "URL encoding (encodeURIComponent/encodeURI/escape) used for a value written into HTML: it is not HTML encoding and leaves quotes and markup injectable. Use textContent or an HTML escaper" if {
 	_is_js(path)
 	regex.match(_js_sink_re, _strip_quotes(line))
-	m := regex.find_all_string_submatch_n(_js_enc_re, line, 1)
+	m := regex.find_all_string_submatch_n(_enc_re(content), line, 1)
 	count(m) > 0
 	regex.match(_js_sink_re, _strip_quotes(m[0][1]))
 	not _in_url_attr(_ctx_prefix(m[0][1]))
 }
 
-_report(path, line) := "URL quoting (urllib.parse.quote) used for text placed in HTML markup: it is not HTML escaping. Use html.escape or the template engine's autoescaping" if {
+_report(path, line, _) := "URL quoting (urllib.parse.quote) used for text placed in HTML markup: it is not HTML escaping. Use html.escape or the template engine's autoescaping" if {
 	endswith(path, ".py")
 	contains(line, "quote")
 	m := regex.find_all_string_submatch_n(_py_quote_re, line, 1)
@@ -96,7 +106,7 @@ _report(path, line) := "URL quoting (urllib.parse.quote) used for text placed in
 	not _in_url_attr(_ctx_prefix(m[0][1]))
 }
 
-_report(path, line) := "HTML escaping without quote escaping (html.escape(quote=False) / cgi.escape) used inside an attribute value: a quote in the input closes the attribute. Use html.escape(value) with quote=True" if {
+_report(path, line, _) := "HTML escaping without quote escaping (html.escape(quote=False) / cgi.escape) used inside an attribute value: a quote in the input closes the attribute. Use html.escape(value) with quote=True" if {
 	endswith(path, ".py")
 	contains(line, "escape")
 	m := regex.find_all_string_submatch_n(_py_attr_esc_re, line, 1)
@@ -139,7 +149,7 @@ findings contains finding if {
 	regex.match(`encodeURI|escape|quote`, line)
 	count(line) < 500
 	not helpers.is_comment_line(line)
-	msg := _report(path, line)
+	msg := _report(path, line, content)
 	finding := {
 		"rule_id": metadata.id,
 		"message": msg,

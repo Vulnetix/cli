@@ -64,7 +64,7 @@ _body(lines, k, rest) := body if {
 	]
 	count(closes) > 0
 	c := min(closes)
-	body := array.concat([rest], [lines[j] | some j in numbers.range(k + 1, c - 1); j > k; j < c])
+	body := array.concat([rest], [lines[j] | some j in helpers.span(k + 1, c - 1); j > k; j < c])
 }
 
 # The line holding the catch's opening brace and the text after it:
@@ -105,7 +105,7 @@ findings contains finding if {
 	contains(sline, "static")
 	_static_open(lines, s)
 	e := _static_end(lines, s)
-	some k in numbers.range(s + 1, e - 1)
+	some k in helpers.span(s + 1, e - 1)
 	contains(lines[k], "catch")
 	not helpers.is_comment_line(lines[k])
 	[b, rest] := _catch_open(lines, k)

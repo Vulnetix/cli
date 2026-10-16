@@ -1,0 +1,10 @@
+<!doctype html>
+<html>
+<head><title>Landing</title></head>
+<body>
+<script>
+  var paramValue = new URLSearchParams(window.location.search).get('msg');
+~>  document.write("<div class='alert'>" + paramValue + "</div>");
+</script>
+</body>
+</html>

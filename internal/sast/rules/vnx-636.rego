@@ -86,7 +86,7 @@ _body_line(lines, i, j) if {
 
 _left_block(lines, i, j, ii) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	not _blank(lines[k])
 	_indent(lines[k]) <= ii
 }

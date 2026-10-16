@@ -19,7 +19,7 @@ The Cargo team's official guidance is that all binary crates (applications) shou
 
 ## What Gets Flagged
 
-The finding is reported on the `Cargo.toml` of a crate that declares at least one dependency (`[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`, `[workspace.dependencies]`, `[target.*.dependencies]` or a `[dependencies.<name>]` table) when no `Cargo.lock` exists in that directory or any ancestor:
+The finding is reported on line 1 of the `Cargo.toml` of a crate that declares at least one dependency (`[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`, `[workspace.dependencies]`, `[target.*.dependencies]` or a `[dependencies.<name>]` table) when no `Cargo.lock` exists in that directory or any ancestor:
 
 ```
 services/worker/

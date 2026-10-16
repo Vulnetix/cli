@@ -47,7 +47,9 @@ for i := 0; i < len(plaintext); i += bs {
 $e = openssl_encrypt($plaintext, 'aes-128-ecb', $key, OPENSSL_RAW_DATA);
 ```
 
-Not flagged: GCM, CBC, CTR and other modes; `RSA/ECB/...` (RSA has no block mode), `AESWrap` and `AES/KW/NoPadding`; a comparison against `MODE_ECB` (a guard); `KeyGenerator`/`SecretKeySpec` with `"AES"`; a single-block `Encrypt` outside a loop (CMAC subkeys, key wrapping); a Java `getProperty` default that the project's own `.properties` overrides with a non-ECB transformation; comments, strings, documentation and test files.
+Not flagged: GCM, CBC, CTR and other modes; `RSA/ECB/...` (RSA has no block mode), `AESWrap` and `AES/KW/NoPadding`; a comparison against `MODE_ECB` (a guard); `KeyGenerator`/`SecretKeySpec` with `"AES"`; a single-block `Encrypt` outside a loop (CMAC subkeys, key wrapping); a Java `getProperty` default that the project's own `.properties` overrides with a non-ECB transformation; a bare name joined to a mode (`Cipher.getInstance("AES" + "/GCM/NoPadding")`), which is not the provider default; comments, strings, documentation and test files.
+
+Java ECB is reported by this rule once. [VNX-1240](../vnx-1240/) leaves every Java call this rule reports to it, and reports only the Java forms this rule does not: a mode concatenated onto the algorithm (`alg + "/ECB/PKCS5Padding"`), a `getOrDefault` default, and ECB in test sources.
 
 ## Remediation
 

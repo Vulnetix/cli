@@ -1,0 +1,5 @@
+[package]
+name = "nodeps"
+version = "0.1.0"
+# [dependencies]
+# tokio = "1"

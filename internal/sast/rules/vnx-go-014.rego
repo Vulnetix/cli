@@ -107,7 +107,7 @@ _encloses(lines, k, j) if {
 
 _closed_between(lines, k, j, ik) if {
 	k + 1 <= j - 1
-	some m in numbers.range(k + 1, j - 1)
+	some m in helpers.span(k + 1, j - 1)
 	_indent(lines[m]) <= ik
 	startswith(trim_left(lines[m], " \t"), "}")
 }
@@ -116,7 +116,7 @@ _closed_between(lines, k, j, ik) if {
 # leaves the literal, not the locking function.
 _in_func_literal(lines, i, j) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	regex.match(`\bfunc\s*\(`, lines[k])
 	not startswith(lines[k], "func ")
 	_encloses(lines, k, j)
@@ -126,7 +126,7 @@ _in_func_literal(lines, i, j) if {
 # the critical section.
 _in_inner_loop(lines, i, j) if {
 	i + 1 <= j - 1
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	regex.match(`^\s*for\b`, lines[k])
 	_encloses(lines, k, j)
 }
@@ -134,7 +134,7 @@ _in_inner_loop(lines, i, j) if {
 # The lock statement is inside a loop of this function.
 _lock_in_loop(lines, fs, i) if {
 	fs + 1 <= i - 1
-	some k in numbers.range(fs + 1, i - 1)
+	some k in helpers.span(fs + 1, i - 1)
 	regex.match(`^\s*for\b`, lines[k])
 	_encloses(lines, k, i)
 }
@@ -142,14 +142,14 @@ _lock_in_loop(lines, fs, i) if {
 # An exit between the lock and its first Unlock.
 _exits_between(lines, fs, i, k) if {
 	i + 1 <= k - 1
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	regex.match(`^\s*(return\b|panic\()`, lines[j])
 	not _in_func_literal(lines, i, j)
 }
 
 _exits_between(lines, fs, i, k) if {
 	i + 1 <= k - 1
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	regex.match(`^\s*continue\b`, lines[j])
 	not _in_func_literal(lines, i, j)
 	not _in_inner_loop(lines, i, j)
@@ -230,7 +230,7 @@ _leaks(lines, _, fs, i, e, unlock_expr, _, _) if {
 _leaks(lines, _, fs, i, e, unlock_expr, _, _) if {
 	k := _main_unlock(lines, i, e, unlock_expr)
 	i + 1 <= k - 1
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	_exit_line(lines, fs, i, j)
 	not _covered(lines, i, j, unlock_expr)
 }
@@ -268,7 +268,7 @@ _main_unlock(lines, i, e, unlock_expr) := k if {
 # that path.
 _covered(lines, i, j, unlock_expr) if {
 	i + 1 <= j - 1
-	some u in numbers.range(i + 1, j - 1)
+	some u in helpers.span(i + 1, j - 1)
 	contains(lines[u], unlock_expr)
 	not helpers.is_comment_line(lines[u])
 	not contains(lines[u], "defer ")
@@ -279,7 +279,7 @@ _covered(lines, i, j, unlock_expr) if {
 # or a case/default label sits shallower between them.
 _block_closed(lines, a, b, ia) if {
 	a + 1 <= b - 1
-	some m in numbers.range(a + 1, b - 1)
+	some m in helpers.span(a + 1, b - 1)
 	_indent(lines[m]) < ia
 	regex.match(`^\s*(?:\}|case\b|default\s*:)`, lines[m])
 }

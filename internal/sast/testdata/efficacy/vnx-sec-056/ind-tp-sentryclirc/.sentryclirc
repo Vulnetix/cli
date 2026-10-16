@@ -1,0 +1,4 @@
+[defaults]
+org = acme
+[auth]
+~>token = @@sample:sntryu_[a-f0-9]{64}@@

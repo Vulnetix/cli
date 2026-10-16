@@ -1,0 +1,3 @@
+<?php
+$config['default']['username'] = 'ci_app';
+$config['default']['password'] = 'Change-Me-Now1';

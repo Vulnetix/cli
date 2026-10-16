@@ -73,7 +73,7 @@ _js_open(_, j, i) if i == j
 _js_open(lines, j, i) if {
 	i > j
 	_backticks(lines[j]) % 2 == 1
-	every k in numbers.range(j + 1, i - 1) {
+	every k in helpers.span(j + 1, i - 1) {
 		_backticks(lines[k]) == 0
 	}
 }
@@ -82,7 +82,7 @@ _js_open(lines, j, i) if {
 _js_open(lines, j, i) if {
 	i > j
 	regex.match(`^\s*(query|mutation|subscription)\b[^'"\x60]*\{\s*$`, lines[j])
-	every k in numbers.range(j + 1, i - 1) {
+	every k in helpers.span(j + 1, i - 1) {
 		_backticks(lines[k]) == 0
 	}
 }

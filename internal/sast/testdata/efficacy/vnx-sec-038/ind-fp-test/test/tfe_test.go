@@ -1,0 +1,2 @@
+package t
+const tok = "@@sample:[A-Za-z0-9]{14}@@.atlasv1.@@sample:[A-Za-z0-9_-]{66}@@"

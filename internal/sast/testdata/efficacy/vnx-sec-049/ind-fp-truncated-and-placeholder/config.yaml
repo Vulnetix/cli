@@ -1,0 +1,4 @@
+anthropic:
+  admin_key: sk-ant-admin01-abc123
+  other: your-admin-key-here
+  third: "sk-ant-admin01-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"

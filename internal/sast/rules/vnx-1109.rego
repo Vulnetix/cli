@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_1109
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-1109",
 	"name": "Use of Same Variable for Multiple Purposes",
@@ -42,7 +44,7 @@ _py_code(line) if {
 
 # a code line between the two loops at or left of the outer loop's indent ends its body
 _py_closed(lines, j, i, oi) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	k > j
 	k < i
 	_py_code(lines[k])
@@ -51,7 +53,7 @@ _py_closed(lines, j, i, oi) if {
 
 # a function or class defined inside the outer loop has its own scope
 _py_new_scope(lines, j, i, oi, ii) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	k > j
 	k < i
 	regex.match(`^[ \t]*(?:async\s+)?(?:def|class)\s`, lines[k])
@@ -147,7 +149,7 @@ _c_nested(lines, j, i) if {
 }
 
 _code_between(lines, j, i) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	k > j
 	k < i
 	t := trim_space(lines[k])
@@ -200,7 +202,7 @@ _opens_block(lines, j) if {
 
 # a function or arrow body between the loops is a callback that runs later
 _new_function(lines, j, i) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	k > j
 	k < i
 	regex.match(`\bfunction\b|=>`, lines[k])

@@ -1,0 +1,5 @@
+fetch:
+  script:
+    - curl --header "JOB-TOKEN: $CI_JOB_TOKEN" https://gitlab.com/api/v4/projects/1/packages
+    - echo "glrt-xxxxxxxxxxxxxxxxxxxxxxxx"
+    - echo "glptt-short"

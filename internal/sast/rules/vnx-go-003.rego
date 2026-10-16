@@ -97,10 +97,11 @@ _code_prefix(prefix) if {
 
 _sql_args(stmt) := {[kind, a] |
 	some kind, re in _sinks
-	parts := regex.split(re, stmt)
-	count(parts) > 1
-	_code_prefix(parts[0])
-	a := trim_space(_first_arg(_strip_ctx(parts[1])))
+	ms := regex.find_n(re, stmt, 1)
+	count(ms) > 0
+	at := indexof(stmt, ms[0])
+	_code_prefix(substring(stmt, 0, at))
+	a := trim_space(_first_arg(_strip_ctx(substring(stmt, at + count(ms[0]), -1))))
 	a != ""
 }
 

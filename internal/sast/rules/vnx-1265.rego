@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_1265
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-1265",
 	"name": "Unintended Reentrant Invocation of Non-reentrant Code Via Nested Calls",
@@ -113,7 +115,7 @@ findings contains finding if {
 	_continues(lines, j, e)
 	f := _fn_index(fn_starts, s)
 	fname := object.get(fn_names, f, "")
-	some i in numbers.range(j + 1, e - 1)
+	some i in helpers.span(j + 1, e - 1)
 	not _is_comment(lines[i])
 	_nested(tok_fns, fname, codes[i], lines[i])
 	finding := {

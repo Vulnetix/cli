@@ -206,7 +206,7 @@ _verifies(lines, i, "py") if {
 
 # A later identity change that is not itself another elevation.
 _lowered_after(lines, i, lang) if {
-	some j in numbers.range(i + 1, count(lines) - 1)
+	some j in helpers.span(i + 1, count(lines) - 1)
 	not helpers.is_comment_line(lines[j])
 	c := _code(lines[j])
 	regex.match(_drop_re[lang], c)

@@ -23,6 +23,8 @@ metadata := {
 
 _doc_suffix := [".md", ".markdown", ".rst", ".adoc", ".example", ".sample", ".template", ".dist", ".tmpl"]
 
+_skip(path) if regex.match(`(?i)[_.-](test|tests|spec)\.[a-z0-9]+$`, path)
+
 _skip(path) if {
 	low := lower(path)
 	some s in _doc_suffix

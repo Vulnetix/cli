@@ -10,7 +10,7 @@ metadata := {
 	"name": "Exposure of WSDL File Containing Sensitive Information",
 	"description": "A published WSDL contract that tells every client something it should not. Reported in .wsdl and .xsd files: an element or attribute whose name ends in a credential word (password, passwd, secret, apiKey, token, privateKey: adminPassword, client_secret) given a non-empty default= or fixed= value that is not a number, a boolean or a scheme name such as Bearer, a soap/soap12/http:address location carrying user:password@ credentials, and an operation named like a debug or internal back door (debug*, internal*, dump*, backdoor*, hidden*, exec/execute/run + Command/Cmd/Shell/Sql/Script/Query, get*Password/Secret/PrivateKey/Credentials). Reported in code, because each one is generated into the service's WSDL: a JAX-WS @WebMethod (Java), a spyne @rpc/@srpc (Python) or a WCF [OperationContract] (C#) on a method with such a name. Not reported: ordinary business operations (changePassword, getPasswordPolicy, testConnection, executeOrder), credential elements without a value or with an empty one, settings that only describe a credential (tokenType, passwordMinLength, tokenExpirySeconds), https or credential-free addresses, @WebMethod(exclude = true), methods without the service annotation, comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-651/",
-	"languages": ["java", "python", "csharp"],
+	"languages": ["java", "python", "csharp", "xml"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",
@@ -51,6 +51,7 @@ findings contains finding if {
 	regex.match(`(?i)password|passwd|pwd|secret|api_?key|token|private_?key|address|operation`, content)
 	lines := split(content, "\n")
 	some i, line in lines
+	not regex.match(`^\s*<!--`, line)
 	_wsdl_hit(line)
 	finding := _finding(path, i, line)
 }
@@ -122,7 +123,7 @@ _first_decl(path, lines, a, j) if {
 
 _earlier_decl(path, lines, a, j) if {
 	a + 1 <= j - 1
-	some k in numbers.range(a + 1, j - 1)
+	some k in helpers.span(a + 1, j - 1)
 	not helpers.is_comment_line(lines[k])
 	_method_name(path, lines[k])
 }

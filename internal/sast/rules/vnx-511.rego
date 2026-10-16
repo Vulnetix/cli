@@ -115,7 +115,7 @@ _destructive(lang, lines, i, c, prefix) if {
 _destructive(lang, lines, i, _, _) if {
 	e := _block_end(lines, i)
 	e - 1 >= i + 1
-	some k in numbers.range(i + 1, e - 1)
+	some k in helpers.span(i + 1, e - 1)
 	l := lines[k]
 	not helpers.is_comment_line(l)
 	regex.match(_payload[lang], _code(l))

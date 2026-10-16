@@ -94,14 +94,14 @@ _in_debug_block(lines, i) if {
 # some #endif in between brings the depth below the block j opened
 _closed_between(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	_pp_close(lines[k])
 	_depth(lines, j, k) < 0
 }
 
 _else_between(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	_pp_else(lines[k])
 	_depth(lines, j, k - 1) == 0
 }

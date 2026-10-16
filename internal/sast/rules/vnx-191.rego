@@ -172,6 +172,14 @@ _non_empty_checked(lines, i, s, _) if {
 	not helpers.is_comment_line(l)
 	regex.match(`\b(?:if|while)\b|&&`, l)
 	regex.match(concat("", [`\*\s*`, _esc(s), `\b|`, _esc(s), `\s*\[\s*0\s*\]|\bstrlen\s*\(\s*`, _esc(s), `\s*\)|\b`, _esc(s), `\b`]), l)
+	not _only_self_use(l, s)
+}
+
+# The guarding line is itself an unchecked strlen(s) - 1 use: an `if` that tests
+# the last character does not test that the string is non-empty.
+_only_self_use(l, s) if {
+	regex.match(concat("", [`\bstrlen\s*\(\s*`, _esc(s), `\s*\)\s*-\s*1`]), l)
+	not regex.match(concat("", [`\*\s*`, _esc(s), `\b|`, _esc(s), `\s*\[\s*0\s*\]|\bstrlen\s*\(\s*`, _esc(s), `\s*\)\s*(?:>|!=)|&&`]), l)
 }
 
 # ── Where the minuend came from ──────────────────────────────────────────
@@ -182,10 +190,20 @@ _non_empty_checked(lines, i, s, _) if {
 
 _fn_header_re := `^[A-Za-z_][\w \t\*:&<>,]*?\b[A-Za-z_][\w:~]*\s*\(`
 
+# A method defined inside a class body is indented: a return type and a name.
+_indented_header_re := `^[ \t]+(?:[A-Za-z_][\w:*&<>,]*[ \t]+)+[*&]*[A-Za-z_~][\w:~]*\s*\(`
+
+_fn_header(l) if regex.match(_fn_header_re, l)
+
+_fn_header(l) if {
+	regex.match(_indented_header_re, l)
+	not regex.match(`^\s*(?:return|else|if|while|for|switch|case|new|delete|throw|do|goto|typedef|using|co_return|co_await|sizeof)\b`, l)
+}
+
 _untrusted_length(lines, i, a) if {
 	not contains(a, ">")
 	not contains(a, ".")
-	heads := [j | some j in numbers.range(max([0, i - 200]), i); regex.match(_fn_header_re, lines[j]); not regex.match(`;\s*$`, lines[j])]
+	heads := [j | some j in numbers.range(max([0, i - 200]), i); _fn_header(lines[j]); not regex.match(`;\s*$`, lines[j])]
 	count(heads) > 0
 	h := heads[count(heads) - 1]
 	sig := concat(" ", array.slice(lines, h, min([i, h + 5]) + 1))

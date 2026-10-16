@@ -49,7 +49,20 @@ _joined(lines, j) := concat("\n", [lines[j], lines[j + 1]]) if {
 	j + 1 < count(lines)
 }
 
-_joined(lines, j) := lines[j] if not endswith(trim_right(lines[j], " \t"), "+")
+_joined(lines, j) := concat("\n", [lines[j], lines[j + 1]]) if {
+	not endswith(trim_right(lines[j], " \t"), "+")
+	_next_leads_plus(lines, j)
+}
+
+_joined(lines, j) := lines[j] if {
+	not endswith(trim_right(lines[j], " \t"), "+")
+	not _next_leads_plus(lines, j)
+}
+
+_next_leads_plus(lines, j) if {
+	j + 1 < count(lines)
+	startswith(trim_left(lines[j + 1], " \t"), "+")
+}
 
 _dynamic(text) if regex.match(_concat, text)
 

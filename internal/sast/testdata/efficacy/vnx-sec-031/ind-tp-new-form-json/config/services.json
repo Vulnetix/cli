@@ -1,0 +1,5 @@
+{
+  "mailgun": true,
+~>  "MAILGUN_API_KEY": "@@sample:[0-9a-f]{32}@@-@@sample:[0-9a-f]{8}@@-@@sample:[0-9a-f]{8}@@",
+  "domain": "mg.example.com"
+}

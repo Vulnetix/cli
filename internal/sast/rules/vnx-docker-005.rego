@@ -151,6 +151,7 @@ findings contains finding if {
 	s := _start(lines, i)
 	regex.match(`(?i)^\s*(?:ONBUILD\s+)?(RUN|CMD|ENTRYPOINT)\b`, lines[s])
 	_not_in_heredoc(lines, s, hd)
+	not regex.match(`(?i)^\s*(?:ONBUILD\s+)?RUN\s+(?:--\S+\s+)*(echo|printf)\s+("[^"]*"|'[^']*')\s*(>>?\s*\S+)?\s*$`, _text(lines, s, i))
 	regex.match(`(?i)\b(docker|podman|nerdctl)\b["',\s]+(container["',\s]+)?(run|create)\b`, _text(lines, s, i))
 	finding := _dfinding(path, i, line, "This instruction starts a container with --privileged, which disables every isolation boundary between that container and the host. Grant only the capabilities and devices it needs (--cap-add, --device)")
 }

@@ -1,0 +1,10 @@
+{
+  "name": "orders-api",
+  "version": "2.4.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p .",
+~>    "start": "node --inspect-brk=0.0.0.0:9229 dist/index.js",
+    "lint": "eslint ."
+  }
+}

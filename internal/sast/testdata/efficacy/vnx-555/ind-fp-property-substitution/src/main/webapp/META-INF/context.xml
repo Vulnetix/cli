@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+    <!-- password="changeit" was the old local value; now injected at deploy time -->
+    <Resource name="jdbc/OrdersDB" auth="Container" type="javax.sql.DataSource"
+              url="${db.url}"
+              username="${db.user}"
+              password="${db.password}"/>
+    <Environment name="mail/password" value="#{env.MAIL_PASSWORD}" type="java.lang.String"/>
+</Context>

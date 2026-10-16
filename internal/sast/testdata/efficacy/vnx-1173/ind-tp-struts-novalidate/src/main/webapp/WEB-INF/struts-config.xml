@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<struts-config>
+  <action-mappings>
+~>    <action path="/register" type="com.acme.RegisterAction" name="registerForm" validate="false" scope="request">
+      <forward name="ok" path="/ok.jsp"/>
+    </action>
+  </action-mappings>
+</struts-config>

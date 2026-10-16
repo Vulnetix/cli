@@ -1,0 +1,10 @@
+{
+    "name": "acme/site",
+    "type": "project",
+    "require": {
+        "twig/twig": "^3.8"
+    },
+    "config": {
+        "lock": false
+    }
+}

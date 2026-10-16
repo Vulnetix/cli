@@ -73,7 +73,7 @@ _scope_end(l, ind) if {
 _fn_end(lines, i) := e if {
 	n := count(lines)
 	hi := min([n, i + 100])
-	ends := [k | some k in numbers.range(i + 1, hi - 1); startswith(lines[k], "}")]
+	ends := [k | some k in helpers.span(i + 1, hi - 1); startswith(lines[k], "}")]
 	e := min(array.concat([hi], ends))
 }
 
@@ -106,7 +106,7 @@ _guarded(lines, i, k, v) if {
 }
 
 _outdent_between(lines, j, k, iind) if {
-	some m in numbers.range(j + 1, k - 1)
+	some m in helpers.span(j + 1, k - 1)
 	trim_space(lines[m]) != ""
 	_indent(lines[m]) <= iind
 }
@@ -116,7 +116,7 @@ _leak_at(lines, i, v) := k if {
 	i + 1 < e
 	ind := _indent(lines[i])
 	stops := [j |
-		some j in numbers.range(i + 1, e - 1)
+		some j in helpers.span(i + 1, e - 1)
 		_stop(lines[j], v, ind)
 		not _comment(lines[j])
 	]

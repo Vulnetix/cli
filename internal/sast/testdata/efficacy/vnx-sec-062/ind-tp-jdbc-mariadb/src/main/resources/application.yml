@@ -1,0 +1,3 @@
+spring:
+  datasource:
+~>    url: jdbc:mariadb://maria.acme.internal:3306/orders?user=orders&password=Zk4mQ8vT2xLp

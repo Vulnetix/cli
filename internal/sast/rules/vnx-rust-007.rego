@@ -68,7 +68,7 @@ _arith_on(code, v) if {
 # Compared against something, clamped, or asserted between the decode and the use.
 _guarded(lines, j, i, v) if {
 	i - j >= 2
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	l := lines[k]
 	not helpers.is_comment_line(l)
 	regex.match(concat("", [

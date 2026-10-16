@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_762
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-762",
 	"name": "Memory released with a routine that does not match its allocator",
@@ -110,7 +112,7 @@ _alloc_kind(lines, i, p) := kind if {
 # closing brace is indented and so not seen by _function_ends.
 _redeclared_between(lines, a, i, p) if {
 	decl_re := concat("", [`\w\s*\*+\s*`, p, `\s*(?:;|,|\))`])
-	some k in numbers.range(a + 1, i - 1)
+	some k in helpers.span(a + 1, i - 1)
 	k >= a + 1
 	k <= i - 1
 	regex.match(decl_re, lines[k])
@@ -130,7 +132,7 @@ _classify(line, p) := "new[]" if {
 _c_cast := `(?:\([^)]*\)\s*|(?:static|reinterpret)_cast\s*<[^>]*>\s*\(\s*)?`
 
 _function_ends(lines, a, i) if {
-	some k in numbers.range(a + 1, i - 1)
+	some k in helpers.span(a + 1, i - 1)
 	k >= a + 1
 	k <= i - 1
 	startswith(lines[k], "}")

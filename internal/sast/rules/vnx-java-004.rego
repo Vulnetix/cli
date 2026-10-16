@@ -141,7 +141,7 @@ _hardened(lines, i, sline) if {
 _conditional(lines, i, k) if {
 	ik := _indent(lines[k])
 	i + 1 <= k - 1
-	some m in numbers.range(i + 1, k - 1)
+	some m in helpers.span(i + 1, k - 1)
 	regex.match(`^\s*(?:if\s*\(|\}?\s*else\b)`, lines[m])
 	im := _indent(lines[m])
 	im < ik
@@ -150,7 +150,7 @@ _conditional(lines, i, k) if {
 
 _closed(lines, m, k, im) if {
 	m + 1 <= k - 1
-	some x in numbers.range(m + 1, k - 1)
+	some x in helpers.span(m + 1, k - 1)
 	_indent(lines[x]) <= im
 	startswith(trim_left(lines[x], " \t"), "}")
 }

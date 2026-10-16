@@ -1,0 +1,10 @@
+[Unit]
+Description=Acme app
+
+[Service]
+User=app
+~>UMask=0000
+ExecStart=/usr/local/bin/app
+
+[Install]
+WantedBy=multi-user.target

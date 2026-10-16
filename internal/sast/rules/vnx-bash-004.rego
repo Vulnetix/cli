@@ -9,7 +9,7 @@ metadata := {
 	"name": "Unquoted variable used in command or test",
 	"description": "Reports an unquoted expansion of a value the script's caller controls, used where the shell word-splits and globs it: a script-level positional parameter ($1, ${2}, ${1:-x}, $@, $*, outside any function) or a variable assigned from one, from read, from OPTARG or by a for loop over \"$@\" within the 80 lines above, appearing as an argument of a command (rm -rf $dir, cp $2 /backup, ssh $host, a continued command line) or as an operand of [ ] or test ([ -n $name ] is always true when the value is empty). A value with a space or glob character then becomes several arguments or a list of files, which is argument injection. Not reported: double-quoted expansions (including multi-line strings and awk/sed programs in quotes), [[ ]] tests, arithmetic $(( )), assignments, case words, $#, $?, $$, $!, ${#var}, a function's own positional parameters (its caller is the script), variables the script sets itself (constant flag strings, command output), a value the script checks is all digits ([[ $1 =~ ^[0-9]+$ ]] or a case arm *[!0-9]*), echo/printf/exit/return/shift/log lines, comments, here-document bodies, test paths and .bats files, and zsh scripts (zsh does not split unquoted parameters). Shell files are .sh, .bash, .ksh and extensionless files with a sh/bash/dash/ksh shebang.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-bash-004/",
-	"languages": ["bash", "shell"],
+	"languages": ["bash", "shell", "generic"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",

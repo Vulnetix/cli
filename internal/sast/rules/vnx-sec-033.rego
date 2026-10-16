@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_sec_033
 
 import rego.v1
+import data.vulnetix.helpers
 import data.vulnetix.lib.secrets
 
 metadata := {
@@ -28,6 +29,7 @@ _pattern := `(?:^|[^A-Za-z0-9+/])(ABSK[A-Za-z0-9+/]{109,269}={0,2})(?:[^A-Za-z0-
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
+	not helpers.is_test_path(path)
 	contains(content, "ABSK")
 	lines := split(content, "\n")
 	some i, line in lines

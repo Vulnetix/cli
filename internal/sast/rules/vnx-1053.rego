@@ -27,7 +27,7 @@ _gate := `(?i)design|architecture`
 # A marker naming the design/architecture and the act of documenting it.
 _todo_re := `(?i)\b(?:TODO|FIXME|XXX|TBD)\b.{0,60}?\b(?:design|architecture|architectural)\b`
 
-_doc_re := `(?i)\b(?:doc|docs|document|documented|documenting|documentation|explain|explained|describe|described|write[- ]?up|rationale|adr)\b`
+_doc_re := `(?i)\b(?:doc|docs|document|documented|documenting|documentation|explain|explained|describe|described|write[- ]?(?:up|down)|rationale|adr)\b`
 
 # A statement that the design documentation is absent or pending.
 _missing_re := `(?i)\bundocumented\s+(?:design|architecture)\b|\b(?:undocumented|no|missing|lacks?|without)\s+(?:the\s+)?(?:design|architecture)\s+(?:doc|docs|document|documentation|notes?|description)\b|\b(?:design|architecture)\s+(?:doc|docs|documentation)\s*(?::|-|is|are)?\s*(?:TBD|TODO|missing|pending|to\s+be\s+written|not\s+(?:yet\s+)?written|coming)\b`

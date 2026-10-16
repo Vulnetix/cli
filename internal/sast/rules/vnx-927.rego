@@ -63,6 +63,15 @@ _implicit_var(lines, i, v) if {
 	not helpers.is_comment_line(lines[j])
 	regex.match(concat("", [`\b`, v, `\b(\s*:\s*Intent\??)?\s*=\s*`, _implicit_ctor]), _ctor_text(lines, j))
 	not _made_explicit(lines, j, i)
+	not _redeclared(lines, j, i, v)
+}
+
+# A later assignment to the same name (another method's local, or a new Intent)
+# replaces the one found, so only the nearest assignment counts.
+_redeclared(lines, j, i, v) if {
+	some k in helpers.span(j + 1, i - 1)
+	not helpers.is_comment_line(lines[k])
+	regex.match(concat("", [`(^|[\s(;,])`, v, `\s*(:\s*Intent\??)?\s*=[^=]`]), lines[k])
 }
 
 # The assignment, joined with the next line when the constructor's argument starts there.

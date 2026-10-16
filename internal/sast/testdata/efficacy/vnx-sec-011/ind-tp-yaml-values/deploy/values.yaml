@@ -1,0 +1,6 @@
+replicaCount: 2
+image:
+  repository: registry.shop.example/sync
+sync:
+  endpoint: https://sync.shop.example
+~>  bearerToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdmMtYmlsbGluZy13b3JrZXIiLCJyb2xlIjoic2VydmljZSIsImlzcyI6Imh0dHBzOi8vYXV0aC5zaG9wLmV4YW1wbGUifQ.mBgaOqm_LNrFj67KldMq0hO_Li3NPHq5jwEEki1oX7c

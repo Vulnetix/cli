@@ -37,7 +37,7 @@ _raw_condition(lines, i) := m[0][1] if {
 	not regex.match(`^\s*assert\s*\(\s*(?:#.*)?$`, lines[i])
 }
 
-_raw_condition(lines, i) := concat(" ", [lines[k] | some k in numbers.range(i + 1, close - 1)]) if {
+_raw_condition(lines, i) := concat(" ", [lines[k] | some k in helpers.span(i + 1, close - 1)]) if {
 	regex.match(`^\s*assert\s*\(\s*(?:#.*)?$`, lines[i])
 	closes := [k | some k in numbers.range(i + 1, min([count(lines) - 1, i + 8])); regex.match(`^\s*\)`, lines[k])]
 	count(closes) > 0

@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_761
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 
 
 metadata := {
@@ -87,7 +89,7 @@ _offset_free(lines, i, code) if {
 	# p++ and *p++ advance the pointer; *p += n changes the value it points to.
 	advance_re := concat("", [`(?:\b`, p, `\s*\+\+|(?:^|[^*\w.>])`, p, `\s*\+=|\+\+\s*`, p, `\b|\b`, p, `\s*=\s*`, p, `\s*\+)`])
 	advances := [k |
-		some k in numbers.range(a + 1, i - 1)
+		some k in helpers.span(a + 1, i - 1)
 		k >= a + 1
 		k <= i - 1
 		regex.match(advance_re, lines[k])
@@ -101,7 +103,7 @@ _offset_free(lines, i, code) if {
 # The pointer is assigned, decremented or stepped back after its last advance.
 _moved_back(lines, last, i, p) if {
 	back_re := concat("", [`(?:^|[^*\w.>]|\w\s*\*+\s*)`, p, `\s*(?:=[^=]|-=|--)|--\s*`, p, `\b`])
-	some k in numbers.range(last + 1, i - 1)
+	some k in helpers.span(last + 1, i - 1)
 	k >= last + 1
 	k <= i - 1
 	regex.match(back_re, lines[k])
@@ -113,7 +115,7 @@ _moved_back(lines, last, i, p) if {
 # brace is indented and so not seen by _function_ends).
 _redeclared_between(lines, a, i, p) if {
 	decl_re := concat("", [`\w\s*\*+\s*`, p, `\s*(?:=[^=]|;|,|\))`])
-	some k in numbers.range(a + 1, i - 1)
+	some k in helpers.span(a + 1, i - 1)
 	k >= a + 1
 	k <= i - 1
 	regex.match(decl_re, lines[k])
@@ -121,7 +123,7 @@ _redeclared_between(lines, a, i, p) if {
 
 # A column-0 closing brace between the allocation and the free: another function.
 _function_ends(lines, a, i) if {
-	some k in numbers.range(a + 1, i - 1)
+	some k in helpers.span(a + 1, i - 1)
 	k >= a + 1
 	k <= i - 1
 	startswith(lines[k], "}")

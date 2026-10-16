@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-706",
 	"name": "Directory containment decided by a character prefix instead of a path prefix",
-	"description": "A Python check that a resolved path lies inside a base directory compares strings character by character, so a sibling directory whose name merely starts with the base name (/srv/uploads-private, /var/www2) is resolved as inside it and passes. Reported: os.path.commonprefix(...) (also posixpath/ntpath and a from-imported commonprefix) compared with == or !=, which the Python docs warn works per character and not per path component; and str.startswith() on a canonicalised path (os.path.realpath/abspath/normpath(...) or str(Path.resolve()), inline or through a variable assigned from one in the 10 lines above) whose argument is a base directory without a trailing separator: a path literal not ending in /, a realpath/abspath/normpath/str(resolve()) call (which strips any trailing separator), or a name whose assignment in the file does not append os.sep or '/'. Not reported: os.path.commonpath, Path.is_relative_to, a prefix with + os.sep, os.path.join(base, '') or a trailing '/', a base variable assigned with a trailing separator, commonprefix used to compute a shared stem, startswith on a non-path literal ('tmp'), comments and string literals. Uncanonicalised prefix checks (base/../x) are VNX-41.",
+	"description": "A Python check that a resolved path lies inside a base directory compares strings character by character, so a sibling directory whose name merely starts with the base name (/srv/uploads-private, /var/www2) is resolved as inside it and passes. Reported: os.path.commonprefix(...) (also posixpath/ntpath, an alias such as import os.path as osp, and a from-imported commonprefix) compared with == or !=, which the Python docs warn works per character and not per path component; and str.startswith() on a canonicalised path (os.path.realpath/abspath/normpath(...) or str(Path.resolve()), inline or through a variable assigned from one in the 10 lines above) whose argument is a base directory without a trailing separator: a path literal not ending in /, a realpath/abspath/normpath/str(resolve()) call (which strips any trailing separator), or a name whose assignment in the file does not append os.sep or '/'. Not reported: os.path.commonpath, Path.is_relative_to, a prefix with + os.sep, os.path.join(base, '') or a trailing '/', a base variable assigned with a trailing separator, commonprefix used to compute a shared stem, startswith on a non-path literal ('tmp'), comments and string literals. Uncanonicalised prefix checks (base/../x) are VNX-41.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-706/",
 	"languages": ["python"],
 	"severity": "low",
@@ -88,6 +88,11 @@ findings contains finding if {
 }
 
 _commonprefix_call(code, _) if regex.match(`\b(?:os\.path|posixpath|ntpath)\s*\.\s*commonprefix\s*\(`, code)
+
+_commonprefix_call(code, content) if {
+	some m in regex.find_all_string_submatch_n(`(?:^|[^\w.])(\w+)\s*\.\s*commonprefix\s*\(`, code, -1)
+	regex.match(concat("", [`(?m)^\s*(?:import\s+(?:os\.path|posixpath|ntpath)\s+as\s+`, m[1], `\b|from\s+os\s+import\s+(?:.*,\s*)?path\s+as\s+`, m[1], `\b)`]), content)
+}
 
 _commonprefix_call(code, content) if {
 	regex.match(`(?:^|[^\w.])commonprefix\s*\(`, code)

@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_675
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 
 
 metadata := {
@@ -115,7 +117,7 @@ findings contains finding if {
 	not _in_block_comment(lines, i)
 	e := _region_end(lines, i, _indent(line), x, fn)
 	i + 1 <= e - 1
-	some j in numbers.range(i + 1, e - 1)
+	some j in helpers.span(i + 1, e - 1)
 	m2 := regex.find_all_string_submatch_n(_call_re, lines[j], 1)
 	m2[0][1] == fn
 	_nows(m2[0][2]) == _nows(x)

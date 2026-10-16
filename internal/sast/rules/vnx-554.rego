@@ -10,7 +10,7 @@ metadata := {
 	"name": "ASP.NET Misconfiguration: Not Using Input Validation Framework",
 	"description": "ASP.NET request validation, the framework's built-in rejection of markup and script in request input, is switched off. Reported: a <%@ Page %> directive with ValidateRequest=\"false\" (in .aspx and .master files, also when the directive spans lines); <pages validateRequest=\"false\"> and <httpRuntime requestValidationMode=\"2.0\"> in Web.config and other .config files (the second confines validation to pages only, and is what makes validateRequest=\"false\" take effect on .NET 4+); and the MVC [ValidateInput(false)] attribute on an action or controller in C# or <ValidateInput(False)> in VB.NET. Not reported: validation left on or set to true, requestValidationMode 4.0/4.5, per-property [AllowHtml] and Request.Unvalidated (deliberate field-level opt-outs), ASP.NET Core (which has no request validation), XML and server-side comments (<!-- -->, <%-- --%>, including multi-line blocks), C# comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-554/",
-	"languages": ["csharp"],
+	"languages": ["csharp", "xml"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",

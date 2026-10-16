@@ -1,0 +1,5 @@
+<%= form_with model: @user do |f| %>
+  <%= f.label :password %>
+  <%= f.password_field :password, autocomplete: "new-password" %>
+  <%= f.text_field :name %>
+<% end %>

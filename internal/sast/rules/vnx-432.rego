@@ -63,7 +63,7 @@ _sigaction_calls(lines, k, v) := {[i, m[1]] |
 
 _reassigned_between(lines, k, i, re) if {
 	i - 1 >= k + 1
-	some x in numbers.range(k + 1, i - 1)
+	some x in helpers.span(k + 1, i - 1)
 	regex.match(re, lines[x])
 }
 

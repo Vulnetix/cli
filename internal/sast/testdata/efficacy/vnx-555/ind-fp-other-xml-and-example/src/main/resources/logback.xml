@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <appender name="SMTP" class="ch.qos.logback.classic.net.SMTPAppender">
+    <smtpHost>smtp.acme.example</smtpHost>
+    <username>alerts</username>
+    <password>${SMTP_PASSWORD}</password>
+  </appender>
+</configuration>

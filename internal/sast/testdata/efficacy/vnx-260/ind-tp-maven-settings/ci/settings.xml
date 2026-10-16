@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+  <servers>
+    <server>
+      <id>acme-releases</id>
+      <username>deployer</username>
+~>      <password>Nexus-D3ploy-77</password>
+    </server>
+    <server>
+      <id>acme-snapshots</id>
+      <username>deployer</username>
+~>      <password>Snap-Sh0t-Up!</password>
+    </server>
+  </servers>
+</settings>

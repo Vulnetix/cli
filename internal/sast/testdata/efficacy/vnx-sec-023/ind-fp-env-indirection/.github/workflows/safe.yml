@@ -1,0 +1,18 @@
+name: safe
+on: pull_request
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: echo "PR Title: $TITLE"
+      - run: echo "PR number ${{ github.event.pull_request.number }}"
+      - name: Cond
+        if: github.event.pull_request.title == 'release'
+        run: echo hi
+      - uses: some/action@v1
+        with:
+          title: ${{ github.event.pull_request.title }}
+      - run: echo "sha ${{ github.sha }} actor ${{ github.actor_id }}"

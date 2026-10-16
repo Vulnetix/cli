@@ -153,7 +153,7 @@ _under_web_exposure(lines, i, own) if {
 # A line between k and i at or left of k's indent closes k's block.
 _closed(lines, k, i) if {
 	k + 1 < i
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	trim_space(lines[m]) != ""
 	not helpers.is_comment_line(lines[m])
 	_indent(lines[m]) <= _indent(lines[k])

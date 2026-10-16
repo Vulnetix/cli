@@ -1,0 +1,7 @@
+name: greet
+description: greet
+runs:
+  using: composite
+  steps:
+~>    - run: echo "Hello ${{ github.event.pull_request.head.ref }}"
+      shell: bash

@@ -51,7 +51,7 @@ _enclosing_def(lines, i, ri) := d if {
 }
 
 _breaks_out(lines, e, i, di) if {
-	some k in numbers.range(e + 1, i - 1)
+	some k in helpers.span(e + 1, i - 1)
 	_is_code(lines[k])
 	_indent(lines[k]) <= di
 }
@@ -148,7 +148,7 @@ findings contains finding if {
 
 # Only the first reported raise in a function.
 _earlier_raise(lines, d, i) if {
-	some k in numbers.range(d + 1, i - 1)
+	some k in helpers.span(d + 1, i - 1)
 	m := regex.find_all_string_submatch_n(_raise_re, lines[k], 1)
 	count(m) > 0
 	not _exempt_exc(m[0][3])

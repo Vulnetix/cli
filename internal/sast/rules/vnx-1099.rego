@@ -40,7 +40,7 @@ _js_has_snake_def(content) if regex.match(`let\s+_*[a-z0-9]+_[a-z]`, content)
 _js_has_snake_def(content) if regex.match(`var\s+_*[a-z0-9]+_[a-z]`, content)
 
 # A snake_case method: `get_item(key) {`.
-_js_has_snake_def(content) if regex.match(`_[a-z][\w$]*[ \t]*\([^()\n]*\)[ \t]*\{[ \t]*\r?\n`, content)
+_js_has_snake_def(content) if regex.match(`_[a-z][\w$]*[ \t]*\([^()\n]*\)[ \t]*(?::[^{}\n=]*)?\{[ \t]*\r?\n`, content)
 
 # Cheap anchored prefilter: a line that starts a definition of a snake_case name.
 _js_snake_head := `^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:static\s+)?(?:function\s*\*?\s*|(?:const|let|var)\s+)?_*[a-z0-9]+_[a-z0-9_$]*\s*[=(:<]`
@@ -88,7 +88,7 @@ _same_body(lines, k, j) if {
 # Some code line strictly between a and b is indented less than `lim`.
 _dedent_between(lines, a, b, lim) if {
 	a + 1 <= b - 1
-	some m in numbers.range(a + 1, b - 1)
+	some m in helpers.span(a + 1, b - 1)
 	trim_space(lines[m]) != ""
 	not helpers.is_comment_line(lines[m])
 	_indent(lines[m]) < lim

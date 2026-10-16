@@ -7,7 +7,7 @@ metadata := {
 	"name": "eval or sh -c of a dynamically built string",
 	"description": "Reports a shell eval statement, and a bash/sh/zsh/ksh/dash -c (including /bin/sh -c, env bash -c) or su/runuser -c command string, whose text contains an expansion the shell will re-parse as code: a variable or positional parameter ($cmd, ${x}, $1, $@), a command substitution whose own command line is dynamic, or the output of a download or decoder ($(curl ...), $(wget ...), $(... | base64 -d)). Variables assigned only constant strings in the same file count as constant. Also reported: the indirect-reference idiom eval \"x=\\$$name\" when the name comes from a positional parameter or read, and find -exec sh -c / xargs -I{} sh -c scripts that paste {} into the code text. Not reported: static or single-quoted strings, escaped \\$, arithmetic and $?, eval \"$(tool init/env/hook)\" of a local tool's own output, getopt's eval set -- \"$opts\", indirect references through a name from a fixed list, sh -c 'script' _ \"$arg\" (the value is passed as an argument, not code), eval inside a string, comment or usage here-document, eval_gettext and other lookalikes, generated gradlew/mvnw wrappers and Makefiles. Shell files are .sh, .bash, .bats, .ksh, .zsh and extensionless files with a sh/bash/dash/ksh/zsh shebang.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-bash-001/",
-	"languages": ["bash", "shell"],
+	"languages": ["bash", "shell", "generic"],
 	"severity": "critical",
 	"level": "error",
 	"kind": "sast",

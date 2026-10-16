@@ -78,6 +78,23 @@ _guarded(lines, j, i, v) if {
 	regex.match(_guard_re, l)
 }
 
+# The URL parsed into another variable (val uri = Uri.parse(v)) and that
+# variable checked: the check covers the URL it was parsed from.
+_guarded(lines, j, i, v) if {
+	some k in numbers.range(j + 1, i)
+	l := lines[k]
+	not helpers.is_comment_line(l)
+	regex.match(concat("", [`\b`, v, `\b`]), l)
+	regex.match(`(Uri\.parse|toUri|URL|URI|HttpUrl\.parse|toHttpUrl)\s*\(`, l)
+	u := _assigned(l)
+	u != v
+	some m in numbers.range(k + 1, i)
+	lines[m] != ""
+	not helpers.is_comment_line(lines[m])
+	regex.match(concat("", [`\b`, u, `\b`]), lines[m])
+	regex.match(_guard_re, lines[m])
+}
+
 _is_sink(lines, i) if {
 	line := lines[i]
 	_sink_word(line)

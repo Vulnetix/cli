@@ -1,0 +1,17 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.acme.app">
+    <application>
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <service android:name=".Api" android:exported="true"
+            android:permission="com.acme.permission.BIND_API" />
+        <receiver android:name=".Internal" android:exported="false" />
+        <provider android:name=".Files" android:authorities="com.acme.files"
+            android:exported="true"
+            android:readPermission="com.acme.R"
+            android:writePermission="com.acme.W" />
+    </application>
+</manifest>

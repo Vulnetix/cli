@@ -105,7 +105,7 @@ _after_fork(lines, s, i) if {
 
 _exit_between(lines, i, k) if {
 	i + 1 <= k - 1
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	regex.match(`^\s*(?:return\b|goto\s)|[;{)]\s*(?:return\b|goto\s)`, lines[j])
 	not helpers.is_comment_line(lines[j])
 	not _own_failure_exit(lines, i, j)

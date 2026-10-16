@@ -75,7 +75,7 @@ _guarded(lines, j, i, v) if {
 
 _reassigned(lines, j, i, v) if {
 	i - 1 >= j + 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	helpers.assigned_first(lines[k]) == v
 }
 
@@ -137,7 +137,22 @@ findings contains finding if {
 	finding := _finding(path, i, line)
 }
 
-_count(s, ch) := count(split(s, ch)) - 1
+# Unary plus straight after the opening parenthesis: tracks.splice(+req.body.position, 1).
+findings contains finding if {
+	some path, content in input.file_contents
+	lang := _lang(path)
+	lang == "js"
+	regex.match(_gate[lang], content)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "req")
+	not helpers.is_comment_line(line)
+	regex.match(concat("", [`\.\s*(?:splice|at|charAt)\s*\(\s*\+\s*`, _js_req, `\s*(?:\.\s*\w*`, _idx_key, `\w*\b|\[\s*['"]\w*`, _idx_key, `\w*['"]\s*\])\s*[,)]`]), line)
+	_outside_string(line)
+	finding := _finding(path, i, line)
+}
+
+_count(s, ch) :=count(split(s, ch)) - 1
 
 # The request expression is code, not text inside a string literal.
 _outside_string(line) if {

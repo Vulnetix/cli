@@ -61,6 +61,7 @@ _go_bare(line, content) := method if {
 	count(m) > 0
 	recv := m[0][1]
 	method := m[0][2]
+	not regex.match(`^(io|os|ioutil)$`, recv)
 	not _infallible(content, recv)
 	not _response_writer(recv)
 }

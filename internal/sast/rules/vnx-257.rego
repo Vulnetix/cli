@@ -152,7 +152,7 @@ _multi(lines, k, line) if {
 	_is_password(nm[0][1])
 }
 
-_decrypt_re := `\b(?:decrypt_?[Pp]assword|DecryptPassword|decrypt_pass|decryptPwd)\s*\(`
+_decrypt_re := `\b(?:decrypt_?[Pp]assword|DecryptPassword|decrypt_pass|decryptPwd)\s*\(|^\s*def\s+(?:self\.)?decrypt_?[Pp]assword\b`
 
 findings contains finding if {
 	some path, content in input.file_contents

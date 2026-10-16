@@ -1,0 +1,23 @@
+{
+  "projects": {
+    "storefront": {
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:browser",
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "outputHashing": "all",
+~>              "sourceMap": true,
+              "namedChunks": false
+            },
+            "development": {
+              "optimization": false,
+              "sourceMap": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

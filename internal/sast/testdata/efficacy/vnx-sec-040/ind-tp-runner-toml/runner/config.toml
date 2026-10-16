@@ -1,0 +1,5 @@
+concurrent = 2
+[[runners]]
+  name = "r1"
+  url = "https://gitlab.com"
+~>  token = "glrt-@@sample:[A-Za-z0-9_-]{24}@@"

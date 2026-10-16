@@ -10,7 +10,7 @@ metadata := {
 	"name": "Insufficient Resource Pool",
 	"description": "Reports a shared server resource pool capped at one or two members by a literal, so a handful of slow or deliberately held requests exhausts it and every other client waits. Java: HikariCP `setMaximumPoolSize(1|2)`, Commons DBCP/Pool `setMaxTotal`/`setMaxActive(1|2)`, Tomcat/Jetty connector `setMaxThreads(1|2)`, Jetty `new QueuedThreadPool(1|2)`, and, in a file that serves requests (ServerSocket.accept, HttpServlet, HttpHandler, @RestController/@Controller, @WebServlet), `Executors.newFixedThreadPool(1|2)` and `new ThreadPoolExecutor(core, 1|2, ...)`. Spring `.properties` files and `application*.yml`/`bootstrap*.yml` (key read under its `hikari:` / `dbcp2:` / `tomcat:` / `tomcat: threads:` parents): `*.hikari.maximum-pool-size`, `*.dbcp2.max-total`, `spring.datasource.tomcat.max-active`, `server.tomcat.threads.max` / `server.tomcat.max-threads` (in kebab, camel or snake case, as Spring binds them) set to 1 or 2. Not reported: sizes from variables or expressions, larger literals, scheduled/timer executors and newSingleThreadExecutor (a deliberate serialiser), a one-thread executor in code that does not serve requests, test files, comments and strings. Whether a larger literal suffices for peak load cannot be judged statically.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-410/",
-	"languages": ["java"],
+	"languages": ["java", "generic"],
 	"severity": "low",
 	"level": "note",
 	"kind": "sast",

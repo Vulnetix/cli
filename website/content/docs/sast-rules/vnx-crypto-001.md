@@ -1,11 +1,13 @@
 ---
 title: "VNX-CRYPTO-001 – MD5 Usage Detected"
-description: "Reports MD5 computed through a hash or signature API in Python, Node.js, Go, Java, Ruby and PHP (hashlib.md5, createHash('md5'), md5.Sum, MessageDigest.getInstance(\"MD5\"), Digest::MD5, md5()), with imports and aliases resolved. HMAC-MD5, usedforsecurity=False, names merely containing md5, digests used as part of a cache key, comments, strings and test files are not reported."
+description: "MD5 is computed through a hash or signature API: Python hashlib.md5()/hashlib.new('md5') (module and from-import aliases resolved), PyCryptodome MD5.new() and cryptography hashes.MD5(); Node.js crypto.createHash('md5')/createSign('RSA-MD5'), CryptoJS.MD5() and the md5/blueimp-md5/js-md5/spark-md5 packages under the name they are imported as; Go crypto/md5 md5.New/md5.Sum (aliased import resolved) and x509.MD5WithRSA; Java MessageDigest/Signature.getInstance(\"MD5\"/\"MD5withRSA\") with the name given literally, through a variable, field or constant (also one declared on another class) that holds it, directly, in a ternary, or from a getProperty/@Value lookup that resolves to the value the project's .properties or YAML files give the key, else the lookup default, commons-codec DigestUtils.md5*, Guava Hashing.md5() and BouncyCastle MD5Digest; Ruby Digest::MD5 and OpenSSL::Digest.new('MD5'); PHP md5(), md5_file(), hash('md5') and openssl_digest(..., 'md5'). MD5 collisions are cheap to produce, so it must not protect integrity, signatures, tokens or passwords; use SHA-256 or stronger (argon2/bcrypt/scrypt for passwords). Not reported: HMAC-MD5 (hmac.new(k, m, hashlib.md5), createHmac('md5'), hmac.New(md5.New, k), HmacMD5, hash_hmac('md5')), PBKDF2 or HKDF over MD5, Python calls declaring usedforsecurity=False, a field, header or method merely named md5, the import alone and constants such as md5.Size, the algorithm named inside a string literal (an SQL md5() call) or a comment, documentation, and test files. An MD5 digest that protects a security value is reported by a more precise rule instead, so the line is reported once: a password passed straight into it by VNX-CRYPTO-007 (a password hashed with a fast hash), and one with a password, secret, token, session id, cookie, signature, salt, nonce, CSRF value or API key named around the call by VNX-327 (a broken hash protecting a security value)."
 ---
 
 ## Overview
 
 This rule detects invocations of the MD5 hashing algorithm across six languages (Python, Node.js, Go, Java, Ruby, and PHP). MD5 produces a 128-bit digest and was widely used for integrity checks and password storage, but it is now definitively broken for any security purpose. Collisions can be generated in seconds on commodity hardware, and rainbow tables covering billions of MD5 digests are freely available. This maps directly to CWE-327 (Use of a Broken or Risky Cryptographic Algorithm).
+
+An MD5 digest that protects a security value is reported by a more precise rule, so the same line is not reported twice: a password passed straight into it by [VNX-CRYPTO-007](vnx-crypto-007), and a digest with a password, secret, token, session id, cookie, signature, salt, nonce, CSRF value or API key named around the call by [VNX-327](vnx-327).
 
 **Severity:** Medium | **CWE:** [CWE-327 – Use of a Broken or Risky Cryptographic Algorithm](https://cwe.mitre.org/data/definitions/327.html)
 
@@ -43,7 +45,10 @@ hash := md5.Sum(data)
 
 ```php
 // FLAGGED: PHP md5()
+$key = md5($limiterName . $limit->key);
+// NOT FLAGGED here: a password is VNX-CRYPTO-007's, a session token VNX-327's
 $pass = md5($pass);
+$_SESSION['session_token'] = md5(uniqid());
 ```
 
 Not flagged: HMAC-MD5 (`hmac.new(k, m, hashlib.md5)`, `createHmac('md5')`, `hash_hmac('md5', ...)`), Python calls with `usedforsecurity=False`, a field or method merely named `md5`, an MD5 joined to a literal prefix or suffix to build a cache key (`'login_'.md5($x)`), the import alone, comments, strings, documentation and test files.

@@ -34,7 +34,7 @@ _java_res := [
 	`^\s*\.?\s*setFeature\s*\(\s*(?:"[^"]*disallow-doctype-decl"|[\w.]*(?i:doctype)\w*)\s*,\s*(?:false|Boolean\.FALSE)\s*\)`,
 	`^\s*\.?\s*setFeature\s*\(\s*(?:"[^"]*load-external-dtd"|[\w.]*(?i:external_?dtd)\w*)\s*,\s*(?:true|Boolean\.TRUE)\s*\)`,
 	`^\s*\.?\s*setProperty\s*\(\s*(?:(?:XMLInputFactory\.)?SUPPORT_DTD|"javax\.xml\.stream\.supportDTD")\s*,\s*(?:true|Boolean\.TRUE)\s*\)`,
-	`^\s*\.?\s*set(?:Attribute|Property)\s*\(\s*(?:(?:XMLConstants\.)?ACCESS_EXTERNAL_DTD|"http://javax\.xml\.XMLConstants/property/accessExternalDTD")\s*,\s*"[^"\s]+"\s*\)`,
+	`^\s*\.?\s*set(?:Attribute|Property)\s*\(\s*(?:(?:[\w.]*XMLConstants\.)?ACCESS_EXTERNAL_DTD|"http://javax\.xml\.XMLConstants/property/accessExternalDTD")\s*,\s*"[^"\s]+"\s*\)`,
 ]
 
 _java_hit(lines, i, line) if {

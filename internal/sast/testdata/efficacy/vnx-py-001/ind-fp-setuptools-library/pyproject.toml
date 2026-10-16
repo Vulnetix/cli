@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "textkit"
+version = "1.2.0"
+dependencies = [
+    "requests>=2.28",
+    "numpy~=1.24",
+]

@@ -102,7 +102,7 @@ findings contains finding if {
 }
 
 _earlier_deep(lines, defs, d, i, fr) if {
-	some k in numbers.range(d + 1, i - 1)
+	some k in helpers.span(d + 1, i - 1)
 	_deep(lines, k, fr[0], fr[1])
 	_enclosing_def(defs, k, _width(lines[k])) == d
 	not _in_string(lines, d, k)

@@ -1,0 +1,9 @@
+services:
+  cache:
+    image: redis:7
+    environment:
+~>      - REDIS_PASSWORD=letmein
+  db:
+    image: mysql:8
+    environment:
+~>      MYSQL_PASSWORD: qwerty123

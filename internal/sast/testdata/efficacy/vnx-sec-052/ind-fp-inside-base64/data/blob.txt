@@ -1,0 +1,1 @@
+payload=@@sample:Zm9vYmFy[A-Za-z0-9]{10}AKCp[A-Za-z0-9]{69}@@

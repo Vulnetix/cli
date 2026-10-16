@@ -130,6 +130,23 @@ _safe_expr(_, _, e) if regex.match(`^(?:Number|parseInt|parseFloat|Math\.\w+)\s*
 # An ALL_CAPS constant (a table or column list fixed in the code).
 _safe_expr(_, _, e) if regex.match(`^(?:[\w$]+\.)*[A-Z][A-Z0-9_]*$`, e)
 
+# Arithmetic over variables each assigned from a numeric conversion nearby:
+# `${page * 20}` after `const page = parseInt(...)`.
+_safe_expr(lines, i, e) if {
+	regex.match(`^[\w$\s*+\-/%()]+$`, e)
+	ids := regex.find_all_string_submatch_n(`[A-Za-z_$][\w$]*`, e, -1)
+	count(ids) > 0
+	every id in ids {
+		_numeric_var(lines, i, id[0])
+	}
+}
+
+_numeric_var(lines, i, v) if {
+	some j in numbers.range(max([0, i - 15]), i)
+	helpers.assigned_first(lines[j]) == v
+	regex.match(`=\s*(?:Number|parseInt|parseFloat|Math\.\w+)\s*\(`, lines[j])
+}
+
 # An identifier holding a placeholder list ($1, $2 / ?, ?) built nearby.
 _safe_expr(lines, i, e) if {
 	regex.match(`^[A-Za-z_$][\w$]*$`, e)

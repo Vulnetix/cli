@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-LLM-004",
 	"name": "User input directly in LLM system prompt",
-	"description": "Reports Python, JavaScript and TypeScript code that interpolates user-controlled input into an LLM system prompt: an f-string or template literal interpolation, `+` concatenation, `.format()` or `%` of a value read from an HTTP request (Flask/Django/FastAPI `request.*`, Express/Koa `req.body/query/params`, through up to two assignments or a destructuring within the preceding 20 lines) or named as user data (`user_input`, `user_name`/`userName`/`username`, `user_profile`, `user_bio`, ...), where the string is the content of a `role: system` message (on the same line or the next lines of a multi-line message), an Anthropic or Vercel AI SDK `system=`/`system:` argument (including a `\"text\":` entry within three lines of an Anthropic `system=[` content-block list), a Gemini `system_instruction=` argument, a LangChain SystemMessage, `(\"system\", ...)` tuple or `PromptTemplate.from_template(f\"...\")`, or a line inside a function or variable named as a system prompt (buildSystemPrompt, system_prompt) declared within the 8 lines above. Instructions placed in the system role carry the most authority, so user text there can override them or leak them. Not reported: a static system prompt, server-side values (dates, tool lists, constants) in it, LangChain template variables filled at invoke time, user input in the user role (VNX-LLM-001 covers it spliced into user-role instructions), comments and string literals. Flows across functions or files are not followed.",
+	"description": "Reports Python, JavaScript and TypeScript code that interpolates user-controlled input into an LLM system prompt: an f-string or template literal interpolation, `+` concatenation, `.format()` or `%` of a value read from an HTTP request (Flask/Django/FastAPI `request.*`, Express/Koa `req.body/query/params`, through up to two assignments or a destructuring within the preceding 20 lines) or named as user data (`user_input`, `user_name`/`userName`/`username`, `user_profile`, `user_bio`, ...), where the string is the content of a `role: system` message (on the same line or the next lines of a multi-line message), an Anthropic or Vercel AI SDK `system=`/`system:` argument (including a `\"text\":` entry within three lines of an Anthropic `system=[` content-block list), a Gemini `system_instruction=` argument, a LangChain SystemMessage, `(\"system\", ...)` tuple or `PromptTemplate.from_template(f\"...\")`, or a line inside a function or variable named as a system prompt (buildSystemPrompt, system_prompt) declared within the 8 lines above (a file with no LLM library import is still reported when it declares such a function). Instructions placed in the system role carry the most authority, so user text there can override them or leak them. Not reported: a static system prompt, server-side values (dates, tool lists, constants) in it, LangChain template variables filled at invoke time, user input in the user role (VNX-LLM-001 covers it spliced into user-role instructions), comments and string literals. Flows across functions or files are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-llm-004/",
 	"languages": ["python", "javascript", "typescript"],
 	"severity": "high",
@@ -43,6 +43,12 @@ _system_slot := `(?i)["']?role["']?\s*:\s*["']system["']|(?:^|[\s,(\{])system\s*
 
 # A declaration of a system prompt (function or variable).
 _system_decl := `(?i)(?:\b(?:def|function|const|let|var)\s+\w*system_?(?:prompt|message|instructions?)\w*|^\s*\w*system_?(?:prompt|message|instructions?)\w*\s*(?::[^=]+)?\+?=[^=])`
+
+# An LLM library is referenced, or the file declares a function named as a
+# system prompt builder (a module apart from the client).
+_gated(content) if regex.match(_file_gate, content)
+
+_gated(content) if regex.match(`(?i)\b(?:def|function)\s+\w*system_?(?:prompt|message|instructions?)\w*\s*\(`, content)
 
 _assigned(line) := v if {
 	v := helpers.assigned_first(line)
@@ -132,7 +138,7 @@ _context(lines, i, line) if {
 }
 
 _closed(lines, j, i) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	k < i
 	contains(lines[k], "}")
 }
@@ -140,7 +146,7 @@ _closed(lines, j, i) if {
 findings contains finding if {
 	some path, content in input.file_contents
 	_lang_ok(path)
-	regex.match(_file_gate, content)
+	_gated(content)
 	regex.match(concat("", ["(?m)", _system_slot, "|", _system_decl]), content)
 	regex.match(`(?i)system`, content)
 	lines := split(content, "\n")

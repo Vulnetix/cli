@@ -1,0 +1,13 @@
+package com.acme;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
+public class Crypt {
+    public byte[] encrypt(byte[] key, byte[] data) throws Exception {
+        Cipher c = Cipher.getInstance("AES/CBC/PKCS5Padding");
+~>        c.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), new IvParameterSpec(new byte[16]));
+        return c.doFinal(data);
+    }
+}

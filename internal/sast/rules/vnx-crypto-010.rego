@@ -290,7 +290,7 @@ _open(s) := (strings.count(s, "{") + strings.count(s, "[")) + strings.count(s, "
 # any code line between the assignment and the call that names the variable.
 _mentioned_between(lines, k, i, v) if {
 	k + 1 <= i - 1
-	some j in numbers.range(k + 1, i - 1)
+	some j in helpers.span(k + 1, i - 1)
 	l := lines[j]
 	contains(l, v)
 	not helpers.is_comment_line(l)

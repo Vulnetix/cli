@@ -217,12 +217,13 @@ _continued_sink(lines, i) if {
 # on the line above, still open, and the PRNG call among its arguments.
 _continued_sink(lines, i) if {
 	i > 0
-	prev := lines[i - 1]
-	contains(prev, "printf")
-	not helpers.is_comment_line(prev)
-	c := _code(prev)
-	strings.count(c, "(") > strings.count(c, ")")
+	some k in numbers.range(max([0, i - 4]), i - 1)
+	contains(lines[k], "printf")
+	not helpers.is_comment_line(lines[k])
+	c := _code(lines[k])
 	_secret_target({"chain": _printf_target(c), "indexed": false})
+	joined := concat(" ", [_code(lines[m]) | some m in numbers.range(k, i - 1)])
+	strings.count(joined, "(") > strings.count(joined, ")")
 }
 
 # A two-line flow: `long v = lrand48();` then `h->nonce = v ^ k;` within six
@@ -320,7 +321,7 @@ _maybe_header(l) if startswith(l, "+")
 _closed_between(lines, k, i) if {
 	k + 1 <= i - 1
 	ik := _indent(lines[k])
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	l := lines[m]
 	contains(l, "}")
 	_indent(l) <= ik

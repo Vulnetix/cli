@@ -30,6 +30,11 @@ _indent_len(line) := count(replace(substring(line, 0, count(line) - count(trim_l
 
 _word(v) := concat("", [`\b`, v, `\b`])
 
+# A plain string literal ("bio" in payload["bio"]) names a key, not the
+# variable. Literals with a letter prefix (f"{bio}") are left alone because
+# they can read it.
+_plain_strings_blanked(s) := regex.replace(regex.replace(s, `(^|[^A-Za-z0-9_])"([^"\\]|\\.)*"`, `${1}""`), `(^|[^A-Za-z0-9_])'([^'\\]|\\.)*'`, `${1}''`)
+
 # Statement-level assignment: not a keyword argument, not a continuation.
 _statement(lines, k) if {
 	t := trim_space(lines[k])
@@ -63,7 +68,7 @@ _in_function(lines, i, ind) if {
 
 _dedent_between(lines, a, b, lim) if {
 	a + 1 <= b - 1
-	some m in numbers.range(a + 1, b - 1)
+	some m in helpers.span(a + 1, b - 1)
 	trim_space(lines[m]) != ""
 	not helpers.is_comment_line(lines[m])
 	_indent_len(lines[m]) <= lim
@@ -71,7 +76,7 @@ _dedent_between(lines, a, b, lim) if {
 
 _dedent_below(lines, a, b, lim) if {
 	a + 1 <= b - 1
-	some m in numbers.range(a + 1, b - 1)
+	some m in helpers.span(a + 1, b - 1)
 	trim_space(lines[m]) != ""
 	not helpers.is_comment_line(lines[m])
 	_indent_len(lines[m]) < lim
@@ -79,7 +84,7 @@ _dedent_below(lines, a, b, lim) if {
 
 _read_between(lines, i, j, v) if {
 	i + 1 <= j - 1
-	some m in numbers.range(i + 1, j - 1)
+	some m in helpers.span(i + 1, j - 1)
 	contains(lines[m], v)
 	not helpers.is_comment_line(lines[m])
 	regex.match(_word(v), lines[m])
@@ -87,7 +92,7 @@ _read_between(lines, i, j, v) if {
 
 _jump_between(lines, i, j) if {
 	i + 1 <= j - 1
-	some m in numbers.range(i + 1, j - 1)
+	some m in helpers.span(i + 1, j - 1)
 	regex.match(`^\s*(?:continue|break)\b`, lines[m])
 }
 
@@ -134,7 +139,7 @@ findings contains finding if {
 	v := a[0]
 	not startswith(v, "_")
 	not regex.match(_trivial, a[3])
-	not regex.match(_word(v), b[3])
+	not regex.match(_word(v), _plain_strings_blanked(b[3]))
 	_statement(lines, i)
 	_statement(lines, j)
 	not _dedent_below(lines, i, j, a[1])

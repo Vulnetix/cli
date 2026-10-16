@@ -82,8 +82,11 @@ _lists("js", lines, i, line) if {
 	not _closed_between(lines, j, i)
 }
 
+# One-line registration: register(require('@fastify/static'), { ..., list: true }).
+_lists("js", _, _, line) if regex.match(`\bregister\s*\(\s*(require\s*\(\s*['"](@fastify/static|fastify-static)['"]\s*\)|\w*[sS]tatic\w*)\s*,.*[{,]\s*list\s*:\s*(true\b|\{)`, line)
+
 _closed_between(lines, j, i) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(`^\s*\}\s*\)`, lines[k])
 }
 

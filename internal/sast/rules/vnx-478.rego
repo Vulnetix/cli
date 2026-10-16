@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_478
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-478",
 	"name": "Missing Default Case in Multiple Condition Expression",
@@ -50,12 +52,12 @@ _switch_end(lines, i) := k if {
 }
 
 _has_default(lines, i, k) if {
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	regex.match(`^\s*(?:case\b[^:]*:\s*)?default\s*(?::|->)`, lines[j])
 }
 
 _assigned(lines, i, k) := {m[1] |
-	some j in numbers.range(i + 1, k - 1)
+	some j in helpers.span(i + 1, k - 1)
 	not _is_comment(lines[j])
 	some m in regex.find_all_string_submatch_n(`(?:^|[:;{]|->)\s*([A-Za-z_]\w*)\s*=[^=]`, lines[j], -1)
 }
@@ -117,7 +119,7 @@ _total_modulo(lines, i, k) if {
 	m := regex.find_all_string_submatch_n(`%\s*(\d+)\s*\)\s*\{?\s*$`, lines[i], 1)
 	count(m) > 0
 	n := to_number(m[0][1])
-	cases := [j | some j in numbers.range(i + 1, k - 1); regex.match(`^\s*case\b`, lines[j])]
+	cases := [j | some j in helpers.span(i + 1, k - 1); regex.match(`^\s*case\b`, lines[j])]
 	count(cases) >= n
 }
 

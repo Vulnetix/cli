@@ -1,0 +1,6 @@
+from .base import *
+
+DEBUG = False
+~>SESSION_COOKIE_SECURE = False
+~>CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_HTTPONLY = True

@@ -1,0 +1,6 @@
+{
+  "name": "scripts-only",
+  "version": "1.0.0",
+  "scripts": { "lint": "echo ok", "test": "echo none" },
+  "dependencies": {}
+}

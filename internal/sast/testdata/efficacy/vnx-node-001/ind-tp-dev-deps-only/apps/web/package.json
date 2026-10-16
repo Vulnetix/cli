@@ -1,0 +1,9 @@
+~>{
+  "name": "web",
+  "version": "0.1.0",
+  "scripts": { "build": "vite build" },
+  "devDependencies": {
+    "vite": "^5.1.0",
+    "typescript": "~5.3.3"
+  }
+}

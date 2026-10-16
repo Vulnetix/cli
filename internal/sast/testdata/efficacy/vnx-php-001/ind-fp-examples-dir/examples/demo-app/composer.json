@@ -1,0 +1,7 @@
+{
+    "name": "acme/demo-app",
+    "type": "project",
+    "require": {
+        "slim/slim": "^4.12"
+    }
+}

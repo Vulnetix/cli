@@ -35,7 +35,7 @@ _in_html_comment(lines, i) if {
 	contains(lines[j], "<!--")
 	parts := split(lines[j], "<!--")
 	not contains(parts[count(parts) - 1], "-->")
-	every k in numbers.range(j + 1, i - 1) {
+	every k in helpers.span(j + 1, i - 1) {
 		not contains(lines[k], "-->")
 	}
 	not regex.match(`-->.*<script`, lower(lines[i]))
@@ -70,7 +70,7 @@ _in_script_tag(line, lines, i) if {
 	regex.match(`(?i)^[^<>]*\bsrc\s*=\s*["']?http://`, line)
 	some j in numbers.range(max([0, i - 5]), i - 1)
 	regex.match(`(?i)<script\b[^>]*$`, lines[j])
-	every k in numbers.range(j + 1, i - 1) {
+	every k in helpers.span(j + 1, i - 1) {
 		not contains(lines[k], ">")
 		not contains(lines[k], "<")
 	}

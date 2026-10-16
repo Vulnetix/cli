@@ -48,6 +48,14 @@ _statement_start(lines, i) if {
 	not regex.match(`(?:=|:=|\(|,|&&|\|\||!|\?|:|\+|\\|\breturn|\band|\bor|\bnot|\bassert|\bawait|=>)$`, p)
 }
 
+# The previous code line opens an indented block (def f(...):, if x:, try:).
+_statement_start(lines, i) if {
+	i > 0
+	prev := [j | some j in numbers.range(max([0, i - 4]), i - 1); trim_space(lines[j]) != ""; not helpers.is_comment_line(lines[j])]
+	count(prev) > 0
+	regex.match(`^\s*(?:async\s+)?(?:def|class|if|elif|else|for|while|try|except|finally|with)\b[^#]*:\s*$`, lines[prev[count(prev) - 1]])
+}
+
 _call_text(lines, i) := concat(" ", array.slice(lines, i, min([count(lines), i + 4])))
 
 _finding(path, i, line, msg) := {
@@ -208,7 +216,7 @@ _py_fails_closed(lines, i) if {
 	tries := [t | some t in numbers.range(max([0, i - 8]), i - 1); regex.match(`^\s*try\s*:\s*$`, lines[t]); _indent(lines[t]) == ind]
 	count(tries) > 0
 	t := tries[count(tries) - 1]
-	body := [l | some k in numbers.range(t + 1, i - 1); l := lines[k]; trim_space(l) != ""; not helpers.is_comment_line(l)]
+	body := [l | some k in helpers.span(t + 1, i - 1); l := lines[k]; trim_space(l) != ""; not helpers.is_comment_line(l)]
 	count(body) > 0
 	every l in body {
 		regex.match(`^\s*[A-Za-z_]\w*\s*=[^=]`, l)

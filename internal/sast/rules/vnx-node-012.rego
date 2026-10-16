@@ -9,7 +9,7 @@ metadata := {
 	"name": "Client-side XSS via innerHTML or v-html",
 	"description": "Raw HTML written into the page from a value an attacker can shape. Sinks: jQuery $(...).html(value), Vue v-html and Svelte {@html value} in every file, and insertAdjacentHTML(position, html), document.write/writeln and React dangerouslySetInnerHTML={{ __html: value }} in HTML and template pages and Vue/Svelte components. Each sink is reported once, by its owner: an assignment to innerHTML/outerHTML is reported by VNX-NODE-027, and insertAdjacentHTML, document.write and dangerouslySetInnerHTML in a JavaScript/TypeScript file by VNX-NODE-005, not here. Reported when the value (1) reads a DOM source (location.hash/search/href/pathname, document.URL/referrer/cookie/documentURI, window.name, URLSearchParams, localStorage/sessionStorage.getItem, a message event's .data, an input's .value) directly or through a variable assigned from one in the 20 lines above (two hops), (2) builds markup by splicing a non-literal into an HTML string ('<p>' + res.message + '</p>', `<li>${todo.title}</li>`), directly or in a variable assigned a few lines above, (3) is a property of a response object (res/response/data/json/result/body/payload), or (4) for v-html, dangerouslySetInnerHTML and {@html}, is any non-constant expression. Not reported: string literals and literal-only concatenation, a ternary between literals, a value passed through DOMPurify/sanitize/escape/encode/xss helpers, the jQuery .html() getter, textContent/innerText, comments and string literals, minified files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-012/",
-	"languages": ["node"],
+	"languages": ["node", "html"],
 	"severity": "high",
 	"level": "warning",
 	"kind": "sast",

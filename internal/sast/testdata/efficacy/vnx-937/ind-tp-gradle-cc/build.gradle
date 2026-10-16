@@ -1,0 +1,7 @@
+plugins { id 'java' }
+
+dependencies {
+    implementation 'org.slf4j:slf4j-api:1.7.36'
+~>    runtimeOnly group: 'commons-collections', name: 'commons-collections', version: '3.2.1'
+    testImplementation 'junit:junit:4.13.2'
+}

@@ -59,7 +59,7 @@ _in_heredoc(content, lines, i) if {
 
 _closed(lines, j, i, id) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(concat("", [`^\s*`, id, `\b`]), lines[k])
 }
 

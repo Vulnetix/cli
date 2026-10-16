@@ -56,7 +56,7 @@ _family_checked(lines, i) if {
 # function.
 _function_ends_between(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	startswith(lines[k], "}")
 }
 

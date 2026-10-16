@@ -2,6 +2,8 @@ package vulnetix.rules.vnx_c_004
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-C-004",
 	"name": "Use-after-free: pointer used after free()",
@@ -260,7 +262,7 @@ _loop_body(lines, k) := body if {
 		startswith(trim_left(lines[j], " \t"), "}")
 	]
 	stop := min(array.concat(closes, [end + 1]))
-	body := [_mask(lines[j]) | some j in numbers.range(k + 1, stop - 1)]
+	body := [_mask(lines[j]) | some j in helpers.span(k + 1, stop - 1)]
 }
 
 _loop_body(lines, k) := [_mask(lines[j])] if {

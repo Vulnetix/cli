@@ -1,0 +1,4 @@
+[Service]
+ExecStart=/usr/local/bin/web
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE

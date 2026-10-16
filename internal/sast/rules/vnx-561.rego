@@ -85,7 +85,7 @@ _braceless_body(lines, i) if {
 
 # Some non-blank code line between k and i (exclusive).
 _later_code(lines, k, i) if {
-	some m in numbers.range(k + 1, i - 1)
+	some m in helpers.span(k + 1, i - 1)
 	m < i
 	trim_space(lines[m]) != ""
 	not helpers.is_comment_line(lines[m])
@@ -179,6 +179,7 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(`false|False|0`, line)
 	not helpers.is_comment_line(line)
+	not helpers.is_test_path(path)
 	_dead_block(lines, i, line, lang)
 	finding := _finding(path, i, line, "Block guarded by a literal false condition never runs; delete it or put it behind a named flag")
 }

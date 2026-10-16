@@ -214,3 +214,23 @@ _handed_over(path, lines, line) if {
 	some hit in regex.find_all_string_submatch_n(re, w, -1)
 	hit[1] == name
 }
+
+# createCipheriv(/createDecipheriv( opened on its own line, algorithm on the
+# next, the literal key on the line after that. Reported on the key line.
+findings contains finding if {
+	some path, content in input.file_contents
+	_ext_ok(path)
+	not helpers.is_test_path(path)
+	regex.match(`(?m)[cC]ipheriv\($`, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	i >= 2
+	m := regex.find_all_string_submatch_n("^\\s*(?:Buffer\\.from\\(\\s*)?['\"`]([^'\"`]+)['\"`]\\s*[,)]", line, 1)
+	count(m) > 0
+	value := m[0][1]
+	not _placeholder(value)
+	regex.match("^\\s*['\"`][^'\"`]+['\"`]\\s*,\\s*$", lines[i - 1])
+	regex.match(`\bcreate(?:Cipheriv|Decipheriv)\(\s*$`, lines[i - 2])
+	not helpers.is_comment_line(line)
+	finding := _finding(path, i, line)
+}

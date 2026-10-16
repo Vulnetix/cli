@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-017",
 	"name": "Go SQL injection via fmt.Sprintf in db.Exec or db.Query",
-	"description": "SQL text is built with fmt.Sprintf and a string verb (%s, %v) puts a value where SQL expects a literal: inside single quotes ('%s', LIKE '%%%s%%', VALUES ('%s')) or straight after a comparison (id = %s, owner = \"%s\"). Reported when that Sprintf is the query argument of a database call (Exec, Query, QueryRow, Prepare and their Context variants, sqlx Queryx/Select/Get/MustExec/NamedExec, GORM Raw and the string-condition builders Where, Having, Joins, Order, Group), even with the call broken across lines; when its result is assigned (:=, =, +=) to a variable a later line of the function passes to such a call; or when it is a complete statement (SELECT ... FROM, INSERT INTO, UPDATE ... SET, DELETE FROM) assigned or returned. A verb in any other position (WHERE %s, ORDER BY %s, FROM %s, IN (%s)) is reported only when its argument is an HTTP request value or a variable assigned from one. Multi-line raw-string and +-joined formats are read whole. Not reported: integer verbs (%d), bind-parameter builders (fmt.Sprintf(\"$%d\", n), ILIKE %s with a placeholder variable such as ph), fragments the function assembled itself (WHERE %s with a joined clause list, a constant column list, DDL over fixed identifiers), arguments quoted or converted for SQL (pq.QuoteLiteral, QuoteIdentifier, strconv), numeric parameters, Sprintf calls inside append or another call, connection strings, URLs and messages that are not run as a query, format strings held in a variable, string literals, comments and test files.",
+	"description": "SQL text is built with fmt.Sprintf and a string verb (%s, %v) puts a value where SQL expects a literal: inside single quotes ('%s', LIKE '%%%s%%', VALUES ('%s')) or straight after a comparison (id = %s, owner = \"%s\"). Reported when that Sprintf is the query argument of a database call (Exec, Query, QueryRow, Prepare and their Context variants, sqlx Queryx/Select/Get/MustExec/NamedExec, GORM Raw and the string-condition builders Where, Having, Joins, Order, Group), even with the call broken across lines; when its result is assigned (:=, =, +=) to a variable a later line of the function passes to such a call; or when it is a complete statement (SELECT ... FROM, INSERT INTO, UPDATE ... SET, DELETE FROM) assigned or returned. A verb in any other position (WHERE %s, ORDER BY %s, FROM %s, IN (%s)) is reported only when its argument is an HTTP request value or a variable assigned from one. Multi-line raw-string and +-joined formats are read whole. Not reported: integer verbs (%d), bind-parameter builders (fmt.Sprintf(\"$%d\", n), ILIKE %s with a placeholder variable such as ph), fragments the function assembled itself (WHERE %s with a joined clause list, a constant column list, DDL over fixed identifiers), arguments quoted or converted for SQL (pq.QuoteLiteral, QuoteIdentifier, strconv), numeric parameters, a column or table name read from an allowlist map keyed by the request value, Sprintf calls inside append or another call, connection strings, URLs and messages that are not run as a query, format strings held in a variable, string literals, comments and test files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-017/",
 	"languages": ["go"],
 	"severity": "high",
@@ -161,6 +161,14 @@ _request_hit(lines, i, verbs, args) if {
 	not _safe_arg(a)
 	some t in helpers.tainted_names(lines, i, 25, _req_src)
 	regex.match(concat("", [`\b`, t, `\b`]), a)
+	not _allowlisted(lines, i, t)
+}
+
+# The name was read from a map keyed by the request value (an allowlist
+# lookup), so the request chose a key, not the text.
+_allowlisted(lines, i, t) if {
+	some j in numbers.range(max([0, i - 25]), i - 1)
+	regex.match(concat("", [`^\s*`, t, `\s*(?:,\s*\w+\s*)?:?=\s*[A-Za-z_][\w\.]*\[`]), lines[j])
 }
 
 # Where the Sprintf sits.

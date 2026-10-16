@@ -59,7 +59,7 @@ _part_re := {
 }
 
 # Wrappers that log a fact about the part, not its contents.
-_derived := `(?:\blen|\blist|\btype|\bbool|\bsorted|\bObject\.keys|\bcount)\(\s*(?:req|request|r)\.|\bin\s+(?:req|request|r)\.|!!\s*(?:req|request)\.|(?:\bGet\(\s*"[^"]*"\s*\)|\[\s*['"][^'"]*['"]\s*\]|\.(?i:authorization|cookie)\b)\s*(?:!==?|===?)`
+_derived := `(?:\blen|\blist|\btype|\bbool|\bsorted|\bObject\.keys|\bcount)\(\s*(?:req|request|r)\.|\bin\s+(?:req|request|r)\.|\b(?:getParameterMap|getCookies)\(\s*\)\s*(?:\.(?:size|isEmpty|keySet|length)\b|\.length\b)|!!\s*(?:req|request)\.|(?:\bGet\(\s*"[^"]*"\s*\)|\[\s*['"][^'"]*['"]\s*\]|\.(?i:authorization|cookie)\b)\s*(?:!==?|===?)`
 
 # The call: the line and up to two continuation lines, while it is open.
 _call(lines, i) := txt if {
@@ -117,7 +117,10 @@ _logs_part("go", lines, i, call) if {
 }
 
 _redacted_between(lines, j, i) if {
-	some k in numbers.range(j + 1, i)
+	# Redaction on the request before it is dumped (a cloned request with the
+	# header deleted) counts as much as redaction of the dumped bytes.
+	some k in numbers.range(max([0, j - 8]), i)
+	k != j
 	contains(lines[k], "Authorization")
 }
 

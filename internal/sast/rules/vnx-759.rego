@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-759",
 	"name": "Password hashed with a one-way hash and no salt",
-	"description": "A password is passed straight into a fast general-purpose digest with no salt, so equal passwords get equal hashes and a precomputed table recovers them. Reported, when the hashed argument names a password (password, passwd, passphrase, pwd, pw, $pass, $pass_new, getPassword(), a subscript or .get() keyed by a password field such as form[\"new_password\"] or request.json.get(\"password\")) or a variable assigned from one a few lines above: Python hashlib.md5/sha1/sha224/sha256/sha384/sha512/sha3_*/blake2*/new(...) (also from-imported) and <hashlib object>.update(password); Java MessageDigest <md>.digest(password...)/<md>.update(password...) and MessageDigest.getInstance(...).digest(password...), commons-codec DigestUtils.md5Hex/sha1Hex/sha256Hex/... and Guava Hashing.md5()/sha1()/sha256()/sha512().hashString/hashBytes; PHP md5()/sha1()/crc32()/hash('<alg>', ...); Node crypto.createHash(...).update(password) on one line, as a chained call split over lines, or through a variable (const h = crypto.createHash(...); h.update(password)). A call argument split onto the next line is followed. Not reported: an argument or a neighbouring update() that mixes in a salt or pepper, password KDFs (pbkdf2_hmac, scrypt, bcrypt, argon2, PBEKeySpec, password_hash, scryptSync), HMAC, digests of tokens, nonces, password-reset values, file contents or other non-password data, string literals and comments. Weak iteration counts and broken algorithms are other rules (VNX-CRYPTO-007, VNX-327).",
+	"description": "A password is passed straight into a fast general-purpose digest with no salt, so equal passwords get equal hashes and a precomputed table recovers them. Reported, when the hashed argument names a password (password, passwd, passphrase, pwd, pw, $pass, $pass_new, getPassword(), a subscript or .get() keyed by a password field such as form[\"new_password\"] or request.json.get(\"password\")) or a variable assigned from one a few lines above: Python hashlib.md5/sha1/sha224/sha256/sha384/sha512/sha3_*/blake2*/new(...) (also from-imported) and <hashlib object>.update(password); Java MessageDigest <md>.digest(password...)/<md>.update(password...) and MessageDigest.getInstance(...).digest(password...), commons-codec DigestUtils.md5Hex/sha1Hex/sha256Hex/... and Guava Hashing.md5()/sha1()/sha256()/sha512().hashString/hashBytes; PHP md5()/sha1()/crc32()/hash('<alg>', ...); Node crypto.createHash(...).update(password) on one line, as a chained call split over lines, or through a variable (const h = crypto.createHash(...); h.update(password)). A call argument split onto the next line is followed. Not reported: an argument or a neighbouring update() that mixes in a salt or pepper, password KDFs (pbkdf2_hmac, scrypt, bcrypt, argon2, PBEKeySpec, password_hash, scryptSync), HMAC, digests of tokens, nonces, password-reset values, file contents or other non-password data, string literals and comments. Weak iteration counts and broken algorithms are other rules (VNX-CRYPTO-007, VNX-327). A password passed straight into a fast digest call (md5($pass), hashlib.sha256(password.encode()), createHash('sha256').update(password), DigestUtils.sha256Hex(password)) is reported by VNX-CRYPTO-007, a password hashed with a fast hash, whose fix (a salted password KDF) is this rule's fix too; this rule keeps the shapes that rule does not read, such as a password reached through a variable, a subscript or a hasher fed on a later line.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-759/",
 	"languages": ["java", "python", "php", "node"],
 	"severity": "high",
@@ -56,9 +56,9 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(_pw_re, line)
 	not helpers.is_comment_line(line)
-	some k in numbers.range(1, 13)
+	some k in numbers.range(1, 14)
 	k >= 1
-	k <= 13
+	k <= 14
 	some args in _hashed_args(k, lang, lines, i, _src(lang, line), content)
 	_is_password(lines, i, args)
 	not regex.match(_salted_re, args)
@@ -84,6 +84,17 @@ _is_password(_, _, args) if regex.match(`\$_(?:POST|GET|REQUEST)\[\s*['"]\w*(?i:
 _is_password(lines, i, args) if {
 	some v in helpers.tainted_names(lines, i, 8, _pw_re)
 	regex.match(concat("", [`\b`, v, `\b`]), _strip_strings(args))
+}
+
+# $pwd = $_POST['password']; sha1($pwd)
+_is_password(lines, i, args) if {
+	i > 0
+	some j in numbers.range(max([0, i - 8]), i - 1)
+	not helpers.is_comment_line(lines[j])
+	m := regex.find_all_string_submatch_n(`^\s*(\$[A-Za-z_]\w*)\s*=[^=]`, lines[j], 1)
+	count(m) > 0
+	regex.match(_pw_re, lines[j])
+	regex.match(concat("", [`\$`, trim_prefix(m[0][1], "$"), `\b`]), args)
 }
 
 # ── Python ────────────────────────────────────────────────────────────────
@@ -133,6 +144,12 @@ _hashed_args(7, "java", _, _, line, _) := {a |
 _hashed_args(8, "java", _, _, line, _) := {a |
 	some m in regex.find_all_string_submatch_n(concat("", [`\bHashing\.(?:md5|sha1|sha256|sha384|sha512)\(\)\s*\.hash(?:String|Bytes|UnencodedChars)\s*`, _args]), line, -1)
 	a := m[1]
+}
+
+# DigestUtils.sha256Hex(\n    passphrase)
+_hashed_args(14, "java", lines, i, line, _) := {trim_space(line) |
+	i > 0
+	regex.match(`(?:\bDigestUtils\.(?:md2|md5|sha|sha1|sha224|sha256|sha384|sha512|sha3_\d+)(?:Hex)?|\bHashing\.(?:md5|sha1|sha256|sha384|sha512)\(\)\s*\.hash(?:String|Bytes|UnencodedChars)|\.(?:digest|update))\s*\(\s*$`, lines[i - 1])
 }
 
 _is_message_digest(name, content) if regex.match(concat("", [`MessageDigest\s+`, name, `\b`]), content)

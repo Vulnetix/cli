@@ -1,0 +1,3 @@
+llm:
+  model: gpt-4o
+~>  apiKey: sk-svcacct-@@sample:[A-Za-z0-9_-]{80}@@

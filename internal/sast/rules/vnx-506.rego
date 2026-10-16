@@ -112,7 +112,7 @@ _sink_arg_mentions(lang, lines, j, i, c, v) if {
 
 _sink_arg_mentions(lang, lines, j, i, c, v) if {
 	i - 1 >= j + 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	mid := lines[k]
 	not helpers.is_comment_line(mid)
 	regex.match(concat("", [`\b`, v, `\b`]), mid)

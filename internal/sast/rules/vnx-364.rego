@@ -87,7 +87,7 @@ findings contains finding if {
 	some h in hs
 	d := _def_line(lines, h)
 	e := _body_end(lines, d)
-	some i in numbers.range(d + 1, e - 1)
+	some i in helpers.span(d + 1, e - 1)
 	line := lines[i]
 	not helpers.is_comment_line(line)
 	some g in gs
@@ -175,7 +175,7 @@ _shadowed(lines, d, e, g) if {
 }
 
 _shadowed(lines, d, e, g) if {
-	some k in numbers.range(d + 1, e - 1)
+	some k in helpers.span(d + 1, e - 1)
 	contains(lines[k], g)
 	some m in regex.find_all_string_submatch_n(concat("", [`^\s+(?:(?:static|volatile|unsigned|signed|struct|const|long|short|register)\s+)*([A-Za-z_][\w:]*)\s*\**\s*`, g, `\s*(?:[=;,]|\[)`]), lines[k], 1)
 	not m[1] in _not_types

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings>
+  <servers>
+    <server>
+      <id>acme-releases</id>
+      <username>${env.NEXUS_USER}</username>
+      <password>${env.NEXUS_PASSWORD}</password>
+    </server>
+    <server>
+      <id>acme-snapshots</id>
+      <username>deployer</username>
+      <password>{COQLCE6DU6GtcS5P=}</password>
+    </server>
+    <server>
+      <id>acme-empty</id>
+      <password></password>
+    </server>
+  </servers>
+</settings>

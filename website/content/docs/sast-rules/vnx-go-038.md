@@ -45,6 +45,8 @@ if err := c.ShouldBind(&item); err != nil { ... }
 s.items.UpdateOne(c, bson.M{"_id": id}, bson.M{"$set": item})
 ```
 
+The finding is reported on the line that binds the body, not on the save.
+
 Not flagged: a request DTO whose fields are copied (`db.Create(&User{Name: in.Name})`), a write restricted with `Select(...)` or `Omit(...)`, a bound value that is only read, decoding `resp.Body` from an outgoing call, test files, comments and strings.
 
 ## Remediation

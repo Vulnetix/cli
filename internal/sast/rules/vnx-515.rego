@@ -27,6 +27,8 @@ _secret_key(k) if {
 	not regex.match(`(?i)(?:_|^)(?:file|path|dir|name|id|url|uri|type|ttl|expiry|expires|mode|enabled?|disabled?|level|backend|provider|store|header|format|algorithm|length|region|version)$`, k)
 }
 
+_secret_key(k) if regex.match(`(?i)access_?key_?id$`, k)
+
 _secret_var(v) if {
 	regex.match(`^[A-Za-z_][\w.]*$`, v)
 	regex.match(`(?i)(?:passw(?:or)?d|passphrase|secret|token|api_?key|private_?key|credentials?)$`, v)

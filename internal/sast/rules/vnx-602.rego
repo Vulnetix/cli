@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-602",
 	"name": "Server trusts a client-supplied role or admin flag",
-	"description": "A server-side authorisation decision is taken on a value the client controls: a request body field, query parameter, URL parameter, header or unsigned cookie named for a role or privilege (admin, isAdmin, is_admin, role, user_role, X-User-Role, isAuthenticated, loggedIn, authorized, privileges, accessLevel, userType, permissions, isStaff, superuser) is compared, tested in a condition or used in a ternary, either directly or through a variable assigned (or destructured: const { isAdmin } = req.body) from it within the 15 lines above; PHP if (!empty($_POST['is_admin'])) on a boolean privilege flag counts as a test. The client sets these values, so the check enforces nothing the client did not already decide. Covers Express/Koa (req.body, req.query, req.params, req.headers, req.cookies), Django/Flask (request.COOKIES/GET/POST/args/form/cookies/headers/json/values/data) and PHP ($_COOKIE, $_GET, $_POST, $_REQUEST, $_SERVER). Not reported: server-held identity (req.user, req.session, request.user, $_SESSION), signed cookies, the Authorization header, presence checks (isset, compared with null/undefined/None), assignment without a decision (role written to a new record), allowlist validation (includes), comparisons inside filter/find callbacks or comprehensions (filtering records by a requested role), browser UI code reading a user object, comments and string literals.",
+	"description": "A server-side authorisation decision is taken on a value the client controls: a request body field, query parameter, URL parameter, header or unsigned cookie named for a role or privilege (admin, isAdmin, is_admin, role, user_role, X-User-Role, isAuthenticated, loggedIn, authorized, privileges, accessLevel, userType, permissions, isStaff, superuser) is compared (including <, >= against a level), tested in a condition, searched with in or used in a ternary, either directly or through a variable assigned (or destructured: const { isAdmin } = req.body) from it within the 15 lines above; PHP if (!empty($_POST['is_admin'])) on a boolean privilege flag counts as a test. The client sets these values, so the check enforces nothing the client did not already decide. Covers Express/Koa (req.body, req.query, req.params, req.headers, req.cookies), Django/Flask (request.COOKIES/GET/POST/args/form/cookies/headers/json/values/data) and PHP ($_COOKIE, $_GET, $_POST, $_REQUEST, $_SERVER). Not reported: server-held identity (req.user, req.session, request.user, $_SESSION), signed cookies, the Authorization header, presence checks (isset, compared with null/undefined/None), assignment without a decision (role written to a new record), allowlist validation (includes), comparisons inside filter/find callbacks or comprehensions (filtering records by a requested role), browser UI code reading a user object, comments and string literals. A privilege or login-state cookie that is compared or tested on its line, or assigned to a variable a condition uses within 15 lines, is reported by VNX-784 (a security decision on a cookie) and not here; body, query, URL-parameter and header values stay with this rule.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-602/",
 	"languages": ["node", "python", "php"],
 	"severity": "medium",
@@ -131,6 +131,23 @@ _used_as_decision(n, x) if {
 
 _used_as_decision(n, x) if {
 	regex.match(concat("", [x, `\s*\?[^?.:]`]), n)
+	not _presence(n, x)
+}
+
+# Membership test on a request-supplied collection: if "export" not in privileges
+_used_as_decision(n, x) if {
+	regex.match(concat("", [`^\s*(?:\}\s*)?(?:else\s*)?(?:if|elif|elseif|while|assert)\b[^\n]*\bin\b[^\n]*?`, x]), n)
+	not _presence(n, x)
+}
+
+# Numeric comparison against a level: if ($level >= 3)
+_used_as_decision(n, x) if {
+	regex.match(concat("", [`\b(?:if|elif|elseif|while)\b[^\n]*`, x, `\s*(?:>=|<=|>|<)\s*\d`]), n)
+	not _presence(n, x)
+}
+
+_used_as_decision(n, x) if {
+	regex.match(concat("", [`\b(?:if|elif|elseif|while)\b[^\n]*\d\s*(?:>=|<=|>|<)\s*`, x]), n)
 	not _presence(n, x)
 }
 

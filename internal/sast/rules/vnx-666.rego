@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-666",
 	"name": "HTTP response written after it was already sent",
-	"description": "An Express, Koa-style or Fastify handler finishes the response (res/response/reply .send, .json, .jsonp, .end, .redirect, .render, .sendFile, .sendStatus or .download, also at the end of a .status(...)/.code(...) chain) and does not return, so the next statement writes to the same response again: either the very next statement, or the first response write at the same level after the closing brace of the if- or catch-block the response was sent in, before any return/throw/else/case boundary or the end of the enclosing block (the missing 'return' after an error reply); the second write may itself be 'return res.json(...)'. The second write runs in the wrong phase of the response's lifetime: it throws ERR_HTTP_HEADERS_SENT or is silently lost, and the code after the error reply (the success path) still executes. The finding is on the first, unreturned send. Not reported: a send preceded by 'return' or followed by a return/break statement, if/else branches, a send whose block is followed by '} else', '});' (a callback) or '},' (an object of handlers), res.write() streaming followed by res.end(), sends in comments and string literals. Python and other languages are not covered.",
+	"description": "An Express, Koa-style or Fastify handler finishes the response (res/response/reply .send, .json, .jsonp, .end, .redirect, .render, .sendFile, .sendStatus or .download, also at the end of a .status(...)/.code(...) chain) and does not return, so the next statement writes to the same response again: either the very next statement, or the first response write at the same level after the closing brace of the if- or catch-block the response was sent in, before any return/throw/else/case boundary or the end of the enclosing block (the missing 'return' after an error reply), including after a braceless one-line `if (...) res.send(...)`; the second write may itself be 'return res.json(...)'. The second write runs in the wrong phase of the response's lifetime: it throws ERR_HTTP_HEADERS_SENT or is silently lost, and the code after the error reply (the success path) still executes. The finding is on the first, unreturned send. Not reported: a send preceded by 'return' or followed by a return/break statement, if/else branches, a send whose block is followed by '} else', '});' (a callback) or '},' (an object of handlers), res.write() streaming followed by res.end(), sends in comments and string literals. Python and other languages are not covered.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-666/",
 	"languages": ["node"],
 	"severity": "low",
@@ -137,3 +137,28 @@ _outer_decides(lines, t, ind, recv) if regex.match(_write_re(recv), lines[t])
 _outer_decides(lines, t, ind, _) if _indent(lines[t]) < ind
 
 _outer_decides(lines, t, _, _) if regex.match(`^\s*(?:\}\s*)?(?:else|catch|finally|case|default|return|throw|break|continue)\b`, lines[t])
+
+# A braceless `if (...) res.status(404).send(...)`: the send is conditional and
+# the statements after it still run, so the first response write at the same
+# level (before a return/throw/else/case boundary or the end of the block) is
+# the second write.
+_second_write(lines, i, j, recv) := k if {
+	regex.match(`^\s*if\s*\(`, lines[i])
+	ind := _indent(lines[i])
+	n := count(lines) - 1
+	i + 1 <= n
+	outer := [t |
+		some t in numbers.range(i + 1, min([n, i + 15]))
+		trim_space(lines[t]) != ""
+		not helpers.is_comment_line(lines[t])
+		_indent(lines[t]) <= ind
+	]
+	firsts := [t |
+		some t in outer
+		_outer_decides(lines, t, ind, recv)
+	]
+	count(firsts) > 0
+	k := firsts[0]
+	_indent(lines[k]) == ind
+	regex.match(_write_re(recv), lines[k])
+}

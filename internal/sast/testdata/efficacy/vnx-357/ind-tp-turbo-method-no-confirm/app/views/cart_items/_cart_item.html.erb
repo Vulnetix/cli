@@ -1,0 +1,4 @@
+<li id="<%= dom_id(cart_item) %>">
+  <%= cart_item.product.name %> &times; <%= cart_item.quantity %>
+~>  <%= link_to "Remove", cart_item_path(cart_item), data: { turbo_method: :delete }, class: "text-red-600" %>
+</li>

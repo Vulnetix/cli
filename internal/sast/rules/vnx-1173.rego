@@ -10,7 +10,7 @@ metadata := {
 	"name": "Improper Use of Validation Framework",
 	"description": "Reports Java code that has a validation framework available but leaves an input path out of it. Reported: in a Spring @Controller/@RestController that validates request bodies with @Valid elsewhere in the same file, a handler parameter bound with @RequestBody (including @RequestBody(required = false) and with other annotations such as @NotNull beside it) to an application type (a DTO, or a List/Set of one) without @Valid or @Validated (fully qualified @jakarta.validation.Valid counts), so that endpoint accepts the object unchecked; Bean Validation constraints (@Size, @Pattern, @Max, @NotBlank and the rest) on a @RequestParam, @PathVariable or @RequestHeader parameter in a controller with no @Validated anywhere in the file, which Spring before Framework 6.1 silently ignores (skipped when the project pins Spring Boot 3.2+ or Spring Framework 6.1+ in pom.xml (parent, spring-boot.version property or spring-boot-dependencies import), build.gradle(.kts), a Gradle version catalog or gradle.properties, where controller method validation is built in); and a Struts 1 <action> mapping with validate=\"false\", which skips the ActionForm and Validator checks. Not reported: bodies bound to String, Map, JsonNode and other raw types, controllers that never use @Valid (the rule cannot tell which DTOs carry constraints), a @Validated controller, validate=\"true\", XML comments, and test files. A BindingResult that is declared and never read is VNX-20's finding.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1173/",
-	"languages": ["java"],
+	"languages": ["java", "generic"],
 	"severity": "low",
 	"level": "note",
 	"kind": "sast",

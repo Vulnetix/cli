@@ -26,7 +26,7 @@ _lang(path) if endswith(path, ".java")
 
 _lang(path) if endswith(path, ".kt")
 
-_key_re := `(?i)^(?:is_?|has_?|user_?|pref_?|key_?)*(?:logged_?in|log(?:ged)?_?on|signed_?in|authenticated|authed|authori[sz]ed|admin|administrator|superuser|root_?access|premium|pro_?user|paid|subscribed|licen[cs]ed|unlocked|pin_?(?:verified|ok|passed|entered)|biometric_?(?:ok|passed|verified|auth)|verified|role|access_?level|privileges?|permissions?|has_?access|session_?valid)$`
+_key_re := `(?i)^(?:is_?|has_?|user_?|pref_?|key_?)*(?:logged_?in|log(?:ged)?_?on|signed_?in|authenticated|authed|authori[sz]ed|admin|administrator|superuser|root_?access|premium(?:_?(?:user|member|account))?|pro_?user|paid|subscribed|licen[cs]ed|unlocked|pin_?(?:verified|ok|passed|entered)|biometric_?(?:ok|passed|verified|auth)|verified|role|access_?level|privileges?|permissions?|has_?access|session_?valid)$`
 
 _getter := `\.get(?:Boolean|String|Int)\(\s*([^,)\s]+)`
 

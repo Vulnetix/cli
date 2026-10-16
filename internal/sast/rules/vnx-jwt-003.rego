@@ -9,7 +9,7 @@ metadata := {
 	"name": "JWT signing with hardcoded secret",
 	"description": "A JWT signing or verification key is a string literal in source or committed config, so anyone with the repository can forge valid tokens. Reported: a literal key passed directly to jsonwebtoken jwt.sign/verify, express-jwt { secret: '...' }, PyJWT/python-jose jwt.encode/decode (positional or key=), ruby-jwt JWT.encode/decode, firebase/php-jwt JWT::encode and new Key('...'), jjwt signWith/setSigningKey, Auth0 Algorithm.HMAC256/384/512, Keys.hmacShaKeyFor, golang-jwt SignedString([]byte(\"...\")) and .NET new SymmetricSecurityKey(Encoding.X.GetBytes(\"...\")); a variable assigned a literal in the same file and then passed as the key to one of those calls; and an assignment of a literal to a JWT-named setting (JWT_SECRET, JWT_SECRET_KEY, jwtSecret, jwt_signing_key, jwtKey, app.config[\"JWT_SECRET_KEY\"]) in code, .env, .properties or YAML. Not reported: keys read from the environment, configuration or a secrets manager, placeholders (changeme, <...>, ${...}, your-...), non-secret JWT settings (JWT_ALGORITHM, a setting's name), test files and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-jwt-003/",
-	"languages": ["python", "javascript", "typescript", "java", "go", "ruby", "php", "csharp"],
+	"languages": ["python", "javascript", "typescript", "java", "go", "ruby", "php", "csharp", "properties"],
 	"severity": "high",
 	"level": "error",
 	"kind": "secrets",

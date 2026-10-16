@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-444",
 	"name": "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')",
-	"description": "Reports the two code shapes that make HTTP framing ambiguous: Node's lenient parser switched on (insecureHTTPParser: true in http/https createServer or request options, or --insecure-http-parser in a script or NODE_OPTIONS), and a message given both a Transfer-Encoding and a Content-Length header (setHeader/putheader/header calls or header-object keys within five lines of each other, or a raw HTTP string carrying both). Either lets a proxy and a server disagree about where a request ends, so a smuggled request rides inside another. Not reported: insecureHTTPParser: false, Transfer-Encoding set after removing Content-Length, the two headers set in alternative branches (if/else, elif, switch cases, or a branch that returns before the other is set), code that reads or compares the two headers (a check that rejects both is the mitigation), comments and prose strings.",
+	"description": "Reports the two code shapes that make HTTP framing ambiguous: Node's lenient parser switched on (insecureHTTPParser: true in http/https createServer or request options, or --insecure-http-parser in a script or NODE_OPTIONS), and a message given both a Transfer-Encoding and a Content-Length header (setHeader/putheader/header calls or header-object keys within five lines of each other, or a raw HTTP string carrying both; the finding is on the Transfer-Encoding line). Either lets a proxy and a server disagree about where a request ends, so a smuggled request rides inside another. Not reported: insecureHTTPParser: false, Transfer-Encoding set after removing Content-Length, the two headers set in alternative branches (if/else, elif, switch cases, or a branch that returns before the other is set), code that reads or compares the two headers (a check that rejects both is the mitigation), comments and prose strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-444/",
 	"languages": ["node", "python"],
 	"severity": "medium",
@@ -119,6 +119,6 @@ _exclusive(lines, i, k) if {
 # The first setting's branch ends the function before the second runs:
 # if (streaming) { res.setHeader("Transfer-Encoding", "chunked"); ...; return; }
 _exclusive(lines, i, k) if {
-	some j in numbers.range(min([i, k]) + 1, max([i, k]) - 1)
+	some j in helpers.span(min([i, k]) + 1, max([i, k]) - 1)
 	regex.match(`^\s*(?:return|raise|throw|break|continue)\b`, lines[j])
 }

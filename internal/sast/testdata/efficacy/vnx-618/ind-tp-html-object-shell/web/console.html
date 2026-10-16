@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ops console</title>
+</head>
+<body>
+~>  <object id="wsh" classid="clsid:72C24DD5-D70A-438B-8A42-98424B88AFB8" width="0" height="0"></object>
+  <button onclick="runTask()">Run nightly task</button>
+  <script type="text/javascript">
+    function saveReport(contents) {
+~>      var stream = new ActiveXObject("ADODB.Stream");
+      stream.Open();
+      stream.WriteText(contents);
+      stream.SaveToFile("C:\\reports\\out.txt", 2);
+    }
+    function runTask() {
+      wsh.Run("cmd /c C:\\ops\\nightly.bat");
+    }
+  </script>
+</body>
+</html>

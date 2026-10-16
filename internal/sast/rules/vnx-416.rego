@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_416
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-416",
 	"name": "Use after free: stale pointer after realloc, or a pointer into a destroyed temporary",
@@ -87,7 +89,7 @@ _on_failure_path(lines, i, k, q) if {
 
 _closed_between(lines, m, k) if {
 	k > m + 1
-	some x in numbers.range(m + 1, k - 1)
+	some x in helpers.span(m + 1, k - 1)
 	_indent(lines[x]) <= _indent(lines[m])
 	startswith(trim_left(lines[x], " \t"), "}")
 }

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-646",
 	"name": "Uploaded file accepted or classified by its client-supplied name or extension",
-	"description": "Server code decides whether, or how, to handle an uploaded file from the file name the client sent, which the client chooses freely: shell.php.jpg, a renamed executable or an HTML page called report.pdf passes (CWE-646). Reported in JavaScript/TypeScript (multer originalname, formidable originalFilename, express-fileupload req.files.x.name) and Python (Flask/Werkzeug and FastAPI .filename, a filename parameter, Django request.FILES[...].name or an upload variable's .name, Django FileExtensionValidator) in a file that handles uploads: a condition, return, membership test or regex test that looks at the extension (endsWith/endswith, extname, splitext, rsplit/split on '.', lastIndexOf('.'), .suffix, a /\\.(png|jpg)$/ regex) of the upload's name, directly or through a variable assigned from it up to 10 lines above. Not reported: files that also inspect the content (file-type/fileTypeFromBuffer, mmmagic, magic bytes, image-size, sharp, jimp; python-magic, filetype, puremagic, imghdr, PIL Image.open/verify), building a storage filename from the extension, extension checks on paths that are not uploads (static file serving, build scripts), comments and string literals. Whether a content check elsewhere in the project covers the upload is not judged.",
+	"description": "Server code decides whether, or how, to handle an uploaded file from the file name the client sent, which the client chooses freely: shell.php.jpg, a renamed executable or an HTML page called report.pdf passes (CWE-646). Reported in JavaScript/TypeScript (multer originalname, formidable originalFilename, express-fileupload req.files.x.name) and Python (Flask/Werkzeug and FastAPI .filename, the standalone Flask allowed_file(filename) helper, a filename parameter, Django request.FILES[...].name or an upload variable's .name, Django FileExtensionValidator) in a file that handles uploads: a condition, return, membership test or regex test that looks at the extension (endsWith/endswith, extname, splitext, rsplit/split on '.', lastIndexOf('.'), .suffix, a /\\.(png|jpg)$/ regex) of the upload's name, directly or through a variable assigned from it up to 10 lines above. Not reported: files that also inspect the content (file-type/fileTypeFromBuffer, mmmagic, magic bytes, image-size, sharp, jimp; python-magic, filetype, puremagic, imghdr, PIL Image.open/verify), building a storage filename from the extension, extension checks on paths that are not uploads (static file serving, build scripts), comments and string literals. Whether a content check elsewhere in the project covers the upload is not judged.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-646/",
 	"languages": ["node", "python"],
 	"severity": "medium",
@@ -31,7 +31,7 @@ _lang(path) := "js" if {
 
 _upload := {
 	"js": `originalname|originalFilename|\breq\.files\b`,
-	"py": `request\.files|request\.FILES|UploadFile|FileStorage|FileField|UploadedFile|FileExtensionValidator`,
+	"py": `request\.files|request\.FILES|UploadFile|FileStorage|FileField|UploadedFile|FileExtensionValidator|def\s+allowed_file\s*\(`,
 }
 
 _content_check := {

@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_sec_055
 
 import rego.v1
+import data.vulnetix.helpers
 import data.vulnetix.lib.secrets
 
 metadata := {
@@ -49,6 +50,7 @@ _public_loader(line) if regex.match(`NREUM|loader_config|licenseKey`, line)
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
+	not helpers.is_test_path(path)
 	some t in _tokens
 	contains(content, t.marker)
 	lines := split(content, "\n")

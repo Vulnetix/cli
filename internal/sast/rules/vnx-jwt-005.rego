@@ -112,7 +112,7 @@ _depth(lines, i, pi, j, pj) := _braces(substring(lines[i], pi, pj - pi)) if {
 
 _depth(lines, i, pi, j, pj) := d if {
 	j > i
-	mid := sum([n | some k in numbers.range(i + 1, j - 1); k < j; n := _braces(lines[k])])
+	mid := sum([n | some k in helpers.span(i + 1, j - 1); k < j; n := _braces(lines[k])])
 	d := (_braces(substring(lines[i], pi, -1)) + mid) + _braces(substring(lines[j], 0, pj))
 }
 

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Debug drawer reachable via adb am start for QA. -->
+        <activity
+            android:name=".debug.FeatureFlagOverrideActivity"
+            android:exported="true" />
+
+        <receiver android:name=".debug.ResetStateReceiver">
+            <intent-filter>
+                <action android:name="com.northwind.fleet.debug.RESET_STATE" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

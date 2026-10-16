@@ -1,0 +1,4 @@
+dev:
+  url: postgres://devuser:Zk4mQ8vT2xLp@localhost:5432/dev
+  alt: postgres://devuser:Zk4mQ8vT2xLp@127.0.0.1:5432/dev
+  doc: postgres://devuser:Zk4mQ8vT2xLp@db.example.com:5432/dev

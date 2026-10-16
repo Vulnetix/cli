@@ -22,7 +22,7 @@ metadata := {
 	"tags": ["special-element", "parsing", "delimiter", "cwe-166"],
 }
 
-_py_src := `\b(?:self\.)?request\.(?:headers|args|form|values|cookies|COOKIES|GET|POST|META|data|json|query_params|get_json|path|full_path|url)\b`
+_py_src := `\b(?:self\.)?request\.(?:headers|args|form|values|cookies|COOKIES|GET|POST|META|data|json|query_params|get_json|path|full_path|url)\b|\bevent(?:\[\s*|\.get\(\s*)["'](?:headers|queryStringParameters|body|pathParameters|multiValueHeaders)["']`
 
 _js_src := `\b(?:req|request)\.(?:headers|query|body|params|cookies|signedCookies|path|url|originalUrl|get\s*\(|header\s*\()|\bctx\.(?:request|headers|query|cookies|params|get\s*\()|\bevent\.(?:headers|queryStringParameters|body|pathParameters)\b`
 

@@ -1,0 +1,10 @@
+name: publish
+on: release
+jobs:
+  pub:
+    runs-on: ubuntu-latest
+    steps:
+      - run: twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+~>          TWINE_PASSWORD: "pypi-AgEIcHlwaS5vcmc@@sample:[A-Za-z0-9_-]{100}@@"

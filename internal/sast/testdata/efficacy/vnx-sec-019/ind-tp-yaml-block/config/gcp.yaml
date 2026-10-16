@@ -1,0 +1,9 @@
+type: service_account
+project_id: acme-prod-482113
+client_email: etl@acme-prod-482113.iam.gserviceaccount.com
+~>private_key: |
+  -----BEGIN PRIVATE KEY-----
+  @@sample:[A-Za-z0-9+/]{64}@@
+  @@sample:[A-Za-z0-9+/]{64}@@
+  @@sample:[A-Za-z0-9+/]{64}@@
+  -----END PRIVATE KEY-----

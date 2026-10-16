@@ -201,7 +201,7 @@ findings contains finding if {
 	end := _body_end(lines, s, line, lang)
 	bi := _body_indent(lines, s, end, lang)
 	n := sum([c |
-		some j in numbers.range(s + 1, end - 1)
+		some j in helpers.span(s + 1, end - 1)
 		contains(lines[j], _field_mark[lang])
 		_indent(lines[j]) == bi
 		not helpers.is_comment_line(lines[j])
@@ -248,7 +248,7 @@ _body_indent(_, _, _, "go") := 1
 _body_indent(lines, i, end, lang) := _indent(lines[j]) if {
 	lang != "go"
 	j := min({k |
-		some k in numbers.range(i + 1, end - 1)
+		some k in helpers.span(i + 1, end - 1)
 		trim_space(lines[k]) != ""
 		not helpers.is_comment_line(lines[k])
 	})

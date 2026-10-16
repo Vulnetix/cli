@@ -127,7 +127,7 @@ _checked(lines, i, j, buf) if {
 	some k in numbers.range(i + 1, j)
 	l := lines[k]
 	not helpers.is_comment_line(l)
-	regex.match(concat("", [`sizeof[^;]*[<>]=?|[<>]=?\s*\(?\s*\w*\s*\)?\s*sizeof|\bstrn?len\s*\(\s*`, buf, `\b[^;]*(>=|==|>)|\btrunc`]), l)
+	regex.match(concat("", [`sizeof[^;]*[<>]=?|[<>]=?\s*\(?\s*\w*\s*\)?\s*sizeof|\bstrn?len\s*\(\s*`, buf, `\b[^;]*(>=|==|!=|>)|\btrunc`]), l)
 }
 
 # The source length tested against the buffer size up to eight lines before

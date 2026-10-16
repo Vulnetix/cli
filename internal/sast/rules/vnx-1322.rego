@@ -55,7 +55,7 @@ _in_handler(lines, i, _) if {
 
 _closed(lines, j, i, ij) if {
 	j + 1 <= i - 1
-	some m in numbers.range(j + 1, i - 1)
+	some m in helpers.span(j + 1, i - 1)
 	_indent(lines[m]) <= ij
 	regex.match(`^\s*[})\]]`, lines[m])
 }

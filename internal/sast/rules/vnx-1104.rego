@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_1104
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-1104",
 	"name": "Use of Unmaintained Third Party Components",
@@ -189,7 +191,7 @@ _in_xml_comment(lines, i) if {
 }
 
 _closed_between(lines, j, i) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	contains(lines[k], "-->")
 }
 

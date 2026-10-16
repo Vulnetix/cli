@@ -53,7 +53,7 @@ _loop(lines, i) := f if {
 
 _closed(lines, j, i) if {
 	j + 1 <= i - 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(`^\s*\}`, lines[k])
 	_indent(lines[k]) <= _indent(lines[j])
 }

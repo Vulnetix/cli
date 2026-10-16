@@ -129,8 +129,14 @@ _java_pairs(line) := {[m[1], trim_space(m[2])] |
 _outside_string(line, match) if {
 	idx := indexof(line, match)
 	idx >= 0
-	strings.count(_strip_chars(substring(line, 0, idx)), "\"") % 2 == 0
+	strings.count(_strip_chars(substring(line, 0, idx + _lead(match))), "\"") % 2 == 0
 }
+
+# The receiver regex consumes one leading non-word character; it is not part of
+# the call, and when it is a quote it opens a string the call sits inside.
+_lead(match) := 1 if regex.match(`^\W`, match)
+
+_lead(match) := 0 if not regex.match(`^\W`, match)
 
 _strip_chars(s) := regex.replace(s, `\\.|'"'`, "")
 

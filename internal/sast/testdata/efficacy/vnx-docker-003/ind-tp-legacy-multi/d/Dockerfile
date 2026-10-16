@@ -1,0 +1,5 @@
+FROM ruby:3.3.4
+~>ENV SECRET_KEY_BASE 8f3a9c2b7d1e4f6a0b5c9d8e7f6a5b4c
+ENV RAILS_ENV=production \
+~>    AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCYexamplekey \
+    PORT=3000

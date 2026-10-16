@@ -84,7 +84,23 @@ _mode_value(lines, i, mode) := v if {
 		count(m) > 0
 	]
 	count(vals) > 0
-	v := vals[count(vals) - 1]
+	v := _open_paren_value(lines, vals[count(vals) - 1], i)
+}
+
+# A parenthesised multi-line assignment (`m = (` ... `)`) is read as the lines
+# up to the closing parenthesis.
+_open_paren_value(lines, val, i) := val if not regex.match(`^\(\s*$`, val)
+
+_open_paren_value(lines, val, i) := v if {
+	regex.match(`^\(\s*$`, val)
+	opens := [j |
+		some j in numbers.range(max([0, i - 10]), i - 1)
+		regex.match(`^\s*[A-Za-z_]\w*\s*=\s*\(\s*$`, lines[j])
+	]
+	j0 := opens[count(opens) - 1]
+	closes := [k | some k in numbers.range(j0 + 1, min([count(lines) - 1, j0 + 8])); contains(lines[k], ")")]
+	count(closes) > 0
+	v := concat(" ", [trim_space(lines[k]) | some k in numbers.range(j0 + 1, closes[0])])
 }
 
 _secret_path(arg) if regex.match(`(?i)(key|secret|token|cred|passw|\.pem\b|id_rsa|id_ed25519|id_ecdsa|\.ssh)`, arg)

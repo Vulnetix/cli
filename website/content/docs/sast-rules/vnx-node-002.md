@@ -24,8 +24,8 @@ OWASP ASVS v4 requirement **V5.2.4** states: "Verify that the application does n
 Dynamic code evaluation in `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` and `.cjs` files whose code argument is not a constant:
 
 ```javascript
-// FLAGGED: request data evaluated
-const preTax = eval(req.body.preTax);
+// FLAGGED: a computed string evaluated
+const preTax = eval(expr);
 
 // FLAGGED: Function constructor body built by concatenation or interpolation
 const fn = new Function("ctx", "return (" + body + ");");

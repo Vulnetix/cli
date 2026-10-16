@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+  <Resource name="jdbc/orders" auth="Container" type="javax.sql.DataSource"
+            username="orders_app" password="Tc-Ds-Pa55w"
+            driverClassName="org.postgresql.Driver"
+            url="jdbc:postgresql://db.internal:5432/orders"/>
+</Context>

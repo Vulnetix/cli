@@ -1,0 +1,6 @@
+services:
+  web:
+    environment:
+      A: redis://:Zk4mQ8vT2xLp@localhost:6379/0
+      B: redis://:Zk4mQ8vT2xLp@127.0.0.1:6379/0
+      C: redis://:Zk4mQ8vT2xLp@host:6379/0

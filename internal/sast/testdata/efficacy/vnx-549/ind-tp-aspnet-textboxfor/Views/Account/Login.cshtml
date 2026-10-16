@@ -1,0 +1,7 @@
+@model LoginViewModel
+@using (Html.BeginForm("Login", "Account"))
+{
+    @Html.LabelFor(m => m.Password)
+~>    @Html.TextBoxFor(m => m.Password, new { @class = "form-control" })
+    <button type="submit">Log in</button>
+}

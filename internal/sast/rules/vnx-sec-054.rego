@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_sec_054
 
 import rego.v1
+import data.vulnetix.helpers
 import data.vulnetix.lib.secrets
 
 metadata := {
@@ -62,6 +63,7 @@ _dd_file(_, content) if {
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
+	not helpers.is_test_path(path)
 	_dd_file(path, content)
 	lines := split(content, "\n")
 	some i, line in lines

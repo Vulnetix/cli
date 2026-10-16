@@ -154,7 +154,7 @@ _var(line) := v if {
 
 _another_call_between(lines, e, k) if {
 	e + 1 <= k - 1
-	some j in numbers.range(e + 1, k - 1)
+	some j in helpers.span(e + 1, k - 1)
 	regex.match(_call_re, lines[j])
 }
 
@@ -174,6 +174,16 @@ _switched(lines, i, e, v, k) if {
 	_kind(lines[i]) == "gtk"
 	some j in numbers.range(e + 1, k)
 	regex.match(`\bswitch\s*\(\s*gtk_dialog_run\s*\(`, lines[j])
+}
+
+# gint response = gtk_dialog_run(...); switch (response) { ... }
+_switched(lines, i, e, v, k) if {
+	_kind(lines[i]) == "gtk"
+	some j in numbers.range(e + 1, k)
+	m := regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\s*=\s*gtk_dialog_run\s*\(`, lines[j], 1)
+	count(m) > 0
+	some j2 in numbers.range(j + 1, k)
+	regex.match(concat("", [`\bswitch\s*\(\s*`, m[0][1], `\s*\)`]), lines[j2])
 }
 
 # Wrong buttons a line k tests, for the dialog called at i.

@@ -1,0 +1,3 @@
+package lib
+
+const lin_api_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789AbCdEfGhIjKlMn_suffix_handler = 1

@@ -140,7 +140,7 @@ findings contains finding if {
 	e := _region_end(lines, i, ind, x)
 	i + 1 <= e - 1
 	names := {x} | _dependents(lines, i, kind, x)
-	some j in numbers.range(i + 1, e - 1)
+	some j in helpers.span(i + 1, e - 1)
 	_code(lines[j])
 	some name in names
 	_use(lang, kind, name, lines[j])

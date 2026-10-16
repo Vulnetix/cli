@@ -73,12 +73,12 @@ _unprotected(lines, i, s, release) if {
 }
 
 _guarded(lines, i, j, _) if {
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	regex.match(`\bfinally\b`, lines[k])
 }
 
 _guarded(lines, i, j, ind) if {
-	some k in numbers.range(i + 1, j - 1)
+	some k in helpers.span(i + 1, j - 1)
 	trim_space(lines[k]) != ""
 	_indent(lines[k]) < ind
 }

@@ -45,7 +45,7 @@ _encloses(lines, k, j) if {
 
 _closed_between(lines, k, j, ik) if {
 	k + 1 <= j - 1
-	some m in numbers.range(k + 1, j - 1)
+	some m in helpers.span(k + 1, j - 1)
 	_indent(lines[m]) <= ik
 	startswith(trim_left(lines[m], " \t"), "}")
 }
@@ -72,7 +72,7 @@ _goroutine(lines, a) := a if {
 # The WaitGroup is declared inside the goroutine: it is its own.
 _local_to(lines, g, a, recv) if {
 	g + 1 <= a - 1
-	some k in numbers.range(g + 1, a - 1)
+	some k in helpers.span(g + 1, a - 1)
 	regex.match(concat("", [`\b`, recv, `\s*:?=\s*(?:&?sync\.WaitGroup\{|new\(sync\.WaitGroup\))|\bvar\s+`, recv, `\s+sync\.WaitGroup\b`]), lines[k])
 }
 

@@ -110,6 +110,9 @@ _xml_values(path, line) := {m[1] |
 	not _weak(m[1])
 }
 
+# Pagination and sync cursors are named like tokens but are not credentials.
+_pagination(line) if regex.match(`(?i)(page|cursor|continuation|sync|next|prev|previous)[_-]?token['"]?\s*(?::=|=>|=|:)`, line)
+
 # Cheap gate: a credential word, the rest of the name, then an assignment.
 _gate := `(?i)(?:key|secret|token|passw|cred)[a-z0-9_-]*(?:['"]?(?:\s+string)?\s*[:=]|">)`
 
@@ -146,6 +149,7 @@ findings contains finding if {
 	contains(line, c)
 	regex.match(_gate, line)
 	not helpers.is_comment_line(line)
+	not _pagination(line)
 	some v in (_values(path, line) | _bare_values(path, line)) | _xml_values(path, line)
 	finding := {
 		"rule_id": metadata.id,

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <permission
+        android:name="com.harbourline.ferry.permission.READ_BOOKINGS"
+        android:protectionLevel="signature" />
+
+    <application android:name=".FerryApp">
+
+~>        <provider
+            android:name=".data.BookingsProvider"
+            android:authorities="com.harbourline.ferry.bookings"
+            android:readPermission="com.harbourline.ferry.permission.READ_BOOKINGS"
+            android:exported="true" />
+
+~>        <service
+            android:exported="true"
+            android:name=".pay.CardTokenService" />
+
+~>        <activity-alias
+            android:name=".QuickBook"
+            android:targetActivity=".booking.BookingActivity"
+            android:exported="true" />
+    </application>
+</manifest>

@@ -1,0 +1,9 @@
+{
+    "name": "acme/string-utils",
+    "type": "library",
+    "description": "Helpers",
+    "require": {
+        "php": "^8.1",
+        "psr/log": "^3.0"
+    }
+}

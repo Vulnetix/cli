@@ -271,7 +271,7 @@ _sv_catch_var(lines, i) := v if {
 _sv_closed(lines, c, i) if {
 	ic := _sv_indent(lines[c])
 	c + 1 <= i - 1
-	some k in numbers.range(c + 1, i - 1)
+	some k in helpers.span(c + 1, i - 1)
 	_sv_indent(lines[k]) <= ic
 	startswith(trim_space(lines[k]), "}")
 }
@@ -495,7 +495,7 @@ _js_dev_block(lines, i) if {
 }
 
 _js_block_closed(lines, j, i) if {
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	regex.match(`^\s*\}`, lines[k])
 }
 

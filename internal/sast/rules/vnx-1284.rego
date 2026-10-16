@@ -172,7 +172,7 @@ _src_names(lines, j) := ns if {
 # The name was assigned something else between the read and the use.
 _reassigned(lines, j, i, v) if {
 	i - 1 >= j + 1
-	some k in numbers.range(j + 1, i - 1)
+	some k in helpers.span(j + 1, i - 1)
 	helpers.assigned_first(lines[k]) == v
 	not regex.match(concat("", [`\b`, v, `\s*[+\-*]=`]), lines[k])
 }
@@ -190,8 +190,18 @@ findings contains finding if {
 	regex.match(_src[lang], line)
 	_sink(lines, i, line, concat("", ["(?:", _src[lang], ")"]), "")
 	not _inline_guarded(lines, i, lang)
+	not _in_string_literal(line)
 	not _vnx840_reports(path, content, lines, i)
 	finding := _finding(path, i, line)
+}
+
+# The request expression sits inside a quoted string, so it is text, not code.
+_in_string_literal(line) if {
+	m := regex.find_n(`\breq(?:uest)?\s*\.|\brequest\s*\.`, line, 1)
+	count(m) == 1
+	prefix := split(line, m[0])[0]
+	some q in ["\"", "'", "`"]
+	(count(split(prefix, q)) - 1) % 2 == 1
 }
 
 _inline_guarded(lines, i, lang) if {

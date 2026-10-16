@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_822
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 
 metadata := {
 	"id": "VNX-822",
@@ -161,7 +163,7 @@ _received_into(lines, i, buf) if {
 
 # Another top-level function starts between the ioctl handler and line i.
 _function_between(lines, s, i) if {
-	some k in numbers.range(s + 1, i - 1)
+	some k in helpers.span(s + 1, i - 1)
 	startswith(lines[k], "}")
 }
 

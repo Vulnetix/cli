@@ -1,0 +1,11 @@
+name: e2e
+on: [push]
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run suite
+        run: npm run e2e
+        env:
+~>          NODE_TLS_REJECT_UNAUTHORIZED: "0"

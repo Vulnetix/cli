@@ -28,7 +28,7 @@ _method_re := concat("", [`^\s*`, _mods, `(?:<[^()]*>\s+)?([\w.$]+(?:<[^()]*>)?(
 
 _ctor_re := concat("", [`^\s*`, _mods, `([A-Z][\w$]*)\s*\(`])
 
-_not_types := {"return", "new", "throw", "else", "case", "yield", "assert", "package", "import", "record", "class", "interface", "enum", "await"}
+_not_types := {"return", "new", "throw", "else", "case", "yield", "assert", "package", "import", "record", "class", "interface", "enum", "await", "public", "protected", "private", "static", "final", "abstract", "synchronized", "native", "default", "strictfp"}
 
 _keywords := {"if", "for", "while", "switch", "catch", "synchronized", "return", "new", "try", "super", "this"}
 
@@ -71,7 +71,7 @@ _decl_line(lines, i) := min(cands) if {
 		some j in numbers.range(i + 1, n)
 		not _skippable(lines[j])
 		not startswith(trim_space(lines[j]), "@")
-		sum([_depth(lines[m]) | some m in numbers.range(i + 1, j - 1)]) == 0
+		sum([_depth(lines[m]) | some m in helpers.span(i + 1, j - 1)]) == 0
 	]
 	count(cands) > 0
 }
@@ -88,11 +88,18 @@ _decl(lines, d) := [m[0][1], p] if {
 
 _decl(lines, d) := ["", p] if {
 	s := _clean(lines[d])
-	not regex.match(_method_re, s)
+	not _is_method(s)
 	m := regex.find_all_string_submatch_n(_ctor_re, s, 1)
 	count(m) > 0
 	not _keywords[lower(m[0][1])]
 	p := _params(lines, d)
+}
+
+_is_method(s) if {
+	m := regex.find_all_string_submatch_n(_method_re, s, 1)
+	count(m) > 0
+	not _not_types[m[0][1]]
+	not _keywords[m[0][2]]
 }
 
 _params(lines, d) := p if {

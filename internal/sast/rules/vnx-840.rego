@@ -80,7 +80,7 @@ _tainted(lang, lines, i) := {v |
 }
 
 # String literals containing whitespace are prose, not keys.
-_strip(line) := regex.replace(line, concat("", [`"[^"\n]*\s[^"\n]*"|'[^'\n]*\s[^'\n]*'|`, "`[^`\\n]*`"]), `""`)
+_strip(line) := regex.replace(line, concat("", [`"(?:\\.|[^"\\\n])*(?:[\s()=]|\\.)(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*(?:[\s()=]|\\.)(?:\\.|[^'\\\n])*'|`, "`[^`\\n]*`"]), `""`)
 
 _targets := `amount|unit_amount|amount_total|total|subtotal|grand_total|total_price|discount|balance`
 
@@ -152,7 +152,7 @@ findings contains finding if {
 	some rhs in {r | r := _sink_rhs(line)}
 	not regex.match(`^\s*\{|\$(?:gte?|lte?|eq|ne|in)\b`, rhs)
 	_carries(lang, rhs, lines, i, line)
-	regex.match(`(?i)stripe|paypal|braintree|adyen|square|razorpay|mollie|charge|payment|pay\b|checkout|order|invoice|refund|transfer|wallet|account|cart|basket|price|coupon`, helpers.code_window(lines, i, 10, 0))
+	regex.match(`(?i)stripe|paypal|braintree|adyen|square|razorpay|mollie|charge|payment|pay\b|checkout|order|invoice|refund|transfer|wallet|account|cart|basket|price|coupon|balance`, helpers.code_window(lines, i, 10, 0))
 	finding := {
 		"rule_id": metadata.id,
 		"message": "A monetary value taken from the request decides what is charged, credited or booked. The client can set its own price, discount or a negative amount. Compute the amount on the server from the order and catalogue, or reject a client value that does not match",

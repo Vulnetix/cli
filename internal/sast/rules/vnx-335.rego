@@ -82,6 +82,24 @@ findings contains finding if {
 	finding := _finding(path, i, line, "SecureRandom seeded with a constant or the clock; remove the setSeed call (or seed only from generateSeed())")
 }
 
+# ── bare setSeed(literal) inside SecureRandom.getInstance(..).apply { } ──
+
+findings contains finding if {
+	some path, content in input.file_contents
+	endswith(path, ".kt")
+	contains(content, "SecureRandom")
+	not helpers.is_test_path(path)
+	lines := split(content, "\n")
+	some i, line in lines
+	not helpers.is_comment_line(line)
+	m := regex.find_all_string_submatch_n(`^\s*setSeed\((.*)\)\s*$`, line, 1)
+	count(m) > 0
+	regex.match(_jvm_weak_seed, m[0][1])
+	some k in numbers.range(max([0, i - 3]), i - 1)
+	regex.match(`SecureRandom[^\n]*\b(apply|also|run|with)\b|\b(apply|also|run|with)\b[^\n]*SecureRandom`, lines[k])
+	finding := _finding(path, i, line, "SecureRandom seeded with a constant or the clock; remove the setSeed call (or seed only from generateSeed())")
+}
+
 # ── java.util.Random with a reproducible seed producing a secret ────────
 
 findings contains finding if {
@@ -122,6 +140,23 @@ _draws_secret(lines, v) if {
 	not helpers.is_comment_line(l)
 	regex.match(_secret_re, l)
 	not _lookup_key(l)
+}
+
+# A Python draw inside a function whose name says it makes a secret
+# (def invite_token(): ... random.choice(...)).
+_draws_secret(lines, v) if {
+	re := concat("", [`\b`, v, `\.(choice|choices|randint|randrange|getrandbits|sample|randbytes)\(`])
+	some k, l in lines
+	regex.match(re, l)
+	not helpers.is_comment_line(l)
+	defs := [j |
+		some j, x in lines
+		j < k
+		regex.match(`^\s*(async\s+)?def\s+\w+`, x)
+	]
+	count(defs) > 0
+	n := regex.find_all_string_submatch_n(`def\s+(\w+)`, lines[max(defs)], 1)
+	regex.match(_secret_re, n[0][1])
 }
 
 # key = "user:" + rnd.nextInt(1000) builds a lookup key (cache, map, shard)

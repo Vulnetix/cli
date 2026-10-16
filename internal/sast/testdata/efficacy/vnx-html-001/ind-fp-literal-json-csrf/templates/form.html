@@ -1,0 +1,8 @@
+<form method="post">
+  {{ "<br>"|safe }}
+  {{ csrf_token|safe }}
+  {{ form.username|safe }}
+  <script>var state = {{ state|tojson|safe }};</script>
+  <p>{{ note|escape|safe }}</p>
+  <p>{{ comment.body|bleach|safe }}</p>
+</form>

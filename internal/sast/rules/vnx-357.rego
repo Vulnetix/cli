@@ -30,7 +30,17 @@ _markup_comment(line) if regex.match(`^\s*(?:<!--|<%#|-#|/\s)`, line)
 
 # Statement starting on line i, joined with continuation lines (a line ending
 # in ",", "(" or "{"), at most five lines.
+# A call whose parentheses close on its own line (an element of a list or
+# argument array) ends there: the continuation belongs to the next element.
+_closed_call(line) if {
+	regex.match(`\b(?:link_to|button_to)\(`, line)
+	count(split(line, "(")) == count(split(line, ")"))
+}
+
+_statement(lines, i) := lines[i] if _closed_call(lines[i])
+
 _statement(lines, i) := concat("\n", array.slice(lines, i, i + n)) if {
+	not _closed_call(lines[i])
 	end := min([count(lines), i + 5])
 	stops := [k |
 		some k in numbers.range(i, end - 1)
@@ -50,7 +60,7 @@ _tag(lines, i) := concat("\n", array.concat([first], array.slice(lines, i + 1, i
 	not contains(first, ">")
 	end := min([count(lines), i + 5])
 	stops := [k |
-		some k in numbers.range(i + 1, end - 1)
+		some k in helpers.span(i + 1, end - 1)
 		contains(lines[k], ">")
 	]
 	n := _first_or(stops, end - 1) - i
@@ -119,5 +129,6 @@ findings contains finding if {
 	regex.match(`^<a\b[^>]*data-(?:turbo-)?method\s*=\s*["']?delete\b`, tag)
 	not regex.match(`(?i)data-(?:turbo-)?confirm`, tag)
 	not regex.match(_sign_out, tag)
+	not regex.match(`(?i)\s(?:onclick|\(click\)|@click|v-on:click|x-on:click|ng-click)\s*=`, tag)
 	finding := _finding(path, i, line, "An anchor with data-method=\"delete\" has no data-confirm: one click destroys the resource without warning. Add data-confirm (rails-ujs) or data-turbo-confirm")
 }

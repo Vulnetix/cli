@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:name=".EnterpriseAgentApp"
+        android:permission="com.northwind.agent.permission.ENTERPRISE"
+        android:label="@string/app_name">
+
+        <service
+            android:name=".policy.PolicyPushService"
+            android:exported="true" />
+
+        <receiver
+            android:name=".policy.PolicyChangedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.northwind.agent.action.POLICY_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name="com.thirdparty.sdk.DebugMenuActivity"
+            android:exported="true"
+            tools:node="remove" />
+    </application>
+</manifest>
