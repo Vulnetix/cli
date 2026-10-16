@@ -1,4 +1,4 @@
 package ids
 
-const opaqueBlob = "ZAKIAQWERTYUIOPASDFGHJK7"
-const deviceID = "AKIAQWERTYUIOPASDFGHJKLZXC"
+const opaqueBlob = "ZAKIA@@sample:[0-9A-Z]{19}@@"
+const deviceID = "AKIA@@sample:[0-9A-Z]{22}@@"

@@ -1,5 +1,5 @@
 import os
 
-doc = "ghs_16C7e42F292c6912E7710c838347Ae17"
+doc = "ghs_@@sample:[A-Za-z0-9]{32}@@"
 ph = "gho_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 tok = os.environ["GITHUB_TOKEN"]

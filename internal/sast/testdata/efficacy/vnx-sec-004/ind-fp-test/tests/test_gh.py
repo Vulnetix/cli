@@ -1,1 +1,1 @@
-TOKEN = "ghp_Qm7Zx2Lp9Wc4Vb8Nk3Jh6Gd1Fs5Ta0Yu2Ri9"
+TOKEN = "ghp_@@sample:[A-Za-z0-9]{36}@@"

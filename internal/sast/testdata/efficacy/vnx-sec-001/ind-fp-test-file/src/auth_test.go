@@ -1,5 +1,5 @@
 package auth
 
-const fixtureKey = "AKIAJ3Q7ZK2PLM4WXYAB"
+const fixtureKey = "AKIA@@sample:[0-9A-Z]{16}@@"
 
 func TestKey(t *testing.T) { _ = fixtureKey }

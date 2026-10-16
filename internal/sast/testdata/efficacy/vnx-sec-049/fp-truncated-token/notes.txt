@@ -1,1 +1,1 @@
-The leaked key was sk-ant-admin01-Ab3dE5gH7jK9mN1pQ3sT5vX7zB9dF1hJ (truncated in the incident log).
+The leaked key was sk-ant-@@sample:[A-Za-z0-9-]{40}@@ (truncated in the incident log).
