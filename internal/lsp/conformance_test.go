@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
+	"github.com/vulnetix/cli/v3/internal/sast"
 )
 
 // A conformance harness: two ends of a net.Pipe, a real Server on one side and
@@ -82,6 +83,13 @@ func (c *testClient) waitForPublish(t *testing.T, uri string, timeout time.Durat
 	}
 }
 
+// testSession is shared by every server the tests start. A Session caches the
+// compiled rule set by the modules' digest, so the corpus compiles once per test
+// process instead of once per test. Under -race each compile is resident in the
+// gigabytes, and fifteen of them took the package past the 8 GB the CI runners
+// have: the runner was killed mid-step and the job ended with exit 143.
+var testSession = &sast.Session{}
+
 // startServer wires a Server to a client over an in-memory pipe.
 func startServer(t *testing.T, root string) (*testClient, func()) {
 	t.Helper()
@@ -94,6 +102,7 @@ func startServer(t *testing.T, root string) (*testClient, func()) {
 		Debounce:   0, // no debounce: tests assert on behaviour, not timing
 		Logf:       func(string, ...any) {},
 	})
+	srv.session = testSession
 
 	ctx, cancel := context.WithCancel(context.Background())
 
