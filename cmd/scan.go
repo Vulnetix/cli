@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -426,6 +427,11 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	// Locals for the values this function still reasons about before handing
 	// opts to the scan. Everything else stays on opts.
 	scanPath := opts.RootPath
+	// Set before the org quality gate is fetched below: that is the scan's
+	// first cli.* request, and it describes the scanned repository.
+	if abs, err := filepath.Abs(cmp.Or(scanPath, ".")); err == nil {
+		setScanTarget(abs)
+	}
 	depth := opts.Depth
 	suppressTestCode, _ = cmd.Flags().GetBool("suppress-test-code")
 	excludes := opts.Excludes
@@ -608,7 +614,8 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	}
 
 	// ── 1. Collect git context early for display ───────────────────────
-	gitCtx := gitctx.Collect(scanPath)
+	// Shared with the cli.* requests, which carry the same repository.
+	gitCtx := cwdGitContext(scanPath)
 	// The backend suppression rules depend only on the repo and branch, so their
 	// fetch overlaps the local scan rather than following it.
 	if !noSCA || !noSAST || !noLicenses {
