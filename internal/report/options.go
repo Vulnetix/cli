@@ -49,6 +49,15 @@ type Options struct {
 	Now   time.Time
 	// Command names the subcommand in plain output: "scan", "sca", and so on.
 	Command string
+	// RulePacks maps an upper-cased rule id to the external pack ("org/repo")
+	// that supplied it; an embedded rule maps to "". A suggested command loads
+	// the pack again, or the rule it names never runs.
+	RulePacks map[string]string
+	// Replay holds, per scanner, the input flags this run was given that a
+	// suggested command must repeat to see the same thing (--path, --exclude,
+	// --rule-registry, ...), already filtered to the flags that scanner takes.
+	// --rule is not in it: packs come from RulePacks.
+	Replay map[string][]string
 }
 
 // ParseList splits a comma-separated flag value.

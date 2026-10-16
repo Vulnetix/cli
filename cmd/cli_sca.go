@@ -85,6 +85,11 @@ type cliSCAGateOptions struct {
 	// pass, which is the escape hatch for monorepos where the whole-tree sweep
 	// costs more than the evidence is worth.
 	Reachability string
+	// Ephemeral asks without recording: no request carries packages or
+	// manifests, which is what makes the server open a run, so no snapshot is
+	// persisted. --explain sets it: its package list is narrowed to what the
+	// query names, and a snapshot of that fragment would read as the project's.
+	Ephemeral bool
 }
 
 // reachabilityMode resolves the gate options' --reachability value. The value
@@ -162,7 +167,13 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		}
 		env.ToolMetadata.ToolName = toolName
 	}
-	enrichCliEnvForSCA(&env, scanPath, allPackages, gitCtx)
+	if gateOpts.Ephemeral {
+		// The bare environment confirmVulnsViaCliSCA sends: no manifests, no
+		// repository context, nothing a run could be opened for.
+		env = buildCliEnv(nil, nil)
+	} else {
+		enrichCliEnvForSCA(&env, scanPath, allPackages, gitCtx)
+	}
 
 	// Raw manifest bodies (lockfiles) can be large, so we don't cram them all
 	// onto chunk 0 — that would blow the server's 8 MiB request cap. Chunk 0
@@ -193,13 +204,15 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	// it carries the metadata manifests + full package list and creates the
 	// run/snapshot. Remaining PURL chunks are discovery jobs; the size-bounded
 	// manifest-body slots each ride their own job, anchored to the snapshot once
-	// it exists.
+	// it exists. An ephemeral request has no primary and sends no bodies.
 	jobs := make([]scaJob, 0, len(chunks)+len(bodySlots))
 	for i, c := range chunks {
-		jobs = append(jobs, scaJob{purls: c, primary: i == 0, manifestSlot: -1})
+		jobs = append(jobs, scaJob{purls: c, primary: i == 0 && !gateOpts.Ephemeral, manifestSlot: -1})
 	}
-	for s := range bodySlots {
-		jobs = append(jobs, scaJob{primary: false, manifestSlot: s})
+	if !gateOpts.Ephemeral {
+		for s := range bodySlots {
+			jobs = append(jobs, scaJob{primary: false, manifestSlot: s})
+		}
 	}
 	if len(jobs) == 0 {
 		jobs = append(jobs, scaJob{primary: true, manifestSlot: -1})
@@ -216,6 +229,13 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 				IncludeEOL:          gateOpts.EOL,
 				IncludeMalware:      gateOpts.Malware,
 			},
+		}
+		if gateOpts.Ephemeral {
+			// Purls only: the same request a discovery job makes before any
+			// snapshot exists, which the server answers without persisting.
+			reqEnv := env
+			reqEnv.Manifests = nil
+			return reqEnv, req, len(job.purls) == 0
 		}
 		if job.primary {
 			// Creates the run/snapshot: metadata-only manifests + full package list.
@@ -358,7 +378,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		if !silent {
 			fmt.Fprintf(w, "Snapshot: %s\n", snapshot.URL)
 		}
-	} else if !isUnauthenticatedScan() {
+	} else if !isUnauthenticatedScan() && !gateOpts.Ephemeral {
 		// Explicit (non-community) credentials were configured, but the server
 		// persisted no snapshot. Surface it instead of degrading silently. A Pro
 		// response means the credentials were fine and persistence itself broke;

@@ -258,7 +258,7 @@ Examples:
 
 What to show:
   vulnetix scan -v                     # add per-advisory version checks and scores
-  vulnetix scan --explain PYSEC-2024-38  # why one finding applies, with the evidence
+  vulnetix sca --explain PYSEC-2024-38   # why one finding applies; asks only about the packages it affects
   vulnetix scan --filter reachable,fixable   # only what is reachable and has a fix
   vulnetix scan --min-severity high    # hide anything below high (does not change the exit code)
   vulnetix scan --view findings        # one line per advisory instead of per package
@@ -367,7 +367,7 @@ The flags --severity, --block-malware, --block-eol, --block-unpinned, --exploits
 
 		// Capture AI coding-agent / SDK / model inventory alongside the scan.
 		// Best-effort and authenticated-only; never changes the scan's exit code.
-		if noAibom, _ := cmd.Flags().GetBool("no-aibom"); !noAibom {
+		if noAibom, _ := cmd.Flags().GetBool("no-aibom"); !noAibom && !explainRequested(cmd) {
 			scanPath, _ := cmd.Flags().GetString("path")
 			if scanPath == "" {
 				scanPath = "."
@@ -377,7 +377,7 @@ The flags --severity, --block-malware, --block-eol, --block-unpinned, --exploits
 
 		// Capture cryptographic inventory (PQC posture) alongside the scan.
 		// Best-effort and authenticated-only; never changes the scan's exit code.
-		if noCbom, _ := cmd.Flags().GetBool("no-cbom"); !noCbom {
+		if noCbom, _ := cmd.Flags().GetBool("no-cbom"); !noCbom && !explainRequested(cmd) {
 			scanPath, _ := cmd.Flags().GetString("path")
 			if scanPath == "" {
 				scanPath = "."
@@ -523,6 +523,23 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	ruleRefs := opts.RuleRefs
 	ruleRegistry := opts.RuleRegistry
 	ruleID := opts.RuleID
+	// --explain names one finding, so the run that answers it does only that
+	// work and changes nothing (see cmd/scan_explain.go). A query naming a rule
+	// becomes single-rule mode below; the rule modules it loaded to find that out
+	// are handed on so the packs are not fetched twice.
+	if opts.Explain != "" {
+		noLicenses = true
+		scaAutofix = false
+		opts.Jail = false
+		if ruleID == "" && cmd.Flags().Lookup("rule") != nil {
+			modules, id := explainRuleModules(opts.Explain, disableDefaultRules, ruleRefs, ruleRegistry, explainProgress())
+			opts.PreloadedModules = modules
+			if id != "" {
+				ruleID = strings.ToUpper(id)
+				opts.RuleID = ruleID
+			}
+		}
+	}
 	if ruleID != "" {
 		// Single-rule mode: run exactly the one named SAST rule.
 		// Suppress all manifest/package checks and force SAST enabled.
@@ -543,8 +560,10 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	// When the user explicitly imports external rule repos into the generic
 	// `scan` command, treat that as authoritative intent: don't silently
 	// suppress non-SAST kinds (iac, secrets, oci) just because a feature
-	// defaulted off. For a locked specialized subcommand the lock wins instead.
-	if len(ruleRefs) > 0 && lockedKinds == nil {
+	// defaulted off. For a locked specialized subcommand the lock wins instead,
+	// and single-rule mode already runs exactly the rule it names: turning the
+	// container and IaC passes back on there would read their manifests too.
+	if len(ruleRefs) > 0 && lockedKinds == nil && ruleID == "" {
 		noSecrets = false
 		noContainers = false
 		noIAC = false
@@ -652,7 +671,11 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	// malware quality-gate breach. Computed before any no-files / no-manifest
 	// bail so `scan`/`sca --block-malware` still gate on installed-dependency
 	// malware in repos with no scannable root manifest; merged into every return.
-	malscanBreach := runMalscanPassForScan(cmd, scanPath, blockMalware, gitCtx)
+	// An explain run skips it: it explains a finding, and malscan uploads.
+	var malscanBreach *GateBreach
+	if opts.Explain == "" {
+		malscanBreach = runMalscanPassForScan(cmd, scanPath, blockMalware, gitCtx)
+	}
 
 	if len(files) == 0 {
 		// WalkForScanFiles only detects dependency manifests and SBOM
@@ -956,7 +979,15 @@ func runLocalScan(
 	// auto-VEX noise from SAST finding state-changes. The SARIF is the report
 	// for these scans — never write a stray sbom.cdx.json. (The generic `scan`
 	// command does SCA → noSCA is false; container scans are handled above.)
-	suppressBOM := noSCA && !containerOnly
+	//
+	// An explain run writes nothing: it is narrowed to one finding, and a BOM,
+	// SARIF, memory or VEX written from it would replace the full scan's with a
+	// fragment.
+	explaining := opts.Explain != ""
+	// explainNamedPackages is set when the query names dependencies, so the rule
+	// engine, which cannot explain one, does not run.
+	explainNamedPackages := false
+	suppressBOM := (noSCA && !containerOnly) || explaining
 	analysisLabel := "SAST"
 	analysisTitle := "SAST Analysis"
 	sarifFileName := "sast.sarif"
@@ -1123,6 +1154,25 @@ func runLocalScan(
 		// project whose manifests declare no dependencies used to exit 1 blaming
 		// the user's setup for a result that is simply clean.
 		runSCAQuery := len(allPackages) > 0 && (!noSCA || containerOnly)
+		// --explain asks about the packages its query names and nothing else.
+		// A query that names none (a path, a rule) has nothing to ask the VDB.
+		queryPackages := allPackages
+		if explaining && runSCAQuery {
+			narrowed, matched, resolved := explainPackages(allPackages, opts.Explain, rootPath)
+			switch {
+			case !matched:
+				runSCAQuery = false
+			case !resolved:
+				// Shaped like an advisory, but neither the last scan nor the VDB
+				// knows it: ask about every package rather than miss the one it
+				// affects, and keep the rules, in case it is a pack's rule id.
+				fmt.Fprintf(progressStderr, "  could not learn which packages %s affects; asking about every package\n", opts.Explain)
+			default:
+				queryPackages = narrowed
+				explainNamedPackages = true
+				runSCAQuery = len(narrowed) > 0
+			}
+		}
 		if runSCAQuery {
 			// ── Query /v2/cli.sca (one self-healing round-trip for the PURL list) ─
 			// The endpoint returns CycloneDX + enriched findings + reachability in a
@@ -1135,13 +1185,14 @@ func runLocalScan(
 				EOL:          blockEOL,
 				Malware:      blockMalware,
 				Reachability: opts.Reachability,
+				Ephemeral:    explaining,
 			}
 			scaToolName := ""
 			if containerOnly {
 				scaToolName = "vulnetix-containers"
 			}
-			rep.Stage(fmt.Sprintf("Querying VDB for %d package(s)", countUniquePackages(allPackages)))
-			apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL, apiPersistedFindings := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, scaToolName, gateOpts, progressStderr)
+			rep.Stage(fmt.Sprintf("Querying VDB for %d package(s)", countUniquePackages(queryPackages)))
+			apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL, apiPersistedFindings := tryCliSCA(queryPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, scaToolName, gateOpts, progressStderr)
 			if apiServed {
 				allVulns = apiVulns
 				scaEnrichedFromAPI = apiEnriched
@@ -1505,7 +1556,7 @@ func runLocalScan(
 
 	// ── Write IDS rules if any ───────────────────────────────────────────
 	rulesPath := ""
-	if len(idsRules) > 0 {
+	if len(idsRules) > 0 && !explaining {
 		rulesPath = filepath.Join(vulnetixDir, "detection-rules.rules")
 		if err := writeIDSRulesFile(rulesPath, idsRules); err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: could not write IDS rules: %v\n", err)
@@ -1519,14 +1570,21 @@ func runLocalScan(
 
 	// ── SAST analysis ────────────────────────────────────────────────────
 	// Run SAST if at least one SAST sub-category is enabled.
-	disableAllSAST := noSASTRules && noSecrets && noContainers && noIAC
+	disableAllSAST := (noSASTRules && noSecrets && noContainers && noIAC) || explainNamedPackages
 	var sastReport *sast.SASTReport
 	if !disableAllSAST {
 		rep.Stage(fmt.Sprintf("Loading %s rules", strings.ToLower(analysisLabel)))
-		modules, merr := sast.LoadAllModules(sast.DefaultRulesFS, disableDefaultRules, ruleRefs, ruleRegistry, progressStderr)
-		if merr != nil {
-			fmt.Fprintf(progressStderr, "  warning: could not load SAST rules: %v\n", merr)
+		modules := opts.PreloadedModules
+		if modules == nil {
+			var merr error
+			modules, merr = sast.LoadAllModules(sast.DefaultRulesFS, disableDefaultRules, ruleRefs, ruleRegistry, progressStderr)
+			if merr != nil {
+				fmt.Fprintf(progressStderr, "  warning: could not load SAST rules: %v\n", merr)
+			}
 		}
+		// Which pack supplied each rule, before any filter drops one, so every
+		// command the report suggests loads the pack its rule needs.
+		activeSurface.Display.RulePacks = sast.RuleSources(modules)
 		if len(modules) > 0 {
 			totalLoaded := len(modules)
 			fmt.Fprintf(progressStderr, "  Loaded %d rules (pre-filter)\n", totalLoaded)
@@ -1618,7 +1676,7 @@ func runLocalScan(
 			rec.SASTFindingCount = len(sastReport.Findings)
 
 			sarifPath := filepath.Join(vulnetixDir, sarifFileName)
-			if !disableMemory {
+			if !disableMemory && !explaining {
 				// Partition findings by rule Kind: "sast" → SASTFindings map;
 				// "secrets" / "iac" / "oci" → categorised findings tagged with
 				// the appropriate memory.Tool* value so triage --tool can filter.
@@ -1720,7 +1778,7 @@ func runLocalScan(
 			}
 			// Write SARIF only when findings exist. A clean container scan should
 			// not leave a misleading empty SARIF artifact behind.
-			if len(sastReport.Findings) > 0 {
+			if len(sastReport.Findings) > 0 && !explaining {
 				sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
 				sarifLog.AddExecutionNotifications(sastReport.Degradations)
 				if werr := sast.WriteSARIF(sarifLog, sarifPath); werr != nil {
@@ -1728,7 +1786,7 @@ func runLocalScan(
 				} else {
 					rec.SARIFPath = ".vulnetix/" + sarifFileName
 				}
-			} else {
+			} else if !explaining {
 				_ = os.Remove(sarifPath)
 				if containerOnly {
 					_ = os.Remove(filepath.Join(vulnetixDir, "sast.sarif"))
@@ -1738,7 +1796,7 @@ func runLocalScan(
 			// Container scans persist their BOM/package inventory through
 			// /v2/cli.sca first. The returned snapshot UUID is then supplied to
 			// /v2/cli.containers so SARIF findings attach to the same run snapshot.
-			if containerOnly && len(allPackages) > 0 && scaSnapshotUuid == "" && !isUnauthenticatedScan() {
+			if containerOnly && len(allPackages) > 0 && scaSnapshotUuid == "" && !isUnauthenticatedScan() && !explaining {
 				rep.Stage("Persisting container BOM")
 				// The persisted findings are not consumed on the container path:
 				// the VEX/autofix passes that read them have already run above.
@@ -1765,12 +1823,12 @@ func runLocalScan(
 			// regardless of auth so nosec persists offline; the mint list is only
 			// sent when authenticated.
 			var suppressionMints []vdb.CliSuppressionMint
-			if !disableMemory {
+			if !disableMemory && !explaining {
 				suppressionMints = reconcileScanSuppressions(mem, gitCtx, nosecHits, rootPath, time.Now().Unix())
 			}
 			// Test-code suppressions (--suppress-test-code) ride the same mint list.
 			suppressionMints = append(suppressionMints, testSuppressionMints...)
-			if !isUnauthenticatedScan() {
+			if !isUnauthenticatedScan() && !explaining {
 				// Which SARIF-family scanners actually ran — an enabled one that
 				// found nothing still submits so the backend records coverage.
 				enabledKinds := map[string]bool{
@@ -1922,12 +1980,17 @@ func runLocalScan(
 	// identifiers are rule fingerprints, which have no meaning in a CycloneDX
 	// `vulnerabilities` array. The paths are surfaced with the other artefacts
 	// at the end of the run, not here, where the findings tables would bury them.
-	vexPaths := writeOpenVEXForPartition(rootPath, changesByTool)
+	var vexPaths []string
+	if !explaining {
+		vexPaths = writeOpenVEXForPartition(rootPath, changesByTool)
+	}
 
 	// --disable-memory means exactly that: nothing is read from or written to
 	// memory.yaml. The scan record is not persisted either — a memory file that
 	// exists only to hold scan history is still a memory file.
-	if !disableMemory {
+	if explaining {
+		rep.Update(6, "Skipped local scan state (--explain)")
+	} else if !disableMemory {
 		recordAutofixMemoryEvents(mem, autofixResolved)
 		mem.RecordScan(rec)
 		if err := memory.Save(vulnetixDir, mem); err != nil {
@@ -1949,7 +2012,9 @@ func runLocalScan(
 	case noSCA && !disableAllSAST:
 		graphToolName = "vulnetix-static-graph"
 	}
-	postScannerGraphInsights(rootPath, graphToolName, gitCtx, progressStderr)
+	if !explaining {
+		postScannerGraphInsights(rootPath, graphToolName, gitCtx, progressStderr)
+	}
 
 	// ── Third-party VEX ───────────────────────────────────────────────────
 	// Applied here, in one place, immediately before the gates. Every gate that
@@ -2428,7 +2493,7 @@ func runLocalScan(
 	// "SCA current and clean, SAST forty days old — indeterminate", which is
 	// exactly what the per-category coverage resolution produces.
 	jailIndeterminate := false
-	if opts.Jail {
+	if opts.Jail && !explaining {
 		jailBreaches, indeterminate, jerr := runJailPassForScan(ctx, rootPath, finalizedSnapshotList(scaSnapshotUuid, sarifSnapshotUuids))
 		if jerr != nil {
 			fmt.Fprintf(os.Stderr, "  warning: jail evaluation failed: %v\n", jerr)
@@ -2602,7 +2667,12 @@ func runLocalScan(
 		explained = printCodeExplain(sastReport, analysisLabel, rootPath, activeSurface)
 	}
 	if explainOnly && !explained {
-		fmt.Fprintf(os.Stderr, "Nothing to explain: no finding matches %q. Use an advisory id, a rule id, a package name, name@version or a file path.\n", activeSurface.Explain)
+		return fmt.Errorf("nothing to explain: no finding matches %q. Use an advisory id, a rule id, a package name, name@version or a file path", activeSurface.Explain)
+	}
+	// An explain run is an inspection, like `jail explain`: it saw one finding
+	// and gates nothing.
+	if explainOnly {
+		return nil
 	}
 	if !explainOnly {
 		if licenseResult != nil && len(licenseResult.Findings) > 0 {

@@ -90,6 +90,7 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	opts.NoRemediation = getBool("no-remediation")
 	opts.ResultsOnly = getBool("results-only")
 	opts.DryRun = getBool("dry-run")
+	opts.Explain = strings.TrimSpace(getString("explain"))
 
 	opts.BlockMalware = getBool("block-malware")
 	opts.BlockEOL = getBool("block-eol")

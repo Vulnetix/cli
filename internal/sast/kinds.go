@@ -169,3 +169,29 @@ func CountByKind(modules map[string]string) map[string]int {
 	}
 	return counts
 }
+
+// RuleSources maps each rule's upper-cased id to the external pack ("org/repo")
+// that supplied it, as LoadAllModules keyed it. Embedded rules map to "". A
+// suggested command uses it to load the pack again: without the pack, a rule
+// it supplied is never evaluated and the command finds nothing.
+func RuleSources(modules map[string]string) map[string]string {
+	out := make(map[string]string, len(modules))
+	for name, src := range modules {
+		id := strings.ToUpper(ExtractRegoID(src))
+		if id == "" {
+			continue
+		}
+		pack := ""
+		if !strings.HasPrefix(name, "rules/") {
+			if parts := strings.SplitN(name, "/", 3); len(parts) == 3 {
+				pack = parts[0] + "/" + parts[1]
+			}
+		}
+		// An embedded rule wins a collision: it runs without any --rule.
+		if prev, seen := out[id]; seen && prev == "" {
+			continue
+		}
+		out[id] = pack
+	}
+	return out
+}

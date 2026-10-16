@@ -240,9 +240,18 @@ func TestContainersCardsCarryFixes(t *testing.T) {
 	}
 }
 
-// Every NEXT command must exist and every fixed rule must be a built-in one.
+// Every NEXT command must exist, run the scanner that owns the finding, and
+// every fixed rule must be a built-in one. Run from `scan`, a suggestion still
+// names the owning scanner: explaining through `scan` runs every other kind too.
 func TestKindsNextCommandsAreRealFlags(t *testing.T) {
 	for name, r := range map[string]CodeReport{"secrets": secretsFixture(), "iac": iacFixture(), "containers": containersFixture()} {
+		fromScan := RenderCode(r, Options{Command: "scan", Now: kindsNow}, plainTerm(110, true))
+		for _, line := range strings.Split(fromScan, "\n") {
+			fields := strings.Fields(line)
+			if len(fields) > 2 && fields[0] == "vulnetix" && strings.Contains(line, "--explain") && fields[1] != name {
+				t.Errorf("%s explain from scan names %q, want %q: %q", name, fields[1], name, line)
+			}
+		}
 		out := RenderCode(r, Options{Command: name, Now: kindsNow}, plainTerm(110, true))
 		for _, line := range strings.Split(out, "\n") {
 			fields := strings.Fields(line)

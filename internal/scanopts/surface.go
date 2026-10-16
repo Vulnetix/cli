@@ -36,7 +36,7 @@ func AddDisplayFlags(cmd *cobra.Command) {
 	f.StringArray("show", nil, "Add to the output: "+strings.Join(report.ShowParts, ", ")+" (comma-separated, repeatable)")
 	f.StringArray("hide", nil, "Remove from the output: "+strings.Join(report.HideParts, ", ")+" (comma-separated, repeatable)")
 	f.BoolP("quiet", "q", false, "Print findings only; print nothing when clean")
-	f.String("explain", "", "Show why a finding applies, with the evidence: an advisory id, a package, or name@version")
+	f.String("explain", "", "Show why one finding applies, with the evidence: an advisory id, a package, name@version, a rule id or a file path. Runs only what that needs, and writes and uploads nothing")
 	f.String("color", "auto", "Colour output: auto | always | never")
 	f.Bool("ascii", false, "Use plain ASCII characters instead of unicode symbols")
 	f.Int("width", 0, "Force the output width in columns (default: the terminal's, or COLUMNS)")
@@ -214,6 +214,7 @@ func SurfaceFromCommand(cmd *cobra.Command) (Surface, error) {
 		Quiet: getB("quiet"),
 		ASCII: getB("ascii"), Width: width,
 		Command: cmd.Name(),
+		Replay:  replayFor(cmd),
 	}
 	s.Explain = strings.TrimSpace(getS("explain"))
 	s.FailOn = failOn

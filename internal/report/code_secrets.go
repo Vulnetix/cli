@@ -468,7 +468,7 @@ func renderCredentialLine(c *credential, group []*credential, s *Style) string {
 }
 
 func secretsNext(v secretView, o Options, s *Style) string {
-	cmd := codeCommand(o)
+	explain := func(id string) string { return explainCommand(o, codeScanner("secrets", o), id, id) }
 	var steps []nextStep
 	lead := append(append(append([]*credential{}, v.rotate...), v.fresh...), v.wait...)
 	if len(lead) == 0 {
@@ -480,22 +480,22 @@ func secretsNext(v secretView, o Options, s *Style) string {
 		if n := len(c.places); n > 1 {
 			why = fmt.Sprintf("the %d places it is written, and the order to rotate it in", n)
 		}
-		steps = append(steps, nextStep{cmd + " --explain " + c.id, why})
+		steps = append(steps, nextStep{explain(c.id), why})
 		for _, d := range lead[1:] {
 			if d.id != c.id {
-				steps = append(steps, nextStep{cmd + " --explain " + d.id, "the next credential to rotate"})
+				steps = append(steps, nextStep{explain(d.id), "the next credential to rotate"})
 				break
 			}
 		}
 	}
 	if o.Verbosity == 0 {
-		steps = append(steps, nextStep{cmd + " -v", "every place, with its line"})
+		steps = append(steps, nextStep{rerunCommand(o, "-v"), "every place, with its line"})
 	}
 	if len(v.tests) > 0 {
-		steps = append(steps, nextStep{cmd + " --show tests", "rank test fixtures with the rest"})
+		steps = append(steps, nextStep{rerunCommand(o, "--show", "tests"), "rank test fixtures with the rest"})
 	}
 	if dirs := vendoredDirsOf(v.vendored.vendored); len(dirs) > 0 {
-		steps = append(steps, nextStep{cmd + " --exclude " + dirs[0].dir, "stop scanning code you did not write"})
+		steps = append(steps, nextStep{rerunCommand(o, "--exclude", dirs[0].dir), "stop scanning code you did not write"})
 	}
 	return renderSteps(steps, s)
 }

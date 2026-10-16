@@ -88,7 +88,35 @@ is in exactly one of the first five groups.
 ### Version verdicts
 
 Every finding carries a verdict: is the version installed here actually affected?
-`scan --explain <id>` shows the working.
+`sca --explain <id>` shows the working.
+
+### Explaining one finding
+
+`--explain` runs only what its query needs, and it changes nothing:
+
+- **A package, `name@version` or purl:** only those packages are sent to the VDB. No rules run.
+- **An advisory id:** the packages it affects are looked up, from the last scan's
+  `.vulnetix/sbom.cdx.json` or else from the VDB, and only those packages are sent.
+- **A rule id:** that rule runs alone, from whichever `--rule` pack supplied it. No dependency lookup is made.
+- **A file path:** the rules run and the dependency lookup is skipped.
+
+An explain run writes no memory, SBOM, SARIF or VEX, uploads nothing and opens no
+snapshot, so it never overwrites the full scan's results with a fragment. It fails no
+gate either. It exits `1` only when nothing matches the query.
+
+Each command printed under NEXT can be pasted as it is:
+
+- It names the scanner that owns the finding: `sca` for a dependency, `sast`, `secrets`,
+  `iac` or `containers` for a rule, never `scan`, which would run every other kind as well.
+- It loads the `--rule` pack that supplied the rule.
+- It repeats the input flags the run was given, such as `--path`, `--exclude`,
+  `--rule-registry` and `--vex-file`:
+
+```text
+ NEXT
+   vulnetix iac --rule Vulnetix/opa-cigna-tf --exclude 'big/**' --explain CIGNA-TF-AWS-RDS-02
+   vulnetix sca --exclude 'big/**' --explain golang.org/x/net
+```
 
 | Verdict | Basis | Counts toward `--fail-on` |
 |---------|-------|---------------------------|
@@ -271,7 +299,7 @@ The flags the [output section](#reading-the-output) lists as superseded (`--seve
 | `--hide` | stringArray | - | Remove `fixes`, `exploits`, `defences` or `not-affected` from the output |
 | `-v, --verbose` | count | `0` | `-v` adds per-advisory version checks and scores; `-vv` adds match evidence and every severity source |
 | `-q, --quiet` | bool | `false` | Findings only: one line when there are findings, nothing when the scan is clean |
-| `--explain` | string | - | Show why one finding applies, with the evidence: an advisory id, a rule id, a package, `name@version` or a file path |
+| `--explain` | string | - | Show why one finding applies, with the evidence: an advisory id, a rule id, a package, `name@version` or a file path. Runs only what that query needs, and writes and uploads nothing (see [Explaining one finding](#explaining-one-finding)) |
 | `--fail-on` | stringArray | - | Exit `1` when any of these hold: `low`, `medium`, `high`, `critical`, `kev`, `exploit=poc\|active\|weaponized`, `malware`, `eol[=severity]`, `unpinned`, `unprotected`, `lag=<n>`, `cooldown=<n>d` (comma-separated, repeatable). Replaces `--severity`, `--block-*`, `--exploits`, `--version-lag` and `--cooldown` |
 | `--strict` | bool | `false` | Also count findings the advisory rules out by version (`not affected`, `likely not affected`) toward the gates |
 | `--accept-defended` | bool | `false` | Let an unexpired control recorded with [`defend --record`](../defend/) satisfy the gates for the finding it covers |

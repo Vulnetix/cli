@@ -505,10 +505,10 @@ func renderNext(r Report, c Counts, o Options, s *Style) string {
 		rows = append(rows, [2]string{"vulnetix fix", fmt.Sprintf("apply %s", plural(fixable, "upgrade"))})
 	}
 	if first := firstNamed(r); first != "" {
-		rows = append(rows, [2]string{"vulnetix scan --explain " + first, "why each advisory applies, with the evidence"})
+		rows = append(rows, [2]string{explainCommand(o, packageScanner(o), first), "why each advisory applies, with the evidence"})
 	}
 	if o.Verbosity == 0 {
-		rows = append(rows, [2]string{"vulnetix scan -v", "scores, version checks and match evidence"})
+		rows = append(rows, [2]string{rerunCommand(o, "-v"), "scores, version checks and match evidence"})
 	}
 	if len(rows) == 0 {
 		return ""

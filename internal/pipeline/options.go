@@ -129,6 +129,10 @@ type Options struct {
 	RuleRegistry string
 	// RuleID restricts the run to a single VNX-NNNN rule.
 	RuleID string
+	// PreloadedModules are rule modules already loaded by the caller, as
+	// sast.LoadAllModules returns them, so the packs are not fetched twice. Nil
+	// means load them.
+	PreloadedModules map[string]string
 	// LockedKinds restricts the run to these rule kinds, embedded and external
 	// alike. Nil means "no lock", which is the generic scan command's
 	// behaviour. The language server sets this per trigger: the keystroke path
@@ -199,6 +203,11 @@ type Options struct {
 	ResultsOnly bool
 	// DryRun performs detection, parsing and memory reads with zero API calls.
 	DryRun bool
+	// Explain is the --explain query: an advisory id, a package, name@version,
+	// a rule id or a path. A non-empty one narrows the run to what it names and
+	// makes it read-only: no memory, SBOM, SARIF or VEX is written, nothing is
+	// uploaded, and no gate fails.
+	Explain string
 	// NoProgress suppresses the live progress row. Kept here because it also
 	// reaches callees that build their own display contexts.
 	NoProgress bool

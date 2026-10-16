@@ -14,6 +14,6 @@
  ● LOW  VNX-1117                      2 in 1 file
 
  NEXT
-   vulnetix scan --explain VNX-SEC-001
-   vulnetix scan --explain VNX-PY-004
+   vulnetix secrets --explain VNX-SEC-001
+   vulnetix sast --explain VNX-PY-004
    vulnetix scan -v
