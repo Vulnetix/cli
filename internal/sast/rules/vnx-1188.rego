@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1188",
 	"name": "Initialization of a Resource with an Insecure Default",
-	"description": "Reports a security setting that is initialised to its insecure value whenever nobody configures it. Python: a top-level DEBUG = True in a settings module that is not a development/local/test settings file, and an environment or config read (os.environ.get, os.getenv, os.environ.setdefault, decouple config(), django-environ env()/env.bool()) whose fallback value turns on a debug/insecure switch (DEBUG as the last word of the name, DEBUG_MODE, ALLOW_INSECURE, SKIP_TLS_VERIFY, DISABLE_AUTH, DISABLE_CSRF, NO_AUTH, CORS_ALLOW_ALL ...) or turns off a protection (VERIFY_SSL, TLS_VERIFY, CHECK_CERT, REQUIRE_AUTH, AUTH_ENABLED, CSRF_ENABLED, SECURE_COOKIES, SESSION_COOKIE_SECURE, SECURE_SSL_REDIRECT, HTTPS_ONLY, COOKIE_SECURE, REJECT_UNAUTHORIZED ...). Pydantic BaseSettings: a bool field declared directly in a class deriving from BaseSettings whose default is the insecure value (debug: bool = True, verify_ssl: bool = False). JavaScript/TypeScript: process.env.NAME || value or ?? value with the same insecure fallback, a destructuring default from process.env (const { DEBUG = 'true' } = process.env), process.env.INSECURE_SWITCH !== 'false' (on unless disabled) and process.env.PROTECTION === 'true' (off unless enabled). Not reported: a secure fallback (DEBUG defaulting to False, VERIFY_SSL defaulting to True), a read with no fallback, non-boolean settings, names that configure a debug tool rather than a debug mode (DEBUG_COLORS, DEBUG_PORT), a read quoted inside a string literal, a BaseSettings subclass of a project base class (the base is not followed), DEBUG = True in dev/local/test settings files or indented inside a class or docstring, comments, strings and test files. Overlaps VNX-PY-006 for Django DEBUG.",
+	"description": "Reports a security setting that is initialised to its insecure value whenever nobody configures it. Python: a top-level DEBUG = True in a settings module that is not a development/local/test settings file, and an environment or config read (os.environ.get, os.getenv, os.environ.setdefault, decouple config(), django-environ env()/env.bool()) whose fallback value turns on a debug/insecure switch (DEBUG as the last word of the name, DEBUG_MODE, ALLOW_INSECURE, SKIP_TLS_VERIFY, DISABLE_AUTH, DISABLE_CSRF, NO_AUTH, CORS_ALLOW_ALL ...) or turns off a protection (VERIFY_SSL, TLS_VERIFY, CHECK_CERT, REQUIRE_AUTH, AUTH_ENABLED, CSRF_ENABLED, SECURE_COOKIES, SESSION_COOKIE_SECURE, SECURE_SSL_REDIRECT, HTTPS_ONLY, COOKIE_SECURE, REJECT_UNAUTHORIZED ...). Pydantic BaseSettings: a bool field declared directly in a class deriving from BaseSettings whose default is the insecure value (debug: bool = True, verify_ssl: bool = False). JavaScript/TypeScript: process.env.NAME || value or ?? value with the same insecure fallback, a destructuring default from process.env (const { DEBUG = 'true' } = process.env), process.env.INSECURE_SWITCH !== 'false' (on unless disabled) and process.env.PROTECTION === 'true' (off unless enabled). Not reported: a secure fallback (DEBUG defaulting to False, VERIFY_SSL defaulting to True), a read with no fallback, non-boolean settings, names that configure a debug tool rather than a debug mode (DEBUG_COLORS, DEBUG_PORT), a read quoted inside a string literal, a BaseSettings subclass of a project base class (the base is not followed), DEBUG = True in dev/local/test settings files or indented inside a class or docstring, comments, strings and test files. DEBUG turned on in a Django deployment settings module (DEBUG = True, or DEBUG read from the environment with a true default) is reported by VNX-PY-006, not here.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1188/",
 	"languages": ["node", "python"],
 	"severity": "medium",
@@ -89,6 +89,7 @@ findings contains finding if {
 	some m in regex.find_all_string_submatch_n(_py_read, text, -1)
 	_outside_string(text, m[0])
 	_insecure_fallback(m[1], m[2])
+	not _py006_reports(path, content, line)
 	finding := _finding(path, i, line, sprintf("%s falls back to %s when it is not configured, which is the insecure setting: an unset variable in production silently weakens the deployment. Default to the safe value and opt out explicitly", [m[1], m[2]]))
 }
 
@@ -101,7 +102,81 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(`^DEBUG\s*=\s*True\b`, line)
+	not _py006_reports(path, content, line)
 	finding := _finding(path, i, line, "DEBUG = True is committed as the module's setting, so the deployment that uses it shows tracebacks, settings and SQL to visitors. Read it from the environment with False as the default")
+}
+
+# ── Django DEBUG belongs to VNX-PY-006 ──────────────────────────────────
+#
+# A DEBUG line that VNX-PY-006 reports (a Django deployment settings module,
+# not a dev module, not a base module a sibling overrides) is the same defect
+# and is left to it. These mirror VNX-PY-006's own conditions exactly, so a
+# line either rule reported before is still reported by one of them.
+
+_py006_base(path) := parts[count(parts) - 1] if parts := split(path, "/")
+
+_py006_parent(path) := parts[count(parts) - 2] if {
+	parts := split(path, "/")
+	count(parts) > 1
+}
+
+_py006_dir(path) := concat("/", array.slice(parts, 0, count(parts) - 1)) if {
+	parts := split(path, "/")
+	count(parts) > 1
+}
+
+_py006_dir(path) := "." if not contains(path, "/")
+
+_py006_in_pkg(path) if _py006_parent(path) == "settings"
+
+_py006_django(content) if regex.match(`(?m)^\s*(?:INSTALLED_APPS|ROOT_URLCONF|MIDDLEWARE|SECRET_KEY|ALLOWED_HOSTS|DATABASES)\s*=|\bdjango\b`, content)
+
+_py006_settings(path, _) if {
+	_py006_in_pkg(path)
+	_py006_base(path) != "__init__.py"
+}
+
+_py006_settings(path, content) if {
+	regex.match(`^(?:settings|settings_\w+|\w+_settings)\.py$`, _py006_base(path))
+	_py006_django(content)
+}
+
+_py006_settings(path, content) if {
+	_py006_base(path) == "__init__.py"
+	_py006_in_pkg(path)
+	_py006_django(content)
+}
+
+_py006_dev(path) if regex.match(`(?i)^(?:settings_|.*_)?(?:dev|devel|develop|development|local|test|tests|testing|ci|debug|sandbox)(?:_\w+)?(?:_settings)?\.py$`, _py006_base(path))
+
+_py006_env_true := `^DEBUG\s*(?::\s*bool\s*)?=.*\b(?:get|getenv|bool|config|env)\s*\(\s*["']\w+["']\s*,\s*(?:default\s*=\s*)?(?:True|["'](?:1|[Tt]rue|TRUE|[Yy]es|on)["'])\s*[,)]`
+
+_py006_on(line) if regex.match(`^DEBUG\s*(?::\s*bool\s*)?=\s*True\b`, line)
+
+_py006_on(line) if regex.match(_py006_env_true, line)
+
+_py006_on_text(c) if regex.match(`(?m)^DEBUG\s*=\s*True\b`, c)
+
+_py006_on_text(c) if regex.match(concat("", ["(?m)", _py006_env_true]), c)
+
+_py006_overridden(path) if {
+	_py006_in_pkg(path)
+	dir := _py006_dir(path)
+	some other, c in input.file_contents
+	other != path
+	endswith(other, ".py")
+	_py006_dir(other) == dir
+	not _py006_dev(other)
+	regex.match(`(?m)^DEBUG\s*=`, c)
+	not _py006_on_text(c)
+}
+
+_py006_reports(path, content, line) if {
+	startswith(line, "DEBUG")
+	_py006_on(line)
+	_py006_settings(path, content)
+	not _py006_dev(path)
+	not _py006_overridden(path)
 }
 
 # ── JavaScript / TypeScript ─────────────────────────────────────────────

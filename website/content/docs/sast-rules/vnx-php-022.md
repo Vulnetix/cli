@@ -1,15 +1,15 @@
 ---
 title: "VNX-PHP-022 – PHP open redirect via non-literal redirect destination"
-description: "Detects header('Location: ...') (also multi-line or via sprintf), Laravel redirect()/Redirect::to()/away(), Symfony redirect()/RedirectResponse and wp_redirect() whose destination starts with a request value, inline or via a nearby variable, unless a literal prefix pins the host or path or the value is validated."
+description: "Detects Laravel/CodeIgniter redirect(), redirect()->to()/away(), Redirect::to()/away(), Symfony $this->redirect() and RedirectResponse whose destination starts with a request value, inline or via a nearby variable, unless a literal prefix pins the host or path or the value is validated. Raw Location headers and wp_redirect() are reported by VNX-PHP-004."
 ---
 
 ## Overview
 
-This rule detects PHP redirect operations — `header('Location: ...')`, `$this->redirect()`, and Laravel's `Redirect::to()` — where the destination URL is constructed from user-controlled input or is not a hardcoded string literal. When a web application redirects users to an arbitrary URL specified in a request parameter without validation, attackers can craft links that appear to lead to the trusted domain but actually redirect victims to attacker-controlled sites.
+This rule detects PHP framework redirect helpers (Laravel and CodeIgniter `redirect()`, `redirect()->to()`/`away()`, `Redirect::to()`/`away()`, Symfony `$this->redirect()` and `new RedirectResponse()`) where the destination URL is constructed from user-controlled input. A redirect the code sends itself, with `header('Location: ...')`, a `Refresh` header, WordPress `wp_redirect()` or PSR-7 `withHeader('Location', ...)`, is the same weakness and is reported by [VNX-PHP-004](../vnx-php-004/), so one redirect is one finding. When a web application redirects users to an arbitrary URL specified in a request parameter without validation, attackers can craft links that appear to lead to the trusted domain but actually redirect victims to attacker-controlled sites.
 
 Open redirect vulnerabilities arise when the redirect destination is taken from a query string, POST body, or cookie value and passed to the redirect mechanism without verifying that the destination is within the application's trusted domain. The application itself is benign, but it becomes an enabler for phishing: a link like `https://trusted-bank.com/login?next=https://evil.com/steal` appears legitimate in email clients, security scanners, and link preview tools.
 
-The three most common PHP patterns are: `header('Location: ' . $_GET['redirect'])`, framework redirect helpers called with request data, and chained redirects where a variable derived from user input is used as the redirect target several lines after the original assignment.
+The common framework patterns are a redirect helper called with request data, and a chained redirect where a variable derived from user input is used as the redirect target several lines after the original assignment.
 
 **Severity:** Medium | **CWE:** [CWE-601 – URL Redirection to Untrusted Site ('Open Redirect')](https://cwe.mitre.org/data/definitions/601.html)
 
@@ -24,9 +24,8 @@ Applications that implement "return to previous page after login" functionality 
 ## What Gets Flagged
 
 ```php
-// FLAGGED: header Location with superglobal value
-header('Location: ' . $_GET['redirect']);
-exit;
+// FLAGGED: CodeIgniter redirect with a request value
+redirect($this->input->get('return'));
 
 // FLAGGED: Symfony redirect with a query parameter
 return $this->redirect($request->query->get('target'));
@@ -36,8 +35,11 @@ $return = $request->query('return');
 return redirect()->to($return);
 
 // NOT FLAGGED: a pinned path prefix, a route name, or an allowlisted value
-header('Location: /login?next=' . urlencode($_GET['next']));
+return redirect('/login?next=' . urlencode($request->input('next')));
 return redirect()->route('home');
+
+// NOT FLAGGED HERE: reported by VNX-PHP-004
+header('Location: ' . $_GET['redirect']);
 ```
 
 ## Remediation

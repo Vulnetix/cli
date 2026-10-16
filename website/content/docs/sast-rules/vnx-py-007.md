@@ -19,7 +19,7 @@ Developers use `shell=True` for convenience — it allows shell features like gl
 
 A subprocess call (`call`, `run`, `Popen`, `check_call`, `check_output`, through the module, an alias or an imported name) with `shell=True` anywhere in the call, including a call broken over several lines, whose command is not a constant string; `subprocess.getoutput`/`getstatusoutput` and `asyncio.create_subprocess_shell` with a non-constant command; and a call whose argument list starts an explicit shell (`["sh", "-c", f"..."]`, `["cmd.exe", "/c", x]`, inline or appended to a list just above).
 
-Not flagged: a constant command (`subprocess.run("make clean", shell=True)`) or a variable assigned only constant strings above, argument lists without an explicit shell, `shell=False`, commands whose interpolations use `shlex.quote()` (inline, or where the command variable was last assigned), other objects' `run` methods, and mentions in comments or strings.
+Not flagged: a constant command (`subprocess.run("make clean", shell=True)`) or a variable assigned only constant strings above, a command variable (or the script name in an explicit `["sh", "-c", name]` list) that the enclosing function proves holds a constant at the call, argument lists without an explicit shell, `shell=False`, commands whose interpolations use `shlex.quote()` (inline, or where the command variable was last assigned), other objects' `run` methods, and mentions in comments or strings.
 
 ```python
 # FLAGGED: user-controlled filename passed through shell
@@ -42,6 +42,24 @@ proc = subprocess.Popen(f"convert {input_file} output.png", shell=True)
 # FLAGGED: check_output with shell=True
 result = subprocess.check_output(f"grep {pattern} {logfile}", shell=True)
 ```
+
+## Reading The Function First
+
+The command variable is judged by what it holds at the call, read from the enclosing function (at most 120 lines up), not by how its text was put together. It is not reported when every definition that can reach the call is constant: a literal on every path; the branch an `if`/`elif`/`else` or a conditional expression takes when its condition folds to a constant (integer literals and integer locals assigned once, or a literal tested with `in` / `not in` against a string local); the case a `match` on a constant selects; the element a list index, dict key or `ConfigParser` option actually holds after the appends, pops and assignments above it; a copy of what another name held at that line; and the result of a function in the same file whose every return is constant.
+
+```python
+days = request.args.get("days", "7")
+keep = 30
+if keep // 2 > 10:          # always true
+    retention = "14"
+else:
+    retention = days        # never runs
+command = "sh -c " if platform.system() != "Windows" else "cmd.exe /c "
+command += f"find /var/log/app -mtime +{retention} -delete"
+subprocess.run(command, shell=True)   # not flagged: every part is constant
+```
+
+Anything the analysis cannot resolve stays reported: a condition on run-time data, a function in another module, a collection passed to a call or aliased, a value assigned inside `try` or a loop, or rebound by a tuple, `for`, `with` or walrus target.
 
 ## Remediation
 

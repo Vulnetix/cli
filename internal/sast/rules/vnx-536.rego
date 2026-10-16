@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-536",
 	"name": "Servlet Runtime Error Message Containing Sensitive Information",
-	"description": "A Java servlet or JSP catches an exception and sends its details to the browser, disclosing class names, SQL text, file paths and library versions. Reported in .java files, inside a catch block and using the caught variable: e.printStackTrace(...) into the response (response.getWriter(), getOutputStream(), a PrintWriter on it, or a writer variable taken from the response); print/println/printf/write/append/format on response.getWriter()/getOutputStream() or on such a writer of the exception itself or its getMessage()/getLocalizedMessage()/toString()/getStackTrace()/getCause(); and response.sendError(code, <that message>). In .jsp files: <%= exception.getMessage() %> (or getLocalizedMessage/toString/getStackTrace, or the exception itself) and printStackTrace into the page's out writer. Not reported: exceptions logged (log.error, e.printStackTrace() to stderr), generic messages written to the response, values written outside a catch block, comments and test code. Stack traces returned by other frameworks and database errors in general are VNX-209.",
+	"description": "A Java servlet or JSP catches an exception and sends its details to the browser, disclosing class names, SQL text, file paths and library versions. Reported in .java files, inside a catch block (its header may wrap over several lines, as a multi-catch often does) and using the caught variable: e.printStackTrace(...) into the response (response.getWriter(), getOutputStream(), a PrintWriter on it, or a writer variable taken from the response); print/println/printf/write/append/format on response.getWriter()/getOutputStream() or on such a writer of the exception itself or its getMessage()/getLocalizedMessage()/toString()/getStackTrace()/getCause(); and response.sendError(code, <that message>). In .jsp files: <%= exception.getMessage() %> (or getLocalizedMessage/toString/getStackTrace, or the exception itself) and printStackTrace into the page's out writer. Not reported: exceptions logged (log.error, e.printStackTrace() to stderr), generic messages written to the response, values written outside a catch block, comments and test code. Stack traces returned by other frameworks and database errors in general are VNX-209, which leaves the servlet lines reported here to this rule.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-536/",
 	"languages": ["java"],
 	"severity": "medium",
@@ -44,7 +44,11 @@ _catch_var(lines, i) := v if {
 	]
 	count(cs) > 0
 	c := cs[count(cs) - 1]
-	m := regex.find_all_string_submatch_n(`\bcatch\s*\(\s*(?:final\s+)?[\w.]+(?:\s*\|\s*[\w.]+)*\s+(\w+)\s*\)`, lines[c], 1)
+
+	# A multi-catch header may wrap: catch (NoSuchAlgorithmException
+	#     | InvalidKeyException e) {. Read it up to the line under test.
+	hdr := concat(" ", array.slice(lines, c, min([i, c + 8])))
+	m := regex.find_all_string_submatch_n(`\bcatch\s*\(\s*(?:final\s+)?[\w.]+(?:\s*\|\s*[\w.]+)*\s+(\w+)\s*\)`, hdr, 1)
 	count(m) > 0
 	not _closed(lines, c, i)
 	v := m[0][1]

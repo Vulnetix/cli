@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-PHP-004",
 	"name": "PHP open redirect",
-	"description": "A redirect target is taken from a request value: header('Location: ...') (also header(sprintf('Location: %s', ...)) and header('Refresh: N; URL=...')), wp_redirect(), redirect($url), redirect()->to()/away(), Redirect::to()/away(), new RedirectResponse(), $this->redirect() or withHeader('Location', ...) whose destination starts with (or is only prefixed by a scheme, a bare '/' or 'https://' before) a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys such as HTTP_REFERER), filter_input() or a Laravel/Symfony request accessor, inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable). A destination on the line after the call's opening parenthesis counts. The browser then follows the attacker's URL. Not reported: a value passed through wp_validate_redirect(), a destination whose literal prefix already fixes the host or a path ('/login?next=' . $x, 'https://example.com/' . $x, 'page.php?id=' . $x), a value checked with in_array(), array_key_exists(), preg_match() or parse_url() before the redirect, wp_safe_redirect() and redirect()->route()/back(), values whose origin is not visible in the file (no cross-function dataflow), and the calls in comments or string literals. A strpos() or str_contains() substring check is not treated as validation.",
+	"description": "A redirect target is taken from a request value: header('Location: ...') (also header(sprintf('Location: %s', ...)), header('Refresh: N; URL=...') and a header( call whose arguments continue on the next lines), wp_redirect() or PSR-7 withHeader('Location', ...) whose destination starts with (or is only prefixed by a scheme, a bare '/' or 'https://' before) a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys such as HTTP_REFERER), filter_input() or a Laravel/Symfony request accessor, inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable). A destination on the line after the call's opening parenthesis counts. The browser then follows the attacker's URL. Not reported: a value passed through wp_validate_redirect(), a destination whose literal prefix already fixes the host or a path ('/login?next=' . $x, 'https://example.com/' . $x, 'page.php?id=' . $x), a value checked with in_array(), array_key_exists(), preg_match() or parse_url() before the redirect, wp_safe_redirect(), values whose origin is not visible in the file (no cross-function dataflow), and the calls in comments or string literals. A strpos() or str_contains() substring check is not treated as validation. Framework redirect helpers (Laravel/CodeIgniter redirect($url), redirect()->to()/away(), Redirect::to()/away(), Symfony new RedirectResponse() and $this->redirect()) are reported by VNX-PHP-022.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-004/",
 	"languages": ["php"],
 	"severity": "medium",
@@ -27,11 +27,16 @@ _header_re := `(?i)(^|[^\w$>:\\])header\s*\(\s*(["'])\s*(?:location\s*:|refresh\
 # header(sprintf('Location: %s', $dest)): the destination is the next argument.
 _sprintf_re := `(?i)(^|[^\w$>:\\])header\s*\(\s*sprintf\s*\(\s*(["'])\s*(?:location\s*:|refresh\s*:\s*\d+\s*;\s*url\s*=)\s*%s\s*["']\s*,\s*`
 
-_call_re := `(^|[^\w$:\\])(wp_redirect|Redirect::(to|away)|redirect\(\s*\)\s*->\s*(to|away)|redirect|new\s+\\?(\w+\\)*RedirectResponse)\s*\(\s*|->\s*withHeader\s*\(\s*["']Location["']\s*,\s*`
+# WordPress wp_redirect() and PSR-7 withHeader('Location', ...). The
+# framework redirect helpers (Laravel redirect()/Redirect::, Symfony
+# RedirectResponse and $this->redirect(), CodeIgniter redirect()) are
+# reported by VNX-PHP-022, so one redirect is one finding.
+_call_re := `(^|[^\w$:\\])wp_redirect\s*\(\s*|->\s*withHeader\s*\(\s*["']Location["']\s*,\s*`
 
-_gate_re := `(?mi)(header\s*\(\s*(sprintf\s*\(\s*)?["']\s*(location|refresh)|redirect|withHeader)`
+_gate_re := `(?mi)(header\s*\(\s*(sprintf\s*\(\s*)?["']\s*(location|refresh)|wp_redirect|withHeader)`
 
-_line_re := concat("", ["(?i)", trim_prefix(_gate_re, "(?mi)")])
+# A line that opens header( and continues on the next line counts too.
+_line_re := `(?i)(header\s*\(\s*(sprintf\s*\(\s*)?["']\s*(location|refresh)|header\s*\(\s*$|wp_redirect|withHeader)`
 
 # Checks that pin the value to a known set before the redirect.
 _validators := `in_array|array_key_exists|preg_match|parse_url`
@@ -61,7 +66,7 @@ findings contains finding if {
 	regex.match(_line_re, raw)
 	_code_line(raw)
 	line := _strip_comment(raw)
-	some d0 in _destinations(line)
+	some d0 in _destinations(line, _stmt(lines, i, line))
 	dest := _continued(lines, i, d0)
 	not _pinned(dest)
 	_reaches(lines, i, _expr_end(dest))
@@ -76,22 +81,36 @@ findings contains finding if {
 	}
 }
 
+# The statement starting on this line: the line itself when it ends one,
+# otherwise joined with up to four following lines (comments removed), so a
+# header( split after its parenthesis or its concatenation is read whole.
+_stmt(_, _, line) := line if contains(_no_strings(line), ";")
+
+_stmt(lines, i, line) := s if {
+	not contains(_no_strings(line), ";")
+	end := min([count(lines) - 1, i + 4])
+	rest := [trim_space(_strip_comment(lines[k])) | some k in numbers.range(i + 1, end); k > i]
+	s := concat(" ", array.concat([line], rest))
+}
+
 # The text after `Location:` (inside the header literal), or after the
-# redirect call's opening parenthesis.
-_destinations(line) := {d |
-	regex.match(`(?i)(^|[^\w$>:])header\s*\(\s*""`, _no_strings(line))
-	some m in regex.find_all_string_submatch_n(_header_re, line, 1)
-	d := concat("", [m[2], substring(line, indexof(line, m[0]) + count(m[0]), -1)])
+# redirect call's opening parenthesis. The call must start on this line.
+_destinations(line, stmt) := {d |
+	regex.match(`(?i)(^|[^\w$>:])header\s*\(\s*""`, _no_strings(stmt))
+	some m in regex.find_all_string_submatch_n(_header_re, stmt, 1)
+	indexof(stmt, m[0]) < count(line)
+	d := concat("", [m[2], substring(stmt, indexof(stmt, m[0]) + count(m[0]), -1)])
 } | {d |
 	code := _no_strings(line)
-	regex.match(`(?i)(redirect|RedirectResponse|withHeader)(::\w+)?\s*\(`, code)
-	not regex.match(`\bwp_safe_redirect\s*\(`, code)
-	some m in regex.find_n(_call_re, line, 1)
-	d := substring(line, indexof(line, m) + count(m), -1)
+	regex.match(`(?i)(wp_redirect|withHeader)\s*\(`, code)
+	some m in regex.find_n(_call_re, stmt, 1)
+	indexof(stmt, m) < count(line)
+	d := substring(stmt, indexof(stmt, m) + count(m), -1)
 	not startswith(d, ")")
 } | {d |
-	some m in regex.find_n(_sprintf_re, line, 1)
-	d := substring(line, indexof(line, m) + count(m), -1)
+	some m in regex.find_n(_sprintf_re, stmt, 1)
+	indexof(stmt, m) < count(line)
+	d := substring(stmt, indexof(stmt, m) + count(m), -1)
 }
 
 # A call that breaks the line after its opening parenthesis: the destination

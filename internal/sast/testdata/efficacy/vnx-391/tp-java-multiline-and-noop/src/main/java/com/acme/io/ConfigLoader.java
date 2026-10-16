@@ -9,7 +9,7 @@ public class ConfigLoader {
         Properties props = new Properties();
         try (FileInputStream in = new FileInputStream(file)) {
             props.load(in);
-~>        } catch (IOException e) {
+        } catch (IOException e) {
 
         }
         return props;
@@ -18,7 +18,7 @@ public class ConfigLoader {
     public void save(Properties props, String file) {
         try {
             props.store(new java.io.FileOutputStream(file), null);
-~>        } catch (IOException e) {
+        } catch (IOException e) {
             e.toString();
         }
     }

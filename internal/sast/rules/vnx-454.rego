@@ -124,6 +124,7 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	not _only_in_string(line)
 	_report([lines, i], line)
+	not _c784_owned(path, lines, i, line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Authorisation state is initialised from a value the client controls (cookie, header or request parameter); derive privileges from server-side state such as the authenticated user record",
@@ -134,3 +135,92 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+# ── Lines VNX-784 reports ───────────────────────────────────────────────
+# A raw read of a cookie named for a privilege or login state that is
+# compared or tested on its line, or assigned to a variable a condition uses
+# within the next 15 lines, is a security decision on a cookie: VNX-784
+# (CWE-784) reports it, so this rule leaves the line to it. This mirrors
+# VNX-784's Python, JavaScript/TypeScript and PHP reads.
+_c784_lang(path) := "py" if endswith(path, ".py")
+
+_c784_lang(path) := "js" if regex.match(`\.(?:js|mjs|cjs|jsx|ts|tsx|mts|cts)$`, path)
+
+_c784_lang(path) := "php" if endswith(path, ".php")
+
+_c784_priv := {
+	"admin", "isadmin", "adminmode", "role", "roles", "userrole", "staff", "isstaff",
+	"superuser", "issuperuser", "isroot", "privilege", "privileges", "accesslevel",
+	"userlevel", "authlevel", "usertype", "accounttype", "usergroup", "loggedin",
+	"isloggedin", "authenticated", "isauthenticated", "authorized", "isauthorized",
+	"permission", "permissions",
+}
+
+_c784_reads := {
+	"py": [
+		`\b\w*request\.(?:COOKIES|cookies)(?:\.get\(\s*["']([\w-]+)["']|\[\s*["']([\w-]+)["']\s*\])`,
+		`\.get_cookie\(\s*["']([\w-]+)["']`,
+		`["']([\w-]+)["']\s+(?:not\s+)?in\s+\w*request\.(?:COOKIES|cookies)\b`,
+	],
+	"js": [
+		`\b(?:req|request|ctx|ctx\.request)\.cookies(?:\.get\(\s*["']([\w-]+)["']|\[\s*["']([\w-]+)["']\s*\]|\.([A-Za-z_$][\w$]*)\b)`,
+		`\bcookies\(\)\.get\(\s*["']([\w-]+)["']`,
+	],
+	"php": [
+		`\$_COOKIE\[\s*["']([\w-]+)["']\s*\]`,
+		`\bfilter_input\(\s*INPUT_COOKIE\s*,\s*["']([\w-]+)["']`,
+	],
+}
+
+_c784_owned(path, lines, i, line) if {
+	lang := _c784_lang(path)
+	contains(lower(line), "cookie")
+	not helpers.is_comment_line(line)
+	not regex.match(`\bsigned\s*:\s*true\b|\bsecret\s*=`, line)
+	some re in _c784_reads[lang]
+	some m in regex.find_all_string_submatch_n(re, line, -1)
+	ns := [g | some j, g in m; j > 0; g != ""]
+	count(ns) > 0
+	regex.replace(lower(ns[0]), `[_-]`, "") in _c784_priv
+	idx := indexof(line, m[0])
+	prefix := substring(line, 0, idx)
+	not _c784_in_string(prefix)
+	_c784_report(lines, i, line, prefix, substring(line, idx + count(m[0]), -1))
+}
+
+_c784_in_string(prefix) if {
+	some q in {`"`, "'", "`"}
+	n := count(indexof_n(prefix, q)) - count(indexof_n(prefix, concat("", [`\`, q])))
+	n % 2 == 1
+}
+
+_c784_report(_, _, _, prefix, suffix) if _c784_decides(prefix, suffix)
+
+_c784_report(lines, i, line, prefix, suffix) if {
+	not _c784_decides(prefix, suffix)
+	m := regex.find_all_string_submatch_n(`^\s*(?:(?:var|let|const|final|my)\s+|[A-Za-z_][\w<>\[\]*.]*\s+)?(\$?[A-Za-z_]\w*)\s*(?:,\s*\w+\s*)*(?::\s*\w+\s*)?(?::=|=)[^=]`, line, 1)
+	count(m) > 0
+	v := m[0][1]
+	v != "_"
+	end := min([count(lines) - 1, i + 15])
+	end >= i + 1
+	ve := replace(v, "$", `\$`)
+	some k in numbers.range(i + 1, end)
+	l := lines[k]
+	not helpers.is_comment_line(l)
+	contains(l, trim_left(v, "$"))
+	regex.match(concat("", [
+		`(?:^|[\s(])(?:if|elif|elsif|unless|while|when|case|switch)\b[^\n]*(?:^|[^\w$])`, ve, `\b`,
+		`|(?:^|[^\w$])`, ve, `\b(?:\.Value)?\s*(?:===?|!==?)`,
+		`|(?:===?|!==?|\.equals\()\s*`, ve, `\b`,
+	]), l)
+}
+
+_c784_decides(prefix, suffix) if {
+	regex.match(`^\s*(?:\)\s*)?(?:===?|!==?|>=?|<=?|\.equals\(|\?[^?.])`, suffix)
+	not regex.match(`\b(?:isset|empty|array_key_exists)\s*\(\s*$`, prefix)
+}
+
+_c784_decides(prefix, _) if regex.match(`(?:===?|!==?|\.equals\(|\bin_array\()\s*$`, prefix)
+
+_c784_decides(prefix, _) if regex.match(`(?:(?:^|[\s(])(?:if|elif|elsif|unless|while|and|or|not)|&&|\|\|)\s*\(?\s*!?\s*$`, prefix)

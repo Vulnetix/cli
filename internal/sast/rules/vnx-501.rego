@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-501",
 	"name": "Trust Boundary Violation",
-	"description": "A value read from the HTTP request is stored in the server-side session, where the rest of the application treats it as trusted state. Reported in Java: HttpSession.setAttribute()/putValue() (on a session variable or on request.getSession()) whose key or value is a request parameter, header, cookie, query string, body reader or a Spring @RequestParam/@PathVariable/@RequestHeader/@CookieValue/@RequestBody argument, inline or through up to four assignments in the 60 lines above (including a for-each over getCookies(), a single-line if-assignment, a map entry read back under the same literal key, and a same-file helper method that returns its parameter). Reported in Python: session[...] = (Flask session, flask.session, Django request.session) or session.update()/setdefault() with a value or key from request.args/form/values/cookies/headers/json/data/GET/POST/COOKIES/META or from an object constructed from request, inline (f-string interpolation included) or through such assignments. Not reported: constant or server-generated values, a value checked against an allowlist, pattern or validator first (a .contains()/.matches()/re.match/valid*/sanitize* line naming it), a session written after a password check or authenticate() call (the identity the server established), reading the session, comments and string literals. Flows through collections, helper methods in other files and conditional constant overwrites are not resolved.",
+	"description": "A value read from the HTTP request is stored in the server-side session, where the rest of the application treats it as trusted state. Reported in Java: HttpSession.setAttribute()/putValue() (on a session variable or on request.getSession()) whose key or value is a request parameter, header, cookie, query string, body reader or a Spring @RequestParam/@PathVariable/@RequestHeader/@CookieValue/@RequestBody argument, inline or through up to four assignments in the 60 lines above (including a for-each over getCookies(), a single-line if-assignment, a map entry read back under the same literal key, and a same-file helper method that returns its parameter). Reported in Python: session[...] = (Flask session, flask.session, Django request.session) or session.update()/setdefault() with a value or key from request.args/form/values/cookies/headers/json/data/GET/POST/COOKIES/META or from an object constructed from request, inline (f-string interpolation included) or through such assignments. A value stored in a list (Java add/set/push, Python append/insert or a dict/list subscript) is followed to a later read of that collection. Before reporting, the enclosing method or function (at most 120 lines up) is read, and a name that provably holds a constant at the session write is not request data: a literal it was last assigned on every live path, the taken side of an if/else or conditional expression whose condition folds to a constant (integer literals and int locals assigned once, or in Python a literal tested with in/not in against a string local), the selected case of a switch or match on a constant, the element a list index or map, dict or ConfigParser key actually holds when that is a literal, a Python copy of what a name held at that line, and the result of a same-file method or function whose every return is constant. Not reported: constant or server-generated values, a value checked against an allowlist, pattern or validator first (a .contains()/.matches()/re.match/valid*/sanitize* line naming it), a session written after a password check or authenticate() call (the identity the server established), reading the session, comments and string literals. A value the analysis cannot resolve (a condition on run-time data, a helper in another file, a collection passed elsewhere) stays reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-501/",
 	"languages": ["java", "python"],
 	"severity": "medium",
@@ -100,7 +100,7 @@ _fwords("py", l) := {w |
 }
 
 # Every assignment in the window, with the identifiers on its right side.
-_assigns(lang, lines, s, e) := array.concat(
+_assigns(lang, lines, s, e) := array.concat(array.concat(
 	[{"j": j, "v": b[0], "w": (_words(b[1]) | _map_gets(lang, l)) | _fwords(lang, l)} |
 		some j in numbers.range(s, e)
 		l := lines[j]
@@ -113,8 +113,33 @@ _assigns(lang, lines, s, e) := array.concat(
 		l := lines[j]
 		not helpers.is_comment_line(l)
 		some p in _map_puts(lang, l)
+	]),
+	[{"j": j, "v": p[0], "w": _words(p[1])} |
+		some j in numbers.range(s, e)
+		l := lines[j]
+		not helpers.is_comment_line(l)
+		some p in _carrier_stores(lang, _code(l))
 	],
 )
+
+# A value stored into a list (or a Python dict/list by subscript; the session
+# itself is the sink, not a carrier) taints the
+# collection, so a later read of it is followed; whether the element read is
+# the stored one is decided by the constant analysis at the sink.
+_carrier_stores("java", c) := [[m[1], m[2]] |
+	contains(c, ".")
+	some m in regex.find_all_string_submatch_n(`^\s*(\w+)\s*\.\s*(?:add|addAll|addElement|push|offer|set|insert)\s*\((.*)\)\s*;`, c, 1)
+]
+
+_carrier_stores("py", c) := array.concat([[m[1], m[2]] |
+	some m in regex.find_all_string_submatch_n(`^\s*(\w+)\s*(?:\[[^\]]*\]\s*=\s*([^=].*)$|\.\s*(?:append|insert|extend|add|update|setdefault|set)\s*\((.*)\)\s*$)`, c, 1)
+	m[2] != ""
+	not endswith(lower(m[1]), "session")
+], [[m[1], m[3]] |
+	some m in regex.find_all_string_submatch_n(`^\s*(\w+)\s*(?:\[[^\]]*\]\s*=\s*([^=].*)$|\.\s*(?:append|insert|extend|add|update|setdefault|set)\s*\((.*)\)\s*$)`, c, 1)
+	m[3] != ""
+	not endswith(lower(m[1]), "session")
+])
 
 _seed(lang, lines, asg, s, e) := {a.v | some a in asg; regex.match(_src[lang], _code(lines[a.j]))} | {m[1] |
 	lang == "java"
@@ -152,14 +177,28 @@ _reported(lang, lines, i, args) if regex.match(_src[lang], args)
 
 _reported(lang, lines, i, args) if {
 	t := _tainted(lang, lines, i)
-	hit := {h | some h in _words(args) & t; not _helper_clean(lang, lines, i, h)}
+	cand := {h | some h in _words(args) & t; not _helper_clean(lang, lines, i, h)}
+	count(cand) > 0
+	C := _consts(lang, lines, i)
+	hit := {h | some h in cand; not _const_at(C, h)}
 	count(hit) > 0
 	not _guarded(lines, i, hit)
 	not _authenticated(lines, i)
 }
 
+# The method is read before reporting: a name that provably holds a constant
+# at the session write (helpers.flow_consts / flow_py_consts: a literal on
+# every live path, a folded condition or switch/match, a collection read at
+# a constant index or key, a same-file helper returning a constant) carries
+# no request data, whatever it was derived from on a dead path.
+_consts("java", lines, i) := helpers.flow_consts(lines, i)
+
+_consts("py", lines, i) := helpers.flow_py_consts(lines, i)
+
+_const_at(C, h) if _ = C[h]
+
 # The variable was last assigned the result of a method declared in this
-# file (`bar = new Test().doSomething(request, param)`), and that method's
+# file (`v = new Helper().pick(request, param)`), and that method's
 # returned variable is not derived from its parameters or a request source:
 # the helper does not pass the request data on.
 _helper_clean("java", lines, i, h) if {

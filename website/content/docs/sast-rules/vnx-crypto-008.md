@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-008 – Timing Attack via Direct Comparison of Secrets"
-description: "Reports a MAC, signature, digest or secret token checked with ordinary equality (==, !=, ===, !==, Java equals/Arrays.equals, Go bytes.Equal) in Python, Node.js, Go, Java, PHP and Ruby, any equality on a line that computes an HMAC, and a hand-written byte loop with an early return in MAC or signature code. Presence checks, constants, lexer token kinds, hash-named values and constant-time APIs are not reported."
+description: "Reports a MAC, signature, digest or secret token checked with ordinary equality (==, !=, ===, !==, Java equals/Arrays.equals, Go bytes.Equal) in Python, Node.js, Go, Java, PHP and Ruby, any equality on a line that computes an HMAC, and a hand-written byte loop with an early return in MAC or signature code, when the comparison verifies a supplied value (a request input, a handler parameter, a verify-named function or a value hashed just above). Comparisons where neither side is supplied, presence checks, constants, lexer token kinds, hash-named values and constant-time APIs are not reported."
 ---
 
 ## Overview
@@ -24,9 +24,10 @@ if hmac_digest == request_signature:
 ```
 
 ```python
-# FLAGGED: token comparison with ==
-if token == stored_token:
-    authenticate_user()
+# FLAGGED: token comparison with == in a function that checks it
+def check_token(token, stored_token):
+    if token == stored_token:
+        authenticate_user()
 ```
 
 ```javascript
@@ -54,6 +55,31 @@ for i := range expected {
 // FLAGGED: PHP CSRF token compared with !==
 if ($user_token !== $session_token) { die('CSRF token is incorrect'); }
 ```
+
+### Only where a supplied value is checked
+
+A timing attack needs one operand the attacker supplies and the other a value the code holds. An equality comparison is therefore reported only when something on or around the line says it verifies a supplied value:
+
+- one side is computed by an HMAC, hash or signing call (`hmac.new`, `createHmac`, `hash_hmac`, `doFinal`, `mac.Sum`, `md5(...)`, `hexdigest`) on the same line or one of the five lines above;
+- the enclosing function is named for verifying: `verify`, `validate`, `valid`, `check`, `authenticate`;
+- an operand is read from a request (`req`, `request`, `params`, `headers`, `cookies`, `body`, `$_POST`, `r.Header`) or is named for what was supplied or what it is checked against (`provided`, `supplied`, `received`, `given`, `incoming`, `submitted`, `candidate`, `user_`, `client_`, `header`, `input`, `got`, `expected`, `computed`, `calculated`);
+- an operand was assigned from a request on one of the 30 lines above (`tok := r.Header.Get(...)`, `token = request.POST.get(...)`, `$token = $_GET['token']`);
+- an operand is a parameter of a request handler (`@RequestParam`, `@RequestHeader`, `@PostMapping`, `HttpServletRequest`, `http.ResponseWriter`).
+
+These are not reported, because neither side is supplied by a caller:
+
+```go
+// two documents' content digests
+if from.Source.Digest == to.Source.Digest { ... }
+// a cache dropping its own entry only if it is still the one it issued
+if t := cache[key]; t != nil && t.Token == tok { ... }
+// change detection on a refreshed credential
+if tok.RefreshToken != login.RefreshToken { ... }
+// a credential compared with a published constant
+return creds.APIKey == CommunityAPIKey
+```
+
+The byte-loop form (`expected[i] != supplied[i]` with an early return) keeps its own context test: code whose file name, function, class or doc comment names a MAC, signature, digest or secret.
 
 Not flagged: presence checks against an empty string, `null`, `None`, `nil`, a boolean or a number; comparisons with an ALL_CAPS constant or after `typeof` (lexer token kinds); `.length`, `.type` and size comparisons; names that only contain `hash` (`geometryHash`, `location.hash`); lines already using `hmac.compare_digest`, `crypto.timingSafeEqual`, `hmac.Equal`, `hash_equals`, `secure_compare` or `MessageDigest.isEqual`; comments, strings and test files.
 

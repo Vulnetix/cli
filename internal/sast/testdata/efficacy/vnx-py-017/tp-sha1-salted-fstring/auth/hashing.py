@@ -9,4 +9,4 @@ def make_hash(user_password: str) -> str:
 
 
 def legacy(passwd, salt):
-~>    return hashlib.sha1(salt + passwd).hexdigest()
+    return hashlib.sha1(salt + passwd).hexdigest()

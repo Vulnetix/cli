@@ -12,7 +12,7 @@ public class Panel {
     public String title(Model m) {
         try {
             return m.title();
-~>        } catch (IllegalStateException ex) {
+        } catch (IllegalStateException ex) {
             ex.getMessage();
         }
         return "";

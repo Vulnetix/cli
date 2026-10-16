@@ -2,7 +2,8 @@ from flask import abort, request
 
 
 def purge_cache():
-~>    if request.cookies.get("role") != "admin":
+    # Reported by VNX-784 (a security decision on a cookie), not by this rule.
+    if request.cookies.get("role") != "admin":
         abort(403)
     cache.clear()
     return "ok"

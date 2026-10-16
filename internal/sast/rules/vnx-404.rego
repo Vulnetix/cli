@@ -8,9 +8,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-404",
 	"name": "Improper Resource Shutdown or Release",
-	"description": "Reports a file or database handle bound to a local variable inside a function and never released on any path before the function ends. Python: `x = open(...)` (also io.open, codecs.open, gzip/bz2/lzma.open) with no `x.close()`, `with x`, `contextlib.closing(x)`, `enter_context(x)`, and where x is not returned, yielded, stored on an object or in a collection. Java: a local assigned `new FileInputStream/FileOutputStream/FileReader/FileWriter/RandomAccessFile/ZipFile/JarFile(...)` (possibly wrapped, `new BufferedReader(new FileReader(p))`) , `Files.newBufferedReader/newBufferedWriter/newInputStream/newOutputStream(...)` or `DriverManager.getConnection(...)`, outside try-with-resources, with no `x.close()`/`closeQuietly(x)` and not returned, stored in a field or handed to another constructor. Not reported: a release in finally, module-level (script) opens, a handle chained in place (`open(p).read()`), test files, comments and strings. A handle that is closed only on the success path (no try/finally) is not reported.",
+	"description": "Reports a Java file or database handle bound to a local variable inside a method and never released on any path before the method ends: a local assigned `new FileInputStream/FileOutputStream/FileReader/FileWriter/RandomAccessFile/ZipFile/JarFile(...)` (possibly wrapped, `new BufferedReader(new FileReader(p))`) , `Files.newBufferedReader/newBufferedWriter/newInputStream/newOutputStream(...)` or `DriverManager.getConnection(...)`, outside try-with-resources, with no `x.close()`/`closeQuietly(x)` and not returned, stored in a field or handed to another constructor. Not reported: a release in finally, test files, comments and strings. A handle that is closed only on the success path (no try/finally) is not reported. Python file and socket handles that are never closed are reported by VNX-775.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-404/",
-	"languages": ["java", "python"],
+	"languages": ["java"],
 	"severity": "low",
 	"level": "note",
 	"kind": "sast",
@@ -24,84 +24,7 @@ metadata := {
 
 _indent(l) := count(l) - count(trim_left(l, " \t"))
 
-_blank(l) if trim_space(l) == ""
-
-# ── Python ───────────────────────────────────────────────────────────────
-
-_py_open_re := `^(\s+)([A-Za-z_]\w*)\s*=\s*(?:io\.|codecs\.|gzip\.|bz2\.|lzma\.)?open\(`
-
-# open(p).read(): the handle is a temporary, not the variable.
-_py_chained(l) if regex.match(`open\([^()]*(\([^()]*\)[^()]*)*\)\s*\.\w`, l)
-
-_py_released(l, v) if regex.match(concat("", [`\b`, v, `\.(close|__exit__)\b`]), l)
-
-_py_released(l, v) if regex.match(concat("", [`\b(with|async\s+with)\s+`, v, `\b`]), l)
-
-_py_released(l, v) if regex.match(concat("", [`\b(closing|enter_context|push)\(\s*`, v, `\s*\)`]), l)
-
-_py_released(l, v) if regex.match(concat("", [`^\s*(return|yield(\s+from)?)\s+(\(?\s*|[A-Z][\w.]*\(\s*)`, v, `\s*(\)\s*)?(,.*|#.*)?$`]), l)
-
-_py_released(l, v) if regex.match(concat("", [`[\w\]\)]\s*=\s*`, v, `\s*(#.*)?$`]), l)
-
-_py_released(l, v) if regex.match(concat("", [`\.(append|add|insert|extend|setdefault|put)\([^)]*\b`, v, `\s*\)`]), l)
-
-# The end of the enclosing function: a def/class at a shallower indent or
-# module-level code.
-_py_end(lines, i, ind) := e if {
-	hi := min([count(lines), i + 80])
-	ends := [k |
-		some k in numbers.range(i + 1, hi - 1)
-		l := lines[k]
-		not _blank(l)
-		_py_leaves(l, ind)
-	]
-	e := min(array.concat([hi], ends))
-}
-
-_py_leaves(l, _) if {
-	_indent(l) == 0
-	not startswith(l, "#")
-}
-
-_py_leaves(l, ind) if {
-	_indent(l) < ind
-	regex.match(`^\s*(async\s+def|def|class)\s`, l)
-}
-
-findings contains finding if {
-	some path, content in input.file_contents
-	endswith(path, ".py")
-	not helpers.is_test_path(path)
-	contains(content, "open(")
-	lines := split(content, "\n")
-	some i, line in lines
-	contains(line, "open(")
-	m := regex.find_all_string_submatch_n(_py_open_re, line, 1)
-	count(m) > 0
-	not _py_chained(line)
-	v := m[0][2]
-	ind := count(m[0][1])
-	e := _py_end(lines, i, ind)
-	not _py_any_release(lines, i, e, v)
-	finding := {
-		"rule_id": metadata.id,
-		"message": sprintf("'%s' is opened here and never closed before the function ends: the file descriptor stays open until garbage collection. Use `with open(...) as %s:`.", [v, v]),
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
-
-_py_any_release(lines, i, e, v) if {
-	some k in numbers.range(i + 1, e - 1)
-	k < e
-	contains(lines[k], v)
-	_py_released(lines[k], v)
-}
-
-# ── Java ─────────────────────────────────────────────────────────────────
+# Python file and socket handles are reported by VNX-775.
 
 _java_open_re := `^(\s*)(?:final\s+)?([A-Z][\w.<>\[\]]*\s+)?([a-z_]\w*)\s*=\s*(?:\([\w.]+\)\s*)?(?:new\s+(?:[\w.]+\s*\(\s*new\s+)*(?:java\.io\.)?(?:FileInputStream|FileOutputStream|FileReader|FileWriter|RandomAccessFile|ZipFile|JarFile)\s*\(|DriverManager\s*\.\s*getConnection\s*\(|(?:java\.nio\.file\.)?Files\s*\.\s*new(?:BufferedReader|BufferedWriter|InputStream|OutputStream)\s*\()`
 

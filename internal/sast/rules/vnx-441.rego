@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-441",
 	"name": "Unintended proxy: request-chosen URL fetched and relayed to the client",
-	"description": "Reports a server-side HTTP fetch whose URL (the first argument, or the URL argument of requests.request/http.request) is a request value, directly or through a variable assigned from one in the 12 lines above (including JS destructuring and TypeScript-annotated declarations), when the fetched response is then returned to the caller in the next 15 lines: Python requests/httpx/urlopen with the response's content/text/read() returned, rendered or wrapped in a Response, and Node axios/fetch/got/needle/superagent/request with the body sent, written or piped to res. Also reports http-proxy's proxy.web/proxy.ws with a target taken from the request. The service then acts as an open proxy (confused deputy) that reaches internal hosts on the requester's behalf. Not reported: a fetch whose URL is a constant (a request value only in params or the body), a URL that names a fixed host and takes only its path or query from the request (f\"{API}/items/{id}\", `${UPSTREAM}/search?q=${q}`), a fetch whose response is not relayed (plain SSRF is VNX-918's concern), a flow guarded by an allow-list or URL validation between source and fetch, comments, string literals and test files.",
+	"description": "Reports a server-side HTTP fetch whose URL (the first argument, or the URL argument of requests.request/http.request) is a request value, directly or through a variable assigned from one in the 12 lines above (including JS destructuring and TypeScript-annotated declarations), when the fetched response is then returned to the caller in the next 15 lines, before the next handler or function starts: Python requests/httpx/urlopen with the response's content/text/read() returned, rendered or wrapped in a Response, and Node axios/fetch/got/needle/superagent/request with the body sent, written or piped to res. Also reports http-proxy's proxy.web/proxy.ws with a target taken from the request. The service then acts as an open proxy (confused deputy) that reaches internal hosts on the requester's behalf. Not reported: a fetch whose URL is a constant (a request value only in params or the body), a URL that names a fixed host and takes only its path or query from the request (f\"{API}/items/{id}\", `${UPSTREAM}/search?q=${q}`), a fetch whose response is not relayed (plain SSRF is VNX-918 in Python and VNX-NODE-009 in JavaScript, which leave relayed fetches to this rule so one request is one finding), a flow guarded by an allow-list or URL validation between source and fetch, comments, string literals and test files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-441/",
 	"languages": ["node", "python"],
 	"severity": "medium",
@@ -125,18 +125,34 @@ _guarded(lines, i) if {
 	regex.match(_guard, helpers.code_window(lines, i, 12, 0))
 }
 
+# The relay must come before the next handler starts: the response of a
+# webhook POST is not relayed by the res.json() of the route declared below it.
+_handler_start := "^\\s*(?:@|(?:async\\s+)?def\\s|exports\\.[\\w$]+\\s*=|module\\.exports\\b|(?:export\\s+)?(?:default\\s+)?(?:async\\s+)?function\\b|(?:app|router|[\\w$]*[Rr]outer|fastify|server)\\.(?:get|post|put|patch|delete|all|route)\\s*\\(\\s*['\"`/])"
+
+_relay_end(lines, i) := e if {
+	last := min([count(lines) - 1, i + 15])
+	bs := [k | some k in numbers.range(i + 1, last); k > i; regex.match(_handler_start, lines[k])]
+	e := _end_at(bs, last)
+}
+
+_end_at(bs, _) := bs[0] - 1 if count(bs) > 0
+
+_end_at(bs, last) := last if count(bs) == 0
+
 _relayed(lines, i, lang) if {
-	some k in numbers.range(i, min([count(lines) - 1, i + 15]))
+	some k in numbers.range(i, _relay_end(lines, i))
 	not helpers.is_comment_line(lines[k])
 	regex.match(_relay(lang), lines[k])
 }
 
 # body = await resp.read() / data = r.content, then return web.Response(body=body).
 _relayed(lines, i, "py") if {
-	some k in numbers.range(i, min([count(lines) - 1, i + 15]))
+	end := _relay_end(lines, i)
+	some k in numbers.range(i, end)
 	regex.match(`=\s*(?:await\s+)?[A-Za-z_][\w.]*\.(?:content|text|raw|read\(\)|json\(\))\s*$`, lines[k])
 	v := helpers.assigned_first(lines[k])
-	some k2 in numbers.range(k + 1, min([count(lines) - 1, k + 8]))
+	k + 1 <= end
+	some k2 in numbers.range(k + 1, min([end, k + 8]))
 	not helpers.is_comment_line(lines[k2])
 	regex.match(concat("", [`(?:\breturn\b|Response\(|render\(|jsonify\(|make_response\().*\b`, v, `\b`]), lines[k2])
 }

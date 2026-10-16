@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1393",
 	"name": "Use of Default Password",
-	"description": "A password is set to a well-known vendor or framework default, the first value an attacker tries: password, admin, administrator, root, toor, changeme, changeit (the JDK keystore default), change_me, default, guest, secret, postgres, mysql, oracle, manager, tomcat or raspberry (exact, lower-case). Reported when the value is assigned to a name that ends in password, passwd, pwd, passphrase or _pass (a variable, constant, field, keyword argument, object/dict/hash/JSON key, XML attribute or C# property initialiser) in Python, JavaScript/TypeScript, Go, Java, PHP, Ruby and C#; when it is a bare value of such a key in YAML, docker-compose, .env, .properties, .ini, .conf, .cfg and .toml files; and when it is the fallback of an environment or configuration lookup of a password name (os.environ.get/os.getenv/getenv/env()/ENV.fetch(\"DB_PASSWORD\", \"postgres\"), process.env.X_PASSWORD || \"guest\" / ?? , ${DB_PASSWORD:-changeme}), because that default ships whenever the variable is unset. Not reported: other literals (weak non-default values are VNX-1391, default user/password pairs VNX-1392), comparisons (password == \"admin\"), labels and field names (\"Password\", PASSWORD_FIELD = \"password\", type/name attributes), the literal as the start of a concatenation, the text inside a longer string or a comment, test, spec, fixture and docs paths, translation catalogues, and config templates (.example, .sample, .template, .dist). Hard-coded passwords in general are VNX-SEC-014 and VNX-259.",
+	"description": "A password is set to a well-known vendor or framework default, the first value an attacker tries: password, admin, administrator, root, toor, changeme, changeit (the JDK keystore default), change_me, default, guest, secret, postgres, mysql, oracle, manager, tomcat or raspberry (exact, lower-case). Reported when the value is assigned to a name that ends in password, passwd, pwd, passphrase or _pass (a variable, constant, field, keyword argument, object/dict/hash/JSON key, XML attribute or C# property initialiser) in Python, JavaScript/TypeScript, Go, Java, PHP, Ruby and C#; when it is a bare value of such a key in YAML, docker-compose, .env, .properties, .ini, .conf, .cfg and .toml files; and when it is the fallback of an environment or configuration lookup of a password name (os.environ.get/os.getenv/getenv/env()/ENV.fetch(\"DB_PASSWORD\", \"postgres\"), process.env.X_PASSWORD || \"guest\" / ?? , ${DB_PASSWORD:-changeme}), because that default ships whenever the variable is unset. Not reported: other literals (weak non-default values are VNX-1391), a default password set for a default account (<user name=\"admin\" password=\"admin\" />, a USERNAME = \"admin\" constant above PASSWORD = \"admin\", MYSQL_ROOT_PASSWORD=root, User Id=sa;Password=password), which is reported by VNX-1392 as a default credential pair so the line is reported once, comparisons (password == \"admin\"), labels and field names (\"Password\", PASSWORD_FIELD = \"password\", type/name attributes), the literal as the start of a concatenation, the text inside a longer string or a comment, test, spec, fixture and docs paths, translation catalogues, and config templates (.example, .sample, .template, .dist). Hard-coded passwords in general are VNX-SEC-014 and VNX-259.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1393/",
 	"languages": ["python", "node", "go", "java", "php", "ruby", "csharp", "docker"],
 	"severity": "low",
@@ -187,6 +187,163 @@ _line_start(content, idx) if {
 	substring(content, idx - 1, 1) == "\n"
 }
 
+# ── Lines VNX-1392 reports ─────────────────────────────────────────────────
+# A password next to the default account it unlocks (admin/admin, an admin
+# account with admin123, MYSQL_ROOT_PASSWORD=root) is one defect, a default
+# credential pair, and VNX-1392 reports that line. These are VNX-1392's own
+# conditions (its file and line gates, keyed pairs, root-named keys, URL
+# user-info and connection strings), copied so the line is reported once and
+# only ever skipped here when VNX-1392 does report it. Keep them in step.
+
+_p_users := {"admin", "administrator", "root", "sa", "guest", "postgres", "elastic", "tomcat", "pi", "oracle", "system", "mysql"}
+
+_p_defaults := {
+	"password", "admin", "administrator", "root", "toor", "changeme", "changeit", "change_me",
+	"default", "guest", "secret", "postgres", "mysql", "oracle", "manager", "tomcat", "raspberry",
+}
+
+_p_weak_re := `(?i)^(?:[0-9]{4,}|(?:password|passw0rd|p@ssw0rd|p@ssword|pass|admin|root|test|user|guest|demo|qwerty|welcome|letmein|changeme|secret|master)[0-9!@#$.]{1,4}|qwerty(?:uiop)?|asdf(?:gh(?:jkl)?)?|zxcvbnm?|abc123|abcd1234|123abc|1q2w3e(?:4r)?|1qaz2wsx|123qwe|qwe123|letmein|welcome|iloveyou|monkey|dragon|sunshine|trustno1|football|baseball|master|abcdef|aaaaaa|s3cret|passw0rd|p@ssw0rd|p@ssword)$`
+
+_p_pw_ok(_, p) if p in _p_defaults
+
+_p_pw_ok(_, p) if regex.match(_p_weak_re, p)
+
+_p_pw_ok(u, p) if {
+	p != ""
+	lower(p) == u
+}
+
+_p_pw_ok(u, "") if u in {"root", "sa"}
+
+_p_pw_key(key) if {
+	k := lower(key)
+	regex.match(`(?:password|passwd|pwd|passphrase)$|(?:^|[_.\->])pass$`, k)
+	not regex.match(`(?:field|param|column|attr|label|input|selector|placeholder|hint|title|text|msg|message|error|route|path|url|name|type|policy|reset|forgot)[_.\-]?(?:password|passwd|pwd|pass)$`, k)
+}
+
+_p_user_key(key) if regex.match(`(?i)(?:^|[_.\->])(?:user|username|user_name|login|email|account|uid)$|(?:^|[a-z])(?:User|Username|UserName|Login)$`, key)
+
+_p_cred_key(k) if _p_pw_key(k)
+
+_p_cred_key(k) if _p_user_key(k)
+
+_p_kv_re := `([A-Za-z_$][\w$.\->]*)['"]?\]?\s*(===|!==|==|!=|=>|:=|=|:)\s*(?:"([^"\n]{0,64})"|'([^'\n]{0,64})')(\s*\+)?`
+
+_p_cfg_kv_re := `^\s*(?:-\s*)?(?:export\s+)?['"]?([\w.\-]+)['"]?\s*[:=]\s*([^\s'"#,;{}\[\]]*)\s*(?:[#;].*)?$`
+
+_p_docker_kv_re := `^\s*(?:ENV|ARG)\s+(\w+)(?:\s*=\s*|\s+)["']?([^\s'"]*)["']?\s*$`
+
+_p_pairs(line) := {[m[1], concat("", [m[3], m[4]])] |
+	some m in regex.find_all_string_submatch_n(_p_kv_re, line, -1)
+	_p_cred_key(m[1])
+	not m[2] in {"===", "!==", "==", "!="}
+	m[5] == ""
+	_outside_string(line, m[0])
+}
+
+_p_cfg_pairs(line, "cfg") := {[m[1], m[2]] | some m in regex.find_all_string_submatch_n(_p_cfg_kv_re, line, 1)}
+
+_p_cfg_pairs(line, "docker") := {[m[1], m[2]] | some m in regex.find_all_string_submatch_n(_p_docker_kv_re, line, 1)}
+
+_p_cfg_pairs(_, "code") := set()
+
+_p_all_pairs(line, kind) := _p_pairs(line) | _p_cfg_pairs(line, kind)
+
+_p_user_vals(line, kind) := {lower(v) |
+	some p in _p_all_pairs(line, kind)
+	_p_user_key(p[0])
+	v := p[1]
+	lower(v) in _p_users
+}
+
+_p_xml_user_vals(line) := {lower(m[1]) |
+	contains(line, "<user")
+	some m in regex.find_all_string_submatch_n(`<user\b[^>]*\bname\s*=\s*"([^"]*)"`, line, 1)
+	lower(m[1]) in _p_users
+}
+
+_p_own_password(l) if regex.match(`(?i)(?:password|passwd|pwd|_pass)['"]?\]?\s*(?:=>|:=|=|:)`, l)
+
+_p_own_password(l) if contains(l, "<user")
+
+_p_near_users(lines, i, kind) := _p_user_vals(lines[i], kind) | _p_xml_user_vals(lines[i]) | {u |
+	some j in numbers.range(max([0, i - 3]), min([count(lines) - 1, i + 3]))
+	j != i
+	l := lines[j]
+	not helpers.is_comment_line(l)
+	not _p_own_password(l)
+	some u in _p_user_vals(l, kind)
+}
+
+_p_pw_maybe(p) if p in _p_defaults
+
+_p_pw_maybe("")
+
+_p_pw_maybe(p) if lower(p) in _p_users
+
+_p_pw_maybe(p) if regex.match(_p_weak_re, p)
+
+_p_pw_pairs(line, kind) := {p |
+	some p in _p_all_pairs(line, kind)
+	_p_pw_key(p[0])
+	_p_pw_maybe(p[1])
+}
+
+_p_hit(_, _, line, _) if {
+	contains(line, "://")
+	contains(line, "@")
+	some m in regex.find_all_string_submatch_n(`\b[a-zA-Z][\w+.\-]*://([^:/@\s'"]+):([^@/\s'"]*)@`, line, -1)
+	u := lower(m[1])
+	u in _p_users
+	_p_pw_ok(u, m[2])
+}
+
+_p_hit(_, _, line, _) if {
+	contains(line, ";")
+	some um in regex.find_all_string_submatch_n(`(?i)(?:^|[;"'\s])(?:user\s?id|uid|user|username)\s*=\s*([^;"'\s]+)\s*;`, line, 1)
+	u := lower(um[1])
+	u in _p_users
+	some pm in regex.find_all_string_submatch_n(`(?i)(?:^|[;"'\s])(?:password|pwd)\s*=\s*([^;"'\s]*)\s*(?:;|["']|$)`, line, 1)
+	_p_pw_ok(u, pm[1])
+}
+
+_p_hit(lines, i, line, kind) if {
+	regex.match(`(?i)pass|pwd`, line)
+	some p in _p_pw_pairs(line, kind)
+	some u in _p_near_users(lines, i, kind)
+	_p_pw_ok(u, p[1])
+}
+
+_p_hit(_, _, line, kind) if {
+	regex.match(`(?i)root[_.\-]?(?:password|passwd|pwd|pass)`, line)
+	some p in _p_pw_pairs(line, kind)
+	regex.match(`(?i)root[_.\-]?(?:password|passwd|pwd|pass)$`, p[0])
+	p[1] != ""
+	_p_pw_ok("root", p[1])
+}
+
+_p_user_needles := [
+	`"admin"`, `'admin'`, `=admin`, `: admin`, `"root"`, `'root'`, `=root`, `: root`,
+	`"sa"`, `'sa'`, `=sa`, `: sa`, `"guest"`, `'guest'`, `=guest`, `: guest`,
+	`"postgres"`, `'postgres'`, `=postgres`, `: postgres`, `"elastic"`, `'elastic'`, `: elastic`,
+	`"tomcat"`, `'tomcat'`, `"pi"`, `'pi'`, `"oracle"`, `'oracle'`, `"system"`, `'system'`,
+	`"mysql"`, `'mysql'`, `//admin:`, `//root:`, `//guest:`, `//postgres:`, `//sa:`, `//elastic:`,
+	`"administrator"`, `'administrator'`, `ROOT_PASS`, `root_pass`, `RootPass`, `rootPass`,
+	`"Admin"`, `"ADMIN"`, `"Root"`, `"root:`, `"admin:`, `"postgres:`, `'root:`,
+]
+
+_p_has_user(content) if {
+	some n in _p_user_needles
+	contains(content, n)
+}
+
+_reported_by_1392(content, i, line, kind) if {
+	_p_has_user(content)
+	regex.match(`pass|Pass|PASS|pwd|PWD|://|["']\s*,\s*["']`, line)
+	count(line) < 2000
+	_p_hit(split(content, "\n"), i, line, kind)
+}
+
 findings contains finding if {
 	some path, content in input.file_contents
 	kind := _kind(path)
@@ -197,6 +354,7 @@ findings contains finding if {
 	i := gl[1]
 	not _comment(line)
 	_hit(line, kind)
+	not _reported_by_1392(content, i, line, kind)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Password set to a well-known default value: it is the first credential an attacker tries. Generate a unique secret per deployment and load it from a secrets manager or the environment, with no default",

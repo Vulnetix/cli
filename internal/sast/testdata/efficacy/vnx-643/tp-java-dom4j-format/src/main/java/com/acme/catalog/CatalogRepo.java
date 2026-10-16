@@ -6,7 +6,7 @@ import java.util.List;
 
 public class CatalogRepo {
     public List<Node> byCategory(Document doc, String category) {
-~>        return doc.selectNodes("//product[@category='" + category + "']");
+        return doc.selectNodes("//product[@category='" + category + "']");
     }
 
     public Node bySku(Document doc, String sku) {

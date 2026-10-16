@@ -16,11 +16,18 @@ Anyone on the host can create `/tmp/appd.pid` before your program does, as a sym
 ## What Gets Flagged
 
 ```c
-int fd = open("/tmp/appd.pid", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-FILE *f = fopen("/tmp/appd.log", "a");
-snprintf(path, sizeof(path), "/var/tmp/appd-%d.state", id);
-FILE *out = fopen(path, "w");
+int fd = open("/tmp/appd.pid", O_WRONLY | O_CREAT | O_TRUNC, 0600);  /* owner-only, but no O_EXCL */
+FILE *f = fopen("/tmp/appd.state", "r+");
+chmod("/tmp/appd.sock", 0777);
+std::ofstream out("/tmp/cache.idx");
 if (access(path, W_OK) == 0) { return open(path, O_WRONLY | O_APPEND); }
+```
+
+In C and C++, creating a fixed name in a shared temporary directory with permissions other users can use is reported by [VNX-378](../vnx-378/), not here: `fopen()` with a `w`/`a` mode (no `x`), and `open()`/`creat()` with a mode that grants other users access and no `O_EXCL`. That is the same defect in its C-specific form, so the line is reported once.
+
+```c
+FILE *f = fopen("/tmp/appd.log", "a");                                /* reported by VNX-378 */
+int fd = open("/tmp/appd.lock", O_WRONLY | O_CREAT | O_TRUNC, 0644);  /* reported by VNX-378 */
 ```
 
 ```python
@@ -36,7 +43,7 @@ lock := filepath.Join(os.TempDir(), "agent.lock")
 return os.Create(lock)
 ```
 
-Not flagged: `mkstemp`, `NamedTemporaryFile`, `os.CreateTemp`, `os.MkdirTemp` names, opens with `O_EXCL` or `O_NOFOLLOW`, Python mode `"x"`, reads, writes outside shared temporary directories, test code, and the same text in comments or strings.
+Not flagged: `mkstemp`, `NamedTemporaryFile`, `os.CreateTemp`, `os.MkdirTemp` names, opens with `O_EXCL` or `O_NOFOLLOW`, Python mode `"x"`, reads, writes outside shared temporary directories, test code, the same text in comments or strings, and the C/C++ temporary-file creation that VNX-378 reports.
 
 ## Remediation
 

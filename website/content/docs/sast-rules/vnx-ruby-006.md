@@ -21,7 +21,7 @@ The consequences range from horizontal privilege escalation (setting `confirmed 
 
 The rule reports, in `.rb` files:
 
-- an attribute-assigning call (`create`, `update`, `update_attributes`, `assign_attributes`, `attributes=`, `find_or_create_by`, `first_or_create`, `insert_all`, `upsert`, `build`, `Model.new`) given `params[...]`, `request.params`, `params.to_unsafe_h` or a `.permit!` result, directly or through a variable assigned from one in the 15 lines above;
+- an attribute-assigning call (`create`, `update`, `update_attributes`, `assign_attributes`, `attributes=`, `find_or_create_by`, `first_or_create`, `insert`, `insert_all`, `upsert`, `build`, `Model.new`) given `params[...]`, `request.params`, `params.to_unsafe_h`, `params.require(...).to_unsafe_h` or a `.permit!` result, directly or through a variable assigned from one in the 15 lines above;
 - every `.permit!` call;
 - a `.permit(...)` list containing `:admin`, `:role`, `:role_id`, `:roles`, `:superuser` or `:permissions` outside an admin controller.
 

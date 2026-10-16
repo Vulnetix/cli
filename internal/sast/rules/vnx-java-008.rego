@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-008",
 	"name": "Java server-side request forgery",
-	"description": "Reports an outbound request whose URL or host comes from the request: new URL(), RestTemplate getForObject/getForEntity/postForObject/postForEntity/exchange/execute, WebClient.create()/baseUrl()/uri(), java.net.http HttpRequest.newBuilder()/uri(), Apache HttpClient new HttpGet/HttpPost/... and fluent Request.Get/Post, OkHttp Request.Builder url(), Jsoup.connect() and new Socket(host, ...) whose first argument reads getParameter/getHeader/getQueryString/getCookies, is a @RequestParam/@PathVariable/@RequestHeader/@RequestBody/@CookieValue parameter, or is a variable assigned from one through up to two intermediate assignments within the 40 lines above (URI.create(value) and concatenation included). The server can then be made to reach internal services, cloud metadata endpoints or arbitrary ports. Not reported: a URL that starts with a fixed scheme and host (\"https://api.example.com/items/\" + id), a value checked by an if guard (getHost comparison, startsWith, matches, allowlist contains/isAllowed) before the call, URLs from configuration, a URL handed in as a plain method parameter (its callers decide), comments and string literals.",
+	"description": "Reports an outbound request whose URL or host comes from the request: new URL(), RestTemplate getForObject/getForEntity/postForObject/postForEntity/exchange/execute, WebClient.create()/baseUrl()/uri(), java.net.http HttpRequest.newBuilder()/uri(), Apache HttpClient new HttpGet/HttpPost/... and fluent Request.Get/Post, OkHttp Request.Builder url(), Jsoup.connect() and new Socket(host, ...) whose first argument reads getParameter/getHeader/getQueryString/getCookies, is a @RequestParam/@PathVariable/@RequestHeader/@RequestBody/@CookieValue parameter, or is a variable assigned from one through up to two intermediate assignments within the 40 lines above (URI.create(value) and concatenation included). The server can then be made to reach internal services, cloud metadata endpoints or arbitrary ports. Not reported: JdbcTemplate (or any *Jdbc*/*Sql* receiver) execute(), which runs SQL rather than a request (SQL built from the request there is reported by VNX-JAVA-003), a URL that starts with a fixed scheme and host (\"https://api.example.com/items/\" + id), a value checked by an if guard (getHost comparison, startsWith, matches, allowlist contains/isAllowed) before the call, URLs from configuration, a URL handed in as a plain method parameter (its callers decide), comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-008/",
 	"languages": ["java"],
 	"severity": "high",
@@ -219,6 +219,9 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	some re in _sinks
 	regex.match(re, line)
+	# JdbcTemplate.execute(sql) is a database call, not an HTTP one: SQL
+	# built from the request there is VNX-JAVA-003's to report.
+	not regex.match(`(?i)\b\w*(?:jdbc|sql)\w*\s*\.\s*(?:execute|exchange)\s*\(`, line)
 	raw := _after(_joined(lines, i, 3, false), re)
 	not _fixed_prefix(raw)
 	a := _first_arg(_strip(raw))

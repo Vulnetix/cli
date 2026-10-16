@@ -3,7 +3,8 @@ from flask import request as flask_request
 
 
 def secret_page(request):
-~>    if request.COOKIES.get('admin') == "1":
+    # Reported by VNX-784 (a security decision on a cookie), not by this rule.
+    if request.COOKIES.get('admin') == "1":
         return render(request, "secret.html", {"flag": "ADMIN"})
     return render(request, "secret.html", {})
 
@@ -12,7 +13,8 @@ def session_lab(request):
     cookie = request.COOKIES["cookie"]
     if cookie.split('|')[1] == "expired":
         return render(request, "expired.html")
-~>    elif cookie.split('|')[0] == 'admin':
+    # Reported by VNX-807 (a decision on an untrusted cookie value), not by this rule.
+    elif cookie.split('|')[0] == 'admin':
         return render(request, "admin.html")
     return render(request, "user.html")
 

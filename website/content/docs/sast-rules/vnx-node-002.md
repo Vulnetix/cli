@@ -39,7 +39,7 @@ const script = new vm.Script(source);
 setTimeout("refresh(" + id + ")", 1000);
 ```
 
-Not flagged: `eval("require('crypto')")` and `new Function('a', 'b', 'return a + b')` (string literals only), `vm.runInContext("parse(data)", sandbox)`, methods named eval or evaluate (`redis.eval`, `page.evaluate`, mathjs `evaluate`), `declare function eval(...)`, timers given a function, the pattern inside strings or comments, and minified files or lines over 400 characters.
+Not flagged: `eval("require('crypto')")` and `new Function('a', 'b', 'return a + b')` (string literals only), `vm.runInContext("parse(data)", sandbox)`, methods named eval or evaluate (`redis.eval`, `page.evaluate`, mathjs `evaluate`), `declare function eval(...)`, timers given a function, the pattern inside strings or comments, and minified files or lines over 400 characters. An evaluator given Express or Koa request data (`eval(req.body.preTax)`, or a variable assigned or destructured from it) is code injection and is reported by VNX-94, not here, so the line appears once.
 
 ## Remediation
 

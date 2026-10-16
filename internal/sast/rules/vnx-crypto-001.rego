@@ -241,6 +241,7 @@ findings contains finding if {
 	code := _code(lang, line)
 	_hit(lang, lines, i, code, pats)
 	not _excluded(lang, lines, i, code)
+	not _handed_over(path, content, lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "MD5 is computed here; MD5 collisions are cheap, so it cannot protect integrity, signatures, tokens or passwords. Use SHA-256 or stronger (argon2, bcrypt or scrypt for passwords)",
@@ -250,4 +251,226 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# ── lines VNX-327 reports ───────────────────────────────────────────────
+# An MD5/SHA-1 digest with a password, secret, token, session id, cookie,
+# signature, salt, nonce, CSRF value or API key named around the call is
+# VNX-327's finding (a broken hash protecting a security value); a password
+# hashed directly is VNX-CRYPTO-007's. This is VNX-327's own test, kept in step
+# with it, so a line is only handed over when that rule reports it.
+_r327_py_call := `\bhashlib\.(md5|sha1)\s*\(|\bhashlib\.new\(\s*['"](md5|sha1)['"]`
+
+_r327_call(path, content) := _r327_py_call if {
+	endswith(path, ".py")
+	not regex.match(`(?m)^\s*from\s+hashlib\s+import\s+[^\n]*\b(md5|sha1)\b`, content)
+}
+
+_r327_call(path, content) := concat("|", [_r327_py_call, `(^|[^\w.])(md5|sha1)\s*\(`]) if {
+	endswith(path, ".py")
+	regex.match(`(?m)^\s*from\s+hashlib\s+import\s+[^\n]*\b(md5|sha1)\b`, content)
+}
+
+_r327_call(path, _) := `\bcreateHash\(\s*['"\x60](md5|sha-?1)['"\x60]|\bCryptoJS\.(MD5|SHA1)\(` if {
+	some ext in {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"}
+	endswith(path, ext)
+}
+
+_r327_call(path, _) := `\bMessageDigest\.getInstance\(\s*"(MD5|SHA-?1)"|\bDigestUtils\.(md5|sha1|sha)(Hex|DigestAsHex|Digest)?\s*\(|\bHashing\.(md5|sha1)\(\s*\)` if endswith(path, ".java")
+
+_r327_call(path, _) := `(^|[^\w>:$\\])(md5|sha1)(_file)?\s*\(` if endswith(path, ".php")
+
+_r327_call(path, _) := `\b(OpenSSL::)?Digest::(MD5|SHA1)\b|\bOpenSSL::Digest\.new\(\s*['"](?i:md5|sha1)['"]` if endswith(path, ".rb")
+
+_r327_closer(l) if regex.match(`^\s*(\}[\s;),]*|end)\s*$`, l)
+
+_r327_before_start(lines, i) := s if {
+	lo := max([0, i - 3])
+	ks := [k | some k in numbers.range(lo, i - 1); _r327_closer(lines[k])]
+	count(ks) > 0
+	s := max(ks) + 1
+} else := max([0, i - 3])
+
+_r327_after_n(lines, i, after) := n if {
+	hi := min([count(lines) - 1, i + after])
+	hi > i
+	ks := [k | some k in numbers.range(i + 1, hi); _r327_closer(lines[k])]
+	count(ks) > 0
+	n := (min(ks) - i) - 1
+} else := after
+
+_r327_window(lines, i, after) := helpers.code_window(lines, i, i - _r327_before_start(lines, i), _r327_after_n(lines, i, after)) if i > 0
+
+_r327_window(lines, 0, after) := helpers.code_window(lines, 0, 0, _r327_after_n(lines, 0, after))
+
+_r327_security_re := `(?i)(passw|passwd|pwd|\bpw\b|\$pass|\bpass_|_pass\b|\bpass\b|secret|token|session_?id|sessid|cookie|signature|\bsig\b|\bsign\b|\botp\b|nonce|csrf|xsrf|api_?key|credential|\bsalt|reset|auth_?code)`
+
+_r327_after(line) := 3 if contains(line, "MessageDigest")
+
+_r327_after(line) := 1 if not contains(line, "MessageDigest")
+
+_r327_non_security(line) if regex.match(`usedforsecurity\s*=\s*False`, line)
+
+_r327_non_security(line) if regex.match(`\b(md5|sha1)\(\s*(static::class|self::class|__CLASS__|'[^']*'|"[^"$]*")\s*\)`, line)
+
+_r327_owns(path, content, lines, i) if {
+	re := _r327_call(path, content)
+	not helpers.is_test_path(path)
+	line := lines[i]
+	regex.match(re, line)
+	count(line) < 400
+	not regex.match(`(?i)hmac`, line)
+	not _r327_non_security(line)
+	regex.match(_r327_security_re, _r327_window(lines, i, _r327_after(line)))
+}
+
+# Python hashlib.new( with the algorithm on the next line.
+_r327_owns(path, _, lines, i) if {
+	endswith(path, ".py")
+	not helpers.is_test_path(path)
+	regex.match(`\bhashlib\.new\(\s*$`, lines[i])
+	i + 1 < count(lines)
+	regex.match(`^\s*['"](md5|sha1)['"]`, lines[i + 1])
+	not _r327_non_security(concat("\n", array.slice(lines, i, i + 4)))
+	regex.match(_r327_security_re, _r327_window(lines, i, 4))
+}
+
+# VNX-327 hands a password hashed directly to VNX-CRYPTO-007, so a line is
+# either one's or the other's.
+_handed_over(path, content, lines, i) if _r327_owns(path, content, lines, i)
+
+_handed_over(path, content, lines, i) if _c7_owns(path, content, lines, i)
+
+# ── lines VNX-CRYPTO-007 reports ────────────────────────────────────────
+# A fast digest whose argument names a password is VNX-CRYPTO-007's finding
+# (a password hashed with a fast hash). This is that rule's own test, kept
+# in step with it, so a line is only handed over when it reports the line.
+_c7_lang(path) := "python" if endswith(path, ".py")
+
+_c7_lang(path) := "node" if {
+	regex.match(`\.(?:js|jsx|mjs|cjs|ts|tsx|mts|cts)$`, path)
+	not endswith(path, ".min.js")
+}
+
+_c7_lang(path) := "java" if endswith(path, ".java")
+
+_c7_lang(path) := "php" if endswith(path, ".php")
+
+_c7_lang(path) := "ruby" if endswith(path, ".rb")
+
+_c7_lang(path) := "go" if endswith(path, ".go")
+
+_c7_strings := {
+	"python": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
+	"node": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'|`[^`]*`",
+	"java": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
+	"php": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
+	"ruby": `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`,
+	"go": "\"(?:[^\"\\\\]|\\\\.)*\"|`[^`]*`",
+}
+
+_c7_tail := {
+	"python": `#.*$`,
+	"node": `//.*$`,
+	"java": `//.*$`,
+	"php": `(?://|#).*$`,
+	"ruby": `#.*$`,
+	"go": `//.*$`,
+}
+
+_c7_code(lang, line) := c if {
+	s1 := regex.replace(line, `['"](?i:md5|sha-?(?:1|224|256|384|512)|sha3-\d+|sha)['"]`, "__FAST__")
+	s3 := regex.replace(s1, `\[\s*['"](\w+)['"]\s*\]`, "[__k_${1}]")
+	s4 := regex.replace(s3, `\.(?:FormValue|PostFormValue|getParameter|get|param|fetch|input|post|query|Get)\s*\(\s*['"](\w+)['"]\s*\)`, ".__k_${1}")
+	t := regex.replace(s4, _c7_strings[lang], `""`)
+	c := regex.replace(t, _c7_tail[lang], "")
+}
+
+_c7_fast := {
+	"python": [
+		`\bhashlib\.(?:md5|sha1|sha224|sha256|sha384|sha512|sha3_\d+|blake2[bs])\s*\((.*)$`,
+		`\bhashlib\.new\s*\(\s*__FAST__\s*,(.*)$`,
+	],
+	"node": [
+		`\bcreateHash\s*\(\s*__FAST__\s*\)\s*\.update\s*\((.*)$`,
+		`\bCryptoJS\.(?:MD5|SHA1|SHA224|SHA256|SHA384|SHA512|SHA3)\s*\((.*)$`,
+	],
+	"java": [
+		`\bMessageDigest\.getInstance\s*\([^)]*\)\s*\.(?:digest|update)\s*\((.*)$`,
+		`\bDigestUtils\.(?:md5|sha1|sha256|sha384|sha512|sha|md2)(?:Hex)?\s*\((.*)$`,
+		`\bHashing\.(?:md5|sha1|sha256|sha384|sha512)\s*\(\s*\)\s*\.hash\w*\s*\((.*)$`,
+	],
+	"php": [
+		`(?i)(?:^|[^\w>:$\\])(?:md5|sha1)\s*\((.*)$`,
+		`(?i)\bhash\s*\(\s*__FAST__\s*,(.*)$`,
+	],
+	"go": [
+		`\b(?:md5|sha1)\.Sum\s*\((.*)$`,
+		`\bsha256\.Sum(?:256|224)\s*\((.*)$`,
+		`\bsha512\.Sum(?:512|384|512_256)\s*\((.*)$`,
+	],
+	"ruby": [`\b(?:OpenSSL::)?Digest::(?:MD5|SHA1|SHA256|SHA384|SHA512|SHA2|RMD160)\.(?:hexdigest|digest|base64digest)\s*\(?(.*)$`],
+}
+
+_c7_py_imported(content) := {n |
+	some m in regex.find_all_string_submatch_n(`(?m)^\s*from\s+hashlib\s+import\s+([^\n#]+)`, content, -1)
+	some part in split(regex.replace(m[1], `[()]`, ""), ",")
+	t := regex.split(`\s+as\s+`, trim_space(part))
+	t[0] in {"md5", "sha1", "sha224", "sha256", "sha384", "sha512"}
+	n := t[count(t) - 1]
+}
+
+_c7_pw_ident(id) if {
+	regex.match(`(?i)passw(?:or)?d|passphrase`, id)
+	not _c7_not_pw(id)
+}
+
+_c7_pw_ident(id) if {
+	regex.match(`(?i)^\$?(?:pass|pwd|pw)(?:_[a-z]\w*)?$|_(?:pass|pwd)$|[a-z](?:Pass|Pwd)$`, id)
+	not _c7_not_pw(id)
+}
+
+_c7_not_pw(id) if regex.match(`(?i)token|reset|hash|digest|length|len$|policy|field|label|url|hint|count|attempt|expir|strength|regex|rule|error|msg|message|salt|key|through|port`, id)
+
+_c7_names_password(rest) if {
+	some id in regex.find_n(`[A-Za-z_$][\w$]*`, rest, -1)
+	_c7_pw_ident(id)
+}
+
+_c7_rest(lang, code, _) if {
+	some p in _c7_fast[lang]
+	m := regex.find_all_string_submatch_n(p, code, 1)
+	count(m) > 0
+	_c7_names_password(m[0][count(m[0]) - 1])
+}
+
+_c7_rest("python", code, content) if {
+	some n in _c7_py_imported(content)
+	m := regex.find_all_string_submatch_n(concat("", [`(?:^|[^\w.])`, n, `\s*\((.*)$`]), code, 1)
+	count(m) > 0
+	_c7_names_password(m[0][1])
+}
+
+_c7_api := ["hashlib", "createHash", "CryptoJS.", "MessageDigest", "DigestUtils", "Hashing.", "Digest::", "md5(", "md5 (", "MD5(", "sha1(", "sha1 (", "SHA1(", "hash(", "hash (", "Md5", "Sha1", "Sha256", "SHA256", "Sha512", "Sum256", "Sum512", "md5.Sum", "sha1.Sum"]
+
+_c7_pw := ["pass", "Pass", "PASS", "pwd", "Pwd", "PWD", "pw"]
+
+_c7_any(content, toks) if {
+	some t in toks
+	contains(content, t)
+}
+
+_c7_owns(path, content, lines, i) if {
+	lang := _c7_lang(path)
+	_c7_any(content, _c7_api)
+	_c7_any(content, _c7_pw)
+	not helpers.is_test_path(path)
+	line := lines[i]
+	count(line) < 1000
+	regex.match(`pass|Pass|PASS|pwd|Pwd|PWD|pw\b|PW\b`, line)
+	regex.match(`md5|MD5|Md5|Sum|sha|SHA|Sha|igest|update|blake|hash\s*\(`, line)
+	code := _c7_code(lang, line)
+	_c7_rest(lang, code, content)
+	not regex.match(`(?i)hmac`, code)
+	not regex.match(`(?i)pwned|/range/|\[:5\]|substr\s*\([^)]*,\s*0\s*,\s*5\s*\)`, helpers.code_window(lines, i, 4, 4))
 }

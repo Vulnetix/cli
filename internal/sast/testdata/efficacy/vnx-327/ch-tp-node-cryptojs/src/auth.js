@@ -1,7 +1,7 @@
 import CryptoJS from "crypto-js";
 
 export function hashPassword(password) {
-~>  return CryptoJS.MD5(password).toString();
+  return CryptoJS.MD5(password).toString();
 }
 
 export function signRequest(secret, body) {

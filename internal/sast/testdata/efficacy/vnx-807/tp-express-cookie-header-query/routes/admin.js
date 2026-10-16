@@ -1,7 +1,8 @@
 const router = require('express').Router();
 
 router.get('/admin', (req, res, next) => {
-~>  if (req.cookies.isAdmin === 'true') {
+  // Reported by VNX-784 (a security decision on a cookie), not by this rule.
+  if (req.cookies.isAdmin === 'true') {
     return res.render('admin');
   }
 ~>  if (req.headers['x-user-role'] == 'admin') {

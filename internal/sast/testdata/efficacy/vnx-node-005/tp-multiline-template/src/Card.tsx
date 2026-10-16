@@ -9,7 +9,7 @@ export function Card({ html }: { html: string }) {
 }
 
 export function mount(root: HTMLElement, title: string) {
-~>  root.innerHTML = `
+  root.innerHTML = `
     <header>
       <h1>${title}</h1>
     </header>`;

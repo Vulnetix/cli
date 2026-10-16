@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-RUBY-006",
 	"name": "Ruby mass assignment",
-	"description": "Request parameters reach ActiveRecord attribute assignment without a strong-parameters allowlist: create/create!/update/update!/update_attributes/assign_attributes/attributes=/first_or_create/first_or_initialize/find_or_create_by/find_or_initialize_by/insert_all/upsert(_all) or Model.new given params, params[...], request.params, params.to_unsafe_h or a .permit! result, directly or through a variable assigned from one (up to two assignments, so a reject/merge on the raw hash still counts) in the 15 lines above; every .permit! call; and a .permit(...) list that admits a privilege attribute (admin, is_admin, role, role_id, roles, role_ids, superuser, super_admin, site_admin, permissions, as a symbol or as a nested key such as permissions: []) outside an admin controller, including a list spread over the lines after permit( (reported on the attribute's line). Not reported: values filtered by params.require(...).permit(...) or .slice, a single scalar param (update(name: params[:name])), Model.new(params) with the whole bare params hash (form and service objects), Hash#update on option hashes, OpenStruct/Struct.new, comments and strings. Rails 4+ raises ForbiddenAttributesError for unpermitted ActionController::Parameters, so findings on raw params matter most for Sinatra, Rails 3 and apps that set permit_all_parameters.",
+	"description": "Request parameters reach ActiveRecord attribute assignment without a strong-parameters allowlist: create/create!/update/update!/update_attributes/assign_attributes/attributes=/first_or_create/first_or_initialize/find_or_create_by/find_or_initialize_by/insert/insert_all/upsert(_all) or Model.new given params, params[...], request.params, params.to_unsafe_h, params.require(...).to_unsafe_h or a .permit! result, directly or through a variable assigned from one (up to two assignments, so a reject/merge on the raw hash still counts) in the 15 lines above; every .permit! call; and a .permit(...) list that admits a privilege attribute (admin, is_admin, role, role_id, roles, role_ids, superuser, super_admin, site_admin, permissions, as a symbol or as a nested key such as permissions: []) outside an admin controller, including a list spread over the lines after permit( (reported on the attribute's line). Not reported: values filtered by params.require(...).permit(...) or .slice, a single scalar param (update(name: params[:name])), Model.new(params) with the whole bare params hash (form and service objects), Hash#update on option hashes, OpenStruct/Struct.new, comments and strings. This rule owns Ruby mass assignment; VNX-915 covers JavaScript/TypeScript. Rails 4+ raises ForbiddenAttributesError for unpermitted ActionController::Parameters, so findings on raw params matter most for Sinatra, Rails 3 and apps that set permit_all_parameters.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-006/",
 	"languages": ["ruby"],
 	"severity": "high",
@@ -23,7 +23,7 @@ metadata := {
 
 # An unfiltered request hash: params or a nested params value, the unsafe
 # conversions, request.params. A permit(...) or slice(...) filter makes it safe.
-_raw_re := `^\s*\(?\s*(?:params(?:\s*\[[^\]]+\])*(?:\.to_unsafe_h(?:ash)?|\.permit!|\.require\([^)]*\)\.permit!|\.to_h)?|request\.(?:params|POST|request_parameters))\s*(?:[,)]|\.(?:merge|except|reject|deep_merge)\b|$)`
+_raw_re := `^\s*\(?\s*(?:params(?:\s*\[[^\]]+\])*(?:\.to_unsafe_h(?:ash)?|\.permit!|\.require\([^)]*\)\.(?:permit!|to_unsafe_h(?:ash)?)|\.to_h)?|request\.(?:params|POST|request_parameters))\s*(?:[,)]|\.(?:merge|except|reject|deep_merge)\b|$)`
 
 _assign_re := `^\s*(@{0,2}[A-Za-z_]\w*)\s*(?:\|\|)?=\s*[^=~>]`
 
@@ -68,7 +68,7 @@ _tainted(lines, i) := t1 | t2 if {
 _tainted(_, 0) := set()
 
 # Attribute-assigning calls. `new` needs a constant receiver.
-_call_re := `(?:\.(create!?|update!?|update_attributes!?|assign_attributes|first_or_create!?|first_or_initialize|find_or_create_by!?|find_or_initialize_by|insert_all!?|upsert(?:_all)?|build)|\.(attributes)\s*=|\b([A-Z][\w:]*)\.(new))\s*(?:\(\s*|\s+)`
+_call_re := `(?:\.(create!?|update!?|update_attributes!?|assign_attributes|first_or_create!?|first_or_initialize|find_or_create_by!?|find_or_initialize_by|insert_all!?|insert!?|upsert(?:_all)?|build)|\.(attributes)\s*=|\b([A-Z][\w:]*)\.(new))\s*(?:\(\s*|\s+)`
 
 # Hash#update and value objects take a hash too.
 _not_model(code, at) if {
@@ -148,7 +148,7 @@ findings contains finding if {
 	_gate(content)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`create|update|assign_attributes|attributes|first_or_|find_or_|insert_all|upsert|build|\.new\b`, line)
+	regex.match(`create|update|assign_attributes|attributes|first_or_|find_or_|insert|upsert|build|\.new\b`, line)
 	not helpers.is_comment_line(line)
 	code := _code(line)
 	some m in regex.find_all_string_submatch_n(_call_re, code, -1)

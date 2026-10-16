@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-SEC-015",
 	"name": "JWT algorithm none attack",
-	"description": "A JSON Web Token is issued unsigned, or accepted without its signature being verified, so anyone can forge one. Reported: 'none' among the allowed or signing algorithms (algorithms=[\"none\"], algorithms: ['HS256', 'none'], algorithm: 'none', 'algorithm' => 'none'), PyJWT jwt.encode(..., algorithm=None), a token header literal {\"alg\": \"none\"}; PyJWT/python-jose decode with options={\"verify_signature\": False} or the old verify=False (also on a continuation line of the decode call); Ruby JWT.decode(token, key, false) (with or without parentheses) and JWT.encode(payload, nil, 'none'); jjwt SignatureAlgorithm.NONE, the parser option .unsecured(), Jwts.parser()...parse(token) (the generic parse, which accepts an unsigned token before jjwt 0.12), parseClaimsJwt/parsePlaintextJwt/parseUnsecuredClaims; auth0 Algorithm.none(); Nimbus PlainJWT.parse / new PlainJWT; golang-jwt SigningMethodNone and UnsafeAllowNoneSignatureType outside a comparison; lestrrat-go/jwx jwt.WithVerify(false); jose UnsecuredJWT; ASP.NET TokenValidationParameters RequireSignedTokens = false or a SignatureValidator lambda or delegate that returns the token unchecked (also when its body is on the following lines); PHP JWT::decode with 'none' allowed and lcobucci Signer\\None. Not reported: a specific signing algorithm, verify_signature: True, parseClaimsJws/parseSignedClaims, a jjwt 0.12 chain with verifyWith/keyLocator and no unsecured() before parse(), golang-jwt ParseUnverified and jwx ParseInsecure (commonly used to read the kid before verifying), a comparison that rejects alg none (alg === 'none', t.Method == jwt.SigningMethodNone), TLS verify=False outside a JWT decode, prose strings, tests, comments and documentation.",
+	"description": "A JSON Web Token is issued unsigned, or accepted as an unsigned token, so anyone can forge one. Reported: 'none' among the allowed or signing algorithms (algorithms=[\"none\"], algorithms: ['HS256', 'none'], algorithm: 'none', 'algorithm' => 'none'), PyJWT jwt.encode(..., algorithm=None), a token header literal {\"alg\": \"none\"}; Ruby JWT.encode(payload, nil, 'none'); jjwt SignatureAlgorithm.NONE, the parser option .unsecured(), Jwts.parser()...parse(token) on a parser given no signing key (the generic parse, which accepts an unsigned token before jjwt 0.12), parseClaimsJwt/parsePlaintextJwt/parseUnsecuredClaims; auth0 Algorithm.none(); Nimbus PlainJWT.parse / new PlainJWT; golang-jwt SigningMethodNone and UnsafeAllowNoneSignatureType outside a comparison; jose UnsecuredJWT; PHP JWT::decode with 'none' allowed and lcobucci Signer\\None. Not reported: a specific signing algorithm, verify_signature: True, parseClaimsJws/parseSignedClaims, a jjwt 0.12 chain with verifyWith/keyLocator and no unsecured() before parse(), golang-jwt ParseUnverified and jwx ParseInsecure (commonly used to read the kid before verifying), a comparison that rejects alg none (alg === 'none', t.Method == jwt.SigningMethodNone), TLS verify=False outside a JWT decode, prose strings, tests, comments and documentation. Signature verification switched off for a signed token (PyJWT/python-jose verify_signature False or verify=False, Ruby JWT.decode(token, key, false), jjwt parse() after setSigningKey in Java/Kotlin, lestrrat-go/jwx jwt.WithVerify(false), ASP.NET RequireSignedTokens = false or a SignatureValidator that returns the token unchecked) is reported by VNX-JWT-001.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-015/",
 	"languages": [],
 	"severity": "critical",
@@ -56,20 +56,12 @@ _unsafe(path, line) if {
 
 _unsafe(_, line) if regex.match(`(?i)[{,]\s*["']?alg["']?\s*(?::|=>)\s*["']none["']`, line)
 
-_unsafe(path, line) if {
-	endswith(path, ".py")
-	regex.match(`["']verify_signature["']\s*:\s*False\b|\bverify_signature\s*=\s*False\b`, line)
-}
-
-_unsafe(path, line) if {
-	endswith(path, ".py")
-	regex.match(`\bdecode\([^)]*\bverify\s*=\s*False\b`, line)
-}
-
-_unsafe(path, line) if {
-	endswith(path, ".rb")
-	regex.match(`\bJWT\.decode\(\s*[^,]+,\s*[^,]+,\s*false\b`, line)
-}
+# Signature verification switched off for a signed token (PyJWT/python-jose
+# verify_signature False or verify=False, ruby-jwt JWT.decode(t, k, false),
+# jjwt parse() after setSigningKey, jwx WithVerify(false), .NET
+# RequireSignedTokens = false and an unchecking SignatureValidator) is
+# reported by VNX-JWT-001; this rule keeps the 'none' algorithm and the
+# unsigned-token APIs.
 
 _unsafe(path, line) if {
 	endswith(path, ".rb")
@@ -85,6 +77,7 @@ _unsafe(path, line) if {
 	regex.match(`\.(java|kt|kts)$`, path)
 	regex.match(`\bJwts\.parser(?:Builder)?\(\)[^;]*\.parse\(`, line)
 	not _jjwt_verified(line)
+	not _jjwt_keyed(path, line)
 }
 
 # jjwt 0.12+: .unsecured() on the parser accepts unsigned tokens.
@@ -100,34 +93,11 @@ _jjwt_verified(text) if {
 	not contains(text, ".unsecured()")
 }
 
-# lestrrat-go/jwx: jwt.Parse(..., jwt.WithVerify(false)).
-_unsafe(path, line) if {
-	endswith(path, ".go")
-	regex.match(`\bjwt\.WithVerify\(\s*false\s*\)`, line)
-}
-
-# Ruby without parentheses: JWT.decode token, nil, false.
-_unsafe(path, line) if {
-	endswith(path, ".rb")
-	regex.match(`\bJWT\.decode\s+[^,]+,\s*[^,]+,\s*false\b`, line)
-}
-
-# PyJWT verify=False on a continuation line of a decode( call.
-_multi(path, lines, i, line) if {
-	endswith(path, ".py")
-	regex.match(`\bverify\s*=\s*False\b`, line)
-	not regex.match(`\bdecode\(`, line)
-	text := concat(" ", array.slice(lines, max([0, i - 4]), i + 1))
-	regex.match(`\bdecode\([^)]*\bverify\s*=\s*False\b`, text)
-}
-
-# ASP.NET SignatureValidator delegate/lambda whose body returns the token
-# unchecked on a following line.
-_multi(path, lines, i, line) if {
-	endswith(path, ".cs")
-	regex.match(`\bSignatureValidator\s*=\s*(?:delegate\b|\(?[^)]*\)?\s*=>\s*\{?\s*$)`, line)
-	text := concat(" ", array.slice(lines, i + 1, i + 5))
-	regex.match(`^[^;]*\breturn\s+new\s+(JwtSecurityToken|JsonWebToken)\(`, text)
+# A jjwt parse() after setSigningKey in Java/Kotlin is VNX-JWT-001's finding
+# (verification of a signed token skipped); a .kts script is not read there.
+_jjwt_keyed(path, text) if {
+	regex.match(`\.(java|kt)$`, path)
+	contains(text, "setSigningKey")
 }
 
 _unsafe(path, line) if {
@@ -142,11 +112,6 @@ _unsafe(path, line) if {
 }
 
 _unsafe(path, line) if {
-	endswith(path, ".cs")
-	regex.match(`\bRequireSignedTokens\s*=\s*false\b|\bSignatureValidator\s*=\s*\(?[^)]*\)?\s*=>\s*new\s+(JwtSecurityToken|JsonWebToken)\(`, line)
-}
-
-_unsafe(path, line) if {
 	endswith(path, ".php")
 	regex.match(`(?i)\bJWT::decode\([^;]*["']none["']|\\Signer\\None\b|\bnew\s+None\(\)`, line)
 }
@@ -156,6 +121,7 @@ _chain_parse(path, lines, i, line) if {
 	regex.match(`\.(java|kt|kts)$`, path)
 	regex.match(`^\s*\.parse\(`, line)
 	_chain_unbroken(lines, i)
+	not _chain_keyed(path, lines, i)
 }
 
 # No statement ends between the Jwts.parser() line and this one.
@@ -167,6 +133,11 @@ _chain_unbroken(lines, i) if {
 	not _jjwt_verified(concat(" ", array.slice(lines, s, i + 1)))
 }
 
+_chain_keyed(path, lines, i) if {
+	starts := [j | some j in numbers.range(max([0, i - 6]), i - 1); regex.match(`\bJwts\.parser(?:Builder)?\(\)`, lines[j])]
+	_jjwt_keyed(path, concat(" ", array.slice(lines, max(starts), i + 1)))
+}
+
 _ends_between(lines, s, i) if {
 	some j in numbers.range(s, i - 1)
 	regex.match(`;\s*(//.*)?$`, lines[j])
@@ -176,7 +147,6 @@ _reported(path, lines, i, line) if _unsafe(path, _code(line))
 
 _reported(path, lines, i, line) if _chain_parse(path, lines, i, line)
 
-_reported(path, lines, i, line) if _multi(path, lines, i, line)
 
 findings contains finding if {
 	some path, content in input.file_contents

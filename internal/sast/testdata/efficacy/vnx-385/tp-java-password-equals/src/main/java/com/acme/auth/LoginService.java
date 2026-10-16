@@ -12,7 +12,7 @@ public class LoginService {
 
     public boolean login(String name, String password) {
         User u = repo.find(name);
-~>        return u != null && u.getPassword().equals(password);
+        return u != null && u.getPassword().equals(password);
     }
 
     public boolean loginHash(String name, byte[] candidate) {

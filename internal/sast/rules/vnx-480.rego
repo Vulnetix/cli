@@ -92,6 +92,7 @@ findings contains finding if {
 	not _is_comment(line)
 	c := _code(line)
 	some msg in {m | m := _shape(k, c)}
+	not _handed_over(k, content, line, msg)
 	finding := {
 		"rule_id": metadata.id,
 		"message": msg,
@@ -101,4 +102,16 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# A Java String compared by == or != with a string literal is VNX-597's
+# finding (a String compared by reference instead of equals()). This is that
+# rule's own test, so the line is handed over only when VNX-597 reports it.
+_handed_over("java", content, line, msg) if {
+	startswith(msg, "String compared")
+	contains(content, "String")
+	contains(line, "\"")
+	regex.match(`[=!]=\s*"|"\s*[=!]=`, line)
+	c := regex.replace(regex.replace(regex.replace(line, `'(?:[^'\\]|\\.)'`, `''`), `"(?:[^"\\]|\\.)*"`, `""`), `\s*(?://|/\*).*$`, "")
+	regex.match(`(?:[=!]=\s*""|""\s*[=!]=)`, c)
 }

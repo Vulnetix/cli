@@ -4,7 +4,8 @@ from django.shortcuts import render
 def admin_panel(request):
     name = request.POST.get("name")
     if name:
-~>        if request.COOKIES.get('admin') == "1":
+        # Reported by VNX-784 (a security decision on a cookie), not by this rule.
+        if request.COOKIES.get('admin') == "1":
             return render(request, "panel.html", {"username": "admin"})
     return render(request, "denied.html")
 

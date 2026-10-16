@@ -9,7 +9,7 @@ public class TokenService {
     }
 
     public Claims read(String token) {
-~>        Jwt jwt = Jwts.parser().setSigningKey(KEY).parse(token);
+        Jwt jwt = Jwts.parser().setSigningKey(KEY).parse(token);
         return (Claims) jwt.getBody();
     }
 
@@ -23,7 +23,7 @@ public class TokenService {
     public Object read3(String token) {
         Jwt<?, ?> jwt = Jwts.parser()
             .setSigningKey(KEY)
-~>            .parse(token);
+            .parse(token);
         return jwt.getBody();
     }
 

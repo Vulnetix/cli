@@ -2,6 +2,6 @@ services:
   db:
     image: mysql:8
     environment:
-~>      - MYSQL_ROOT_PASSWORD=admin321
+~>      - REDIS_PASSWORD=admin321
 ~>      MYSQL_PASSWORD: qwerty123
 ~>      CACHE_PASSWORD: ${CACHE_PASSWORD:-password1}

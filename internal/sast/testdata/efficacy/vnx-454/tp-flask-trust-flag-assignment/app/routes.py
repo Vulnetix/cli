@@ -5,7 +5,8 @@ app = Flask(__name__)
 
 @app.before_request
 def load_flags():
-~>    is_admin = request.cookies.get("is_admin") == "true"
+    # Reported by VNX-784 (a security decision on a cookie), not by this rule.
+    is_admin = request.cookies.get("is_admin") == "true"
 ~>    g.authenticated = request.headers.get("X-Authenticated") == "yes"
     g.is_admin = is_admin
 

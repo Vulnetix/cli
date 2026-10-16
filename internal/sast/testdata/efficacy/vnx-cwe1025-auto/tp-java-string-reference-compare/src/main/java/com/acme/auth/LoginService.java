@@ -11,7 +11,7 @@ public class LoginService {
     }
 
     public boolean isAdmin(HttpServletRequest request) {
-~>        return request.getParameter("role") == "admin";
+        return request.getParameter("role") == "admin";
     }
 
     public boolean login(String username, String password) {
@@ -23,14 +23,14 @@ public class LoginService {
     }
 
     public boolean sameReferer(String referer, String host) {
-~>        if (referer != "NULL" && referer.endsWith(host)) {
+        if (referer != "NULL" && referer.endsWith(host)) {
             return true;
         }
-~>        return "self" == referer.trim();
+        return "self" == referer.trim();
     }
 
     public String sortOrDefault(String sortOrder) {
-~>        if (sortOrder == null || sortOrder == "") {
+        if (sortOrder == null || sortOrder == "") {
             return "id";
         }
         return sortOrder;

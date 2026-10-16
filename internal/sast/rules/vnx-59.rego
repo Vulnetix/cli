@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-59",
 	"name": "Improper Link Resolution Before File Access ('Link Following')",
-	"description": "A file is written or re-permissioned through a path another local user can plant a symbolic link at, so the write lands wherever the link points. Reported: a fixed, predictable name in a shared world-writable directory (/tmp/, /var/tmp/, /dev/shm/, or a join of tempfile.gettempdir()/os.TempDir() with a literal name, inline in the call or in a variable), given as a literal or through a variable filled from one in the 10 lines above, that is opened for writing without exclusive or no-follow semantics (C/C++ fopen with a w/a/+ mode and no x, open() with write/create flags and neither O_EXCL nor O_NOFOLLOW, creat(), std::ofstream; Python open()/io.open() with a w/a/+ mode, os.open() with write flags and no O_EXCL/O_NOFOLLOW, Path.write_text/write_bytes/touch; Go os.Create, os/ioutil.WriteFile, os.OpenFile with write flags and no O_EXCL), or passed to chmod/chown (which follow links); in C/C++, an access() or lstat() check of a path followed within 10 lines by open()/fopen() of the same path (the link can be swapped between the two calls); and in Go, os.Readlink on a request, flag or os.Args value. Not reported: mkstemp/NamedTemporaryFile/CreateTemp/MkdirTemp names, O_EXCL or O_NOFOLLOW opens, Python mode x, reads, writes outside shared temporary directories, test code, comments and strings.",
+	"description": "A file is written or re-permissioned through a path another local user can plant a symbolic link at, so the write lands wherever the link points. Reported: a fixed, predictable name in a shared world-writable directory (/tmp/, /var/tmp/, /dev/shm/, or a join of tempfile.gettempdir()/os.TempDir() with a literal name, inline in the call or in a variable), given as a literal or through a variable filled from one in the 10 lines above, that is opened for writing without exclusive or no-follow semantics (C/C++ fopen with a w/a/+ mode and no x, open() with write/create flags and neither O_EXCL nor O_NOFOLLOW, creat(), std::ofstream; Python open()/io.open() with a w/a/+ mode, os.open() with write flags and no O_EXCL/O_NOFOLLOW, Path.write_text/write_bytes/touch; Go os.Create, os/ioutil.WriteFile, os.OpenFile with write flags and no O_EXCL), or passed to chmod/chown (which follow links); in C/C++, an access() or lstat() check of a path followed within 10 lines by open()/fopen() of the same path (the link can be swapped between the two calls); and in Go, os.Readlink on a request, flag or os.Args value. Not reported: mkstemp/NamedTemporaryFile/CreateTemp/MkdirTemp names, O_EXCL or O_NOFOLLOW opens, Python mode x, reads, writes outside shared temporary directories, test code, comments and strings. In C/C++, a fixed name in a shared temporary directory created by fopen() with a w/a mode (no x) or by open()/creat() with a mode that grants other users access and no O_EXCL is reported by VNX-378, not here; VNX-59 keeps the C/C++ r+ opens, owner-only modes without O_EXCL, chmod/chown, std::ofstream and the check-then-open race.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-59/",
 	"languages": ["c", "cpp", "go", "python"],
 	"severity": "high",
@@ -135,7 +135,55 @@ findings contains finding if {
 	_has_any(_code(line), _sink_needles[lang])
 	arg := _sink_arg(m)
 	_shared_target(lines, i, arg)
+	not _vnx378_reports(lang, content, lines, i)
 	finding := _finding(path, i, line, "A fixed file name in a shared temporary directory is written (or chmod/chown'ed) without exclusive creation or O_NOFOLLOW. Another local user can create a symbolic link at that name first and the write lands on the file it points to. Create the file with mkstemp/NamedTemporaryFile/os.CreateTemp, or open with O_CREAT|O_EXCL (O_NOFOLLOW) in a private directory")
+}
+
+# ── C/C++ temporary-file creation belongs to VNX-378 ─────────────────────
+#
+# A C/C++ fopen() for writing or appending (no x) and an open()/creat() with a
+# mode that grants other users access (no O_EXCL), of a fixed name in a shared
+# temporary directory, is VNX-378's finding (insecure temporary file creation),
+# the C-specific form of the same defect. These mirror VNX-378's conditions, so
+# the line is still reported, once. VNX-59 keeps what VNX-378 does not read:
+# r+ opens, owner-only modes without O_EXCL, creat/open with no mode, chmod,
+# chown and std::ofstream.
+
+_tmp378 := `"/(?:tmp|var/tmp|dev/shm)/[^"]*"`
+
+_vnx378_target(_, _, arg) if regex.match(concat("", [`^`, _tmp378, `$`]), arg)
+
+_vnx378_target(lines, i, arg) if {
+	regex.match(`^[A-Za-z_]\w*$`, arg)
+	some j in numbers.range(max([0, i - 10]), i - 1)
+	regex.match(concat("", [`\b(?:sn?printf|strn?cpy|strlcpy|strcat)\s*\(\s*`, arg, `\s*,[^;]*`, _tmp378]), lines[j])
+}
+
+_vnx378_target(lines, i, arg) if {
+	regex.match(`^[A-Za-z_]\w*$`, arg)
+	some j in numbers.range(max([0, i - 10]), i - 1)
+	regex.match(concat("", [`\b`, arg, `\s*(?:\[\s*\])?\s*=\s*`, _tmp378]), lines[j])
+}
+
+_vnx378_reports("c", content, lines, i) if {
+	regex.match(`(?m)"/(?:tmp|var/tmp|dev/shm)/`, content)
+	call := concat(" ", array.slice(lines, i, min([count(lines), i + 2])))
+	m := regex.find_all_string_submatch_n(`(?:^|[^\w.>])fopen\s*\(\s*("[^"]*"|[A-Za-z_]\w*)\s*,\s*"([^"]*)"`, call, 1)
+	count(m) > 0
+	regex.match(`^[wa]`, m[0][2])
+	not contains(m[0][2], "x")
+	_vnx378_target(lines, i, m[0][1])
+}
+
+_vnx378_reports("c", content, lines, i) if {
+	regex.match(`(?m)"/(?:tmp|var/tmp|dev/shm)/`, content)
+	regex.match(`(?:^|[^\w.>])(?:open|creat)\s*\(`, lines[i])
+	call := concat(" ", array.slice(lines, i, min([count(lines), i + 3])))
+	m := regex.find_all_string_submatch_n(`(?:^|[^\w.>])(?:open|creat)\s*\(\s*("[^"]*"|[A-Za-z_]\w*)`, call, 1)
+	count(m) > 0
+	_vnx378_target(lines, i, m[0][1])
+	regex.match(`(?:open|creat)\s*\([^;]*?,\s*(?:0[0-7]{0,3}[1-7]\b|S_IRWXO|[^;]*\bS_I[RWX]OTH\b|[^;]*\|\s*S_IRWXO\b)[^,]*\)\s*;?`, call)
+	not contains(call, "O_EXCL")
 }
 
 # Every other group in the sink patterns is non-capturing: the one capture is

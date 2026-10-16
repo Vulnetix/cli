@@ -16,7 +16,7 @@ public class OrderServlet extends HttpServlet {
             render(request, response);
         } catch (Exception e) {
             response.setStatus(500);
-~>            e.printStackTrace(response.getWriter());
+            e.printStackTrace(response.getWriter());
         }
     }
 
@@ -26,7 +26,7 @@ public class OrderServlet extends HttpServlet {
         try {
             save(request);
         } catch (Exception ex) {
-~>            ex.printStackTrace(out);
+            ex.printStackTrace(out);
         }
     }
 

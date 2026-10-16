@@ -12,7 +12,7 @@ public class PasswordHasher {
     private static final String DIGEST_ALGORITHM = "MD5";
 
     public byte[] hash(String password) throws NoSuchAlgorithmException {
-~>        MessageDigest md = MessageDigest.getInstance("MD5");
+        MessageDigest md = MessageDigest.getInstance("MD5");
         return md.digest(password.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -27,11 +27,11 @@ public class PasswordHasher {
     }
 
     public String commonsCodec(String token) {
-~>        return DigestUtils.md5Hex(token);
+        return DigestUtils.md5Hex(token);
     }
 
     public String guava(String token) {
-~>        return Hashing.md5().hashString(token, StandardCharsets.UTF_8).toString();
+        return Hashing.md5().hashString(token, StandardCharsets.UTF_8).toString();
     }
 
     public byte[] sign(java.security.PrivateKey key, byte[] data) throws Exception {

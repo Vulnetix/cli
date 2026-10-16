@@ -13,7 +13,7 @@ public final class Token {
     }
 
     public byte[] getSecret() {
-~>        return secret;
+        return secret;
     }
 
     public Date getExpires() {

@@ -29,7 +29,9 @@ This payload is only a few bytes and trivially embeds in any data channel that u
 
 ## What Gets Flagged
 
-A call to `load()`, `loads()` or `Unpickler()` of `pickle`, `cPickle`, `_pickle`, `dill` or `cloudpickle`, through the module, an `import pickle as pkl` alias, or a name imported with `from pickle import loads as unpickle`; and `jsonpickle.decode()` without `safe=True`.
+A call to `load()`, `loads()` or `Unpickler()` of `pickle`, `cPickle`, `_pickle`, `dill` or `cloudpickle`, through the module, an `import pickle as pkl` alias (a dotted path such as `import six.moves.cPickle as pk` included), or a name imported with `from pickle import loads as unpickle`; and `jsonpickle.decode()` without `safe=True`.
+
+This rule is the one finding for a pickle call wherever its bytes come from. A call fed from a request, a socket or a download is not reported a second time by [VNX-345](../vnx-345/) or [VNX-PY-013](../vnx-py-013/).
 
 Not flagged: `pickle.dump()`/`dumps()`, a deep-copy round trip (`pickle.loads(pickle.dumps(obj))`), `json`/`msgpack`, other objects' `loads` methods (`serializer.loads(...)`), and mentions in comments or strings. ML model loaders such as `torch.load` are VNX-PY-013.
 

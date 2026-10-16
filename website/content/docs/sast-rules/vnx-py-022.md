@@ -1,11 +1,13 @@
 ---
-title: "VNX-PY-022 – SQL injection via string concatenation in Python"
-description: "Reports a SQL statement built from a variable by concatenation, %-formatting, str.format() or an f-string and passed to execute(), executemany(), executescript(), Django objects.raw() or pandas read_sql(), directly, through a variable assigned in the 20 lines above, or as a SQL template variable formatted inside the call (cur.execute(sql % name))."
+title: "VNX-PY-022 – SQL injection via joined SQL pieces in Python"
+description: "Reports SQL assembled by joining a list of pieces, one of them built from a variable, and passed to execute(), executemany(), executescript(), Django objects.raw() or pandas read_sql(). SQL built in one expression is reported by VNX-PY-011."
 ---
 
 ## Overview
 
-This rule detects calls to `cursor.execute()` or `cursor.executescript()` where the SQL string argument is constructed using Python string concatenation (`+`), old-style `%` formatting, or `.format()` method calls. Each of these patterns embeds user-supplied data directly into the SQL string before it reaches the database driver, allowing an attacker who controls any part of that input to alter the query's structure. This vulnerability is classified as CWE-89 (Improper Neutralization of Special Elements used in an SQL Command).
+This rule detects SQL that is assembled from a list of pieces and joined: `clauses.append(f"AND name = '{name}'")` followed by `cursor.execute(" ".join(clauses))`, directly or through a variable assigned `" ".join(clauses)` in the 20 lines above. The list must hold SQL (a piece in its literal or an `append()`), and one piece added by `=`, `+=`, `append()`, `extend()` or `insert()` must be built from a variable: an f-string, `+`, `%` or `.format()`, or a bare non-constant name (`parts.append(order)`). That embeds the value into the SQL string before it reaches the database driver, so an attacker who controls it can alter the query's structure. This vulnerability is classified as CWE-89 (Improper Neutralization of Special Elements used in an SQL Command).
+
+SQL built in a single expression (concatenation, `%` formatting, `.format()` or an f-string, inline, through a variable, extended with `+=`, or a SQL template variable formatted inside the call) is reported by [VNX-PY-011](../vnx-py-011/), which used to report the same lines as this rule. VNX-PY-011 does not follow a list of pieces into `join()`, which is the shape this rule covers.
 
 Python database drivers — including `sqlite3`, `psycopg2`, `MySQLdb`, `cx_Oracle`, and `pyodbc` — all support parameterized query APIs that separate SQL structure from data values. When parameterized queries are used, the driver handles quoting and escaping internally, making injection structurally impossible regardless of the input content. Despite this, string-formatted queries remain common in Python codebases due to the language's expressive string formatting syntax, which makes it syntactically tempting to build queries inline.
 
@@ -20,27 +22,24 @@ Python's `executescript()` method for SQLite is particularly dangerous: it execu
 ## What Gets Flagged
 
 ```python
-# FLAGGED: string concatenation in execute()
-username = request.args.get('username')
+# FLAGGED: an f-string piece joined into the query
+clauses = ["SELECT id, name FROM people WHERE 1 = 1"]
+if name:
+    clauses.append(f"AND name = '{name}'")
+cursor.execute(" ".join(clauses))
+
+# FLAGGED: a bare value appended, joined through a variable
+parts = []
+parts.append("SELECT id FROM people ORDER BY")
+parts.append(order)
+stmt = " ".join(parts)
+cursor.execute(stmt)
+
+# NOT FLAGGED HERE: SQL built in one expression (reported by VNX-PY-011)
 cursor.execute("SELECT * FROM users WHERE username = '" + username + "'")
-
-# FLAGGED: % formatting in SQL string
-user_id = request.form['id']
-cursor.execute("DELETE FROM sessions WHERE user_id = %s" % user_id)
-
-# FLAGGED: .format() used to build query
-table = request.json['table']
-cursor.execute("SELECT * FROM {} WHERE active = 1".format(table))
-
-# FLAGGED: executescript with user input
-cursor.executescript("UPDATE prefs SET value='" + value + "' WHERE key='theme'")
-
-# FLAGGED: f-string query held in a variable, then passed to Django raw()
-sql = f"SELECT * FROM shop_product WHERE name = '{name}'"
-products = Product.objects.raw(sql)
 ```
 
-Not flagged: placeholders with a parameters argument (`cursor.execute("... WHERE id = %s", (uid,))`), strings whose interpolated parts are all UPPER_CASE constants, and placeholder lists built with `",".join("?" * len(ids))`.
+Not flagged: pieces that carry placeholders with the values passed as a parameters argument (`clauses.append("AND name = ?")` ... `cursor.execute(" ".join(clauses), params)`), pieces built only from UPPER_CASE constants, lists that hold no SQL, and placeholder lists built with `",".join("?" * len(ids))`.
 
 ## Remediation
 

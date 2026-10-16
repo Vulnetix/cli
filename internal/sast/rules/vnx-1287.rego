@@ -8,9 +8,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1287",
 	"name": "Improper Validation of Specified Type of Input",
-	"description": "A request value whose type the client chooses is used as a string without checking that it is one. A query-string parser turns ?q[]=a into an array and ?q[x]=1 into an object, and a JSON body field can be any JSON type, so a string method then throws (a crash or a 500) or, for length/includes/indexOf/startsWith checks, silently answers for an array and bypasses the check. Reported in JavaScript/TypeScript: a string method (toLowerCase/toUpperCase/trim/split/startsWith/endsWith/includes/indexOf/replace/match/slice/substring/charAt/padStart/normalize/localeCompare) or .length applied to a field of req.query/req.body/request.body/ctx.query/ctx.request.body, directly or through a variable or destructured name assigned from it in the 10 lines above. Reported in Python: a str method (lower/upper/strip/split/startswith/endswith/replace/encode/casefold) applied to a field of a JSON body (request.json, request.get_json(), DRF request.data, json.loads(request.body/data)), directly, through the dict assigned from it, or through a variable assigned from one of its fields. Not reported: Express/Koa route params and Flask form/args/headers (always strings), a value checked with typeof/Array.isArray/isinstance or coerced with String()/str() first, files that validate requests with express-validator, Joi, zod, yup, celebrate, ajv, class-validator or superstruct, comments and string literals.",
+	"description": "A request value whose type the client chooses is used as a string without checking that it is one. A query-string parser turns ?q[]=a into an array and ?q[x]=1 into an object, and a JSON body field can be any JSON type, so a string method then throws (a crash or a 500) or, for length/includes/indexOf/startsWith checks, silently answers for an array and bypasses the check. Reported in JavaScript/TypeScript: a string method (toLowerCase/toUpperCase/trim/split/startsWith/endsWith/includes/indexOf/replace/match/matchAll/search/slice/substring/charAt/padStart/normalize/localeCompare/concat/repeat) or .length applied to a field of req.query/req.body/request.body/ctx.query/ctx.request.body, directly or through a variable or destructured name assigned from it in the 10 lines above. Not reported: Express/Koa route params (always strings), a value checked with typeof/Array.isArray or coerced with String() first, files that validate requests with express-validator, Joi, zod, yup, celebrate, ajv, class-validator or superstruct, comments and string literals. The same weakness in Python (a str method on a JSON body field: Flask request.json, DRF request.data, json.loads(request.body)) is reported by VNX-241.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1287/",
-	"languages": ["node", "python"],
+	"languages": ["node"],
 	"severity": "low",
 	"level": "note",
 	"kind": "sast",
@@ -37,7 +37,7 @@ _strip(line) := regex.replace(regex.replace(regex.replace(line, `"(\\.|[^"\\])*"
 
 _finding(path, i, line) := {
 	"rule_id": metadata.id,
-	"message": "Request value of client-chosen type used as a string: an array or object here throws or slips past the check. Verify typeof value === 'string' (isinstance(value, str)) first",
+	"message": "Request value of client-chosen type used as a string: an array or object here throws or slips past the check. Verify typeof value === 'string' first",
 	"artifact_uri": path,
 	"severity": metadata.severity,
 	"level": metadata.level,
@@ -51,7 +51,7 @@ _js_src := `(?:\b(?:req|request)\.(?:query|body)|\bctx\.(?:query|request\.body))
 
 _js_field := `(?:\.\w+|\[\s*''\s*\]|\[\s*""\s*\])`
 
-_js_method := `(?:\??\.(?:toLowerCase|toUpperCase|toLocaleLowerCase|trim|trimStart|trimEnd|split|startsWith|endsWith|includes|indexOf|lastIndexOf|replace|replaceAll|match|slice|substring|substr|charAt|charCodeAt|padStart|padEnd|normalize|localeCompare)\(|\??\.length\b)`
+_js_method := `(?:\??\.(?:toLowerCase|toUpperCase|toLocaleLowerCase|trim|trimStart|trimEnd|split|startsWith|endsWith|includes|indexOf|lastIndexOf|replace|replaceAll|match|slice|substring|substr|charAt|charCodeAt|padStart|padEnd|normalize|localeCompare|toLocaleUpperCase|concat|repeat|search|matchAll)\(|\??\.length\b)`
 
 _js_validator_re := `(?:require\(|from\s+)['"](?:express-validator|joi|@hapi/joi|zod|yup|celebrate|ajv|class-validator|superstruct|io-ts)`
 
@@ -115,69 +115,4 @@ _js_sink(lines, i, c) if {
 	some v in _js_names(lines, i)
 	regex.match(concat("", [`(?:^|[^\w$.])`, v, _js_method]), c)
 	not _js_guard(lines, i, v)
-}
-
-# ── Python ───────────────────────────────────────────────────────────────
-
-_py_body := `(?:\brequest\.json\b|\brequest\.get_json\([^)]*\)|\brequest\.data\b|\bjson\.loads\(\s*request\.(?:body|data|get_data\(\))[^)]*\))`
-
-_py_field := `(?:\[[^\]]+\]|\.get\([^)]*\))`
-
-_py_method := `\.(?:lower|upper|strip|lstrip|rstrip|split|rsplit|startswith|endswith|replace|encode|casefold|title|capitalize)\(`
-
-# Dicts assigned from a JSON body.
-_py_dicts(lines, i) := {v |
-	some j in numbers.range(max([0, i - 15]), i - 1)
-	prev := lines[j]
-	contains(prev, "request")
-	not helpers.is_comment_line(prev)
-	m := regex.find_all_string_submatch_n(concat("", [`^\s*([A-Za-z_]\w*)\s*(?::\s*[\w\[\], ]+)?=\s*`, _py_body, `\s*$`]), prev, 1)
-	count(m) > 0
-	v := m[0][1]
-}
-
-# Variables assigned from one field of such a dict, or of the body itself.
-_py_fields(lines, i, dicts) := {v |
-	some j in numbers.range(max([0, i - 10]), i - 1)
-	prev := lines[j]
-	not helpers.is_comment_line(prev)
-	some d in _py_srcs(dicts)
-	m := regex.find_all_string_submatch_n(concat("", [`^\s*([A-Za-z_]\w*)\s*=\s*`, d, _py_field, `\s*$`]), prev, 1)
-	count(m) > 0
-	v := m[0][1]
-}
-
-_py_srcs(dicts) := {_py_body} | {concat("", [`\b`, d, `\b`]) | some d in dicts}
-
-_py_guard(lines, i, v) if {
-	w := helpers.code_window(lines, i, 10, 0)
-	regex.match(concat("", [`isinstance\(\s*`, v, `\b|\b`, v, `\s*=\s*str\(|type\(\s*`, v, `\s*\)`]), w)
-}
-
-findings contains finding if {
-	some path, content in input.file_contents
-	endswith(path, ".py")
-	contains(content, "request")
-	regex.match(_py_method, content)
-	lines := split(content, "\n")
-	some i, line in lines
-	contains(line, ".")
-	not helpers.is_comment_line(line)
-	c := _strip(line)
-	regex.match(_py_method, c)
-	_py_sink(lines, i, c)
-	finding := _finding(path, i, line)
-}
-
-_py_sink(lines, i, c) if {
-	dicts := _py_dicts(lines, i)
-	some d in _py_srcs(dicts)
-	regex.match(concat("", [d, _py_field, _py_method]), c)
-}
-
-_py_sink(lines, i, c) if {
-	dicts := _py_dicts(lines, i)
-	some v in _py_fields(lines, i, dicts)
-	regex.match(concat("", [`(?:^|[^\w.])`, v, _py_method]), c)
-	not _py_guard(lines, i, v)
 }

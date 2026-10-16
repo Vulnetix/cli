@@ -9,7 +9,7 @@ public final class KeyHolder {
         this.key = key.clone();
     }
 
-~>    public byte[] getKey() { return key; }
+    public byte[] getKey() { return key; }
 
     public String getAlg() { return alg; }
 }

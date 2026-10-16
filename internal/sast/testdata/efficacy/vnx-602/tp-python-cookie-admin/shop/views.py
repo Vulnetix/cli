@@ -2,7 +2,8 @@ from django.http import HttpResponse, HttpResponseForbidden
 
 
 def admin_panel(request):
-~>    if request.COOKIES.get('admin') == "1":
+    # Reported by VNX-784 (a security decision on a cookie), not by this rule.
+    if request.COOKIES.get('admin') == "1":
         return HttpResponse("welcome admin")
     return HttpResponseForbidden()
 

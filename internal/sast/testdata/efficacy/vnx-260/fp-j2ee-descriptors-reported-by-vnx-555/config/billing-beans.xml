@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Not a Java EE descriptor, so the password here stays with VNX-260. -->
+<beans>
+  <bean id="ledgerSource" class="org.example.ledger.PooledSource">
+    <property name="url" value="jdbc:postgresql://ledger:5432/ledger"/>
+~>    <property name="password" value="Ledg3rBeanPw"/>
+  </bean>
+</beans>

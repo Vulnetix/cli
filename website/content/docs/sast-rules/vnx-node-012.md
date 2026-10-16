@@ -1,11 +1,13 @@
 ---
 title: "VNX-NODE-012 – Client-Side XSS via innerHTML or v-html"
-description: "Reports raw HTML written into the DOM (innerHTML/outerHTML, insertAdjacentHTML, document.write, jQuery .html(), Vue v-html, React dangerouslySetInnerHTML, Svelte {@html}) from a DOM source such as location or URLSearchParams, from markup spliced together with a non-literal, or from response data. Sanitised values and constants are not reported."
+description: "Reports raw HTML written into the DOM by jQuery .html(), Vue v-html and Svelte {@html}, and by insertAdjacentHTML, document.write and dangerouslySetInnerHTML in HTML pages and components, from a DOM source, from markup spliced together with a non-literal, or from response data. innerHTML assignments are VNX-NODE-027's; the other sinks in JavaScript files are VNX-NODE-005's."
 ---
 
 ## Overview
 
-This rule detects a broader set of DOM-based XSS sinks beyond React's `dangerouslySetInnerHTML`: `.innerHTML =`, `.outerHTML =`, `document.write()`, `document.writeln()`, Vue's `v-html` directive, and jQuery's `.html()` method. All of these inject raw HTML into the live DOM. The rule reports a sink when its value reads a DOM source, splices a non-literal into markup, or is response data; VNX-NODE-005 and VNX-NODE-027 report every non-constant innerHTML. When the content is dynamic — fetched from an API, derived from URL parameters, read from `localStorage`, or received from a WebSocket — an attacker who can influence that content can inject `<script>` tags or inline event handlers that execute in the victim's browser. This is CWE-79 (Improper Neutralization of Input During Web Page Generation — Cross-site Scripting).
+This rule detects DOM-based XSS sinks that the other two XSS rules do not own: jQuery's `.html()` method, Vue's `v-html` directive and Svelte's `{@html}` in every file, and `insertAdjacentHTML()`, `document.write()`/`writeln()` and `dangerouslySetInnerHTML` in inline scripts of HTML and template pages and in Vue or Svelte components. All of these inject raw HTML into the live DOM. The rule reports a sink when its value reads a DOM source, splices a non-literal into markup, or is response data.
+
+Each sink is reported once, by the rule that owns it: an assignment to `.innerHTML` or `.outerHTML` is reported by [VNX-NODE-027](../vnx-node-027/) in every file type, and `insertAdjacentHTML`, `document.write` and `dangerouslySetInnerHTML` in a JavaScript or TypeScript file by [VNX-NODE-005](../vnx-node-005/), not here. When the content is dynamic — fetched from an API, derived from URL parameters, read from `localStorage`, or received from a WebSocket — an attacker who can influence that content can inject `<script>` tags or inline event handlers that execute in the victim's browser. This is CWE-79 (Improper Neutralization of Input During Web Page Generation — Cross-site Scripting).
 
 **Severity:** High | **CWE:** [CWE-79 – Improper Neutralization of Input During Web Page Generation (XSS)](https://cwe.mitre.org/data/definitions/79.html)
 
@@ -20,24 +22,23 @@ DOM-based XSS is particularly subtle because the malicious payload never reaches
 The value written as HTML must read a DOM source, build markup by splicing in a non-literal, or be a property of response data. For the framework raw-HTML bindings any non-constant expression is reported.
 
 ```javascript
-// FLAGGED: DOM sources
-out.innerHTML = location.hash.slice(1);
-const q = new URLSearchParams(window.location.search).get('q');
-results.innerHTML = 'You searched for ' + q;
-document.write("<p>Came from " + document.referrer + "</p>");
-
-// FLAGGED: markup built from data
+// FLAGGED: markup built from data and DOM sources
 $('#alert').html('<p class="warn">' + res.message + '</p>');
-list.innerHTML += `<li>${todo.title}</li>`;
+$('#greeting').html(new URLSearchParams(location.search).get('name'));
 ```
 
 ```html
 <!-- FLAGGED: raw HTML bindings -->
 <div v-html="post.content"></div>
-<div dangerouslySetInnerHTML={{ __html: comment.body }} />
+<section>{@html bio}</section>
+
+<!-- FLAGGED: a sink in a page's inline script -->
+<script>
+  document.write("<div class='alert'>" + paramValue + "</div>");
+</script>
 ```
 
-Not flagged: `DOMPurify.sanitize(...)` or an escape helper around the value, string literals and ternaries between literals, `el.innerHTML = other.innerHTML`, the `.html()` getter, and `textContent`.
+Not flagged: `DOMPurify.sanitize(...)` or an escape helper around the value, string literals and ternaries between literals, the `.html()` getter, and `textContent`. Not flagged here because another rule reports them: `el.innerHTML = location.hash` (VNX-NODE-027) and, in a `.js`/`.ts` file, `document.write(...)` or `dangerouslySetInnerHTML` (VNX-NODE-005).
 
 ## Remediation
 

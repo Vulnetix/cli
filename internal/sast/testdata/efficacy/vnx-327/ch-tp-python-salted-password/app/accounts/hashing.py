@@ -2,7 +2,7 @@ import hashlib
 
 
 def hash_password(password: str, salt: str) -> str:
-~>    pw_hash = hashlib.md5((salt + password).encode("utf-8")).hexdigest()
+    pw_hash = hashlib.md5((salt + password).encode("utf-8")).hexdigest()
     return pw_hash
 
 

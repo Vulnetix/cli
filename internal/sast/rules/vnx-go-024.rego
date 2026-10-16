@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-024",
 	"name": "Request parameter reaches a dangerous sink without validation",
-	"description": "A value read from an HTTP request reaches a command, SQL text, file path, outbound request, redirect or raw response in the same function with no validation on the way. Sources: r.FormValue, r.PostFormValue, r.URL.Query().Get, r.Header.Get, r.PathValue (also through gin/echo's c.Request), mux.Vars(r)[...], chi.URLParam, httprouter ps.ByName, and gin/echo/fiber c.Query/c.DefaultQuery/c.Param/c.PostForm/c.FormValue/c.QueryParam. Sinks: exec.Command(Context), the query argument of db/tx/conn/stmt Exec/Query/QueryRow(Context), os.Open/OpenFile/ReadFile/Create/Remove/RemoveAll/Stat/WriteFile, ioutil.ReadFile/WriteFile, http.Get/Post/Head/NewRequest(WithContext), http.Redirect and gin/echo c.Redirect, template.HTML/JS/URL, fmt.Fprint*(w, ...) and w.Write on a writer named w, rw, res, resp or writer. The value may be read inline at the sink, through the variable it was assigned to, or through one further assignment (script := \"ping \" + host); a sink call broken across lines is read up to its closing parenthesis (four continuation lines) and reported on its first line. Not reported: a value passed as a bind argument after the query, converted (strconv), escaped or confined (url.QueryEscape, html.EscapeString, filepath.Base/Clean) where it is read, a variable checked between the read and the sink (regexp MatchString, an allowlist map lookup, a validate/sanitise call), values only logged or compared, a length (len) or comparison result assigned from the value, comments and test files. This is a broad one-hop check; the dedicated rules for each sink (VNX-GO-002, 003, 005, 006, 007, 020, 021, 023, 025, 027) judge each weakness more precisely.",
+	"description": "A value read from an HTTP request reaches a command, SQL text, file path, outbound request, redirect or raw response in the same function with no validation on the way. Sources: r.FormValue, r.PostFormValue, r.URL.Query().Get, r.Header.Get, r.PathValue (also through gin/echo's c.Request), mux.Vars(r)[...], chi.URLParam, httprouter ps.ByName, and gin/echo/fiber c.Query/c.DefaultQuery/c.Param/c.PostForm/c.FormValue/c.QueryParam. Sinks: exec.Command(Context), the query argument of db/tx/conn/stmt Exec/Query/QueryRow(Context), os.Open/OpenFile/ReadFile/Create/Remove/RemoveAll/Stat/WriteFile, ioutil.ReadFile/WriteFile, http.Get/Post/Head/NewRequest(WithContext), http.Redirect and gin/echo c.Redirect, fmt.Fprint*(w, ...) and w.Write on a writer named w, rw, res, resp or writer. The value may be read inline at the sink, through the variable it was assigned to, or through one further assignment (script := \"ping \" + host); a sink call broken across lines is read up to its closing parenthesis (four continuation lines) and reported on its first line. Not reported: a value passed as a bind argument after the query, converted (strconv), escaped or confined (url.QueryEscape, html.EscapeString, filepath.Base/Clean) where it is read, a variable checked between the read and the sink (regexp MatchString, an allowlist map lookup, a validate/sanitise call), values only logged or compared, a length (len) or comparison result assigned from the value, an html/template trusted-content conversion (template.HTML/JS/URL of a request value, reported by VNX-GO-020), comments and test files. This is a broad one-hop check; the dedicated rules for each sink (VNX-GO-002, 003, 005, 006, 007, 020, 021, 023, 025, 027) judge each weakness more precisely.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-024/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -29,7 +29,11 @@ _source_re := `\b(?:r|req|request|(?:c|ctx)\.Request)\.(?:(?:FormValue|PostFormV
 
 _db_re := `\b\w*(?:db|DB|tx|Tx|conn|Conn|stmt|Stmt|pool|Pool)\w*\.(?:Exec|Query|QueryRow)(Context)?\(`
 
-_sink_re := `\bexec\.Command(?:Context)?\(|\bos\.(?:Open|OpenFile|ReadFile|Create|Remove|RemoveAll|Stat|WriteFile)\(|\bioutil\.(?:ReadFile|WriteFile)\(|\bhttp\.(?:Redirect|Get|Post|Head|NewRequest|NewRequestWithContext)\(|\btemplate\.(?:HTML|JS|URL)\(|\bfmt\.Fprint(?:f|ln)?\(\s*(?:w|rw|res|resp|writer)\s*,|\b(?:w|rw|res|resp|writer)\.Write\(|\b(?:c|ctx)\.Redirect\(`
+_sink_re := `\bexec\.Command(?:Context)?\(|\bos\.(?:Open|OpenFile|ReadFile|Create|Remove|RemoveAll|Stat|WriteFile)\(|\bioutil\.(?:ReadFile|WriteFile)\(|\bhttp\.(?:Redirect|Get|Post|Head|NewRequest|NewRequestWithContext)\(|\bfmt\.Fprint(?:f|ln)?\(\s*(?:w|rw|res|resp|writer)\s*,|\b(?:w|rw|res|resp|writer)\.Write\(|\b(?:c|ctx)\.Redirect\(`
+
+# html/template trusted-content conversions are judged by VNX-GO-020, which
+# owns that sink; their result is still not the parameter's text.
+_conv_re := `\btemplate\.(?:HTML|JS|URL)\(`
 
 _validated_re := `(?i)validat|sanitiz|sanitis|escape|filepath\.(?:Clean|Base|Rel|IsLocal)\(|path\.(?:Clean|Base)\(|strconv\.|\.MatchString\(|allow|whitelist|safe`
 
@@ -92,6 +96,7 @@ _assigned(l) := v if {
 
 	# the result of a sink (file contents, a response) is not the parameter
 	not regex.match(_sink_re, m[0][2])
+	not regex.match(_conv_re, m[0][2])
 	not regex.match(_db_re, m[0][2])
 }
 
@@ -157,12 +162,12 @@ findings contains finding if {
 	endswith(path, ".go")
 	not helpers.is_test_path(path)
 	regex.match(_source_re, content)
-	regex.match(`exec\.Command|\.(?:Exec|Query|QueryRow)(?:Context)?\(|\bos\.|ioutil\.|http\.(?:Redirect|Get|Post|Head|NewRequest)|template\.(?:HTML|JS|URL)\(|fmt\.Fprint|w\.Write\(|\.Redirect\(`, content)
+	regex.match(`exec\.Command|\.(?:Exec|Query|QueryRow)(?:Context)?\(|\bos\.|ioutil\.|http\.(?:Redirect|Get|Post|Head|NewRequest)|fmt\.Fprint|w\.Write\(|\.Redirect\(`, content)
 	lines := split(content, "\n")
 	src := [j | some j, l in lines; regex.match(_source_re, l); not helpers.is_comment_line(l)]
 	count(src) > 0
 	some i, line in lines
-	regex.match(`exec\.|\.(?:Exec|Query|QueryRow)|os\.|ioutil\.|http\.|template\.|Fprint|w\.Write|\.Redirect\(`, line)
+	regex.match(`exec\.|\.(?:Exec|Query|QueryRow)|os\.|ioutil\.|http\.|Fprint|w\.Write|\.Redirect\(`, line)
 	not helpers.is_comment_line(line)
 	code := _strip(_stmt(lines, i, line))
 	text := _sink_text(code)

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-348",
 	"name": "Use of Less Trusted Source",
-	"description": "The client address is taken from a request header the client writes itself, in preference to the socket address the server actually saw. Reported: a read of X-Forwarded-For, X-Real-IP, X-Client-IP, True-Client-IP, CF-Connecting-IP or X-Cluster-Client-IP (as a quoted header name, or the CGI/WSGI/PHP form HTTP_X_FORWARDED_FOR, HTTP_CLIENT_IP and friends), or Flask/werkzeug request.access_route (the X-Forwarded-For list), that falls back, on the same line or within the next ten lines, to the connection's own address (REMOTE_ADDR, remote_addr, remoteAddress, getRemoteAddr()/remoteAddr, RemoteAddr, RemoteIpAddress, UserHostAddress, Rails remote_ip, req.ip / `?? ip`, Laravel $request->ip(), Symfony getClientIp()), in Python, JavaScript/TypeScript, Go, Java, Kotlin, PHP, Ruby and C#. That fallback is the mark of code that does not know whether a proxy is in front of it, so any client can choose the address an allowlist, rate limit or audit log records. Not reported: the rightmost hop (split(...)[-1], rsplit, .pop()), a header read guarded by a trusted-proxy check in the three lines above, a proxy setting or appending the header for the next hop, a header that is only logged or forwarded, a header name used as a dict/object/hash key (outbound or test-client headers), a constant that only names the header (const HeaderXFF = \"X-Forwarded-For\"), test files, reads with no socket-address fallback, comments and prose.",
+	"description": "The client address is taken from a request header the client writes itself, in preference to the socket address the server actually saw. Reported: a read of X-Forwarded-For, X-Real-IP, X-Client-IP, True-Client-IP, CF-Connecting-IP or X-Cluster-Client-IP (as a quoted header name, or the CGI/WSGI/PHP form HTTP_X_FORWARDED_FOR, HTTP_CLIENT_IP and friends), or Flask/werkzeug request.access_route (the X-Forwarded-For list), that falls back, on the same line or within the next ten lines, to the connection's own address (REMOTE_ADDR, remote_addr, remoteAddress, getRemoteAddr()/remoteAddr, RemoteAddr, RemoteIpAddress, UserHostAddress, Rails remote_ip, req.ip / `?? ip`, Laravel $request->ip(), Symfony getClientIp()), in Python, JavaScript/TypeScript, Go, Java, Kotlin, PHP, Ruby and C#. That fallback is the mark of code that does not know whether a proxy is in front of it, so any client can choose the address an allowlist, rate limit or audit log records. Not reported: the rightmost hop (split(...)[-1], rsplit, .pop()), a header read guarded by a trusted-proxy check in the three lines above, a proxy setting or appending the header for the next hop, a header that is only logged or forwarded, a header name used as a dict/object/hash key (outbound or test-client headers), a constant that only names the header (const HeaderXFF = \"X-Forwarded-For\"), test files, reads with no socket-address fallback, comments and prose. A rate limiter key function that reads the header (keyGenerator, key_func, keyResolver on the read line or up to two lines above it) in Python, Java or JavaScript/TypeScript is reported by VNX-290, which names the brute-force consequence.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-348/",
 	"languages": ["csharp", "go", "java", "kotlin", "node", "php", "python", "ruby"],
 	"severity": "medium",
@@ -57,6 +57,26 @@ _reads_header(line) if regex.match(`\brequest\.access_route\b`, line)
 # nothing.
 _names_header(line) if regex.match(concat("", [`(?:=|:=)\s*`, _header_re, `\s*;?\s*$`]), line)
 
+# A rate limiter's key function reading the header (keyGenerator ({ headers,
+# ip }) { return headers['X-Forwarded-For'] ?? ip }) in Python, Java or
+# JavaScript/TypeScript is reported by VNX-290, which names the brute-force
+# consequence; this rule leaves that line to it. The key function sits on
+# the header line or up to two lines above it, as VNX-290 looks for it.
+_vnx290_exts := {".py", ".java", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"}
+
+_vnx290_header_re := `(?i)["'](x-forwarded-for|x-real-ip|x-client-ip|x-originating-ip|true-client-ip|x-cluster-client-ip|cf-connecting-ip|x-remote-(addr|ip)|http_x_forwarded_for|http_x_real_ip|http_x_client_ip|http_x_originating_ip|http_true_client_ip|http_cf_connecting_ip|http_x_cluster_client_ip)["']`
+
+_rate_key_re := `\b(keyGenerator|key_?[Ff]unc|keyResolver|key_?[Gg]enerator|getKey|identifier)\b`
+
+_rate_limit_key(path, lines, i) if {
+	some e in _vnx290_exts
+	endswith(path, e)
+	regex.match(_vnx290_header_re, lines[i])
+	some k in numbers.range(max([0, i - 2]), i)
+	regex.match(_rate_key_re, lines[k])
+	not helpers.is_comment_line(lines[k])
+}
+
 _trust_re :=`(?i)trust(?:ed)?[_ ]?prox|trusted_?(?:hosts|ips|networks)|\bin\s+TRUSTED|isTrusted`
 
 findings contains finding if {
@@ -77,6 +97,7 @@ findings contains finding if {
 	not regex.match(_rightmost_re, window)
 	not regex.match(`(?i)(?:set|add)Header\s*\(\s*["']X-Forwarded-For`, window)
 	not regex.match(_trust_re, helpers.code_window(lines, i, 3, 0))
+	not _rate_limit_key(path, lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "The client address is read from a header the client controls, falling back to the socket address; any client can spoof the address an allowlist, rate limit or audit log sees. Use the socket address, or the rightmost hop added by a proxy you trust",

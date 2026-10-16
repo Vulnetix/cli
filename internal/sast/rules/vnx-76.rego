@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-76",
 	"name": "Improper Neutralization of Equivalent Special Elements",
-	"description": "A dangerous multi-character sequence is neutralised by deleting it once, so an equivalent input that rebuilds it survives: removing ../ from ....// leaves ../, removing <script> from <scr<script>ipt> leaves <script>, removing && from &;& leaves &&, removing http:// from hthttp://tp:// leaves http://. Reported: a replacement with the empty string of a path-traversal sequence (../, ..\\), an HTML tag opener (<script, </script>, <iframe...), a script scheme (javascript:, vbscript:), a URL scheme (http://, https://, file://), a shell operator (&&, ||, $( ) or a bare SQL/script keyword (UNION, SELECT, script, alert...), via Python str.replace/re.sub, JavaScript/TypeScript replace/replaceAll with a string or regex literal, Java replace/replaceAll/replaceFirst, and PHP str_replace/str_ireplace (string or array) and preg_replace. Not reported: a removal inside a loop that repeats until the sequence is gone (a while within the three lines above), removal of a single character (it cannot be rebuilt), replacements with a non-empty string (encoding such as &lt;), test code, comments and strings.",
+	"description": "A dangerous multi-character sequence is neutralised by deleting it once, so an equivalent input that rebuilds it survives: removing ../ from ....// leaves ../, removing <script> from <scr<script>ipt> leaves <script>, removing && from &;& leaves &&, removing http:// from hthttp://tp:// leaves http://. Reported: a replacement with the empty string of a path-traversal sequence (../, ..\\), an HTML tag opener (<script, </script>, <iframe...), a script scheme (javascript:, vbscript:), a URL scheme (http://, https://, file://), a shell operator (&&, ||, $( ) or a bare SQL/script keyword (UNION, SELECT, script, alert...), via Python str.replace/re.sub, JavaScript/TypeScript replace/replaceAll with a string or regex literal, Java replace/replaceAll/replaceFirst, and PHP str_replace/str_ireplace (string or array) and preg_replace. Not reported: a removal inside a loop that repeats until the sequence is gone (a while within the three lines above), removal of a single character (it cannot be rebuilt), replacements with a non-empty string (encoding such as &lt;), test code, comments and strings. A line that removes a path-traversal sequence (../, ..\\, ..), a script tag or element pattern (<script>, </script>, <script[^>]*>) or javascript:, or strips http:// or https:// beside such a removal, is reported by VNX-182, not here; this rule keeps the other tags, vbscript:, other URL schemes, shell operators and keywords.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-76/",
 	"languages": ["java", "node", "php", "python"],
 	"severity": "medium",
@@ -109,6 +109,7 @@ findings contains finding if {
 	_counts(lines, i, lang, m[1])
 	not _in_string(line, m[0])
 	not _in_loop(lines, i)
+	not _owned_by_182(lines, i, lang)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "A dangerous sequence is removed once by replacing it with an empty string. An input that rebuilds it after the deletion (....// becomes ../, <scr<script>ipt> becomes <script>, &;& becomes &&) passes through unchanged in effect. Reject input that contains the sequence, encode for the output context, or for paths take the basename and check the canonical path",
@@ -129,6 +130,76 @@ _in_string(line, call) if {
 	some q in {`"`, "'"}
 	n := count(regex.find_all_string_submatch_n(regex.replace(q, `(.)`, `\$1`), regex.replace(before, `\\.`, ""), -1))
 	n % 2 == 1
+}
+
+# ── Lines VNX-182 reports ────────────────────────────────────────────────
+# A single-pass removal of a path-traversal sequence (../, ..\, ..), a script
+# tag or element pattern (<script>, </script>, <script[^>]*>), javascript:, or
+# a URL scheme stripped beside one of them is the collapse VNX-182 reports, in
+# these languages and more. The line is that rule's: reporting it here too
+# would show one problem twice. This rule keeps the sequences VNX-182 does not
+# know: other tags, vbscript:, shell operators and SQL or script keywords.
+
+_owned_set := {"..", "../", "<script>", "<script", "</script>", "javascript:"}
+
+_owned_bare(b) if _owned_set[b]
+
+_owned_bare(b) if startswith(b, "<script")
+
+_owned_bare(b) if startswith(b, "</script")
+
+_owned_bare(b) if regex.match(`^\.\.(?:\[[/]+\]|\(/\|?\)|/)[+*?]?$`, b)
+
+# The literal elements of a removal: a PHP array or quoted string yields its
+# quoted parts; any other captured text is one element.
+_elts(tok) := es if {
+	es := regex.find_n(`"[^"]*"|'[^']*'`, tok, -1)
+	count(es) > 0
+}
+
+_elts(tok) := [tok] if count(regex.find_n(`"[^"]*"|'[^']*'`, tok, -1)) == 0
+
+# Quotes, PHP regex delimiters, (?i) and escapes removed, lower-cased.
+_bare(e) := b if {
+	t0 := trim(e, "\"'")
+	t := _strip_delims(t0)
+	b := lower(replace(regex.replace(t, `\(\?i\)`, ""), "\\", ""))
+}
+
+_strip_delims(t) := regex.replace(t, `^/|/[imsxuU]*$`, "") if regex.match(`^/.+/[imsxuU]*$`, t)
+
+_strip_delims(t) := t if not regex.match(`^/.+/[imsxuU]*$`, t)
+
+_owned_tok(tok) if {
+	some e in _elts(tok)
+	_owned_bare(_bare(e))
+}
+
+_scheme_tok(tok) if {
+	some e in _elts(tok)
+	_bare(e) in {"http://", "https://"}
+}
+
+_removals(line, lang) := {[m[0], m[1]] |
+	some re in _removal[lang]
+	some m in regex.find_all_string_submatch_n(re, line, -1)
+}
+
+_owned_by_182(lines, i, lang) if {
+	some r in _removals(lines[i], lang)
+	_owned_tok(r[1])
+	not _in_string(lines[i], r[0])
+}
+
+_owned_by_182(lines, i, lang) if {
+	some r in _removals(lines[i], lang)
+	_scheme_tok(r[1])
+	not _in_string(lines[i], r[0])
+	some k in numbers.range(max([0, i - 3]), min([count(lines) - 1, i + 3]))
+	k != i
+	some r2 in _removals(lines[k], lang)
+	some e in _elts(r2[1])
+	_owned_set[_bare(e)]
 }
 
 _counts(_, _, _, tok) if _harmful(tok)

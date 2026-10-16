@@ -8,7 +8,7 @@ router.post("/rules/test", (req, res) => {
 });
 
 router.get("/calc", (req, res) => {
-~>  res.send(String(globalThis.eval(req.query.q)));
+  res.send(String(globalThis.eval(req.query.q)));
 });
 
 module.exports = router;

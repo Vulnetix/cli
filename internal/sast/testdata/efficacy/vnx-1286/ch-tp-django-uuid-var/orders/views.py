@@ -13,4 +13,4 @@ def order_detail(request):
 
 def page(request):
     p = request.GET.get("page", "1")
-~>    return JsonResponse({"page": int(p)})
+    return JsonResponse({"page": int(p)})

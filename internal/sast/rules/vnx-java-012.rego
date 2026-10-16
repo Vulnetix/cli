@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-012",
 	"name": "Java LDAP injection",
-	"description": "An LDAP search filter or base DN is built from HTTP request data: JNDI DirContext/InitialDirContext/LdapContext.search, Spring LDAP LdapTemplate/LdapOperations search/searchForObject/searchForContext/find/findOne and LdapQueryBuilder filter(...), and UnboundID Filter.create, new SearchRequest(...) and LDAPConnection.search/searchForEntry. Reported when an argument of the call is a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies, the request body), a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier within 40 lines (a filter built by concatenation or String.format a few lines above); and, for directory-lookup helpers such as authenticate(String username, ...), when a String parameter of the enclosing public/protected/private method is concatenated into a filter or DN value (\"(uid=\" + username + \")\", String.format(\"(mail=%s)\", email)), directly or through such a local. A multi-line call is reported once, on its first line; a call that continues on the next lines is read to the end of its statement. Not reported: parameterised filters ({0} placeholders with the values passed as filter arguments), values encoded with LdapEncoder.filterEncode/nameEncode, UnboundID Filter.encodeValue/createEqualityFilter, ESAPI encodeForLDAP/encodeForDN or Rdn.escapeValue, Spring filter objects (EqualsFilter, AndFilter, LikeFilter) that encode their values, constant filters, Java stream filter(...) lambdas, and sink names in comments or string literals. Flows into another method or file are not followed.",
+	"description": "An LDAP search filter or base DN is built from HTTP request data: JNDI DirContext/InitialDirContext/LdapContext.search, Spring LDAP LdapTemplate/LdapOperations search/searchForObject/searchForContext/find/findOne and LdapQueryBuilder filter(...), and UnboundID Filter.create, new SearchRequest(...) and LDAPConnection.search/searchForEntry. Reported when an argument of the call is a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies, the request body), a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier within the enclosing method (at most 120 lines up) (a filter built by concatenation or String.format a few lines above); and, for directory-lookup helpers such as authenticate(String username, ...), when a String parameter of the enclosing public/protected/private method is concatenated into a filter or DN value (\"(uid=\" + username + \")\", String.format(\"(mail=%s)\", email)), directly or through such a local. A multi-line call is reported once, on its first line; a call that continues on the next lines is read to the end of its statement. Before reporting, the enclosing method is read: definitions on a branch that a constant condition (integer literals and int locals assigned once), a constant ternary or a switch on a constant never takes are dropped; a local that provably holds a constant at the call (a literal, the element a list index or map key holds, the result of a same-file method whose every return is constant) stops carrying the request value; and a request value stored in a list, map or builder and read back is followed. A value the analysis cannot resolve stays reported. Not reported: parameterised filters ({0} placeholders with the values passed as filter arguments), values encoded with LdapEncoder.filterEncode/nameEncode, UnboundID Filter.encodeValue/createEqualityFilter, ESAPI encodeForLDAP/encodeForDN or Rdn.escapeValue, Spring filter objects (EqualsFilter, AndFilter, LikeFilter) that encode their values, constant filters, Java stream filter(...) lambdas, and sink names in comments or string literals. Flows into another file, and into another method except a same-file method whose every return is constant, are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-012/",
 	"languages": ["java"],
 	"severity": "high",
@@ -49,7 +49,6 @@ _ann_re := `@(?:RequestParam|PathVariable|RequestHeader|CookieValue|RequestBody|
 # Encoders and filter objects that escape the value they are given.
 _sanitizer_re := `LdapEncoder\.\w+\s*\(|Filter\.encodeValue\s*\(|Filter\.create(?:Equality|Substring|GreaterOrEqual|LessOrEqual|Present|Approximate)\w*\s*\(|encodeForLDAP|encodeForDN|Rdn\.escapeValue|new\s+(?:Equals|Like|Present|Not|Whitespace|GreaterThanOrEquals|LessThanOrEquals)Filter\s*\(|Integer\.parseInt\s*\(|Long\.parseLong\s*\(|(?i:\bescape\w*(?:ldap|filter|dn)\w*\s*\(|\bldap\w*(?:escape|encode)\w*\s*\()`
 
-_window := 40
 
 _assigned(line) := v if {
 	s := regex.replace(line, `^\s*(?:\}\s*)?(?:else\s+)?(?:if\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*)?`, "")
@@ -69,7 +68,7 @@ _assign_text(lines, j) := concat(" ", [lines[k] | some k in numbers.range(j, e)]
 }
 
 _assigns(lines, i) := [[v, _assign_text(lines, j)] |
-	some j in numbers.range(max([0, i - _window]), i - 1)
+	some j in numbers.range(_wstart(lines, i), i - 1)
 	not helpers.is_comment_line(lines[j])
 	v := _assigned(lines[j])
 ]
@@ -81,7 +80,7 @@ _seeds(lines, i, assigns) := {a[0] |
 	_is_src(a[1])
 	not regex.match(_sanitizer_re, a[1])
 } | {v |
-	some j in numbers.range(max([0, i - _window]), i - 1)
+	some j in numbers.range(_wstart(lines, i), i - 1)
 	contains(lines[j], "@")
 	not helpers.is_comment_line(lines[j])
 	some v in _ann_names(lines[j])
@@ -90,7 +89,7 @@ _seeds(lines, i, assigns) := {a[0] |
 _foreach_re := `\bfor\s*\(\s*(?:final\s+)?[\w.<>\[\]]+\s+(\w+)\s*:\s*(\w+)\s*\)`
 
 _foreach(lines, i) := [[m[1], m[2]] |
-	some j in numbers.range(max([0, i - _window]), i - 1)
+	some j in numbers.range(_wstart(lines, i), i - 1)
 	contains(lines[j], "for")
 	some m in regex.find_all_string_submatch_n(_foreach_re, lines[j], 1)
 ]
@@ -172,7 +171,7 @@ _hit(lines, i, line, sinks) if {
 	some args in _args(_blank(raw), s[1])
 	not regex.match(`^\s*\(?\s*\w*\s*(?:,\s*\w+\s*)*\)?\s*->|^\s*[\w.]+::`, args)
 	not regex.match(_sanitizer_re, args)
-	_reaches(_strip_encoded(args), t)
+	_reach_live(lines, i, _strip_encoded(args), t)
 }
 
 _file_gate(content) if regex.match(_gate_re, content)
@@ -200,6 +199,7 @@ _hit(lines, i, line, sinks) if {
 	]))
 	some v in _filter_concats(txt)
 	v in ps
+	not helpers.flow_consts(lines, i)[v]
 }
 
 _filter_concats(s) := {m[1] |
@@ -237,3 +237,42 @@ _continuation_of_hit(lines, i, sinks) if {
 
 # LdapQueryBuilder criteria encode their value: where("uid").is(uid).
 _strip_encoded(args) := regex.replace(args, `\.\s*(?:is|like|gte|lte|whitespaceWildcardsLike)\s*\(\s*[\w.]+(?:\(\s*\))?\s*\)`, ".is()")
+
+# ── In-method flow ───────────────────────────────────────────────────────
+# Read the method before reporting: the request value must still reach the
+# argument once definitions on branches a constant condition or switch never
+# takes are dropped, and locals that provably hold a constant (a literal, a
+# constant list index or map key, a same-file method returning a constant)
+# stop carrying it.
+_live(_, _, args) if _is_src(args)
+
+_live(lines, i, args) if {
+	not _is_src(args)
+	seeds := _seeds(lines, i, _assigns(lines, i)) | helpers.flow_carrier_seeds(lines, i, _src_re)
+	helpers.flow_reaches(lines, i, args, seeds, _sanitizer_re)
+}
+
+# A value the 40-line window already links to the request, confirmed by the
+# method; or one only the method-wide reading links (an assignment longer
+# than the window's six lines, a value carried through a list or map).
+_reach_live(lines, i, args, t) if {
+	_reaches(args, t)
+	_live(lines, i, args)
+}
+
+_reach_live(lines, i, args, t) if {
+	not _reaches(args, t)
+	_any_seed(lines, i, t)
+	_live(lines, i, args)
+}
+
+# Look-back windows end at the enclosing method's declaration (its
+# annotated parameters are sources), at most 120 lines up.
+_wstart(lines, i) := max([0, helpers.flow_method_start(lines, i) - 1])
+
+_any_seed(_, _, t) if count(t) > 0
+
+_any_seed(lines, i, t) if {
+	count(t) == 0
+	count(helpers.flow_carrier_seeds(lines, i, _src_re)) > 0
+}

@@ -3,7 +3,7 @@
 
 void trace(const char *msg)
 {
-~>    FILE *f = std::fopen("/tmp/trace.log", "a+");
+    FILE *f = std::fopen("/tmp/trace.log", "a+");
     if (!f) return;
     std::fputs(msg, f);
     std::fclose(f);

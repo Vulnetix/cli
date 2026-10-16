@@ -6,7 +6,7 @@ bp = Blueprint("billing", __name__)
 
 @bp.route("/invoices", methods=["POST"])
 def create_invoice():
-~>    amount = float(request.form["amount"])
+    amount = float(request.form["amount"])
 ~>    due = datetime.strptime(request.form["due"], "%Y-%m-%d")
     return jsonify(amount=amount, due=due.isoformat())
 

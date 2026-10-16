@@ -12,7 +12,7 @@ public class CryptoUtil {
 
 ~>    private static final byte[] SALT = "acme-salt-value".getBytes(StandardCharsets.UTF_8);
 
-~>    byte[] ivBytes = {
+    byte[] ivBytes = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
     };
 
@@ -24,13 +24,13 @@ public class CryptoUtil {
 
     public byte[] encryptZero(byte[] key, byte[] data) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-~>        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), new IvParameterSpec(new byte[16]));
+        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), new IvParameterSpec(new byte[16]));
         return cipher.doFinal(data);
     }
 
     public byte[] seal(byte[] key, byte[] data) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-~>        GCMParameterSpec spec = new GCMParameterSpec(128, "fixednonce12".getBytes());
+        GCMParameterSpec spec = new GCMParameterSpec(128, "fixednonce12".getBytes());
         cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), spec);
         return cipher.doFinal(data);
     }

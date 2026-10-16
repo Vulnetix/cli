@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-012",
 	"name": "Client-side XSS via innerHTML or v-html",
-	"description": "Raw HTML written into the page from a value an attacker can shape. Sinks: an assignment (= or +=) to .innerHTML/.outerHTML, insertAdjacentHTML(position, html), document.write/writeln, jQuery $(...).html(value), Vue v-html, React dangerouslySetInnerHTML={{ __html: value }} and Svelte {@html value}. Reported when the value (1) reads a DOM source (location.hash/search/href/pathname, document.URL/referrer/cookie/documentURI, window.name, URLSearchParams, localStorage/sessionStorage.getItem, a message event's .data, an input's .value) directly or through a variable assigned from one in the 20 lines above (two hops), (2) builds markup by splicing a non-literal into an HTML string ('<p>' + res.message + '</p>', `<li>${todo.title}</li>`), directly or in a variable assigned a few lines above, (3) is a property of a response object (res/response/data/json/result/body/payload), or (4) for v-html, dangerouslySetInnerHTML and {@html}, is any non-constant expression. Not reported: string literals and literal-only concatenation, a ternary between literals, a value passed through DOMPurify/sanitize/escape/encode/xss helpers, copying another element's innerHTML, the jQuery .html() getter, textContent/innerText, comments and string literals, minified files. A bare variable of unknown origin assigned to innerHTML is left to VNX-NODE-005 and VNX-NODE-027, which report every non-constant innerHTML.",
+	"description": "Raw HTML written into the page from a value an attacker can shape. Sinks: jQuery $(...).html(value), Vue v-html and Svelte {@html value} in every file, and insertAdjacentHTML(position, html), document.write/writeln and React dangerouslySetInnerHTML={{ __html: value }} in HTML and template pages and Vue/Svelte components. Each sink is reported once, by its owner: an assignment to innerHTML/outerHTML is reported by VNX-NODE-027, and insertAdjacentHTML, document.write and dangerouslySetInnerHTML in a JavaScript/TypeScript file by VNX-NODE-005, not here. Reported when the value (1) reads a DOM source (location.hash/search/href/pathname, document.URL/referrer/cookie/documentURI, window.name, URLSearchParams, localStorage/sessionStorage.getItem, a message event's .data, an input's .value) directly or through a variable assigned from one in the 20 lines above (two hops), (2) builds markup by splicing a non-literal into an HTML string ('<p>' + res.message + '</p>', `<li>${todo.title}</li>`), directly or in a variable assigned a few lines above, (3) is a property of a response object (res/response/data/json/result/body/payload), or (4) for v-html, dangerouslySetInnerHTML and {@html}, is any non-constant expression. Not reported: string literals and literal-only concatenation, a ternary between literals, a value passed through DOMPurify/sanitize/escape/encode/xss helpers, the jQuery .html() getter, textContent/innerText, comments and string literals, minified files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-012/",
 	"languages": ["node"],
 	"severity": "high",
@@ -30,7 +30,7 @@ _is_target(path) if {
 	not endswith(path, ".d.ts")
 }
 
-_file_gate := `innerHTML|outerHTML|insertAdjacentHTML|document\.write|\.html\s*\(|v-html|dangerouslySetInnerHTML|\{@html`
+_file_gate := `insertAdjacentHTML|document\.write|\.html\s*\(|v-html|dangerouslySetInnerHTML|\{@html`
 
 _src := `\blocation\.(?:hash|search|href|pathname)\b|\bdocument\.(?:URL|documentURI|referrer|cookie|baseURI)\b|\bwindow\.name\b|\bURLSearchParams\b|\b(?:localStorage|sessionStorage)\.getItem\s*\(|\b(?:event|evt|e|ev|msg|message)\.data\b`
 
@@ -158,15 +158,6 @@ _dangerous(v, _, _, "raw") if not _constant(v)
 
 # ── Sink values ──────────────────────────────────────────────────────────
 
-# el.innerHTML = value / += value, continued onto the next line after a
-# trailing + or an unclosed template literal.
-_value1(line, lines, i) := [v, "dom"] if {
-	regex.match(`\.(?:innerHTML|outerHTML)\s*\+?=\s*[^=]`, _code(line))
-	m := regex.find_all_string_submatch_n(`\.(?:innerHTML|outerHTML)\s*\+?=\s*([^=].*)$`, line, 1)
-	count(m) > 0
-	v := _continued(m[0][1], lines, i)
-}
-
 _value2(line, lines, i) := [v, "dom"] if {
 	regex.match(`\.insertAdjacentHTML\s*\(`, _code(line))
 	parts := regex.split(`\.insertAdjacentHTML\s*\(`, line)
@@ -209,23 +200,17 @@ _value7(line, _, _) := [v, "raw"] if {
 }
 
 # One line can hold more than one sink, so each kind is its own function.
-_values(line, lines, i) := (((((({p | p := _value1(line, lines, i)} | {p | p := _value2(line, lines, i)}) | {p | p := _value3(line, lines, i)}) | {p | p := _value4(line, lines, i)}) | {p | p := _value5(line, lines, i)}) | {p | p := _value6(line, lines, i)}) | {p | p := _value7(line, lines, i)})
+# Each sink is reported once, by the rule that owns it: an innerHTML/outerHTML
+# assignment by VNX-NODE-027 in every file type, and insertAdjacentHTML,
+# document.write and dangerouslySetInnerHTML in a JavaScript/TypeScript file by
+# VNX-NODE-005. This rule keeps jQuery .html(), v-html and {@html}, and the
+# other sinks where VNX-NODE-005 does not look (inline scripts of HTML and
+# template pages, Vue and Svelte components).
+_values(path, line, lines, i) := (({p | p := _value4(line, lines, i)} | {p | p := _value5(line, lines, i)}) | {p | p := _value7(line, lines, i)}) if _js_file(path)
 
-_continued(v, lines, i) := v if not _runs_on(v)
+_values(path, line, lines, i) := (((({p | p := _value2(line, lines, i)} | {p | p := _value3(line, lines, i)}) | {p | p := _value4(line, lines, i)}) | {p | p := _value5(line, lines, i)}) | {p | p := _value6(line, lines, i)}) | {p | p := _value7(line, lines, i)} if not _js_file(path)
 
-_continued(v, lines, i) := concat(" ", [v, lines[i + 1]]) if {
-	_runs_on(v)
-	i + 1 < count(lines)
-}
-
-_continued(v, lines, i) := v if {
-	_runs_on(v)
-	i + 1 >= count(lines)
-}
-
-_runs_on(v) if endswith(trim_space(v), "+")
-
-_runs_on(v) if count(indexof_n(v, "`")) % 2 == 1
+_js_file(path) if regex.match(`\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts)$`, path)
 
 findings contains finding if {
 	some path, content in input.file_contents
@@ -236,7 +221,7 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(_file_gate, line)
 	not helpers.is_comment_line(line)
-	some pair in _values(line, lines, i)
+	some pair in _values(path, line, lines, i)
 	v := _strip(pair[0])
 	trim_space(v) != ""
 	not regex.match(_sanitized, v)

@@ -1,0 +1,8 @@
+-
+  email: admin
+~>  password: 'admin123'
+  role: 'admin'
+-
+  email: carol@shop.example
+  password: '{{ lookup "CAROL_PASSWORD" }}'
+  role: 'customer'

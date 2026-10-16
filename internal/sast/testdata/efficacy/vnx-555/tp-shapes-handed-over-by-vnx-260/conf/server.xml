@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="8005" shutdown="SHUTDOWN">
+  <Service name="Billing">
+    <Connector port="9443" SSLEnabled="true" scheme="https" secure="true"
+~>               keystoreFile="conf/billing.p12" keystorePass="B1llingKs!" truststorePass="Tru5tB1ll"/>
+  </Service>
+</Server>

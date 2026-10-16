@@ -12,9 +12,12 @@ router.use(session({
 
 router.post('/login', (req, res) => {
   const token = sign(req.user);
-~>  res.cookie('token', token);
-~>  res.cookie("sessionId", req.session.id, { secure: true, sameSite: 'lax' });
-~>  res.cookie(
+  // Reported by VNX-NODE-029 (a Node.js cookie without HttpOnly), not by this rule.
+  res.cookie('token', token);
+  // Reported by VNX-NODE-029 (a Node.js cookie without HttpOnly), not by this rule.
+  res.cookie("sessionId", req.session.id, { secure: true, sameSite: 'lax' });
+  // Reported by VNX-NODE-029 (a Node.js cookie without HttpOnly), not by this rule.
+  res.cookie(
     'refresh_token',
     token,
     { maxAge: 86400000 }

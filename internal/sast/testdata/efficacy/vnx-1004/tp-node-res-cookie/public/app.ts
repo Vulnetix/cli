@@ -3,5 +3,6 @@ export function storeLogin(jwt: string): void {
 }
 
 export async function onLogin(reply: any, token: string) {
-~>  reply.setCookie('auth', token, { path: '/' });
+  // Reported by VNX-NODE-029 (a Node.js cookie without HttpOnly), not by this rule.
+  reply.setCookie('auth', token, { path: '/' });
 }

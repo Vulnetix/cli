@@ -32,9 +32,39 @@ ResultSet results = statement.executeQuery(query);
 
 // FLAGGED: Android SQLite
 db.execSQL("DELETE FROM notes WHERE _id = " + id);
+
+// FLAGGED: DDL, and a statement held in a short local
+jdbcTemplate.execute("CREATE SCHEMA \"" + tenant.getSlug() + "\" AUTHORIZATION dba");
+st.execute(String.format("DROP SCHEMA %s CASCADE", slug));
 ```
 
-Not flagged: `?` placeholders with bound values, constant queries or concatenation of literals and `UPPER_CASE` constants, a query that arrives as a plain method parameter, `execute()` on HTTP clients and executors, comments and string literals. JPQL/HQL `createQuery` is covered by VNX-JAVA-015.
+Not flagged: `?` placeholders with bound values, constant queries or concatenation of literals and `UPPER_CASE` constants, a variable extended with literals only (`sql = sql + " ORDER BY name"`, `sql += " AND active = 1"`), a query that arrives as a plain method parameter, `execute()` on HTTP clients and executors, comments and string literals. JPQL/HQL `createQuery` is covered by VNX-JAVA-015. SQL assembled with `StringBuilder.append()` is reported by [VNX-JAVA-028](../vnx-java-028/); this rule owns every other shape the two used to report on the same line.
+
+### Operands the method fixes
+
+Before reporting, the rule reads the enclosing method (at most 120 lines up) and asks what each operand actually holds at the call. An operand that provably holds a constant is not run-time data:
+
+- a literal or constant expression it was last assigned on every path to the call;
+- the taken side of an `if`/`else` or a ternary whose condition folds to a constant (integer literals, and `int` locals assigned once from a literal);
+- the case a `switch` on a constant selects;
+- the element a list index (`add`, `add(i, v)`, `set`, `remove(i)`) or a map key (`put`) actually holds, when that is a literal;
+- the result of a method in the same file, including a nested class, whose every `return` is a constant.
+
+```java
+// NOT FLAGGED: 50 * 2 > 60, so column is always "region_code"
+int pageSize = 50;
+if (pageSize * 2 > 60) column = "region_code";
+else column = request.getParameter("sort");
+stmt.executeQuery("SELECT id FROM orders ORDER BY " + column);
+
+// FLAGGED: after remove(0), index 0 holds the request value
+columns.add("id");
+columns.add(request.getParameter("col"));
+columns.remove(0);
+stmt.executeQuery("SELECT id FROM users ORDER BY " + columns.get(0));
+```
+
+Anything the analysis cannot resolve stays reported: a condition on run-time data, a call into another class, a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter.
 
 ## Remediation
 

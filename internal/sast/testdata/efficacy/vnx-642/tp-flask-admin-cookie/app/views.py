@@ -15,6 +15,7 @@ def login():
 
 @bp.route("/admin")
 def admin_panel():
-~>    if request.cookies.get("is_admin") != "1":
+    # Reported by VNX-784 (a security decision on a cookie), not by this rule.
+    if request.cookies.get("is_admin") != "1":
         abort(403)
     return render_template("admin.html")

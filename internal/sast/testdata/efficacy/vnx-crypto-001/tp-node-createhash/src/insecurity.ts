@@ -12,7 +12,7 @@ export function passwordDigest (password: string): string {
 }
 
 export function sessionId (user: string): string {
-~>  return crypto.createHash(`md5`).update(`${user}:${Date.now()}`).digest('base64')
+  return crypto.createHash(`md5`).update(`${user}:${Date.now()}`).digest('base64')
 }
 
 export function wrapped (body: string): string {

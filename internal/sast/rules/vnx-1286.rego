@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1286",
 	"name": "Improper Validation of Syntactic Correctness of Input",
-	"description": "Request data is converted by a parser that rejects malformed input, with nothing handling the rejection, so a malformed value crashes the handler (an unhandled exception, a 500 with a stack trace) or flows on as NaN. Reported in Python: int(), float(), Decimal(), json.loads(), uuid.UUID(), datetime/date fromisoformat() and strptime(), ipaddress.ip_address()/ip_network() whose argument is Flask/Django/DRF request data (request.args/form/values/GET/POST/data/body/json/cookies/headers/query_params/META), directly or through a variable assigned from it in the 10 lines above, when the call is not inside a try block and the variable was not checked with isdigit()/isdecimal()/isnumeric()/a regex match first. Reported in JavaScript/TypeScript: JSON.parse() of request data (req/request body/query/params/cookies/headers, ctx.query, ctx.request.body, Lambda event.body/queryStringParameters) outside a try block, and parseInt()/parseFloat()/Number() of request data with no NaN check (isNaN, Number.isNaN/isFinite/isInteger, a `|| default`, or a falsy test of the result) on the line or in the 6 lines after. Not reported: framework-typed access (request.args.get(name, type=int)), constants, environment variables, files, comments, block comments and string literals.",
+	"description": "Request data is converted by a parser that rejects malformed input, with nothing handling the rejection, so a malformed value crashes the handler (an unhandled exception, a 500 with a stack trace) or flows on as NaN. Reported in Python: int(), float(), Decimal(), json.loads(), uuid.UUID(), datetime/date fromisoformat() and strptime(), ipaddress.ip_address()/ip_network() whose argument is Flask/Django/DRF request data (request.args/form/values/GET/POST/data/body/json/cookies/headers/query_params/META), directly or through a variable assigned from it in the 10 lines above, when the call is not inside a try block and the variable was not checked with isdigit()/isdecimal()/isnumeric()/a regex match first. Reported in JavaScript/TypeScript: JSON.parse() of request data (req/request body/query/params/cookies/headers, ctx.query, ctx.request.body, Lambda event.body/queryStringParameters) outside a try block, and parseInt()/parseFloat()/Number() of request data with no NaN check (isNaN, Number.isNaN/isFinite/isInteger, a `|| default`, or a falsy test of the result) on the line or in the 6 lines after. Not reported: a numeric conversion that VNX-229 reports (int()/float() of Flask/Django request.args/form/values/GET/POST/json/data/cookies/headers/query_params outside try, and parseInt()/parseFloat()/Number() of req.query/req.body with no NaN handling): that conversion is reported by VNX-229, so it is one finding rather than two, while the conversions VNX-229 does not take (req.params, ctx and Lambda event sources, request.META and request.body, and a conversion VNX-229 treats as handled but this rule does not) stay here; framework-typed access (request.args.get(name, type=int)), constants, environment variables, files, comments, block comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1286/",
 	"languages": ["node", "python"],
 	"severity": "low",
@@ -121,6 +121,7 @@ findings contains finding if {
 	_arg_is_input(_arg(lines, i, rest), names, _py_src)
 	not _py_in_try(lines, i)
 	not _py_checked(lines, i, names)
+	not _vnx229_reports(path, content, lines, i, line)
 	finding := _finding(path, i, line, "Request value is parsed with no handler for malformed input; a bad value raises and fails the request. Validate it or catch the parse error and answer 400")
 }
 
@@ -201,6 +202,7 @@ findings contains finding if {
 	not _js_validated(content, arg)
 	not _in_block_comment(lines, i)
 	_js_unhandled(kind, lines, i, line)
+	not _vnx229_reports(path, content, lines, i, line)
 	finding := _finding(path, i, line, _js_msg[kind])
 }
 
@@ -237,4 +239,117 @@ _finding(path, i, line, msg) := {
 	"level": metadata.level,
 	"start_line": i + 1,
 	"snippet": line,
+}
+
+# ── Numeric conversions belong to VNX-229 ────────────────────────────────
+# int()/float() of Flask/Django request data and parseInt()/parseFloat()/
+# Number() of req.query/req.body are reported by VNX-229 (Improper Handling of
+# Values), the rule written for exactly that conversion. A line VNX-229 reports
+# is left to it, so one unhandled conversion is one finding, not two. The test
+# below is VNX-229's own condition, so every line this rule no longer reports
+# is still reported there; conversions VNX-229 does not report (route
+# parameters, ctx/event sources, request.META) stay here.
+
+_v229_py_source := `\brequest\.(?:args|form|values|GET|POST|json|get_json|data|cookies|headers|query_params)\b`
+
+_v229_py_inline := `\b(?:int|float)\(\s*request\.(?:args|form|values|GET|POST|json|get_json|data|cookies|headers|query_params)\b`
+
+_v229_js_source := `\breq\.(?:query|body)\b`
+
+_v229_js_inline := `\b(?:parseInt|parseFloat|Number)\(\s*req\.(?:query|body)\b`
+
+_v229_blank_or_comment(line) if trim_space(line) == ""
+
+_v229_blank_or_comment(line) if helpers.is_comment_line(line)
+
+_v229_in_try(lines, i) if {
+	ii := _indent(lines[i])
+	some j in numbers.range(max([0, i - 40]), i - 1)
+	j < i
+	regex.match(`^\s*(?:try\s*:|with\s+(?:contextlib\.)?suppress\()`, lines[j])
+	ij := _indent(lines[j])
+	ij < ii
+	not _v229_dedented_between(lines, j, i, ij)
+}
+
+_v229_dedented_between(lines, j, i, ij) if {
+	j + 1 <= i - 1
+	some k in numbers.range(j + 1, i - 1)
+	not _v229_blank_or_comment(lines[k])
+	_indent(lines[k]) <= ij
+}
+
+_v229_py_guarded(lines, i) if {
+	w := helpers.code_window(lines, i, 6, 0)
+	regex.match(`\.(?:isdigit|isnumeric|isdecimal)\(\)|\bre\.(?:fullmatch|match)\(`, w)
+}
+
+_v229_py_hit(_, _, line) if regex.match(_v229_py_inline, line)
+
+_v229_py_hit(lines, i, line) if {
+	some v in helpers.tainted_names(lines, i, 8, _v229_py_source)
+	regex.match(concat("", [`\b(?:int|float)\(\s*`, v, `\b`]), line)
+}
+
+_vnx229_reports(path, content, lines, i, line) if {
+	endswith(path, ".py")
+	contains(content, "request.")
+	regex.match(`\b(?:int|float)\(\s*\w`, line)
+	not helpers.is_comment_line(line)
+	not regex.match(`^[^#]*["'][^"']*\b(?:int|float)\([^"']*["']`, line)
+	_v229_py_hit(lines, i, line)
+	not _v229_in_try(lines, i)
+	not _v229_py_guarded(lines, i)
+}
+
+_v229_js_destructured(lines, i) := {trim_space(n) |
+	some j in numbers.range(max([0, i - 8]), i - 1)
+	j < i
+	m := regex.find_all_string_submatch_n(`\{([^}]*)\}\s*=\s*req\.(?:query|body)\b`, lines[j], 1)
+	count(m) == 1
+	some part in split(m[0][1], ",")
+	n := regex.replace(part, `[:=].*$`, "")
+	trim_space(n) != ""
+}
+
+_v229_js_hit(_, _, line) if regex.match(_v229_js_inline, line)
+
+_v229_js_hit(lines, i, line) if {
+	some v in helpers.tainted_names(lines, i, 8, _v229_js_source) | _v229_js_destructured(lines, i)
+	regex.match(concat("", [`\b(?:parseInt|parseFloat|Number)\(\s*`, v, `\b`]), line)
+}
+
+_v229_nan_check := `(?:\bisNaN|Number\.isNaN|\bisFinite|Number\.isFinite|Number\.isInteger|Number\.isSafeInteger)\(\s*`
+
+_v229_js_handled(_, _, line) if regex.match(`\|\||\?\?`, line)
+
+_v229_js_handled(_, _, line) if regex.match(_v229_nan_check, line)
+
+_v229_js_handled(lines, i, line) if {
+	v := helpers.assigned_first(line)
+	w := helpers.code_window(lines, i, 0, 12)
+	regex.match(concat("", [_v229_nan_check, `!?\s*`, v, `\b`]), w)
+}
+
+_v229_in_block_comment(lines, i) if {
+	some j in numbers.range(max([0, i - 30]), i - 1)
+	j < i
+	regex.match(`/\*(?:[^*]|\*[^/])*$`, lines[j])
+	not _v229_closed_after(lines, j, i)
+}
+
+_v229_closed_after(lines, j, i) if {
+	some k in numbers.range(j + 1, i)
+	k > j
+	contains(lines[k], "*/")
+}
+
+_vnx229_reports(path, content, lines, i, line) if {
+	regex.match(`\.(?:js|jsx|mjs|cjs|ts|tsx)$`, path)
+	regex.match(`\breq\.(?:query|body)\b`, content)
+	regex.match(`\b(?:parseInt|parseFloat|Number)\(`, line)
+	not helpers.is_comment_line(line)
+	_v229_js_hit(lines, i, line)
+	not _v229_in_block_comment(lines, i)
+	not _v229_js_handled(lines, i, line)
 }

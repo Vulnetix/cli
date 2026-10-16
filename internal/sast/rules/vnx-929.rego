@@ -58,12 +58,39 @@ _weak_consts(lines) := {m[0][1] |
 
 _hit(line, _) if regex.match(_sink_re, line)
 
-_hit(line, consts) if {
+_hit(line, consts) if _const_hit(line, consts)
+
+_const_hit(line, consts) if {
 	count(consts) > 0
 	m := regex.find_all_string_submatch_n(concat("", [_md, `([A-Za-z_][\w.]*)\s*[,)]`]), line, 1)
 	count(m) > 0
 	parts := split(m[0][1], ".")
 	parts[count(parts) - 1] in consts
+}
+
+# A .java MD5 or SHA-1 digest is reported by VNX-CRYPTO-001 (MD5) and
+# VNX-CRYPTO-002 (SHA-1), which read every shape this rule reads in Java and
+# more (Signature, BouncyCastle, a getProperty default). Here a .java file only
+# reports MD2 and MD4, which neither of those covers; Kotlin, which they do not
+# read, keeps every broken digest.
+_md24_re := `(?i)"md[24]"|DigestUtils\s*\.\s*(md2|getMd2Digest)|MessageDigestAlgorithms\s*\.\s*MD2\b`
+
+_md24_consts(lines) := {m[0][1] |
+	some l in lines
+	contains(l, "\"")
+	m := regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\s*(:\s*String\s*)?=\s*"(?i:md[24])"`, l, 1)
+	count(m) > 0
+}
+
+_md24(text, _) if regex.match(_md24_re, text)
+
+_md24(text, consts) if _const_hit(text, consts)
+
+_in_scope(path, _, _) if endswith(path, ".kt")
+
+_in_scope(path, text, lines) if {
+	endswith(path, ".java")
+	_md24(text, _md24_consts(lines))
 }
 
 _non_security_re := `(?i)(etag|checksum|\bcrc|websocket|content-?md5|cache_?key|fingerprint|dedup|gravatar)`
@@ -82,7 +109,9 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(`getInstance|DigestUtils|Hashing`, line)
 	not helpers.is_comment_line(line)
-	_hit(_call_text(line, _next(lines, i)), consts)
+	text := _call_text(line, _next(lines, i))
+	_hit(text, consts)
+	_in_scope(path, text, lines)
 	not _non_security(lines, i)
 	finding := {
 		"rule_id": metadata.id,

@@ -6,6 +6,7 @@ func init() {
 	store.Options = &sessions.Options{
 		Path:     "/",
 		MaxAge:   86400,
-~>		HttpOnly: false,
+		// Reported by VNX-1004 (a cookie without HttpOnly), not by this rule.
+		HttpOnly: false,
 	}
 }

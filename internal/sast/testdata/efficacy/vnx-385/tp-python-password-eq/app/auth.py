@@ -3,7 +3,7 @@ from .models import User
 
 def login(request):
     user = User.query.filter_by(name=request.form["username"]).first()
-~>    if user and user.password == request.form["password"]:
+    if user and user.password == request.form["password"]:
         return start_session(user)
     return None
 

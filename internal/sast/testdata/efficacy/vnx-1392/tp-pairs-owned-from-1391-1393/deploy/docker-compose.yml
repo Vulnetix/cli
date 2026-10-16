@@ -1,0 +1,15 @@
+services:
+  mysql:
+    image: mysql:8
+    environment:
+~>      - MYSQL_ROOT_PASSWORD=root
+  orders:
+    image: mysql:8
+    environment:
+~>      - MYSQL_ROOT_PASSWORD=admin321
+      - MYSQL_DATABASE=orders
+  warehouse:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+~>      POSTGRES_PASSWORD: postgres

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-471",
 	"name": "Modification of Assumed-Immutable Data (MAID)",
-	"description": "A Java `public static final` field (modifiers in any order) whose value is mutable, so `final` freezes only the reference and any code in the process can change data the rest of the program treats as a constant: a non-empty array (`public static final String[] TRUSTED_HOSTS = {...}`, `= new int[] {80, 443}`, `String ROLES[] = {...}`), a new mutable collection or holder (ArrayList, LinkedList, HashMap, TreeMap, LinkedHashMap, HashSet, TreeSet, Vector, Hashtable, Properties, ArrayDeque, ConcurrentHashMap, Date, Calendar, StringBuilder, StringBuffer), or Arrays.asList(...), whose elements stay settable; an initialiser on the following line is read too. Not reported: immutable values (List.of, Set.of, Map.of, copyOf, Collections.unmodifiable*/empty*, Guava Immutable*, strings and primitives), empty arrays (`new String[0]`, `{}`), private, package-private or instance fields, fields assigned later in a static block (whose value the line does not show), methods returning arrays, test sources, comments and string literals.",
+	"description": "A Java `public static final` field (modifiers in any order) whose value is mutable, so `final` freezes only the reference and any code in the process can change data the rest of the program treats as a constant: a new mutable collection or holder (ArrayList, LinkedList, HashMap, TreeMap, LinkedHashMap, HashSet, TreeSet, Vector, Hashtable, Properties, ArrayDeque, ConcurrentHashMap, Date, Calendar, StringBuilder, StringBuffer), or Arrays.asList(...), whose elements stay settable; an initialiser on the following line is read too. Not reported: immutable values (List.of, Set.of, Map.of, copyOf, Collections.unmodifiable*/empty*, Guava Immutable*, strings and primitives), arrays of any kind (a public static final array, `String[] TRUSTED_HOSTS = {...}`, is reported by VNX-582), private, package-private or instance fields, fields assigned later in a static block (whose value the line does not show), methods returning arrays, test sources, comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-471/",
 	"languages": ["java"],
 	"severity": "medium",
@@ -49,15 +49,10 @@ _rhs(lines, i, r) := trim_space(_code(lines[i + 1])) if {
 
 _rhs(_, _, r) := trim_space(r) if trim_space(r) != ""
 
-_empty_array(rhs) if regex.match(`^(?:\{\s*\}|new\s+[\w.$]+\s*\[\s*0\s*\]|new\s+[\w.$]+\s*\[\s*\]\s*\{\s*\})`, rhs)
-
+# Arrays are not judged here: a public static final array is VNX-582's
+# finding (CWE-582), the array-specific form of this weakness.
 _mutable(typ, dims, rhs) if {
-	regex.match(`\[`, concat("", [typ, dims]))
-	not _empty_array(rhs)
-	regex.match(`^(?:\{|new\s)`, rhs)
-}
-
-_mutable(typ, _, rhs) if {
+	not regex.match(`\[`, concat("", [typ, dims]))
 	base := regex.replace(regex.replace(typ, `\s*<.*$`, ""), `^.*\.`, "")
 	_mutable_types[base]
 	regex.match(_mutable_new, rhs)

@@ -1,6 +1,6 @@
 ---
 title: "VNX-76 – Improper Neutralization of Equivalent Special Elements"
-description: "A dangerous multi-character sequence (../, <script>, javascript:, &&, a SQL keyword, a URL scheme in an RFI filter) is neutralised by deleting it once, so input that rebuilds it after the deletion passes through."
+description: "A dangerous multi-character sequence (an HTML tag other than script, vbscript:, &&, $(, a SQL or script keyword) is neutralised by deleting it once, so input that rebuilds it after the deletion passes through. Traversal, script-tag and javascript: removals are reported by VNX-182."
 ---
 
 ## Overview
@@ -16,27 +16,26 @@ Deleting a sequence once does not remove it from the input, only from one spelli
 ## What Gets Flagged
 
 ```python
-return name.replace("../", "")
-html = re.sub(r"<script>", "", html)
+return q.replace("UNION", "").replace(" ", "")
 ```
 
 ```javascript
-return input.replace(/<script>/gi, '');
-return url.replaceAll('javascript:', '');
+return html.replace(/<iframe/g, '');
+return url.replaceAll('vbscript:', '');
+return cmd.replace('&&', '').replace('||', '');
 ```
 
 ```java
-return path.replace("../", "");
 userId = userId.toUpperCase().replace("FROM", "").replace("SELECT", "");
 ```
 
 ```php
-$file = str_replace( array( "../", "..\\" ), "", $file );
 $target = str_replace(array('&&', ';'), '', $target);
-$name = str_replace( '<script>', '', $_GET[ 'name' ] );
 ```
 
 Not flagged: a removal repeated in a loop until the sequence is gone, removal of a single character (it cannot be rebuilt), a replacement with a non-empty string (`&lt;`, `_`), a URL scheme stripped to get a host name with no other removal nearby, test code, comments and strings.
+
+Not flagged here because [VNX-182](../vnx-182/) reports the same collapse on that line: a removal of a path-traversal sequence (`../`, `..\`, `..`), a script tag or element pattern (`<script>`, `</script>`, `<script[^>]*>`) or `javascript:`, and an `http://`/`https://` strip beside one of them, such as `str_replace( array( "../", "..\\" ), "", $file )` or `str_replace( '<script>', '', $name )`.
 
 ## Remediation
 

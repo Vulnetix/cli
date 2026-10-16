@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-027",
 	"name": "Assignment to innerHTML without sanitization",
-	"description": "Reports an assignment (= or +=) to an element's innerHTML or outerHTML, in JavaScript/TypeScript files and inline scripts of HTML/template pages, whose value is not a constant: a variable, a property, a call, a concatenation with one, or a template literal with an interpolation (the value may continue on the next line, and a template literal is read to its closing backtick). The browser parses that string as HTML, so a value carrying user, URL, message or server data runs script. Not reported: string, template or numeric literals, numbers rendered as text (x.length, n.toFixed(2), String(x.length)), a ternary choosing between literals, a const assigned a literal, a value passed through DOMPurify.sanitize or an escape/encode/sanitize helper (inline or assigned a few lines above), comparisons (innerHTML === x), textContent/innerText, comments and strings, and third-party library copies (vendor/, libs/, node_modules/, dist/, jquery/bootstrap/angular files, minified files). Overlaps VNX-NODE-005 and VNX-NODE-012, which report every innerHTML sink.",
+	"description": "Reports an assignment (= or +=) to an element's innerHTML or outerHTML (also el[\"innerHTML\"]), in JavaScript/TypeScript files and inline scripts of HTML/template pages, whose value is not a constant: a variable, a property, a call, a concatenation with one, or a template literal with an interpolation (the value may continue on the next line, and a template literal is read to its closing backtick). The browser parses that string as HTML, so a value carrying user, URL, message or server data runs script. This rule is the one finding for that sink: VNX-NODE-005 and VNX-NODE-012 do not report it again. A value that encodes one part and splices the raw value into another (encodeURIComponent(q) + q) is still reported, and unescape() is not an encoder. Not reported: string, template or numeric literals, numbers rendered as text (x.length, n.toFixed(2), String(x.length)), a ternary choosing between literals, a const assigned a literal, a value passed whole through DOMPurify.sanitize or an escape/encode/sanitize helper (inline or assigned a few lines above), comparisons (innerHTML === x), textContent/innerText, comments and strings, and third-party library copies (vendor/, libs/, node_modules/, dist/, jquery/bootstrap/angular/three files, minified files).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-027/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
@@ -21,7 +21,7 @@ metadata := {
 	"tags": ["xss", "innerhtml", "dom"],
 }
 
-_exts := {".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs", ".html", ".htm", ".vue", ".svelte", ".ejs", ".hbs", ".php", ".erb", ".jsp", ".cshtml"}
+_exts := {".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs", ".mts", ".cts", ".html", ".htm", ".vue", ".svelte", ".ejs", ".hbs", ".njk", ".php", ".erb", ".jsp", ".cshtml"}
 
 _in_scope(path) if {
 	some e in _exts
@@ -103,9 +103,19 @@ _sanitized_above(lines, i, id) if {
 	regex.match(_sanitizer_re, lines[j])
 }
 
+# Sanitiser and encoder calls become an empty literal, and an interpolation
+# left holding only a literal disappears, so a value that encodes one part
+# (encodeURIComponent(q)) and splices the raw value into another is still
+# seen. unescape() decodes and is not one of them.
+_desanitize(code) := c if {
+	a := regex.replace(code, `\bunescape\s*\(`, "decodeURIComponent(")
+	b := regex.replace(a, `(?i)[\w$.]*(?:sanitiz|purify|escape|encode|filterxss|xss)[\w$]*\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)`, "''")
+	c := _strip(regex.replace(b, `\$\{\s*(?:''|-?[0-9.]+)\s*\}`, ""))
+}
+
 _dynamic(content, lines, i, rhs) if {
-	code := _strip(rhs)
-	not regex.match(_sanitizer_re, rhs)
+	code := _desanitize(_strip(rhs))
+	not regex.match(_sanitizer_re, code)
 	not _numeric(rhs)
 	not _literal_choice(code)
 	_has_dynamic_part(content, lines, i, code)
@@ -127,10 +137,23 @@ _all_sanitized(lines, i, ids) if {
 	}
 }
 
+# el["innerHTML"] = x is el.innerHTML = x.
+_bracket_re := `\[\s*['"]((?:inner|outer)HTML)['"]\s*\]`
+
+_norm(content) := regex.replace(content, _bracket_re, ".$1") if regex.match(_bracket_re, content)
+
+_norm(content) := content if not regex.match(_bracket_re, content)
+
+# The line as written, not as normalised.
+_snippet(raw, content, _, line) := line if raw == content
+
+_snippet(raw, content, i, _) := split(raw, "\n")[i] if raw != content
+
 findings contains finding if {
-	some path, content in input.file_contents
+	some path, raw in input.file_contents
 	_in_scope(path)
-	contains(content, "HTML")
+	contains(raw, "HTML")
+	content := _norm(raw)
 	regex.match(`\.(inner|outer)HTML\s*\+?=[^=]`, content)
 	not _third_party(path)
 	lines := split(content, "\n")
@@ -148,6 +171,6 @@ findings contains finding if {
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": _snippet(raw, content, i, line),
 	}
 }

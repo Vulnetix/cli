@@ -1,5 +1,6 @@
 <?php
-~>ini_set('session.cookie_httponly', 0);
+// Reported by VNX-1004 (a cookie without HttpOnly), not by this rule.
+ini_set('session.cookie_httponly', 0);
 ~>ini_set('session.cookie_secure', '0');
 ~>setcookie("auth_token", $token, time() + 3600, "/", "", false, false);
 session_set_cookie_params([

@@ -8,5 +8,5 @@ app = Flask(__name__)
 def cart():
     raw = request.cookies.get("cart", "[]")
 ~>    items = json.loads(raw)
-~>    page = int(request.args.get("page", "1"))
+    page = int(request.args.get("page", "1"))
     return jsonify(items=items, page=page)

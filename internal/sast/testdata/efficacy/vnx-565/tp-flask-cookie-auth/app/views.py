@@ -5,7 +5,8 @@ app = Flask(__name__)
 
 @app.route("/dashboard")
 def dashboard():
-~>    if request.cookies.get("logged_in") != "yes":
+    # Reported by VNX-784 (a security decision on a cookie), not by this rule.
+    if request.cookies.get("logged_in") != "yes":
         abort(401)
 ~>    username = request.cookies.get('username')
     account = Account.query.filter_by(username=username).first()

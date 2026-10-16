@@ -9,6 +9,6 @@ def serve(port):
     srv.listen()
     conn, _ = srv.accept()
     data = conn.recv(65536)
-~>    task = pickle.loads(data)
+    task = pickle.loads(data)
 ~>    code = marshal.loads(conn.recv(4096))
     return task, code

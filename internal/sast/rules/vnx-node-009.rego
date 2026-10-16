@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-009",
 	"name": "Node.js server-side request forgery",
-	"description": "A server-side HTTP request whose destination comes from the incoming request: the URL (first argument, or the url/uri/host/hostname/baseURL member of an options object) of fetch, axios/axios.get/post/put/patch/delete/head/request, http(s).get/request, got, needle, superagent, undici, or the request library is a req/request query, body, params, headers or cookies value, a Koa ctx.query/ctx.request.body value, or a variable assigned (or destructured) from one in the 25 lines above, directly or through one intermediate assignment such as 'http://' + host + '/x'. Also reported: curl or wget run through spawn/spawnSync/execFile with such a value among its arguments. Not reported: a URL whose host is fixed by a constant prefix (API_BASE + '/items/' + id, `${config.apiUrl}/users/${id}`, 'https://api.example.com/...'), request values passed only as headers, query params or a body, a destination checked against an allowlist (ALLOWED_HOSTS, isAllowed..., ssrf filter agents) in the lines above, method calls named fetch/request on other objects (cache.fetch), browser code without a server request object, comments and string literals. Flows through helper functions or across files are not followed.",
+	"description": "A server-side HTTP request whose destination comes from the incoming request: the URL (first argument, or the url/uri/host/hostname/baseURL member of an options object) of fetch, axios/axios.get/post/put/patch/delete/head/request, http(s).get/request, got, needle, superagent, undici, or the request library is a req/request query, body, params, headers or cookies value, a Koa ctx.query/ctx.request.body value, or a variable assigned (or destructured) from one in the 25 lines above, directly or through one intermediate assignment such as 'http://' + host + '/x'. Also reported: curl or wget run through spawn/spawnSync/execFile with such a value among its arguments. Not reported: a URL whose host is fixed by a constant prefix (API_BASE + '/items/' + id, `${config.apiUrl}/users/${id}`, 'https://api.example.com/...'), request values passed only as headers, query params or a body, a destination checked against an allowlist (ALLOWED_HOSTS, isAllowed..., ssrf filter agents) in the lines above, method calls named fetch/request on other objects (cache.fetch), browser code without a server request object, comments and string literals. Flows through helper functions or across files are not followed. A request whose response is sent back to the client (res.send/json/write/end of it, a pipe to res, ctx.body) is reported by VNX-441 instead, the open-proxy form of SSRF, so one request is one finding; Python SSRF is VNX-918.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-009/",
 	"languages": ["node"],
 	"severity": "high",
@@ -196,6 +196,7 @@ findings contains finding if {
 	not _fixed_host(a, _t1(lines, i))
 	_reaches(dest, lines, i)
 	not _guarded(lines, i)
+	not _relay_owned(path, content, lines, i, line)
 	finding := _finding(path, i, line)
 }
 
@@ -224,3 +225,114 @@ _finding(path, i, line) := {
 	"start_line": i + 1,
 	"snippet": line,
 }
+
+# ── A fetch whose response is relayed back is VNX-441's ─────────────────
+#
+# When the response of the forged request is sent back to the client the
+# service is an open proxy, reported by VNX-441 (CWE-441, of which SSRF is the
+# child). These are that rule's tests, so a line leaves this rule only where
+# VNX-441 reports it.
+
+_rl_source := `\b(?:req|request|ctx\.request|ctx)\.(?:query|body|params|headers|cookies)\b`
+
+_rl_sink := `(?:\baxios|\bneedle|\bgot|\bsuperagent|\bhttps?)(?:\.(?:get|post|put|patch|delete|head|request))?\s*\(|(?:^|[^\w.])(?:fetch|request|nodeFetch)\s*\(`
+
+_rl_relay := `\.pipe\(\s*(?:res|response|reply)\b|\b(?:res|response|reply)(?:\.status\([^)]*\))?\.(?:send|write|end|json)\s*\(\s*(?:await\s+)?[A-Za-z_$][\w$]*(?:\.(?:data|body|text\(\)|json\(\)|buffer\(\)))?\s*[,)]|\bctx\.body\s*=\s*(?:await\s+)?[A-Za-z_$]`
+
+_rl_guard := `(?i)allow(?:ed)?_?(?:list|hosts?|domains?|origins?|urls?)|whitelist|is_?allowed|is_?safe_?url|validate_?url|url_has_allowed_host`
+
+_relay_owned(path, content, lines, i, line) if {
+	regex.match(`\.(?:js|mjs|cjs|jsx|ts|tsx)$`, path)
+	not helpers.is_test_path(path)
+	regex.match(`(?m)(?:requests|httpx|urlopen|axios|needle|got|superagent|fetch|request|http)\s*[\.(]`, content)
+	regex.match(_rl_source, content)
+	regex.match(_rl_sink, line)
+	not regex.match(concat("", [`["'][^"']*(?:`, _rl_sink, `)`]), line)
+	arg := _rl_url_arg(lines, i, line)
+	_rl_tainted(lines, i, arg)
+	not _rl_fixed_host(arg)
+	not regex.match(_rl_guard, helpers.code_window(lines, i, 12, 0))
+	_rl_relayed(lines, i)
+}
+
+_rl_url_arg(lines, i, line) := arg if {
+	m := regex.find_all_string_submatch_n(concat("", ["(", _rl_sink, ")(.*)$"]), line, 1)
+	rest0 := m[0][count(m[0]) - 1]
+	rest := _rl_continued(lines, i, rest0)
+	parts := split(rest, ",")
+	arg := _rl_pick(m[0][1], parts)
+}
+
+_rl_continued(_, _, rest) := rest if trim_space(rest) != ""
+
+_rl_continued(lines, i, rest) := lines[i + 1] if {
+	trim_space(rest) == ""
+	i + 1 < count(lines)
+}
+
+_rl_pick(call, parts) := concat(",", array.slice(parts, 0, 2)) if {
+	endswith(call, ".request(")
+	count(parts) > 1
+}
+
+_rl_pick(call, parts) := parts[0] if not _rl_two_args(call, parts)
+
+_rl_two_args(call, parts) if {
+	endswith(call, ".request(")
+	count(parts) > 1
+}
+
+_rl_tainted(_, _, arg) if regex.match(_rl_source, arg)
+
+_rl_tainted(lines, i, arg) if {
+	some v in helpers.tainted_names(lines, i, 12, _rl_source)
+	regex.match(concat("", [`\b`, v, `\b`]), arg)
+}
+
+_rl_tainted(lines, i, arg) if {
+	some j in numbers.range(max([0, i - 12]), i - 1)
+	prev := lines[j]
+	regex.match(_rl_source, prev)
+	not helpers.is_comment_line(prev)
+	some v in _rl_declared(prev)
+	regex.match(concat("", [`\b`, v, `\b`]), arg)
+}
+
+_rl_declared(line) := _rl_destructured(line) | _rl_ts_typed(line)
+
+_rl_destructured(line) := {n |
+	m := regex.find_all_string_submatch_n(`\b(?:const|let|var)\s*\{([^}]*)\}\s*=[^=]`, line, 1)
+	some part in split(m[0][1], ",")
+	pieces := split(trim_space(part), ":")
+	n := trim_space(pieces[count(pieces) - 1])
+	regex.match(`^[A-Za-z_$][\w$]*$`, n)
+}
+
+_rl_ts_typed(line) := {m[0][1] |
+	m := regex.find_all_string_submatch_n(`\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*:\s*[^=]+=[^=>]`, line, 1)
+	count(m) > 0
+}
+
+_rl_fixed_host(arg) if regex.match("^\\s*(?:f|r|fr|rf)?[\"'`]https?://[^/{}$\"'`\\s]+/", arg)
+
+_rl_fixed_host(arg) if regex.match("^\\s*(?:f[\"']\\{|`\\$\\{)[A-Z][A-Z0-9_]*\\}/", arg)
+
+_rl_fixed_host(arg) if regex.match("^\\s*[A-Z][A-Z0-9_]*(?:\\.[A-Za-z_]\\w*)?\\s*\\+\\s*[\"'`]/", arg)
+
+_rl_relayed(lines, i) if {
+	some k in numbers.range(i, _rl_end(lines, i))
+	not helpers.is_comment_line(lines[k])
+	regex.match(_rl_relay, lines[k])
+}
+
+_rl_handler_start := "^\\s*(?:@|(?:async\\s+)?def\\s|exports\\.[\\w$]+\\s*=|module\\.exports\\b|(?:export\\s+)?(?:default\\s+)?(?:async\\s+)?function\\b|(?:app|router|[\\w$]*[Rr]outer|fastify|server)\\.(?:get|post|put|patch|delete|all|route)\\s*\\(\\s*['\"`/])"
+
+_rl_end(lines, i) := e if {
+	last := min([count(lines) - 1, i + 15])
+	bs := [k | some k in numbers.range(i + 1, last); k > i; regex.match(_rl_handler_start, lines[k])]
+	e := _rl_end_at(bs, last)
+}
+
+_rl_end_at(bs, _) := bs[0] - 1 if count(bs) > 0
+
+_rl_end_at(bs, last) := last if count(bs) == 0

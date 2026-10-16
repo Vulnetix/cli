@@ -18,14 +18,14 @@ public class PasswordHasher {
     }
 
     public byte[] oneLine(User user) throws Exception {
-~>        return MessageDigest.getInstance("MD5").digest(user.getPassword().getBytes());
+        return MessageDigest.getInstance("MD5").digest(user.getPassword().getBytes());
     }
 
     public String commons(User user) {
-~>        return @@sample:D[i]ge[s]tU[t]il[s][.]s[h]a2[5]6H[e]x@@(user.getPassword());
+        return @@sample:D[i]ge[s]tU[t]il[s][.]s[h]a2[5]6H[e]x@@(user.getPassword());
     }
 
     public String guava(String pwd) {
-~>        return Hashing.sha256().hashString(pwd, @@sample:S[t]an[d]ar[d]Ch[a]rs[e]ts[.]UT[F][_]8@@).toString();
+        return Hashing.sha256().hashString(pwd, @@sample:S[t]an[d]ar[d]Ch[a]rs[e]ts[.]UT[F][_]8@@).toString();
     }
 }

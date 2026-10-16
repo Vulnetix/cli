@@ -17,5 +17,5 @@ exports.status = async function status(req, res) {
 
 exports.avatar = function avatar(req, res) {
   let imageUrl = req.body.imageUrl;
-~>  https.get(imageUrl, (upstream) => upstream.pipe(res));
+  https.get(imageUrl, (upstream) => upstream.pipe(res));
 };

@@ -6,8 +6,8 @@ import data.vulnetix.helpers
 
 metadata := {
     "id": "VNX-JAVA-028",
-    "name": "SQL injection via string concatenation in Java",
-    "description": "A JDBC or Spring JdbcTemplate call (Statement execute/executeQuery/executeUpdate/executeLargeUpdate/addBatch, Connection prepareStatement/prepareCall, JdbcTemplate query/queryForList/queryForObject/queryForMap/queryForRowSet/update/batchUpdate, Android SQLiteDatabase rawQuery/execSQL) receives SQL text that was built from a SQL string literal (or text block) and a non-constant value: concatenated with +, appended with +=, String.concat(), String.format() or .formatted() with %s, or StringBuilder.append(). The SQL may be built inline in the call (including a call split over several lines) or in a variable assigned up to 40 lines above it, read from its nearest plain assignment onward (sql = sql + \"...\" and sql += \"...\" with literals do not count as dynamic). Not reported: parameterised queries (? placeholders with bound arguments), SQL built only from literals and UPPER_CASE constants, non-SQL execute() calls (HTTP clients, executors) whose text carries no SQL, the pattern inside a string literal or a comment. The rule does not follow values across methods or files and does not judge whether the concatenated value is attacker-controlled.",
+    "name": "SQL injection via StringBuilder-assembled SQL in Java",
+    "description": "A JDBC or Spring JdbcTemplate call (Statement execute/executeQuery/executeUpdate/executeLargeUpdate/addBatch, Connection prepareStatement/prepareCall, JdbcTemplate query/queryForList/queryForObject/queryForMap/queryForRowSet/update/batchUpdate, Android SQLiteDatabase rawQuery/execSQL) receives SQL text assembled in a StringBuilder or StringBuffer, where an append() call adds a non-constant value: sb.append(name), sb.append(\" AND x = '\" + name + \"'\"), or a chained new StringBuilder(\"SELECT ...\").append(id).toString() inline in the call. The builder is read from its nearest plain assignment up to 40 lines above the call (chained and multi-line appends included), and a SQL string literal must appear in what it is built from. The enclosing method (at most 120 lines up) is read before reporting: an operand that provably holds a constant at the call is not run-time data, namely a literal or constant expression it was last assigned on every path, the taken side of an if/else or ternary whose condition folds to a constant, the selected case of a switch on a constant, the element a list index or map key actually holds when that is a literal, and the result of a method in the same file whose every return is constant. Not reported: SQL built into a String by concatenation, +=, String.format(), concat() or .formatted() (inline or through a variable), which is reported by VNX-JAVA-003; builders that append only literals and UPPER_CASE constants; parameterised queries; builders holding no SQL; the pattern inside a string literal or a comment. The rule follows values only within the enclosing method and does not judge whether the appended value is attacker-controlled.",
     "help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-028/",
     "languages": ["java"],
     "severity": "high",
@@ -65,11 +65,6 @@ _dynamic_operand(stripped) if {
 
 _strip(text) := regex.replace(text, _str_re, `""`)
 
-_dynamic_sql(text) if {
-    regex.match(_sql_lit_re, text)
-    _dynamic_operand(_strip(text))
-}
-
 # The statement starting at line i (up to 8 lines, cut at the first ';').
 _stmt(lines, i) := s if {
     joined := concat(" ", array.slice(lines, i, min([count(lines), i + 8])))
@@ -95,32 +90,50 @@ _from(lines, i, v) := k if {
     k := _last_assign(lines, i, v)
 } else := max([0, i - 40])
 
-_builds(lines, i, v) := concat("\n", [s |
+# The statements that build v: its nearest plain assignment and every
+# `v = ...`, `v += ...` and `v.append(...)` after it.
+_build_stmts(lines, i, v) := [s |
     some k in numbers.range(_from(lines, i, v), i - 1)
     l := lines[k]
     contains(l, v)
     not helpers.is_comment_line(l)
     regex.match(concat("", [`(?:^|[^\w.])`, v, `\s*(?:\+?=(?:[^=]|$)|\.append\()`]), l)
     s := _stmt(lines, k)
-])
+]
 
 _lambda(arg) if regex.match(`^\s*\(?[\w\s,]*\)?\s*->`, arg)
+
+# A StringBuilder/StringBuffer append() whose argument is not a literal or an
+# UPPER_CASE constant: append(name), append(" AND x = '" + name + "'").
+_append_operand(stripped) if {
+    some m in regex.find_all_string_submatch_n(`\.append\(((?:[^()]|\((?:[^()]|\([^()]*\))*\))*)\)`, stripped, -1)
+    _dynamic_operand(concat("", ["+ ", m[1]]))
+}
+
+# The SQL is assembled with append(): concatenation, String.format(),
+# concat() and formatted() into a String are VNX-JAVA-003's to report, which
+# does not follow a builder's append() calls.
+_append_built(text, stmts) if {
+    regex.match(_sql_lit_re, text)
+    some s in stmts
+    contains(s, ".append(")
+    _append_operand(_strip(s))
+}
 
 # inline: the SQL is built in the call's own argument
 _vulnerable(_, _, arg) if {
     not _lambda(arg)
-    _dynamic_sql(arg)
+    _append_built(arg, [arg])
 }
 
-# the argument is a variable (or its toString()) built above
+# the argument is a builder variable (or its toString()) built above
 _vulnerable(lines, i, arg) if {
     m := regex.find_all_string_submatch_n(`^\s*([A-Za-z_]\w*)\s*(?:\.toString\(\)\s*)?(?:[,)]|$)`, arg, 1)
     count(m) > 0
     v := m[0][1]
     not _is_const(v)
-    # `sql = sql + " ORDER BY name"` and `sql += "..."` extend the variable
-    # with itself: the self-reference is not a dynamic operand.
-    _dynamic_sql(regex.replace(_builds(lines, i, v), concat("", [`\b`, v, `\b`]), "SELFVAR"))
+    stmts := _build_stmts(lines, i, v)
+    _append_built(concat("\n", stmts), stmts)
 }
 
 findings contains finding if {
@@ -136,13 +149,43 @@ findings contains finding if {
     m := regex.find_all_string_submatch_n(_sink_arg_re, _stmt(lines, i), 1)
     count(m) > 0
     _vulnerable(lines, i, m[0][1])
+    _vulnerable_live(lines, i, m[0][1], helpers.flow_consts(lines, i))
     finding := {
         "rule_id": metadata.id,
-        "message": "SQL text built by string concatenation or formatting reaches a JDBC/JdbcTemplate call; use a PreparedStatement or JdbcTemplate with ? placeholders and bound arguments",
+        "message": "SQL assembled in a StringBuilder from a non-constant append() reaches a JDBC/JdbcTemplate call; append ? placeholders instead and bind the values on a PreparedStatement or JdbcTemplate",
         "artifact_uri": path,
         "severity": metadata.severity,
         "level": metadata.level,
         "start_line": i + 1,
         "snippet": line,
     }
+}
+
+# ── In-method flow ───────────────────────────────────────────────────────
+# The same two checks after reading the method: an operand that provably
+# holds a constant at the call (a literal, the taken side of a constant
+# condition or switch, a constant list index or map key, a same-file method
+# returning a constant) is not run-time data.
+
+_vulnerable_live(lines, i, arg, consts) if {
+    not _lambda(arg)
+    folded := helpers.flow_fold(arg, i, consts)
+    _append_built(folded, [folded])
+}
+
+_vulnerable_live(lines, i, arg, consts) if {
+    m := regex.find_all_string_submatch_n(`^\s*([A-Za-z_]\w*)\s*(?:\.toString\(\)\s*)?(?:[,)]|$)`, arg, 1)
+    count(m) > 0
+    v := m[0][1]
+    not _is_const(v)
+    not consts[v]
+    stmts := [s |
+        some k in numbers.range(_from(lines, i, v), i - 1)
+        l := lines[k]
+        contains(l, v)
+        not helpers.is_comment_line(l)
+        regex.match(concat("", [`(?:^|[^\w.])`, v, `\s*(?:\+?=(?:[^=]|$)|\.append\()`]), l)
+        s := helpers.flow_fold(_stmt(lines, k), k, consts)
+    ]
+    _append_built(concat("\n", stmts), stmts)
 }

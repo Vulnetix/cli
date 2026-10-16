@@ -41,118 +41,13 @@ _is_js(path) if {
 
 _message := "This administrative route is registered without any authentication or authorisation check in front of it: anyone who requests the URL directly reaches it. Put it behind an auth middleware, decorator or dependency that checks the caller is an authenticated administrator"
 
-# ── Python: Flask / Quart / FastAPI decorators ───────────────────────────
-
-_py_route_re := `^\s*@\s*[\w.]+\.(?:route|get|post|put|patch|delete|api_route|websocket)\s*\(\s*(?:rule\s*=\s*|path\s*=\s*)?[rbf]?["']([^"']*)["']`
-
-_py_route_line(l) if regex.match(`^\s*@\s*[\w.]+\.(?:route|get|post|put|patch|delete|api_route|websocket)\s*\(`, l)
-
-_py_auth_deco := `(?i)^\s*@\s*[\w.]*(?:login|auth|admin|role|permission|staff|superuser|jwt|token|require|protect|guard|restrict|secure)\w*`
-
-_py_auth_body := `(?i)\bcurrent_user\b|\bg\.user\b|\bsession\s*(?:\[|\.get\s*\()|\bin\s+session\b|request\.authorization|\bis_admin\b|\bis_staff\b|\bis_superuser\b|\babort\s*\(\s*40[13]|\bHTTPException\s*\(\s*(?:status_code\s*=\s*)?40[13]|\bUnauthorized\b|\bForbidden\b|check_auth|authenticate|authoriz|verify_(?:jwt|token|password)|\bget_jwt|jwt_required`
-
-_py_file_guarded(content) if regex.match(`\bbefore_(?:app_)?request\b|APIRouter\s*\([^)]*dependencies\s*=|FastAPI\s*\([^)]*dependencies\s*=`, content)
-
-findings contains finding if {
-	some path, content in input.file_contents
-	endswith(path, ".py")
-	regex.match(`(?i)@\s*[\w.]+\.(?:route|get|post|put|patch|delete|api_route|websocket)\s*\(\s*(?:rule\s*=\s*|path\s*=\s*)?[rbf]?["'][^"']*(?:admin|backoffice|superuser|sysadmin|staff|manage)`, content)
-	not _py_file_guarded(content)
-	not helpers.is_test_path(path)
-	lines := split(content, "\n")
-	n := count(lines)
-	some i, line in lines
-	contains(line, "@")
-	m := regex.find_all_string_submatch_n(_py_route_re, _deco_text(lines, i, n), 1)
-	count(m) > 0
-	_admin_path(m[0][1])
-	not regex.match(`\bdependencies\s*=`, line)
-	d := _def_line(lines, i, n)
-	not _py_protected(lines, i, d, n)
-	finding := _finding(path, i, line)
-}
-
-_deco_text(lines, i, n) := concat(" ", [lines[i], trim_space(lines[i + 1])]) if {
-	i + 1 < n
-	endswith(trim_right(lines[i], " \t\r"), "(")
-} else := lines[i]
-
-# The def that the decorator stack starting at i decorates.
-_def_line(lines, i, n) := d if {
-	end := min([n - 1, i + 10])
-	ds := [k | some k in numbers.range(i + 1, end); regex.match(`^\s*(?:async\s+)?def\s`, lines[k])]
-	count(ds) > 0
-	d := ds[0]
-}
-
-_py_protected(lines, i, d, _) if {
-	some k in _deco_lines(lines, i, d)
-	not _py_route_line(lines[k])
-	regex.match(_py_auth_deco, lines[k])
-}
-
-_py_protected(lines, i, d, _) if {
-	some k in _deco_lines(lines, i, d)
-	regex.match(`\bdependencies\s*=`, lines[k])
-}
-
-_py_protected(lines, _, d, n) if {
-	w := concat("\n", array.slice(lines, d, min([n, d + 16])))
-	regex.match(_py_auth_body, w)
-}
-
-_py_protected(lines, _, d, n) if {
-	w := concat("\n", array.slice(lines, d, min([n, d + 4])))
-	regex.match(`\bDepends\s*\(|\bSecurity\s*\(`, w)
-}
-
-# app.add_url_rule("/admin/x", view_func=purge): the view is a plain function
-# in this file with no auth decorator and no user check.
-findings contains finding if {
-	some path, content in input.file_contents
-	endswith(path, ".py")
-	contains(content, "add_url_rule")
-	not _py_file_guarded(content)
-	not helpers.is_test_path(path)
-	lines := split(content, "\n")
-	n := count(lines)
-	some i, line in lines
-	contains(line, "add_url_rule")
-	not helpers.is_comment_line(line)
-	m := regex.find_all_string_submatch_n(`\.add_url_rule\s*\(\s*(?:rule\s*=\s*)?[rb]?["']([^"']*)["']\s*,(?:.*\bview_func\s*=\s*|\s*(?:None|[rb]?["'][^"']*["'])\s*,\s*)([A-Za-z_][\w.]*)\s*[,)]`, line, 1)
-	count(m) > 0
-	_admin_path(m[0][1])
-	name := _last(split(m[0][2], "."))
-	ds := [k | some k, l in lines; regex.match(concat("", [`^\s*(?:async\s+)?def\s+`, name, `\s*\(`]), l)]
-	count(ds) > 0
-	d := ds[0]
-	not _py_protected(lines, d, d, n)
-	finding := _finding(path, i, line)
-}
-
-# Decorator lines above (contiguous) and below the route decorator.
-_deco_lines(lines, i, d) := {k |
-	some k in numbers.range(max([0, i - 6]), d - 1)
-	k != i
-	_in_stack(lines, k, i)
-}
-
-_in_stack(_, k, i) if k > i
-
-_in_stack(lines, k, i) if {
-	k < i
-	every x in numbers.range(k, i - 1) {
-		regex.match(`^\s*@|^\s*[)\]},]|^\s+\S`, lines[x])
-	}
-}
-
 # ── JavaScript / TypeScript: Express-style routers ───────────────────────
 
 _js_route_re := "\\b[A-Za-z_$][\\w$]*\\.(?:get|post|put|patch|delete|del|all)\\s*\\(\\s*(['\"`])([^'\"`]*)['\"`]\\s*,(.*)$"
 
 _js_auth := `(?i)auth|passport|jwt|login|logged|guard|protect|ensure|require|verify|isadmin|role|permission|session\.user|security\.|acl|restrict`
 
-_js_inline_auth := `(?i)req(?:uest)?\.(?:user|session|isAuthenticated|auth)\b|ctx\.state\.user|ctx\.(?:session|isAuthenticated)\b|ctx\.throw\(\s*40[13]|isAdmin|\brole|authoriz|jwt\.verify|status\(\s*40[13]|sendStatus\(\s*40[13]`
+_js_inline_auth := `(?i)req(?:uest)?\.(?:user|session|isAuthenticated|auth)\b|ctx\.state\.user|ctx\.(?:session|isAuthenticated)\b|ctx\.throw\(\s*40[13]|isAdmin|\broles?\s*(?:[!=]==?|\.(?:includes|indexOf|some)\s*\()|\b(?:has|check|require)_?[Rr]oles?\b|\buser\.roles?\b|authoriz|jwt\.verify|status\(\s*40[13]|sendStatus\(\s*40[13]`
 
 # An inline handler that does nothing but redirect (to the login page, or to
 # a canonical URL) exposes nothing.
@@ -169,19 +64,32 @@ findings contains finding if {
 	some i, line in lines
 	regex.match(`\.(?:get|post|put|patch|delete|del|all)\s*\(`, line)
 	not helpers.is_comment_line(line)
-	m := regex.find_all_string_submatch_n(_js_route_re, line, 1)
+	not regex.match(_js_in_string, line)
+	r := _js_route_text(lines, i, n)
+	m := regex.find_all_string_submatch_n(_js_route_re, r.text, 1)
 	count(m) > 0
 	route := m[0][2]
 	_admin_path(route)
 	not regex.match(`^\s*(?:it|test|describe|cy|request|supertest|axios|fetch|http|client|api|agent)\.`, line)
 	not regex.match(`\b(?:axios|request|supertest|client|agent|http|api|cy|\$|jQuery|fetchMock|nock|mock\w*)\s*\.\s*(?:get|post|put|patch|delete|del|all)\s*\(`, line)
-	call := _js_call(lines, i, n, m[0][3])
+	call := _js_call(lines, r.base, n, m[0][3])
 	_single_handler(call)
 	not _js_redirect_only(call)
 	not regex.match(_js_inline_auth, concat("\n", array.slice(lines, i, min([n, i + 12]))))
 	not _js_prefix_auth(content, route)
 	finding := _finding(path, i, line)
 }
+
+# A route call written inside a string literal (an example in a doc string).
+_js_in_string := "^[^'\"`]*['\"`][^'\"`]*\\.(?:get|post|put|patch|delete|del|all)\\s*\\("
+
+# The route call, with the path read from the next line when the call opens
+# empty: router.post(\n  '/admin/users/:id/role',\n  async (req, res) => {.
+# base is the line the path is on.
+_js_route_text(lines, i, n) := {"text": concat(" ", [lines[i], trim_space(lines[i + 1])]), "base": i + 1} if {
+	i + 1 < n
+	regex.match(`\.(?:get|post|put|patch|delete|del|all)\s*\(\s*$`, lines[i])
+} else := {"text": lines[i], "base": i}
 
 # The rest of the call, joined across up to three following lines.
 _js_call(lines, i, n, rest) := concat(" ", array.concat([rest], array.slice(lines, i + 1, min([n, i + 4]))))

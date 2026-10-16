@@ -120,6 +120,7 @@ findings contains finding if {
 	arg := _call_args(_args(lines, i, m[0][1]))
 	count(_top_commas(arg)) == 0
 	_carries(lines, i, _js_src, trim_space(arg), "js")
+	not _r1389_owns(lines, i, line)
 	finding := _finding(path, i, line, "parseInt() of request data without a radix reads '0x...' as hexadecimal; pass the radix (parseInt(v, 10)) or use Number() and check the result")
 }
 
@@ -179,6 +180,7 @@ findings contains finding if {
 	some i, line in lines
 	not helpers.is_comment_line(line)
 	some msg in _php_issue(lines, i, line)
+	not _php_handed_over(msg, content, lines, i, line)
 	finding := _finding(path, i, line, msg)
 }
 
@@ -205,4 +207,170 @@ _php_issue(lines, i, line) := {msg |
 	count(cs) == 1
 	_php_tainted(lines, i, substring(args, 0, cs[0]))
 	msg := "in_array() of request data without strict mode compares loosely ('1abc' matches 1, '0' matches false); pass true as the third argument"
+}
+
+# A loose comparison or strcmp() test VNX-PHP-010 reports is handed to it;
+# the non-strict in_array() check is this rule's alone.
+_php_handed_over(msg, content, lines, i, line) if {
+	not startswith(msg, "in_array")
+	_r010_owns(content, lines, i, line)
+}
+
+# ── lines VNX-1389 reports ──────────────────────────────────────────────
+# A radix-less parseInt of request data is VNX-1389's finding (a number
+# parsed in a radix guessed from the text). This is that rule's own test,
+# kept in step with it, so a line is only handed over when it reports it.
+_r1389_source := `\b(?:req|request|ctx)\.(?:query|body|params|headers|cookies|request)\b|\b(?:req|request|ctx)\.(?:get|header)\(|process\.argv|\blocation\.(?:search|hash|href|pathname)|searchParams\.get\(|URLSearchParams\(`
+
+_r1389_owns(lines, i, line) if {
+	code := regex.replace(line, concat("", [`"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`, "`(?:[^`\\\\]|\\\\.)*`"]), `""`)
+	some m in regex.find_all_string_submatch_n(`(?:^|[^\w.$]|Number\.)parseInt\s*\(\s*((?:[^(),]|\([^()]*\))+?)\s*\)`, code, -1)
+	m[1] != `""`
+	_r1389_untrusted(lines, i, m[1])
+}
+
+_r1389_untrusted(_, _, arg) if regex.match(_r1389_source, arg)
+
+_r1389_untrusted(lines, i, arg) if {
+	some v in helpers.tainted_names(lines, i, 10, _r1389_source)
+	regex.match(concat("", [`^\s*`, v, `\s*$`]), arg)
+}
+
+_r1389_untrusted(lines, i, arg) if {
+	i > 0
+	some j in numbers.range(max([0, i - 10]), i - 1)
+	regex.match(_r1389_source, lines[j])
+	m := regex.find_all_string_submatch_n(`\{([^}]*)\}\s*=`, lines[j], 1)
+	count(m) > 0
+	some name in split(m[0][1], ",")
+	trim_space(name) != ""
+	regex.match(concat("", [`^\s*`, trim_space(name), `\s*$`]), arg)
+}
+
+# ── lines VNX-PHP-010 reports ───────────────────────────────────────────
+# A PHP loose comparison or strcmp() test that decides an authentication or
+# integrity check is VNX-PHP-010's finding (PHP type juggling). This is that
+# rule's own test, kept in step with it, so a line is only handed over when
+# it reports the line.
+_r010_owns(content, lines, i, line) if {
+	_r010_gate(content)
+	regex.match(`[^=!](==|!=|<>)[^=]|\bstrn?(case)?cmp\s*\(`, line)
+	_r010_report(_r010_masked(line), _r010_tainted(lines, i))
+}
+
+_r010_op := `(\$\w+(?:\s*\[[^\]]*\]|->\w+|::\$?\w+)*(?:\s*\((?:[^()]|\([^()]*\))*\))?|[A-Za-z_][\w\\]*(?:::\w+)?\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|-?\d[\w.]*|\w+)`
+
+_r010_cmp_re := concat("", [_r010_op, `\s*(?:==|!=|<>)\s*`, _r010_op])
+
+_r010_source_re := `\$_(GET|POST|REQUEST|COOKIE|SERVER|FILES)\b|\bjson_decode\s*\(|php://input|\$request->(input|get|query|post|header|cookie|json)\s*\(|\brequest\s*\(\s*['"]|\bgetallheaders\s*\(`
+
+# Secret names are matched as whole identifier words (snake_case and
+# camelCase are split), so author, hashtag, passenger or encoding do not
+# count as auth, hash, pass or code.
+_r010_secret_words := {
+	"pass", "passwd", "password", "passphrase", "pwd", "pw", "token", "secret",
+	"hash", "sig", "signature", "hmac", "otp", "nonce", "csrf", "xsrf", "apikey",
+	"auth", "digest", "answer", "pin", "code", "totp", "mfa",
+}
+
+_r010_names_secret(s) if {
+	norm := lower(regex.replace(s, `([a-z0-9])([A-Z])`, "${1}_${2}"))
+	some w in regex.find_n(`[a-z]+`, norm, -1)
+	_r010_secret_words[w]
+}
+
+_r010_names_secret(s) if regex.match(`(?i)api_?key`, s)
+
+_r010_hash_re := `^(md5|sha1|hash|hash_hmac|crypt|md5_file|sha1_file|hash_file)\s*\(`
+
+# A string literal that itself contains a comparison operator is prose.
+# Literals are found left to right so quote pairs are matched correctly.
+_r010_masked(line) := strings.replace_n(
+	{lit: `''` |
+		some lit in regex.find_n(`'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"`, line, -1)
+		regex.match(`==|!=|<>`, lit)
+	},
+	line,
+)
+
+_r010_is_lit(op) if regex.match(`(?i)^(['"]|-?\d|true$|false$|null$)`, op)
+
+_r010_magic_lit(op) if regex.match(`^['"]0e\d+['"]$`, op)
+
+_r010_tainted(lines, i) := {v |
+	i > 0
+	some j in numbers.range(max([0, i - 30]), i - 1)
+	prev := lines[j]
+	regex.match(_r010_source_re, prev)
+	not helpers.is_comment_line(prev)
+	m := regex.find_all_string_submatch_n(_r010_direct_re, prev, 1)
+	v := m[0][1]
+}
+
+# The assigned value IS the input (optionally through a trivial wrapper), not
+# merely computed with it: $row = fetch_user($_POST['u']) is database data.
+_r010_direct_re := `^\s*\$(\w+)\s*=\s*(?:(?:trim|strtolower|strtoupper|urldecode|rawurldecode|base64_decode|stripslashes|json_decode|isset|\(string\))\s*\(?\s*)*(?:\$_(?:GET|POST|REQUEST|COOKIE|SERVER|FILES)\b|json_decode\s*\(|file_get_contents\s*\(\s*['"]php://input|\$request->|request\s*\(|getallheaders\s*\()`
+
+_r010_is_user(op, _) if regex.match(`^\$_(GET|POST|REQUEST|COOKIE|SERVER|FILES)\b`, op)
+
+_r010_is_user(op, tainted) if {
+	m := regex.find_all_string_submatch_n(`^\$(\w+)`, op, 1)
+	tainted[m[0][1]]
+}
+
+_r010_is_user(op, _) if regex.match(`^(\$request->(input|get|query|post|header|cookie)|request)\s*\(`, op)
+
+_r010_juggles(l, r, _) if {
+	regex.match(_r010_hash_re, l)
+	not _r010_is_lit(r)
+}
+
+_r010_juggles(l, r, _) if {
+	regex.match(_r010_hash_re, l)
+	_r010_magic_lit(r)
+}
+
+_r010_juggles(l, r, tainted) if {
+	_r010_is_user(l, tainted)
+	not _r010_is_lit(r)
+	not _r010_is_user(r, tainted)
+	_r010_names_secret(concat(" ", [l, r]))
+}
+
+_r010_loose(code, tainted) if {
+	some m in regex.find_all_string_submatch_n(_r010_cmp_re, code, -1)
+	l := trim_space(m[1])
+	r := trim_space(m[2])
+	_r010_either(l, r, tainted)
+}
+
+_r010_either(l, r, tainted) if _r010_juggles(l, r, tainted)
+
+_r010_either(l, r, tainted) if _r010_juggles(r, l, tainted)
+
+_r010_strcmp_re := `\bstrn?(?:case)?cmp\s*\(((?:[^()]|\([^()]*\))*)\)`
+
+_r010_strcmp_bypass(code, tainted) if {
+	regex.match(`\bstrn?(?:case)?cmp\s*\((?:[^()]|\([^()]*\))*\)\s*(?:==|!=|<>)\s*0\b|\b0\s*(?:==|!=|<>)\s*strn?(?:case)?cmp\s*\(|!\s*strn?(?:case)?cmp\s*\(`, code)
+	some m in regex.find_all_string_submatch_n(_r010_strcmp_re, code, -1)
+	_r010_args_user(m[1], tainted)
+}
+
+_r010_args_user(args, _) if regex.match(_r010_source_re, args)
+
+_r010_args_user(args, tainted) if {
+	some v in tainted
+	regex.match(concat("", [`\$`, v, `\b`]), args)
+}
+
+
+_r010_report(code, tainted) if _r010_loose(code, tainted)
+
+_r010_report(code, tainted) if _r010_strcmp_bypass(code, tainted)
+
+# Cheap whole-file gate: a comparison can only be reported in a file that
+# reads input, hashes, or calls strcmp.
+_r010_gate(content) if {
+	some s in ["$_", "json_decode", "$request", "request(", "md5", "sha1", "hash", "crypt(", "cmp("]
+	contains(content, s)
 }

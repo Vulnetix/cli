@@ -19,7 +19,7 @@ JNDI lookups (particularly in Log4j-style contexts) can also trigger network req
 
 ## What Gets Flagged
 
-The rule reports the search call when its filter or base DN carries request data (a servlet request value, an annotated handler parameter, or a local built from one a few lines above). Filters with `{0}` placeholders, values passed through `LdapEncoder.filterEncode` or `Filter.encodeValue`, and `EqualsFilter`/`AndFilter` objects are not reported.
+The rule reports the search call when its filter or base DN carries request data (a servlet request value, an annotated handler parameter, or a local built from one earlier in the same method). Filters with `{0}` placeholders, values passed through `LdapEncoder.filterEncode` or `Filter.encodeValue`, and `EqualsFilter`/`AndFilter` objects are not reported.
 
 ```java
 // FLAGGED: user input directly in search() filter
@@ -34,6 +34,29 @@ dirContext.search("dc=example,dc=com", filter, controls);
 // FLAGGED: direct parameter as filter argument
 ctx.search(baseDn, request.getParameter("filter"), searchControls);
 ```
+
+### Following the value through the method
+
+The look-back stops at the enclosing method's declaration (at most 120 lines up), and the method is read before the call is reported:
+
+- a definition on a branch that never runs is dropped: an `if`/`else` or ternary whose condition folds to a constant (integer literals, and `int` locals assigned once from a literal), or a `case` that a `switch` on a constant does not select;
+- a local that provably holds a constant at the call stops carrying the request value: a literal on every path, the element a list index or map key actually holds, or the result of a method in the same file (including a nested class) whose every `return` is a constant;
+- a request value stored in a list, map or builder and read back is followed, so `list.add(request.getParameter("x"))` followed by `list.get(0)` is request data.
+
+```java
+// NOT FLAGGED: 2 * 3 >= 6, so cn is always "administrators"
+int tier = 3;
+if (2 * tier >= 6) cn = "administrators";
+else cn = request.getParameter("group");
+ctx.search(BASE, "(cn=" + cn + ")", controls);
+
+// FLAGGED: the map key read back holds the header value
+attrs.put("lookup", "uid");
+attrs.put("user", request.getHeader("X-User"));
+ctx.search(BASE, "(uid=" + attrs.get("user") + ")", controls);
+```
+
+Anything the analysis cannot resolve stays reported: a condition on request data, a call into another class, a collection filled in a loop or handed to another method, a helper that returns (a transform of) its parameter.
 
 ## Remediation
 

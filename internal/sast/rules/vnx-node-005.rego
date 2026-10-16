@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-005",
 	"name": "innerHTML or dangerouslySetInnerHTML usage",
-	"description": "HTML is written into the DOM from a value that is not a constant: an assignment (= or +=) to .innerHTML or .outerHTML (also el[\"innerHTML\"]), insertAdjacentHTML(position, html) (also with its arguments on the following lines), document.write/writeln(html), or a React dangerouslySetInnerHTML={{ __html: value }} (also across line breaks), where the value is a variable, a call, concatenation or a template literal with ${...} interpolation (including one spanning several lines). If any part of it is user-controlled this is cross-site scripting. Not reported: string literals without interpolation, null/number/boolean literals, ALL_CAPS constants, copying another element's innerHTML, values passed through DOMPurify.sanitize, sanitize-html or an escape/encode function, reads and comparisons of innerHTML, textContent/innerText, comments and string literals, minified files. Overlaps VNX-NODE-012 and VNX-NODE-027, which match the same sinks less strictly.",
+	"description": "HTML is written into the DOM of a JavaScript or TypeScript file from a value that is not a constant: insertAdjacentHTML(position, html) (also with its arguments on the following lines), document.write/writeln(html), or a React dangerouslySetInnerHTML={{ __html: value }} (also across line breaks), where the value is a variable, a call, concatenation or a template literal with ${...} interpolation (including one spanning several lines). If any part of it is user-controlled this is cross-site scripting. A value that encodes one part and splices the raw value into another (encodeURIComponent(q) + q) is still reported, and unescape() is not an encoder. Not reported: string literals without interpolation, null/number/boolean literals, ALL_CAPS constants, copying another element's innerHTML, values passed whole through DOMPurify.sanitize, sanitize-html or an escape/encode function, textContent/innerText, comments and string literals, minified and vendored files. An assignment to innerHTML/outerHTML (also el[\"innerHTML\"]) is reported by VNX-NODE-027, not here; these sinks in HTML pages, Vue and Svelte components are VNX-NODE-012's.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-005/",
 	"languages": ["node"],
 	"severity": "medium",
@@ -23,7 +23,10 @@ metadata := {
 
 _is_js(path) if regex.match(`\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts)$`, path)
 
-_file_gate := `innerHTML|outerHTML|insertAdjacentHTML|document\.write|dangerouslySetInnerHTML`
+# An assignment to innerHTML/outerHTML (also el["innerHTML"]) is reported by
+# VNX-NODE-027, which owns that sink in every file type; this rule owns the
+# other HTML sinks of JavaScript and TypeScript files.
+_file_gate := `insertAdjacentHTML|document\.write|dangerouslySetInnerHTML`
 
 # A template literal with interpolation becomes the identifier tpl_x; every
 # other complete string literal collapses to "".
@@ -33,7 +36,6 @@ _strip(line) := regex.replace(
 )
 
 _sinks := [
-	{"re": `\.(?:inner|outer)HTML\s*\+?=(?:[^=](.*))?$`, "what": "innerHTML/outerHTML assignment", "split": false},
 	{"re": `\.insertAdjacentHTML\s*\(\s*""\s*,(.*)$`, "what": "insertAdjacentHTML()", "split": false},
 	{"re": `\.insertAdjacentHTML\s*\(\s*()$`, "what": "insertAdjacentHTML()", "split": true},
 	{"re": `(?:^|[^\w$.])document\.write(?:ln)?\s*\((.*)$`, "what": "document.write()", "split": false},
@@ -41,6 +43,15 @@ _sinks := [
 ]
 
 _sanitizer_re := `(?i)sanitiz|purify|escape|encode|\bxss\s*\(|\bhe\.`
+
+# Sanitiser and encoder calls become an empty literal, so a value that
+# encodes one part (encodeURIComponent(q)) and splices the raw value into
+# another is still seen. unescape() decodes and is not one of them.
+_desanitize(v) := regex.replace(
+	regex.replace(v, `\bunescape\s*\(`, "decodeURIComponent("),
+	`(?i)[\w$.]*(?:sanitiz|purify|escape|encode|xss)[\w$]*\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)|\bhe\.\w+\s*\((?:[^()]|\([^()]*\))*\)`,
+	`""`,
+)
 
 findings contains finding if {
 	some path, content in input.file_contents
@@ -53,11 +64,11 @@ findings contains finding if {
 	regex.match(_file_gate, line)
 	count(line) <= 400
 	not helpers.is_comment_line(line)
-	s := _strip(_norm(line))
+	s := _strip(line)
 	some sink in _sinks
 	m := regex.find_all_string_submatch_n(sink.re, s, 1)
 	count(m) > 0
-	v := _sink_value(lines, i, sink, m[0][1])
+	v := _desanitize(_sink_value(lines, i, sink, m[0][1]))
 	_dynamic(v)
 	not regex.match(_sanitizer_re, v)
 	not _tpl_sanitized(line, v)
@@ -71,11 +82,6 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
-
-# el["innerHTML"] = x is el.innerHTML = x.
-_norm(line) := regex.replace(line, `\[\s*['"]((?:inner|outer)HTML)['"]\s*\]`, ".$1") if contains(line, "HTML")
-
-_norm(line) := line if not contains(line, "HTML")
 
 _sink_value(lines, i, sink, rest) := _value(lines, i, rest) if not sink.split
 
