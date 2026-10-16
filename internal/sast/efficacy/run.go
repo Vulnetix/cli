@@ -20,7 +20,7 @@ type Rules struct {
 }
 
 // sharedModules are packages every rule may import; they carry no metadata.
-var sharedModules = []string{"helpers.rego", "lib_secrets.rego"}
+var sharedModules = []string{"helpers.rego", "helpers_flow.rego", "lib_secrets.rego"}
 
 // LoadRules reads a rule directory. Reading from disk (not the embedded FS)
 // means an edited rule is measured without rebuilding anything.
@@ -65,13 +65,20 @@ func (r *Rules) Stems() []string {
 // engine keys embedded modules.
 func (r *Rules) Modules(stems ...string) map[string]string {
 	m := make(map[string]string, len(r.Shared)+len(stems))
-	for k, v := range r.Shared {
-		m[k] = v
-	}
+	usesFlow := false
 	for _, s := range stems {
 		if src, ok := r.ByStem[s]; ok {
 			m["rules/"+s+".rego"] = src
+			usesFlow = usesFlow || strings.Contains(src, "helpers.flow_")
 		}
+	}
+	for k, v := range r.Shared {
+		// The in-method flow helpers are large: like the engine, include
+		// them only when a measured rule calls them.
+		if strings.HasSuffix(k, "helpers_flow.rego") && !usesFlow {
+			continue
+		}
+		m[k] = v
 	}
 	return m
 }

@@ -133,3 +133,21 @@ func fingerprintSet(fs []Finding) []string {
 	sort.Strings(out)
 	return out
 }
+
+// The in-method flow helpers are about 1,700 lines. A shard compiles them only
+// when one of its rules calls helpers.flow_*, and the embedded helpers file
+// must really be recognised as that module.
+func TestFlowModuleIsRecognisedAndOnlyNeededByCallers(t *testing.T) {
+	data, err := os.ReadFile("rules/helpers_flow.rego")
+	require.NoError(t, err)
+	require.True(t, isFlowModule(string(data)), "helpers_flow.rego must carry the marker and the helpers package")
+
+	helpers, err := os.ReadFile("rules/helpers.rego")
+	require.NoError(t, err)
+	require.False(t, isFlowModule(string(helpers)), "helpers.rego must stay in every shard")
+	require.NotContains(t, string(helpers), "flow_", "flow functions belong in helpers_flow.rego")
+
+	require.True(t, shardUsesFlow(map[string]string{"a": "x := helpers.flow_reaches(lines, i, v)"}))
+	require.False(t, shardUsesFlow(map[string]string{"a": "x := helpers.assigned_first(line)"}))
+	require.False(t, shardUsesFlow(map[string]string{}))
+}

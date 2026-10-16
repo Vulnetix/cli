@@ -221,7 +221,13 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 				continue
 			}
 			mods := make(map[string]string, len(shared)+len(shard))
-			maps.Copy(mods, shared)
+			needsFlow := shardUsesFlow(shard)
+			for name, src := range shared {
+				if isFlowModule(src) && !needsFlow {
+					continue
+				}
+				mods[name] = src
+			}
 			maps.Copy(mods, shard)
 			jobs = append(jobs, job{mods, in})
 		}
@@ -297,6 +303,26 @@ func evalModules(modules map[string]string, scanInput any) (*SASTReport, error) 
 		return nil, err
 	}
 	return &SASTReport{Findings: findings, Rules: rules, RulesLoaded: len(rules)}, nil
+}
+
+// flowModuleMarker identifies the shared in-method data-flow helpers
+// (rules/helpers_flow.rego). They are a large part of the compile cost, and
+// only a handful of injection rules call them, so a shard includes them only
+// when one of its rules does.
+const flowModuleMarker = "In-method data-flow helpers"
+
+func isFlowModule(src string) bool {
+	return strings.Contains(src, flowModuleMarker) && strings.Contains(src, "package vulnetix.helpers")
+}
+
+// shardUsesFlow reports whether any rule in the shard calls helpers.flow_*.
+func shardUsesFlow(shard map[string]string) bool {
+	for _, src := range shard {
+		if strings.Contains(src, "helpers.flow_") {
+			return true
+		}
+	}
+	return false
 }
 
 // partitionModules splits modules into shared (helpers/libraries, included in
