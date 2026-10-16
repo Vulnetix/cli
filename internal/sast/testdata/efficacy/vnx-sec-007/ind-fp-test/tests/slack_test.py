@@ -1,1 +1,1 @@
-TOKEN = "xoxb-123456789012-123456789012-Qm7Zx2Lp9Wc4Vb8Nk3Jh6Gd1"
+TOKEN = "xoxb-@@sample:[0-9]{12}@@-@@sample:[0-9]{12}@@-@@sample:[A-Za-z0-9]{24}@@"

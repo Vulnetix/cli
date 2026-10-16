@@ -6,7 +6,7 @@
     <string name="maps_api_key">@string/maps_key_from_ci</string>
     <string name="sentry_token">${SENTRY_TOKEN}</string>
     <string name="api_token_endpoint">https://auth.quayside.io/oauth/token</string>
-    <string name="google_api_key" translatable="false">AIzaSyPublicFirebaseClientIdentifier01</string>
+    <string name="google_api_key" translatable="false">AIza@@sample:[A-Za-z0-9]{34}@@</string>
     <string name="facebook_client_token">f0e1d2c3b4a5968778695a4b3c2d1e0f</string>
     <string name="signing_key">xxxxxxxxxxxxxxxx</string>
 </resources>

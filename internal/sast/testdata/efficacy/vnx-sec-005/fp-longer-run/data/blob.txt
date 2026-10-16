@@ -1,2 +1,2 @@
-payload=QkAIzaSyD8f3kLmNoPqRsTuVwXyZaBcDeFgHiJkLmNoPqRsTuVw
-id=AIzaSyD8f3kLmNoPqRsTuVwXyZaBcDeFgHiJkLmNoPqRsTuVwXyZ12
+payload=QkAIza@@sample:[A-Za-z0-9]{45}@@
+id=AIza@@sample:[A-Za-z0-9]{50}@@
