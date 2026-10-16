@@ -48,7 +48,7 @@ func TestFixtureAppRecall(t *testing.T) {
 		{hit{"src/vuln.go", 32, "VNX-GO-030"}, "cookie without Secure"},
 		{hit{"src/vuln.go", 32, "VNX-GO-035"}, "cookie without HttpOnly"},
 		{hit{"src/vuln.go", 37, "VNX-CRYPTO-001"}, "md5 used as a fingerprint"},
-		{hit{"src/vuln.js", 9, "VNX-NODE-002"}, "eval of a request value"},
+		{hit{"src/vuln.js", 9, "VNX-94"}, "eval of a request value (VNX-94 owns request-data code injection; VNX-NODE-002 and VNX-913 hand those lines to it)"},
 		{hit{"src/vuln.js", 15, "VNX-NODE-003"}, "execSync with a concatenated request value"},
 		{hit{"src/vuln.py", 13, "VNX-PY-007"}, "shell=True with interpolated input"},
 		{hit{"src/vuln.py", 24, "VNX-PY-003"}, "pickle.loads of attacker data"},
