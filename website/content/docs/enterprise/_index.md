@@ -9,5 +9,6 @@ Enterprise features for corporate environments, distribution, and advanced deplo
   {{< card link="corporate-proxy" title="Corporate Proxy" subtitle="Proxy servers, firewalls, and restricted networks." >}}
   {{< card link="package-firewall" title="Package Firewall" subtitle="Proxy and policy-enforce dependencies across 23 ecosystems — npm, PyPI, Cargo, Go, Maven, Homebrew, Arch Linux, Docker/OCI and more." >}}
   {{< card link="quality-gates" title="Quality Gates" subtitle="Org-wide scan enforcement — severity, exploits, EOL, unpinned deps, SCA autofix." >}}
+  {{< card link="messaging" title="Messaging" subtitle="Route findings, sandbox and agent activity and account events to Slack, Teams, Discord, Google Chat, Jira, GitHub Issues or a signed webhook." >}}
   {{< card link="publishing" title="Publishing & Distribution" subtitle="How Vulnetix CLI is published and distributed." >}}
 {{< /cards >}}
