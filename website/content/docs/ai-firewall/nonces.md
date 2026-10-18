@@ -1,7 +1,7 @@
 ---
 title: "Nonces & sealed blocks"
 weight: 29
-description: "How the gateway issues nonces for a harness's sealed blocks, verifies them on every request, and strips forged blocks for a client that asks it to."
+description: "How the gateway issues nonces for a harness's sealed blocks, verifies them on every request, and strips forged blocks for a client that asks it to, forwarding verified blocks in a cache-friendly canonical form."
 ---
 
 A coding harness such as [Belai](https://github.com/Vulnetix/belai) writes blocks of its own into a conversation: its system prompt, attachments, directives. It seals each one with a nonce and a SHA-256 of the content:
@@ -20,10 +20,11 @@ curl -H "Authorization: Bearer $VULNETIX_API_KEY" \
 ```
 
 ```json
-{"nonces": ["…"], "count": 16, "expires_at": "2026-09-28T10:00:00Z"}
+{"nonces": ["…"], "count": 16, "expires_at": "2026-09-28T10:00:00Z",
+ "modes": ["observe", "enforce", "canonical"]}
 ```
 
-The endpoint is authenticated like any inference route and gated by the provider allow/deny list. It never calls upstream. `count` is 1–64 (default 16).
+The endpoint is authenticated like any inference route and gated by the provider allow/deny list. It never calls upstream. `count` is 1–64 (default 16). `modes` lists the nonce modes this gateway accepts.
 
 A nonce is **signed, not stored**. It is random bytes plus an expiry (24 hours), authenticated with an HMAC keyed by your principal's own secret. Any gateway replica can verify it, nothing about it is written anywhere, and a nonce issued to one member or service account never verifies for another.
 
@@ -39,10 +40,11 @@ On every inference, each sealed block of a harness kind (`system`, `agent`, `pla
 
 Other tags (`<div>`, `<b>`, anything not on that list) are ordinary text and are never touched.
 
-## Observe or enforce
+## Observe, enforce or canonical
 
 - **Observe** is the default. Blocks are counted and nothing is removed, so a client that mints its own nonces is never broken.
 - **Enforce**: a client sends `X-Vulnetix-Nonce-Mode: enforce` when every nonce it used came from this gateway. Unknown and tampered blocks are then **stripped** before the guardrails run and before the request is forwarded. Belai sends the header only while its whole nonce pool came from the gateway.
+- **Canonical**: enforce, plus every verified block is forwarded **without its nonce**, as `<kind integrity="…">…</kind>`. A client sends `X-Vulnetix-Nonce-Mode: canonical` under the same condition as enforce, and only to a gateway that lists `canonical` in `modes` (an older gateway would read it as observe). The nonce has done its job once the gateway has verified it; dropping it makes the forwarded prompt depend only on its content, so sessions and agents that share a system prompt share one cached prefix at the provider. That cuts input cost and time to first token. A known-kind tag without a nonce that comes from the client is stripped, so a forged look-alike of a canonical block never reaches the model. Belai uses canonical mode whenever the gateway offers it.
 
 To refuse such requests instead of cleaning them, add a guardrail:
 
@@ -61,4 +63,4 @@ Every response reports the result:
 X-Vulnetix-Firewall-Nonce: mode=enforce;verified=12;unknown=0;tampered=1;stripped=1
 ```
 
-Belai turns a non-zero `stripped` or `tampered` into a card in its thread. The header is absent when a request carried no sealed block. See [response headers](/docs/ai-firewall/responses/#response-headers) for the rest.
+In canonical mode the value ends with `;canonical=N`, the number of blocks forwarded without their nonce. Belai turns a non-zero `stripped` or `tampered` into a card in its thread. The header is absent when a request carried no sealed block. See [response headers](/docs/ai-firewall/responses/#response-headers) for the rest.
