@@ -262,15 +262,17 @@ fi
 - Check for extra spaces or newlines in credentials
 - Request new credentials if needed
 
-### "Rate limit exceeded" Error
+### "Daily rate limit exceeded" Error
 
-**Problem**: Too many requests in a short time.
+**Problem**: The key has used its daily query limit and the API returned HTTP 429.
 
 **Solution**:
 - Wait for the reset time shown in the error message
-- Default: 60 requests per minute, 1000 per week
-- Add delays between requests in scripts
-- Contact sales@vulnetix.com for higher quotas
+- Default daily limits: Community 50, Pro 2,000, Teams 100,000 per key, Enterprise custom. Individual customers can have their own limit set, so check `RateLimit-DayLimit` in a response for yours
+- If you are on the built-in Community key, its quota is shared with every other user without credentials; register a free key and run `vulnetix auth login`
+- Contact sales@vulnetix.com for a higher limit
+
+See [Rate limiting]({{< relref "vdb#rate-limiting" >}}) for the headers and how requests are counted.
 
 ### "Token has expired" Error
 

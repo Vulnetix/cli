@@ -2841,51 +2841,75 @@ vulnetix vdb vulns lodash -o json | jq '.total'
 vulnetix vdb vulns express -o json | jq '.vulnerabilities[].severity' | sort | uniq -c
 ```
 
-## Rate Limiting
+## Rate limiting
 
-The VDB API implements rate limiting to ensure fair usage:
+The VDB API limits how many queries each API key can make in a day. Every plan has a default daily limit, and Vulnetix can set a different limit for an individual customer, so the number that applies to you is the one your responses report in `RateLimit-DayLimit`.
 
-### Per-Minute Rate Limit
-- **Default**: 60 requests per minute
-- Exceeded requests receive HTTP 429 status
+### Default limits by plan
 
-### Weekly Quota
-- **Default**: 1000 requests per week (configurable per organization)
-- Resets every Sunday at 00:00 UTC
-- Contact sales@vulnetix.com for higher quotas
+| Plan | Default queries per day |
+|------|-------------------------|
+| Community | 50 |
+| Pro | 2,000 |
+| Teams | 100,000 per API key |
+| Enterprise | Custom |
 
-### Rate Limit Headers
+A query is one authenticated request to the API. Requests rejected because the credential is missing or invalid are not counted, and neither are requests refused with a 429. Responses served from the CLI's local disk cache never reach the API, so they do not count either.
 
-All responses include rate limit information:
+The count covers the previous 24 hours. Each response carries a `RateLimit-Reset` value giving the next 00:00 UTC as a Unix timestamp, which is the time the API quotes when it refuses a request.
+
+Current plans and prices are at [vulnetix.com/pricing](https://www.vulnetix.com/pricing). For a higher limit than your plan's default, contact sales@vulnetix.com.
+
+### The built-in Community key
+
+With no credential configured, the CLI uses an embedded Community key. It works at Community limits, and the quota is shared by everyone running the CLI without their own credential, so it can run out early in the day. Register for a free Community key at [vulnetix.com/resolve/register](https://www.vulnetix.com/resolve/register) and run `vulnetix auth login` to get a quota of your own.
+
+When your own key has used its daily quota and the API returns 429, the CLI retries the request once with the embedded Community key. Pass `--no-community` to turn this off and fail instead.
+
+### Rate limit headers
+
+Every authenticated response carries these headers:
+
+| Header | Value |
+|--------|-------|
+| `X-VDB-Plan` | The plan of the organisation that owns the key: `community`, `pro`, `teams` or `enterprise` |
+| `RateLimit-DayLimit` | The daily limit for this key, or `unlimited` |
+| `RateLimit-Remaining` | Queries left in the current 24-hour count, or `unlimited` |
+| `RateLimit-Reset` | The next 00:00 UTC, as Unix epoch seconds |
+| `X-Softlimits` | `true` when the limit is advisory for your plan; absent otherwise |
+
+For example, on a Community key:
 
 ```
-RateLimit-MinuteLimit: 60
-RateLimit-Remaining: 45
-RateLimit-Reset: 28
-RateLimit-WeekLimit: 10000
-RateLimit-WeekRemaining: 8543
-RateLimit-WeekReset: 172800
+X-VDB-Plan: community
+RateLimit-DayLimit: 50
+RateLimit-Remaining: 37
+RateLimit-Reset: 1792540800
 ```
 
-### Handling Rate Limits
+Run any `vdb` command with `-v` to have the CLI print the plan, remaining quota and time to reset on stderr.
 
-The CLI automatically handles token expiration (15-minute JWT tokens).
+### When you go over the limit
 
-For rate limit errors, the API returns:
+On a hard limit the API refuses the request with HTTP 429:
+
 ```json
 {
   "success": false,
-  "error": "Rate limit exceeded",
-  "details": "Too many requests. Limit: 60 requests per minute. Try again in 42 seconds."
+  "error": "Daily rate limit exceeded",
+  "details": "Limit: 50 requests per day. Resets in 7 hours."
 }
 ```
 
-**Best Practices:**
-- Cache responses when possible
+When `X-Softlimits: true` is present, usage is still counted but requests over the limit are not refused.
+
+The CLI treats 429 as retryable and tries again at most twice. Before each retry it waits for the time given by `Retry-After`, or failing that `RateLimit-Reset`. Because `RateLimit-Reset` is the next 00:00 UTC, that wait can last hours; with `-v` the CLI shows a countdown. In CI and scripts, check `RateLimit-Remaining` before a batch of lookups, or run the CLI under a timeout.
+
+**To use fewer queries:**
+- Leave the local disk cache on (it is on unless you pass `--no-cache`)
 - Use pagination parameters to reduce request count
-- Implement exponential backoff for retries
-- Monitor rate limit headers
-- Contact Vulnetix for production usage quotas
+- Read `RateLimit-Remaining` and pace scripts against it
+- Use a key of your own rather than the shared built-in Community key
 
 ## Global Flags
 
