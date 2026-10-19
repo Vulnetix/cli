@@ -121,6 +121,7 @@ func emitRulesResponse(cmd *cobra.Command, resp map[string]interface{}, format, 
 				}
 			}
 		}
+		noteWithheldRuleText(cmd, resp)
 		return writeOutput(cmd, []byte(b.String()), output)
 	}
 	body, err := json.MarshalIndent(resp, "", "  ")
@@ -176,7 +177,7 @@ func init() {
 	listFlags.StringVar(&snortSearchDisabled, "disabled", "",
 		"true to limit to disabled rules, false to exclude them")
 	listFlags.StringVar(&snortSearchQ, "match-content", "",
-		"Free-text ILIKE on msg + rawText (whitespace-separated tokens AND)")
+		"Free-text ILIKE on msg + rawText (whitespace-separated tokens AND; msg only below Pro)")
 	listFlags.StringVar(&snortSearchSince, "since", "",
 		"Only rules with datePublished >= this RFC3339 timestamp")
 	listFlags.StringVar(&snortSearchUntil, "until", "",
@@ -196,4 +197,23 @@ func init() {
 	snortRulesCmd.AddCommand(snortRulesGetCmd)
 	snortRulesCmd.AddCommand(snortRulesListCmd)
 	vdbCmd.AddCommand(snortRulesCmd)
+}
+
+// noteWithheldRuleText tells the user, on stderr, how many rules came back
+// without their text. Below Pro the VDB returns every rule's metadata but nulls
+// the rule text, so `--format rules` would otherwise write an empty file with
+// no explanation.
+func noteWithheldRuleText(cmd *cobra.Command, resp map[string]interface{}) {
+	rules, _ := resp["rules"].([]interface{})
+	withheld := 0
+	for _, r := range rules {
+		if m, ok := r.(map[string]interface{}); ok {
+			if v, present := m["rawText"]; present && v == nil {
+				withheld++
+			}
+		}
+	}
+	if withheld > 0 {
+		fmt.Fprintf(cmd.ErrOrStderr(), "%d rule(s) returned without rule text: the rule text is part of the Pro plan. Rule metadata is included in --format json.\n", withheld)
+	}
 }

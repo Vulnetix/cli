@@ -108,6 +108,7 @@ func emitYaraResponse(cmd *cobra.Command, resp map[string]interface{}, format, o
 				}
 			}
 		}
+		noteWithheldRuleText(cmd, resp)
 		return writeOutput(cmd, []byte(b.String()), output)
 	}
 	body, err := json.MarshalIndent(resp, "", "  ")
@@ -146,7 +147,7 @@ func init() {
 	listFlags.StringVar(&yaraSearchAuthor, "author", "",
 		"Filter by author (ILIKE substring)")
 	listFlags.StringVar(&yaraSearchQ, "match-content", "",
-		"Free-text ILIKE on rawText + strings + meta (whitespace-separated tokens AND)")
+		"Free-text ILIKE on rawText + strings + meta (whitespace-separated tokens AND; ruleName + meta only below Pro)")
 	listFlags.StringVar(&yaraSearchString, "match-string", "",
 		"ILIKE inside the strings field only")
 	listFlags.StringVar(&yaraSearchMeta, "match-meta", "",

@@ -88,6 +88,12 @@ func (c *Client) EOLProduct(product string) (*EOLProductResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Lifecycle data not sourced from endoflife.date is Pro: below Pro the server
+	// answers 200 with the planLocked marker, which would otherwise decode to an
+	// empty product.
+	if pl, locked := decodePlanLocked(respBody); locked {
+		return nil, pl
+	}
 	var result EOLProductResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, err
@@ -123,6 +129,9 @@ func (c *Client) EOLRelease(product, release string) (*EOLReleaseResponse, error
 	respBody, err := c.DoRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
+	}
+	if pl, locked := decodePlanLocked(respBody); locked {
+		return nil, pl
 	}
 	var result EOLReleaseResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {

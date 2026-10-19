@@ -1227,6 +1227,8 @@ vulnetix vdb ecosystem group maven org.springframework spring-core -o json
 
 Retrieve end-of-life lifecycle data for a product (runtime, framework, distribution) and every release the EOL database tracks for it.
 
+EOL data sourced from [endoflife.date](https://endoflife.date) is available on every plan. Lifecycle data Vulnetix collects from other sources (vendor lifecycle pages such as Virtuozzo and Scientific Linux) requires Pro: below Pro, a lookup of one of those products exits non-zero with a plan message, and the product lists and searches leave them out and report how many were withheld.
+
 **Endpoint:** `GET /v1/eol/products/{product}`
 
 **Usage:**
@@ -1248,7 +1250,7 @@ vulnetix vdb eol product python
 
 ### vdb eol release
 
-Retrieve end-of-life lifecycle data for one release of a product. This is the exact record `--block-eol` grades a detected runtime pin against, so it is how to see what the gate will decide before enabling it.
+Retrieve end-of-life lifecycle data for one release of a product. This is the exact record `--block-eol` grades a detected runtime pin against, so it is how to see what the gate will decide before enabling it. The same plan rule applies as for `vdb eol product`: releases of a product not sourced from endoflife.date require Pro, and below Pro `--block-eol` does not grade against them.
 
 **Endpoint:** `GET /v1/eol/products/{product}/releases/{release}`
 
@@ -2057,6 +2059,8 @@ vulnetix vdb attack-techniques list --q "remote code"
 
 **Description**: Get every Snort/Suricata IDS signature attached to a single CVE. Output is JSON by default; pass `--format rules` to emit raw `.rules`-file syntax suitable for piping into a rules pack.
 
+Every plan sees which rules exist for a CVE and their metadata (SID, message, classtype, severity, ATT&CK ids, linked CVEs, source, dates). The rule text (`rawText` and `bodyOptions`) requires Pro: below Pro those fields are `null`, and `--format rules` writes nothing and prints a note on stderr.
+
 **Usage**:
 ```bash
 vulnetix vdb snort-rules get <CVE-ID> [flags]
@@ -2311,7 +2315,7 @@ vulnetix vdb snort-rules list [flags]
 - `--dst-port <port>` — exact match (e.g. `443`, `$HTTP_PORTS`, `any`)
 - `--src-port <port>` — exact match
 - `--disabled true|false` — limit to disabled / exclude disabled rules
-- `--match-content <text>` — free-text ILIKE on `msg` + `rawText` (whitespace tokens AND)
+- `--match-content <text>` — free-text ILIKE on `msg` + `rawText` (whitespace tokens AND; `msg` only below Pro, since the rule text is Pro)
 - `--affected-product <name>` — `affectedProducts` JSON-array contains (repeat for AND)
 - `--tag <name>` — `tags` JSON-array contains (repeat for AND)
 - `--since <RFC3339>` — only rules with `datePublished >=`
@@ -2352,7 +2356,7 @@ vulnetix vdb snort-rules list \
 
 ### vdb yara-rules get
 
-**Description**: Get every YARA static-analysis rule attached to a single CVE.
+**Description**: Get every YARA static-analysis rule attached to a single CVE. Every plan sees the rules and their metadata (name, author, description, tags, meta, linked CVEs, source, dates); the rule text (`rawText`, `strings` and `condition`) requires Pro and is `null` below Pro, where `--format rules` writes nothing and prints a note on stderr.
 
 **Usage**:
 ```bash
@@ -2387,8 +2391,8 @@ vulnetix vdb yara-rules list [flags]
 - `--author <name>` — ILIKE on author
 - `--tag <name>` — `tags` JSON-array contains (repeat for AND)
 - `--imports <module>` — YARA module imports (`pe`, `math`, `hash`, …; repeat for AND)
-- `--match-content <text>` — free-text ILIKE on `rawText` + `strings` + `meta` (whitespace tokens AND)
-- `--match-string <text>` — ILIKE inside the `strings` field only
+- `--match-content <text>` — free-text ILIKE on `rawText` + `strings` + `meta` (whitespace tokens AND; `ruleName` + `meta` only below Pro)
+- `--match-string <text>` — ILIKE inside the `strings` field only (Pro: the strings are rule text)
 - `--match-meta <text>` — ILIKE inside the `meta` field, e.g. `severity=high`
 - `--since <RFC3339>` — only rules with `datePublished >=`
 - `--until <RFC3339>` — only rules with `datePublished <=`
