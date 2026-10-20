@@ -140,7 +140,7 @@ Signing out clears the credential and the cached data together.
 ## Lookups and your quota
 
 Detecting identifiers costs nothing. Looking them up spends VDB requests, and
-the quota is per day and hard-capped on the Community plan, so the extension
+the quota is per day and hard-capped on the [Community plan](https://www.vulnetix.com/features/community), so the extension
 never fetches speculatively:
 
 | What you do | What it fetches |

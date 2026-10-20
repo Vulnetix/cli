@@ -27,7 +27,7 @@ Vulnetix serves two catalogues, each at its own root.
 
 Without a login, the default root returns the public records only. Sign in with `vulnetix auth login` and it also returns what your organisation has published or has had shared with it.
 
-The open source catalogue rejects anonymous requests but has no plan gate: any valid API key reads all of it, including a community-tier key. You do not need an account. When no stored credentials are found, the CLI sends the shared community credential, the same one the `vdb` commands fall back to. The rules:
+The open source catalogue rejects anonymous requests but has no plan gate: any valid API key reads all of it, including a [community-tier](https://www.vulnetix.com/features/community) key. You do not need an account. When no stored credentials are found, the CLI sends the shared community credential, the same one the `vdb` commands fall back to. The rules:
 
 - Stored credentials always win (environment variables, then the credentials files, then netrc, as for every other command).
 - The community credential is only ever sent to the open source root, selected with `--catalogue public` or with `--server` set to that exact URL. It is never sent to the first party root or to any other `--server`, because on the first party root it would return the community organisation's own catalogue instead of the public records.

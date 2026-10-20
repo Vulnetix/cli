@@ -12,7 +12,7 @@ vulnetix scan --evaluate-secrets --no-sast --no-sca --no-containers --no-iac --n
 
 Package vulnerability analysis, general SAST rules, license analysis, container analysis, and IaC analysis are all disabled. Only rules that detect hardcoded credentials, API keys, tokens, and private keys run.
 
-> **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
+> **Credentials are optional.** When no credentials are configured the [community fallback](https://www.vulnetix.com/features/community) is used automatically.
 
 ## What gets scanned
 

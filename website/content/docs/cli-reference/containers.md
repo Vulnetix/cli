@@ -49,7 +49,7 @@ The inventory is a forensic record, not a verdict:
   the triage and VEX records. A binary the corpus flags here is marked on its
   inventory row and counted in the command's output.
 
-> **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
+> **Credentials are optional.** When no credentials are configured the [community fallback](https://www.vulnetix.com/features/community) is used automatically.
 
 ## Usage
 

@@ -1109,7 +1109,7 @@ The CLI loads credentials in this order (first complete match wins):
 4. Project dotfile: `.vulnetix/credentials.json`
 5. Home directory: `~/.vulnetix/credentials.json`
 6. `.netrc` / `_netrc` machine `packages.vulnetix.com`
-7. Embedded community credential (VDB read-only, community rate limits)
+7. Embedded community credential (VDB read-only, [community](https://www.vulnetix.com/features/community) rate limits)
 
 Flags apply to the `auth login` command that *writes* a credential; they are not part of this load chain. Inspect the winner with `vulnetix auth status`.
 

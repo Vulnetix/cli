@@ -237,7 +237,7 @@ Authentication is **optional**, and it only ever widens what you can see: a cred
 
 If you do send a credential it must be valid. An unrecognised one is refused with `401` rather than quietly downgraded to anonymous, so a stale key fails loudly instead of silently hiding the releases you expected to see.
 
-The open source root, `https://www.vulnetix.com/tea/public/v1`, differs on this one point: it requires a credential and refuses anonymous requests with `401`. There is no plan gate, so any valid API key reads it, including a community-tier key.
+The open source root, `https://www.vulnetix.com/tea/public/v1`, differs on this one point: it requires a credential and refuses anonymous requests with `401`. There is no plan gate, so any valid API key reads it, including a [community-tier](https://www.vulnetix.com/features/community) key.
 
 | Scheme | Header |
 |---|---|

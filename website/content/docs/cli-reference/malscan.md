@@ -6,7 +6,7 @@ description: "Scan your locally-installed dependencies for malware in-process â€
 
 The `malscan` command runs the malscan-engine **in-process** against your project's locally-installed dependencies â€” the actual bytes on disk in `node_modules`, `site-packages`, `vendor`, `~/.cargo`, and friends. Unlike `--block-malware` on the [`scan`]({{< relref "scan" >}}) / [`sca`]({{< relref "sca" >}}) path (which asks the backend for the known-malicious verdict of each resolved package), `malscan` inspects the installed code itself, so it catches embedded payloads and install-script behaviour that a package-name lookup never sees.
 
-> **Credentials are optional.** Findings are always written to `.vulnetix/malscan.sarif`. They are uploaded to Vulnetix only when you are authenticated; community/unauthenticated runs scan and report locally without persisting.
+> **Credentials are optional.** Findings are always written to `.vulnetix/malscan.sarif`. They are uploaded to Vulnetix only when you are authenticated; [community](https://www.vulnetix.com/features/community) and unauthenticated runs scan and report locally without persisting.
 
 ## Usage
 

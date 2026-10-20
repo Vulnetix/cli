@@ -7,7 +7,7 @@ description: "Configure pkgsite-cli to query the pkg.go.dev API through the Vuln
 `go-dev` proxies Google's `pkg.go.dev` API (used by `pkgsite-cli`) through the firewall, so search, package metadata, versions, symbols, and vulnerability data are filtered by your org policy. It is a companion to the [Go module proxy](/docs/enterprise/package-firewall/go/), not a separate package registry — it only writes a netrc credential.
 
 - **API base URL:** `https://packages.vulnetix.com/go-dev/v1beta`
-- **Plan:** Community — free
+- **Plan:** [Community](https://www.vulnetix.com/features/community) — free
 - **Enforcement:** API proxy — responses are filtered by org policy.
 
 ## Getting started

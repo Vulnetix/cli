@@ -6,7 +6,7 @@ description: "Discover manifest files locally, query the VDB for vulnerabilities
 
 The `scan` command walks your project directory, parses package manifests locally, extracts package-manager install commands from CI/CD and shell files, and queries the Vulnetix VDB API to identify vulnerable dependencies. **No file contents are ever uploaded to any server.** Results are saved to `.vulnetix/` and printed to your terminal.
 
-> **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
+> **Credentials are optional.** When no credentials are configured the [community fallback](https://www.vulnetix.com/features/community) is used automatically.
 
 ## Scan Is An Orchestrator
 

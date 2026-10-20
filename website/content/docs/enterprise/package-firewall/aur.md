@@ -7,7 +7,7 @@ description: "Configure Arch Linux (AUR helpers + pacman official repos) to use 
 Arch Linux is firewalled in two places: the AUR helpers `paru`/`yay` are pointed at the `/aur` prefix (RPC + git base), and the official `pacman` repositories (`core`/`extra`/`multilib`) are served through the `/arch` prefix. This is the free, community-tier ecosystem.
 
 - **Proxy URL:** `https://packages.vulnetix.com/aur` (AUR) and `https://packages.vulnetix.com/arch` (pacman)
-- **Plan:** Community — free
+- **Plan:** [Community](https://www.vulnetix.com/features/community) — free
 - **Enforcement:** Gate — pacman databases are signed and served unchanged; a blocked package download returns a policy status.
 
 ## Getting started

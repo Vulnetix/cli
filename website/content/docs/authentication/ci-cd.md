@@ -247,4 +247,4 @@ vulnetix auth status | grep -q 'environment' || {
 }
 ```
 
-Without this check, a typo in a secret name produces a scan that runs, reports fewer results at community rate limits, and exits `0`.
+Without this check, a typo in a secret name produces a scan that runs, reports fewer results at [community](https://www.vulnetix.com/features/community) rate limits, and exits `0`.

@@ -2862,7 +2862,7 @@ A query is one authenticated request to the API. Requests rejected because the c
 
 The count covers the previous 24 hours. Each response carries a `RateLimit-Reset` value giving the next 00:00 UTC as a Unix timestamp, which is the time the API quotes when it refuses a request.
 
-Current plans and prices are at [vulnetix.com/pricing](https://www.vulnetix.com/pricing). For a higher limit than your plan's default, contact sales@vulnetix.com.
+Current plans and prices are at [vulnetix.com/pricing](https://www.vulnetix.com/pricing). See everything included on the [free Community tier](https://www.vulnetix.com/features/community). For a higher limit than your plan's default, contact sales@vulnetix.com.
 
 ### The built-in Community key
 

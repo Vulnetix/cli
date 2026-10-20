@@ -174,3 +174,5 @@ With no credential configured, the CLI authenticates as an embedded community or
 The community credential is hardcoded in the binary on purpose. It is not a back door: it goes through the same API gateway, the same `ApiKey` header, and the same rate-limit enforcement as a registered user, so it confers nothing beyond what signing up would give you. Publishing it costs nothing and removes an entire class of "unauthenticated side channel" from the design.
 
 `vulnetix auth status` reports this state explicitly rather than pretending to be logged in.
+
+See everything included on the [free Community tier](https://www.vulnetix.com/features/community).

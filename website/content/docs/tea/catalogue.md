@@ -20,7 +20,7 @@ Vulnetix serves two catalogues. This page lists the first.
 | Identifiers | TEI and PURL | A TEI and a `pkg:github/owner/repo` PURL |
 | CLI | `vulnetix tea products` | `vulnetix tea --catalogue public products` |
 
-The CLI needs no login for either. Not logged in, it sends no credential to the first party root and the shared community credential to the open source root. The community credential is never sent to the first party root: there it would return the community organisation's own catalogue instead of the public records.
+The CLI needs no login for either. Not logged in, it sends no credential to the first party root and the shared [community](https://www.vulnetix.com/features/community) credential to the open source root. The community credential is never sent to the first party root: there it would return the community organisation's own catalogue instead of the public records.
 
 ## Finding a project from the CLI
 

@@ -26,7 +26,7 @@ You don't configure the mode — it's chosen per ecosystem so the firewall never
 
 ## Plans
 
-Go and Arch Linux are free for every community account. All other ecosystems require a paid plan; container and OS ecosystems require Enterprise. Requests for an ecosystem outside your plan return `402 Payment Required`.
+Go and Arch Linux are free for every [Community](https://www.vulnetix.com/features/community) account. All other ecosystems require a paid plan; container and OS ecosystems require Enterprise. Requests for an ecosystem outside your plan return `402 Payment Required`.
 
 | Tier | Ecosystems |
 | --- | --- |

@@ -81,5 +81,5 @@ Run [`vulnetix config get quality-gate`](/docs/cli-reference/#config-get-quality
 ## Non-authenticated scans
 
 {{< callout type="warning" >}}
-When no credentials are configured (or the community fallback is used), there is no organization to read a policy from. **Non-authenticated scans use only the CLI flags** you pass — no org override is applied.
+When no credentials are configured (or the [community fallback](https://www.vulnetix.com/features/community) is used), there is no organization to read a policy from. **Non-authenticated scans use only the CLI flags** you pass — no org override is applied.
 {{< /callout >}}

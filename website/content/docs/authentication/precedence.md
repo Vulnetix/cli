@@ -16,7 +16,7 @@ The CLI walks these sources top to bottom and uses the **first complete match**.
 | 4 | Project file `./.vulnetix/credentials.json` | File parses and has `org_id` (or a token) |
 | 5 | Home file `~/.vulnetix/credentials.json` | Same |
 | 6 | netrc entry for `packages.vulnetix.com` | Entry has both `login` and `password` |
-| 7 | Embedded community credential | Always |
+| 7 | Embedded [community](https://www.vulnetix.com/features/community) credential | Always |
 
 Consequences worth internalising:
 

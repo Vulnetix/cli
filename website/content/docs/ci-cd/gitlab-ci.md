@@ -773,7 +773,7 @@ bash examples/gitlab/validate.sh
 
 ## Troubleshooting
 
-**Every scan reports community rate limits** — the credential variables are not reaching the job. Protected variables are only exposed to pipelines on protected branches and tags. Confirm with `vulnetix auth status`, and fail loudly rather than degrading silently:
+**Every scan reports [community](https://www.vulnetix.com/features/community) rate limits** — the credential variables are not reaching the job. Protected variables are only exposed to pipelines on protected branches and tags. Confirm with `vulnetix auth status`, and fail loudly rather than degrading silently:
 
 ```yaml
   script:

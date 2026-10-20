@@ -12,7 +12,7 @@ vulnetix scan --evaluate-sast --no-sca --no-secrets --no-containers --no-iac --n
 
 Package vulnerability analysis, license analysis, secret detection, container analysis, and IaC analysis are all disabled. Only general static analysis rules run (not secrets, container, or IaC rules — use `vulnetix scan` or the relevant specialized command for those).
 
-> **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
+> **Credentials are optional.** When no credentials are configured the [community fallback](https://www.vulnetix.com/features/community) is used automatically.
 
 ## Usage
 

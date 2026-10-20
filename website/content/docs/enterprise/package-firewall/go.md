@@ -7,7 +7,7 @@ description: "Configure Go (Go module proxy) to use the Vulnetix Package Firewal
 Go modules are firewalled with a GOPROXY-compatible module proxy. This is the free, community-tier ecosystem.
 
 - **Proxy URL:** `https://packages.vulnetix.com`
-- **Plan:** Community — free
+- **Plan:** [Community](https://www.vulnetix.com/features/community) — free
 - **Enforcement:** Native module-proxy; each `@v/<version>` request is checked individually.
 
 ## Getting started

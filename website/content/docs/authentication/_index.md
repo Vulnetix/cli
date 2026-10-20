@@ -70,3 +70,5 @@ Environment variables are a fifth source — they persist nothing and take prece
 The CLI ships with an embedded community organization credential. When no credential is found, VDB lookups still work at community rate limits — `vulnetix auth status` reports `Community - unauthenticated (VDB only)`.
 
 The embedded credential is intentionally public. It traverses the identical API gateway, auth headers, and rate-limit enforcement as any registered user, so it grants no privilege a stranger could not obtain by signing up. Uploads, org-scoped data, and enterprise features require a real credential.
+
+See everything included on the [free Community tier](https://www.vulnetix.com/features/community).
