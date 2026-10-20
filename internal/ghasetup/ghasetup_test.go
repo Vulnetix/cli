@@ -174,6 +174,34 @@ func TestRenderShape(t *testing.T) {
 	}
 }
 
+// Artifact storage is shared by every workflow in the org, and on 2026-10-19
+// it filled: 18 GB, every upload-artifact step in every repo failing at once.
+// Each scanner's report is read once, by the publish job in the same run, so
+// every upload must expire within a day and must not fail its job when the
+// quota is what refused it.
+func TestRenderUploadsAreShortLivedAndNonFatal(t *testing.T) {
+	c, _ := Load()
+	var ids []string
+	for _, tool := range c.Tools {
+		ids = append(ids, tool.ID)
+	}
+	out, err := Render(c, ids, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	uploads := strings.Count(out, "uses: actions/upload-artifact@")
+	if uploads != len(ids) {
+		t.Fatalf("expected one upload per tool, got %d for %d tools", uploads, len(ids))
+	}
+	if n := strings.Count(out, "retention-days: 1\n"); n != uploads {
+		t.Errorf("%d of %d uploads have retention-days: 1", n, uploads)
+	}
+	if n := strings.Count(out, "uses: actions/upload-artifact@v6\n        continue-on-error: true\n"); n != uploads {
+		t.Errorf("%d of %d uploads are continue-on-error", n, uploads)
+	}
+}
+
 func TestRenderRejectsUnknownTool(t *testing.T) {
 	c, _ := Load()
 	if _, err := Render(c, []string{"not-a-tool"}, Options{}); err == nil {

@@ -188,6 +188,7 @@ The job it adds:
             rm -f conftest.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: conftest
           path: conftest.sarif
@@ -313,6 +314,7 @@ The job it adds:
             rm -f owasp-zap.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: owasp-zap
           path: owasp-zap.sarif
@@ -370,6 +372,7 @@ The job it adds:
             rm -f cfn-lint.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cfn-lint
           path: cfn-lint.sarif
@@ -417,6 +420,7 @@ The job it adds:
           fi
           uvx --from checkov checkov -d . -o sarif --output-file-path . --soft-fail || true
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: checkov
           path: results.sarif
@@ -451,6 +455,7 @@ The job it adds:
           docker run --rm -v "$PWD:/path" checkmarx/kics:v2.1.20 \
             scan -p /path -o /path/kics-out --report-formats sarif --no-progress || true
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: kics
           path: kics-out/results.sarif
@@ -496,6 +501,7 @@ The job it adds:
             rm -f kube-linter.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: kube-linter
           path: kube-linter.sarif
@@ -539,6 +545,7 @@ The job it adds:
             rm -f kubescape.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: kubescape
           path: kubescape.sarif
@@ -585,6 +592,7 @@ The job it adds:
             rm -f regula.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: regula
           path: regula.sarif
@@ -634,6 +642,7 @@ The job it adds:
             rm -f snyk-iac.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: snyk-iac
           path: snyk-iac.sarif
@@ -683,6 +692,7 @@ The job it adds:
             rm -f terrascan.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: terrascan
           path: terrascan.sarif
@@ -732,6 +742,7 @@ The job it adds:
             rm -f tflint.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: tflint
           path: tflint.sarif
@@ -764,6 +775,7 @@ The job it adds:
         with:
           sarif_file: tfsec.sarif
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: tfsec
           path: tfsec.sarif
@@ -803,6 +815,7 @@ The job it adds:
           scan-ref: .
           scan-type: config
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: trivy-config
           path: trivy-config.sarif
@@ -874,6 +887,7 @@ The job it adds:
               && mv scancode.clean.json scancode.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: scancode
           path: scancode.cdx.json
@@ -916,6 +930,7 @@ The job it adds:
             rm -f clippy.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: clippy
           path: clippy.sarif
@@ -971,6 +986,7 @@ The job it adds:
             rm -f eslint.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: eslint
           path: eslint.sarif
@@ -1024,6 +1040,7 @@ The job it adds:
             rm -f golangci-lint.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: golangci-lint
           path: golangci-lint.sarif
@@ -1165,6 +1182,7 @@ The job it adds:
             rm -f rubocop.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: rubocop
           path: rubocop.sarif
@@ -1216,6 +1234,7 @@ The job it adds:
             rm -f ruff.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: ruff
           path: ruff.sarif
@@ -1356,6 +1375,7 @@ The job it adds:
             rm -f shellcheck.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: shellcheck
           path: shellcheck.sarif
@@ -1406,6 +1426,7 @@ The job it adds:
             rm -f stylelint.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: stylelint
           path: stylelint.sarif
@@ -1451,6 +1472,7 @@ The job it adds:
             rm -f swiftlint.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: swiftlint
           path: swiftlint.sarif
@@ -1500,6 +1522,7 @@ The job it adds:
             rm -f mobsfscan.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: mobsfscan
           path: mobsfscan.sarif
@@ -1559,6 +1582,7 @@ The job it adds:
             rm -f dockle.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: dockle
           path: dockle.sarif
@@ -1628,6 +1652,7 @@ The job it adds:
             rm -f grype-image.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: grype-image
           path: grype-image.sarif
@@ -1683,6 +1708,7 @@ The job it adds:
             rm -f hadolint.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: hadolint
           path: hadolint.sarif
@@ -1756,6 +1782,7 @@ The job it adds:
             rm -f snyk-container.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: snyk-container
           path: snyk-container.sarif
@@ -1818,6 +1845,7 @@ The job it adds:
             rm -f syft-image.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: syft-image
           path: syft-image.cdx.json
@@ -1885,6 +1913,7 @@ The job it adds:
             rm -f trivy-image.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: trivy-image
           path: trivy-image.sarif
@@ -1939,6 +1968,7 @@ The job it adds:
             rm -f nuclei.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: nuclei
           path: nuclei.sarif
@@ -1990,6 +2020,7 @@ The job it adds:
             rm -f bandit.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: bandit
           path: bandit.sarif
@@ -2034,6 +2065,7 @@ The job it adds:
             rm -f bearer.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: bearer
           path: bearer.sarif
@@ -2080,6 +2112,7 @@ The job it adds:
             rm -f brakeman.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: brakeman
           path: brakeman.sarif
@@ -2146,6 +2179,7 @@ The job it adds:
             rm -f cppcheck.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cppcheck
           path: cppcheck.sarif
@@ -2201,6 +2235,7 @@ The job it adds:
             rm -f detekt.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: detekt
           path: detekt.sarif
@@ -2257,6 +2292,7 @@ The job it adds:
             rm -f flawfinder.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: flawfinder
           path: flawfinder.sarif
@@ -2310,6 +2346,7 @@ The job it adds:
             rm -f gosec.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: gosec
           path: gosec.sarif
@@ -2361,6 +2398,7 @@ The job it adds:
             rm -f njsscan.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: njsscan
           path: njsscan.sarif
@@ -2408,6 +2446,7 @@ The job it adds:
             rm -f opengrep.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: opengrep
           path: opengrep.sarif
@@ -2442,6 +2481,7 @@ The job it adds:
           rulesets: rulesets/java/quickstart.xml
           version: latest
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: pmd
           path: pmd-report.sarif
@@ -2515,6 +2555,7 @@ The job it adds:
             rm -f psalm.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: psalm
           path: psalm.sarif
@@ -2558,6 +2599,7 @@ The job it adds:
           fi
           uvx --from semgrep semgrep scan --config auto --sarif --output semgrep.sarif .
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: semgrep
           path: semgrep.sarif
@@ -2612,6 +2654,7 @@ The job it adds:
             rm -f snyk-code.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: snyk-code
           path: snyk-code.sarif
@@ -2667,6 +2710,7 @@ The job it adds:
             rm -f zizmor.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: zizmor
           path: zizmor.sarif
@@ -2712,6 +2756,7 @@ The job it adds:
             rm -f cdxgen.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cdxgen
           path: cdxgen.cdx.json
@@ -2763,6 +2808,7 @@ The job it adds:
             rm -f cyclonedx-dotnet.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cyclonedx-dotnet
           path: cyclonedx-dotnet.cdx.json
@@ -2816,6 +2862,7 @@ The job it adds:
             rm -f cyclonedx-go.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cyclonedx-go
           path: cyclonedx-go.cdx.json
@@ -2869,6 +2916,7 @@ The job it adds:
             rm -f cyclonedx-maven.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cyclonedx-maven
           path: cyclonedx-maven.cdx.json
@@ -2915,6 +2963,7 @@ The job it adds:
             rm -f cyclonedx-node.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cyclonedx-node
           path: cyclonedx-node.cdx.json
@@ -2979,6 +3028,7 @@ The job it adds:
             rm -f cyclonedx-php.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cyclonedx-php
           path: cyclonedx-php.cdx.json
@@ -3041,6 +3091,7 @@ The job it adds:
             rm -f cyclonedx-python.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cyclonedx-python
           path: cyclonedx-python.cdx.json
@@ -3087,6 +3138,7 @@ The job it adds:
             rm -f cyclonedx-ruby.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cyclonedx-ruby
           path: cyclonedx-ruby.cdx.json
@@ -3128,6 +3180,7 @@ The job it adds:
             rm -f cyclonedx-rust.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cyclonedx-rust
           path: cyclonedx-rust.cdx.json
@@ -3173,6 +3226,7 @@ The job it adds:
             rm -f github-sbom.spdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: github-sbom
           path: github-sbom.spdx.json
@@ -3231,6 +3285,7 @@ The job it adds:
             rm -f govulncheck.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: govulncheck
           path: govulncheck.sarif
@@ -3271,6 +3326,7 @@ The job it adds:
         run: |
           cp "${{ steps.grype.outputs.sarif }}" grype.sarif
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: grype
           path: grype.sarif
@@ -3318,6 +3374,7 @@ The job it adds:
             rm -f npm-audit.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: npm-audit
           path: npm-audit.sarif
@@ -3353,6 +3410,7 @@ The job it adds:
             --output=osv.sarif
             ./
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: osv-scanner
           path: osv.sarif
@@ -3422,6 +3480,7 @@ The job it adds:
             rm -f dependency-check.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: dependency-check
           path: dependency-check.sarif
@@ -3467,6 +3526,7 @@ The job it adds:
             rm -f retirejs.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: retirejs
           path: retirejs.cdx.json
@@ -3516,6 +3576,7 @@ The job it adds:
             rm -f snyk-oss.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: snyk-oss
           path: snyk-oss.sarif
@@ -3551,6 +3612,7 @@ The job it adds:
           output-file: sbom.cdx.json
           path: .
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: syft
           path: sbom.cdx.json
@@ -3598,6 +3660,7 @@ The job it adds:
           scan-ref: .
           scan-type: fs
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: trivy-fs
           path: |
@@ -3647,6 +3710,7 @@ The job it adds:
             rm -f yarn-cyclonedx.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: yarn-cyclonedx
           path: yarn-cyclonedx.cdx.json
@@ -3774,6 +3838,7 @@ The job it adds:
             rm -f detect-secrets-results.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: detect-secrets
           path: detect-secrets-results.sarif
@@ -3813,6 +3878,7 @@ The job it adds:
             rm -f gitleaks.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: gitleaks
           path: gitleaks.sarif
@@ -3860,6 +3926,7 @@ The job it adds:
             rm -f noseyparker.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: noseyparker
           path: noseyparker.sarif
@@ -4001,6 +4068,7 @@ The job it adds:
             rm -f trufflehog.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: trufflehog
           path: trufflehog.sarif
@@ -4066,6 +4134,7 @@ jobs:
             rm -f gosec.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: gosec
           path: gosec.sarif
@@ -4096,6 +4165,7 @@ jobs:
           fi
           uvx --from semgrep semgrep scan --config auto --sarif --output semgrep.sarif .
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: semgrep
           path: semgrep.sarif
@@ -4126,6 +4196,7 @@ jobs:
           scan-ref: .
           scan-type: fs
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: trivy-fs
           path: |

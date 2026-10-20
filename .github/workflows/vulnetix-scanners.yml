@@ -39,6 +39,7 @@ jobs:
             rm -f bearer.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: bearer
           path: bearer.sarif
@@ -70,6 +71,7 @@ jobs:
             rm -f cdxgen.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cdxgen
           path: cdxgen.cdx.json
@@ -99,6 +101,7 @@ jobs:
           fi
           uvx --from checkov checkov -d . -o sarif --output-file-path . --soft-fail || true
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: checkov
           path: results.sarif
@@ -136,6 +139,7 @@ jobs:
             rm -f conftest.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: conftest
           path: conftest.sarif
@@ -188,6 +192,7 @@ jobs:
             rm -f cppcheck.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cppcheck
           path: cppcheck.sarif
@@ -227,6 +232,7 @@ jobs:
             rm -f cyclonedx-go.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: cyclonedx-go
           path: cyclonedx-go.cdx.json
@@ -340,6 +346,7 @@ jobs:
             rm -f detect-secrets-results.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: detect-secrets
           path: detect-secrets-results.sarif
@@ -385,6 +392,7 @@ jobs:
             rm -f dockle.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: dockle
           path: dockle.sarif
@@ -427,6 +435,7 @@ jobs:
             rm -f flawfinder.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: flawfinder
           path: flawfinder.sarif
@@ -458,6 +467,7 @@ jobs:
             rm -f github-sbom.spdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: github-sbom
           path: github-sbom.spdx.json
@@ -483,6 +493,7 @@ jobs:
             rm -f gitleaks.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: gitleaks
           path: gitleaks.sarif
@@ -522,6 +533,7 @@ jobs:
             rm -f golangci-lint.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: golangci-lint
           path: golangci-lint.sarif
@@ -561,6 +573,7 @@ jobs:
             rm -f gosec.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: gosec
           path: gosec.sarif
@@ -605,6 +618,7 @@ jobs:
             rm -f govulncheck.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: govulncheck
           path: govulncheck.sarif
@@ -631,6 +645,7 @@ jobs:
         run: |
           cp "${{ steps.grype.outputs.sarif }}" grype.sarif
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: grype
           path: grype.sarif
@@ -682,6 +697,7 @@ jobs:
             rm -f grype-image.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: grype-image
           path: grype-image.sarif
@@ -703,6 +719,7 @@ jobs:
           no-fail: true
           output-file: hadolint.sarif
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: hadolint
           path: hadolint.sarif
@@ -723,6 +740,7 @@ jobs:
           docker run --rm -v "$PWD:/path" checkmarx/kics:v2.1.20 \
             scan -p /path -o /path/kics-out --report-formats sarif --no-progress || true
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: kics
           path: kics-out/results.sarif
@@ -760,6 +778,7 @@ jobs:
             rm -f njsscan.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: njsscan
           path: njsscan.sarif
@@ -793,6 +812,7 @@ jobs:
             rm -f noseyparker.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: noseyparker
           path: noseyparker.sarif
@@ -826,6 +846,7 @@ jobs:
             rm -f opengrep.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: opengrep
           path: opengrep.sarif
@@ -847,6 +868,7 @@ jobs:
             --output=osv.sarif
             ./
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: osv-scanner
           path: osv.sarif
@@ -879,6 +901,7 @@ jobs:
             rm -f regula.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: regula
           path: regula.sarif
@@ -936,6 +959,7 @@ jobs:
               && mv scancode.clean.json scancode.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: scancode
           path: scancode.cdx.json
@@ -965,6 +989,7 @@ jobs:
           fi
           uvx --from semgrep semgrep scan --config auto --sarif --output semgrep.sarif .
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: semgrep
           path: semgrep.sarif
@@ -1087,6 +1112,7 @@ jobs:
             rm -f shellcheck.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: shellcheck
           path: shellcheck.sarif
@@ -1123,6 +1149,7 @@ jobs:
             rm -f stylelint.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: stylelint
           path: stylelint.sarif
@@ -1144,6 +1171,7 @@ jobs:
           output-file: sbom.cdx.json
           path: .
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: syft
           path: sbom.cdx.json
@@ -1192,6 +1220,7 @@ jobs:
             rm -f syft-image.cdx.json
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: syft-image
           path: syft-image.cdx.json
@@ -1227,6 +1256,7 @@ jobs:
             rm -f terrascan.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: terrascan
           path: terrascan.sarif
@@ -1262,6 +1292,7 @@ jobs:
             rm -f tflint.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: tflint
           path: tflint.sarif
@@ -1280,6 +1311,7 @@ jobs:
         with:
           sarif_file: tfsec.sarif
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: tfsec
           path: tfsec.sarif
@@ -1301,6 +1333,7 @@ jobs:
           scan-ref: .
           scan-type: config
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: trivy-config
           path: trivy-config.sarif
@@ -1330,6 +1363,7 @@ jobs:
           scan-ref: .
           scan-type: fs
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: trivy-fs
           path: |
@@ -1381,6 +1415,7 @@ jobs:
             rm -f trivy-image.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: trivy-image
           path: trivy-image.sarif
@@ -1508,6 +1543,7 @@ jobs:
             rm -f trufflehog.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: trufflehog
           path: trufflehog.sarif
@@ -1549,6 +1585,7 @@ jobs:
             rm -f zizmor.sarif
           fi
       - uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: zizmor
           path: zizmor.sarif

@@ -218,7 +218,15 @@ func renderJob(t *Tool, runsOn string) string {
 	// if-no-files-found: warn, not error. A scanner that legitimately found
 	// nothing to scan should not fail the run; a scanner that broke is caught by
 	// the SARIF validation in its own step.
+	//
+	// continue-on-error because the upload depends on storage this repo does
+	// not own: when the org's artifact quota filled on 2026-10-19, every
+	// scanner job in every repo went red over a report it had produced fine.
+	// The publish job runs if: always() and publishes whatever did upload, the
+	// failed step still carries its annotation, and the quota itself is
+	// alarmed on in github-runner-aws.
 	fmt.Fprintf(&b, "      - uses: actions/upload-artifact@v6\n")
+	b.WriteString("        continue-on-error: true\n")
 	b.WriteString("        with:\n")
 	fmt.Fprintf(&b, "          name: %s\n", t.Artifact)
 	if len(t.Paths) == 1 {

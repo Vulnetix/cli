@@ -91,6 +91,9 @@ jobs:
 
       - name: Upload ${{ matrix.name }} artifact
         uses: actions/upload-artifact@v6
+        # A full org artifact quota must not fail the leg: publish needs every
+        # leg green, so one refused upload would drop all nine reports.
+        continue-on-error: true
         with:
           name: ${{ matrix.id }}
           path: ${{ matrix.artifact }}
