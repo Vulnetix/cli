@@ -96,7 +96,7 @@ jobs:
           path: ${{ matrix.artifact }}
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
   publish:
     name: Publish

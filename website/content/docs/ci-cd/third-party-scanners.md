@@ -160,6 +160,7 @@ The job it adds:
   conftest:
     name: Conftest (Rego policy)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Conftest
@@ -192,7 +193,7 @@ The job it adds:
           path: conftest.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -214,6 +215,7 @@ The job it adds:
   owasp-zap:
     name: OWASP ZAP (DAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run ZAP baseline
@@ -316,7 +318,7 @@ The job it adds:
           path: owasp-zap.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -334,6 +336,7 @@ The job it adds:
   cfn-lint:
     name: cfn-lint (CloudFormation IaC)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -372,7 +375,7 @@ The job it adds:
           path: cfn-lint.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -394,6 +397,7 @@ The job it adds:
   checkov:
     name: Checkov (IaC)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -418,7 +422,7 @@ The job it adds:
           path: results.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -436,6 +440,7 @@ The job it adds:
   kics:
     name: KICS (IaC)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run KICS
@@ -451,7 +456,7 @@ The job it adds:
           path: kics-out/results.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -469,6 +474,7 @@ The job it adds:
   kube-linter:
     name: KubeLinter (Kubernetes)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run KubeLinter
@@ -495,7 +501,7 @@ The job it adds:
           path: kube-linter.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -513,6 +519,7 @@ The job it adds:
   kubescape:
     name: Kubescape (Kubernetes)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Kubescape
@@ -537,7 +544,7 @@ The job it adds:
           path: kubescape.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -555,6 +562,7 @@ The job it adds:
   regula:
     name: Regula (IaC policy)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Regula
@@ -582,7 +590,7 @@ The job it adds:
           path: regula.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -600,6 +608,7 @@ The job it adds:
   snyk-iac:
     name: Snyk IaC
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node
@@ -630,7 +639,7 @@ The job it adds:
           path: snyk-iac.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -648,6 +657,7 @@ The job it adds:
   terrascan:
     name: Terrascan (Terraform)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Terrascan
@@ -678,7 +688,7 @@ The job it adds:
           path: terrascan.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -696,6 +706,7 @@ The job it adds:
   tflint:
     name: TFLint (Terraform)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run TFLint
@@ -726,7 +737,7 @@ The job it adds:
           path: tflint.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -744,6 +755,7 @@ The job it adds:
   tfsec:
     name: tfsec (Terraform)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run tfsec
@@ -757,7 +769,7 @@ The job it adds:
           path: tfsec.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -779,6 +791,7 @@ The job it adds:
   trivy-config:
     name: Trivy config (IaC/Dockerfile)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Trivy config
@@ -795,7 +808,7 @@ The job it adds:
           path: trivy-config.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -813,6 +826,7 @@ The job it adds:
   scancode:
     name: ScanCode Toolkit (license SBOM)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -865,7 +879,7 @@ The job it adds:
           path: scancode.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -883,6 +897,7 @@ The job it adds:
   clippy:
     name: Rust Clippy (SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Clippy
@@ -906,7 +921,7 @@ The job it adds:
           path: clippy.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -924,6 +939,7 @@ The job it adds:
   eslint:
     name: ESLint (JavaScript lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -960,7 +976,7 @@ The job it adds:
           path: eslint.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -978,6 +994,7 @@ The job it adds:
   golangci-lint:
     name: golangci-lint (Go lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Go
@@ -1012,7 +1029,7 @@ The job it adds:
           path: golangci-lint.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1030,6 +1047,7 @@ The job it adds:
   rubocop:
     name: RuboCop (Ruby lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Ruby
@@ -1152,7 +1170,7 @@ The job it adds:
           path: rubocop.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1170,6 +1188,7 @@ The job it adds:
   ruff:
     name: Ruff (Python lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -1202,7 +1221,7 @@ The job it adds:
           path: ruff.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1224,6 +1243,7 @@ The job it adds:
   shellcheck:
     name: ShellCheck (shell lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run ShellCheck
@@ -1341,7 +1361,7 @@ The job it adds:
           path: shellcheck.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1359,6 +1379,7 @@ The job it adds:
   stylelint:
     name: Stylelint (CSS lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -1390,7 +1411,7 @@ The job it adds:
           path: stylelint.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1408,6 +1429,7 @@ The job it adds:
   swiftlint:
     name: SwiftLint (Swift lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run SwiftLint
@@ -1434,7 +1456,7 @@ The job it adds:
           path: swiftlint.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1452,6 +1474,7 @@ The job it adds:
   mobsfscan:
     name: mobsfscan (Mobile SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -1482,7 +1505,7 @@ The job it adds:
           path: mobsfscan.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1500,6 +1523,7 @@ The job it adds:
   dockle:
     name: Dockle (container image)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Go
@@ -1540,7 +1564,7 @@ The job it adds:
           path: dockle.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1562,6 +1586,7 @@ The job it adds:
   grype-image:
     name: Grype image (OCI)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Build the image
@@ -1608,7 +1633,7 @@ The job it adds:
           path: grype-image.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1626,23 +1651,44 @@ The job it adds:
   hadolint:
     name: Hadolint (Dockerfile)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Hadolint
         continue-on-error: true
-        uses: hadolint/hadolint-action@v3.1.0
-        with:
-          dockerfile: Dockerfile
-          format: sarif
-          no-fail: true
-          output-file: hadolint.sarif
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          dockerfile=""
+          for candidate in Dockerfile Containerfile; do
+            if [ -f "$candidate" ]; then
+              dockerfile="$candidate"
+              break
+            fi
+          done
+          # A repository can keep its container file in a subdirectory; lint that one
+          # rather than reporting nothing.
+          if [ -z "$dockerfile" ]; then
+            dockerfile="$(find . -path ./.git -prune -o -type f \( -name Dockerfile -o -name Containerfile \) -print 2>/dev/null | sed 's|^\./||' | sort | head -n 1)"
+          fi
+          if [ -z "$dockerfile" ]; then
+            echo '::notice::no Dockerfile or Containerfile found; skipping hadolint'
+            exit 0
+          fi
+          # Hadolint exits 1 when it finds lint issues, which is a successful scan.
+          docker run --rm -v "$PWD:/repo" -w /repo hadolint/hadolint:v2.12.0 \
+            hadolint --format sarif "$dockerfile" >hadolint.sarif 2>hadolint.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' hadolint.sarif >/dev/null 2>&1; then
+            echo '::warning::hadolint produced no valid SARIF; dropping the artifact'
+            rm -f hadolint.sarif
+          fi
       - uses: actions/upload-artifact@v6
         with:
           name: hadolint
           path: hadolint.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1660,6 +1706,7 @@ The job it adds:
   snyk-container:
     name: Snyk Container (OCI)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node
@@ -1714,7 +1761,7 @@ The job it adds:
           path: snyk-container.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1732,6 +1779,7 @@ The job it adds:
   syft-image:
     name: Syft image (CycloneDX SBOM)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Build the image
@@ -1775,7 +1823,7 @@ The job it adds:
           path: syft-image.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1797,6 +1845,7 @@ The job it adds:
   trivy-image:
     name: Trivy image (OCI)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Build the image
@@ -1841,7 +1890,7 @@ The job it adds:
           path: trivy-image.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1859,6 +1908,7 @@ The job it adds:
   nuclei:
     name: Nuclei (DAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Go
@@ -1894,7 +1944,7 @@ The job it adds:
           path: nuclei.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1912,6 +1962,7 @@ The job it adds:
   bandit:
     name: Bandit (Python SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -1944,7 +1995,7 @@ The job it adds:
           path: bandit.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -1962,6 +2013,7 @@ The job it adds:
   bearer:
     name: Bearer (SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Bearer
@@ -1987,7 +2039,7 @@ The job it adds:
           path: bearer.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2005,6 +2057,7 @@ The job it adds:
   brakeman:
     name: Brakeman (Ruby on Rails SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Ruby
@@ -2032,7 +2085,7 @@ The job it adds:
           path: brakeman.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2050,6 +2103,7 @@ The job it adds:
   cppcheck:
     name: Cppcheck (C/C++ SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Cppcheck
@@ -2097,7 +2151,7 @@ The job it adds:
           path: cppcheck.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2115,6 +2169,7 @@ The job it adds:
   detekt:
     name: detekt (Kotlin SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Java
@@ -2151,7 +2206,7 @@ The job it adds:
           path: detekt.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2169,6 +2224,7 @@ The job it adds:
   flawfinder:
     name: Flawfinder (C/C++ SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -2206,7 +2262,7 @@ The job it adds:
           path: flawfinder.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2224,6 +2280,7 @@ The job it adds:
   gosec:
     name: gosec (Go SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Go
@@ -2258,7 +2315,7 @@ The job it adds:
           path: gosec.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2276,6 +2333,7 @@ The job it adds:
   njsscan:
     name: njsscan (Node SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -2308,7 +2366,7 @@ The job it adds:
           path: njsscan.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2326,6 +2384,7 @@ The job it adds:
   opengrep:
     name: OpenGrep (SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run OpenGrep
@@ -2354,7 +2413,7 @@ The job it adds:
           path: opengrep.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2372,6 +2431,7 @@ The job it adds:
   pmd:
     name: PMD (Java SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run PMD
@@ -2387,7 +2447,7 @@ The job it adds:
           path: pmd-report.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2405,10 +2465,28 @@ The job it adds:
   psalm:
     name: Psalm (PHP SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-      - name: Set up PHP
+      - name: Detect PHP setup capability
+        id: php-setup
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          # shivammathur/setup-php shells out to sudo. The runner pools grant one
+          # narrow sudo rule, so on those runners the action blocks forever on a
+          # password prompt and the job dies at its timeout-minutes cap having done
+          # nothing. Only run it where sudo is non-interactive.
+          if sudo -n true >/dev/null 2>&1; then
+            echo 'run=true' >>"$GITHUB_OUTPUT"
+          else
+            echo 'run=false' >>"$GITHUB_OUTPUT"
+            echo '::notice::passwordless sudo is unavailable on this runner; using the PHP already installed'
+          fi
+      - name: Set up PHP
+        if: steps.php-setup.outputs.run == 'true'
+        continue-on-error: true
+        timeout-minutes: 5
         uses: shivammathur/setup-php@v2
         with:
           coverage: none
@@ -2442,7 +2520,7 @@ The job it adds:
           path: psalm.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2460,6 +2538,7 @@ The job it adds:
   semgrep:
     name: Semgrep (SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -2484,7 +2563,7 @@ The job it adds:
           path: semgrep.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2506,6 +2585,7 @@ The job it adds:
   snyk-code:
     name: Snyk Code (SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node
@@ -2537,7 +2617,7 @@ The job it adds:
           path: snyk-code.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2555,6 +2635,7 @@ The job it adds:
   zizmor:
     name: zizmor (GitHub Actions SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -2591,7 +2672,7 @@ The job it adds:
           path: zizmor.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2609,6 +2690,7 @@ The job it adds:
   cdxgen:
     name: cdxgen (multi-ecosystem SBOM)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -2635,7 +2717,7 @@ The job it adds:
           path: cdxgen.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2653,6 +2735,7 @@ The job it adds:
   cyclonedx-dotnet:
     name: CycloneDX .NET SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up .NET
@@ -2685,7 +2768,7 @@ The job it adds:
           path: cyclonedx-dotnet.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2703,6 +2786,7 @@ The job it adds:
   cyclonedx-go:
     name: CycloneDX Go SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Go
@@ -2737,7 +2821,7 @@ The job it adds:
           path: cyclonedx-go.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2755,6 +2839,7 @@ The job it adds:
   cyclonedx-maven:
     name: CycloneDX Maven (SBOM)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Java
@@ -2789,7 +2874,7 @@ The job it adds:
           path: cyclonedx-maven.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2807,6 +2892,7 @@ The job it adds:
   cyclonedx-node:
     name: CycloneDX npm SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -2834,7 +2920,7 @@ The job it adds:
           path: cyclonedx-node.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2852,10 +2938,28 @@ The job it adds:
   cyclonedx-php:
     name: CycloneDX PHP SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-      - name: Set up PHP
+      - name: Detect PHP setup capability
+        id: php-setup
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          # shivammathur/setup-php shells out to sudo. The runner pools grant one
+          # narrow sudo rule, so on those runners the action blocks forever on a
+          # password prompt and the job dies at its timeout-minutes cap having done
+          # nothing. Only run it where sudo is non-interactive.
+          if sudo -n true >/dev/null 2>&1; then
+            echo 'run=true' >>"$GITHUB_OUTPUT"
+          else
+            echo 'run=false' >>"$GITHUB_OUTPUT"
+            echo '::notice::passwordless sudo is unavailable on this runner; using the PHP already installed'
+          fi
+      - name: Set up PHP
+        if: steps.php-setup.outputs.run == 'true'
+        continue-on-error: true
+        timeout-minutes: 5
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
@@ -2880,7 +2984,7 @@ The job it adds:
           path: cyclonedx-php.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2898,6 +3002,7 @@ The job it adds:
   cyclonedx-python:
     name: CycloneDX Python SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -2941,7 +3046,7 @@ The job it adds:
           path: cyclonedx-python.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -2959,6 +3064,7 @@ The job it adds:
   cyclonedx-ruby:
     name: CycloneDX Ruby SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Ruby
@@ -2986,7 +3092,7 @@ The job it adds:
           path: cyclonedx-ruby.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3004,6 +3110,7 @@ The job it adds:
   cyclonedx-rust:
     name: CycloneDX Rust SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Generate Rust CycloneDX SBOM
@@ -3026,7 +3133,7 @@ The job it adds:
           path: cyclonedx-rust.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3044,6 +3151,7 @@ The job it adds:
   github-sbom:
     name: GitHub SBOM (SPDX)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Export the dependency graph
@@ -3070,7 +3178,7 @@ The job it adds:
           path: github-sbom.spdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3088,6 +3196,7 @@ The job it adds:
   govulncheck:
     name: govulncheck (Go SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Go
@@ -3127,7 +3236,7 @@ The job it adds:
           path: govulncheck.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3145,6 +3254,7 @@ The job it adds:
   grype:
     name: Grype (SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Grype
@@ -3166,7 +3276,7 @@ The job it adds:
           path: grype.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3184,6 +3294,7 @@ The job it adds:
   npm-audit:
     name: npm audit (Node SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -3212,7 +3323,7 @@ The job it adds:
           path: npm-audit.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3230,6 +3341,7 @@ The job it adds:
   osv-scanner:
     name: OSV-Scanner (SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run OSV-Scanner
@@ -3246,7 +3358,7 @@ The job it adds:
           path: osv.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3264,6 +3376,7 @@ The job it adds:
   owasp-dependency-check:
     name: OWASP Dependency-Check (SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v5
       - name: Set up Java
@@ -3272,6 +3385,13 @@ The job it adds:
         with:
           distribution: temurin
           java-version: 21
+      - name: Restore the NVD database
+        continue-on-error: true
+        uses: actions/cache@v4
+        with:
+          key: 'dependency-check-nvd-${{ github.run_id }}'
+          path: '${{ runner.temp }}/dependency-check-data'
+          restore-keys: dependency-check-nvd-
       - name: Run OWASP Dependency-Check
         continue-on-error: true
         env:
@@ -3282,8 +3402,13 @@ The job it adds:
           version=$(curl -fsSL https://api.github.com/repos/jeremylong/DependencyCheck/releases/latest | jq -r '.tag_name | ltrimstr("v")')
           curl -fsSL "https://github.com/jeremylong/DependencyCheck/releases/download/v${version}/dependency-check-${version}-release.zip" -o dependency-check.zip
           unzip -q dependency-check.zip
-          mkdir -p dependency-check-out
-          args=(--scan . --format SARIF --out dependency-check-out)
+          data_dir="${RUNNER_TEMP:-$PWD}/dependency-check-data"
+          mkdir -p dependency-check-out "$data_dir"
+          # --data points at the cached NVD database, kept outside the working tree so it
+          # is not itself scanned. On an ephemeral runner with no cache Dependency-Check
+          # downloads the whole of the NVD before it scans anything, which is a five-hour
+          # job on its own; with the previous run's copy restored it applies the delta.
+          args=(--scan . --format SARIF --out dependency-check-out --data "$data_dir")
           if [ -n "${NVD_API_KEY:-}" ]; then
             args+=(--nvdApiKey "$NVD_API_KEY")
           fi
@@ -3302,7 +3427,7 @@ The job it adds:
           path: dependency-check.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3320,6 +3445,7 @@ The job it adds:
   retirejs:
     name: Retire.js (JavaScript SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -3346,7 +3472,7 @@ The job it adds:
           path: retirejs.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3364,6 +3490,7 @@ The job it adds:
   snyk-oss:
     name: Snyk Open Source (SCA)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node
@@ -3394,7 +3521,7 @@ The job it adds:
           path: snyk-oss.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3412,6 +3539,7 @@ The job it adds:
   syft:
     name: Syft (CycloneDX SBOM)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Generate CycloneDX SBOM
@@ -3428,7 +3556,7 @@ The job it adds:
           path: sbom.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3450,6 +3578,7 @@ The job it adds:
   trivy-fs:
     name: Trivy (filesystem CDX + SARIF)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Trivy filesystem (CycloneDX)
@@ -3476,7 +3605,7 @@ The job it adds:
             trivy-fs.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3494,6 +3623,7 @@ The job it adds:
   yarn-cyclonedx:
     name: CycloneDX Yarn SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -3522,7 +3652,7 @@ The job it adds:
           path: yarn-cyclonedx.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3540,6 +3670,7 @@ The job it adds:
   detect-secrets:
     name: detect-secrets (secrets)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -3648,7 +3779,7 @@ The job it adds:
           path: detect-secrets-results.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3666,6 +3797,7 @@ The job it adds:
   gitleaks:
     name: Gitleaks (Secrets)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Gitleaks
@@ -3686,7 +3818,7 @@ The job it adds:
           path: gitleaks.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3704,6 +3836,7 @@ The job it adds:
   noseyparker:
     name: Nosey Parker (secrets)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run Nosey Parker
@@ -3732,7 +3865,7 @@ The job it adds:
           path: noseyparker.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3750,6 +3883,7 @@ The job it adds:
   trufflehog:
     name: TruffleHog (secrets)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Run TruffleHog
@@ -3872,7 +4006,7 @@ The job it adds:
           path: trufflehog.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
 ```
 
@@ -3902,6 +4036,7 @@ jobs:
   gosec:
     name: gosec (Go SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up Go
@@ -3936,11 +4071,12 @@ jobs:
           path: gosec.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
   semgrep:
     name: Semgrep (SAST)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Set up uv
@@ -3965,11 +4101,12 @@ jobs:
           path: semgrep.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
   trivy-fs:
     name: Trivy (filesystem CDX + SARIF)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Trivy filesystem (CycloneDX)
@@ -3996,11 +4133,12 @@ jobs:
             trivy-fs.sarif
           if-no-files-found: warn
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
   publish:
     name: Publish to Vulnetix
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [gosec, semgrep, trivy-fs]
     if: always()
     permissions:

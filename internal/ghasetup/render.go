@@ -231,7 +231,10 @@ func renderJob(t *Tool, runsOn string) string {
 	}
 	b.WriteString("          if-no-files-found: warn\n")
 	b.WriteString("          include-hidden-files: true\n")
-	b.WriteString("          retention-days: 7\n\n")
+	// Only the publish job in this same run reads the report, and every
+	// scanner job in every repo uploads one per run: a longer retention is
+	// what filled the org's artifact storage quota.
+	b.WriteString("          retention-days: 1\n\n")
 	return b.String()
 }
 

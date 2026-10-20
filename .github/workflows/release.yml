@@ -111,6 +111,8 @@ jobs:
         with:
           name: cross-binaries
           path: bin/*
+          # Only the release job below reads these, in this same run.
+          retention-days: 1
 
   build-darwin:
     # Darwin builds run natively on macOS so Apple's SDK is available for CGO.
@@ -149,6 +151,7 @@ jobs:
         with:
           name: darwin-binaries
           path: bin/*
+          retention-days: 1
 
   release:
     needs: [version, build-cross, build-darwin]
