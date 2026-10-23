@@ -63,7 +63,7 @@ vulnetix fix --yes
 # The highest stable release Safe Harbour clears, rather than the stable default
 vulnetix fix --strategy safest
 
-# From the most recent release day, the version closest to the one you run
+# From the release day of the highest version, the version closest to the one you run
 vulnetix fix --strategy rolling
 
 # Stay within one major version
