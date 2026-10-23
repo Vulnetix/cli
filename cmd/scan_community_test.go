@@ -97,9 +97,15 @@ func captureStdout(t *testing.T, fn func()) string {
 	}
 	os.Stdout = w
 	defer func() { os.Stdout = orig }()
+	// Read while fn runs: a pipe holds about 64 KB, so a command that prints more than
+	// that would block on its write and never return if nothing drained the pipe.
+	done := make(chan string)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		done <- buf.String()
+	}()
 	fn()
 	_ = w.Close()
-	var buf bytes.Buffer
-	_, _ = io.Copy(&buf, r)
-	return buf.String()
+	return <-done
 }
