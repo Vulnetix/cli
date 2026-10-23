@@ -2,15 +2,18 @@ package protocol
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 // The JSON struct tags on these hand-written types ARE the LSP wire contract,
 // but they are only exercised indirectly through internal/lsp/conformance_test.go.
 // These tests pin them in-package, so a tag typo, a missing omitempty, or a
 // drifted constant fails here rather than in an editor.
+//
+// They use stdlib testing + reflect rather than testify, so the package's test
+// binary does not pull in net (via testify's HTTP assertions) and therefore
+// builds without a C compiler.
 
 func TestMarshalUnmarshalRoundTrips(t *testing.T) {
 	processID := 42
@@ -186,14 +189,21 @@ func TestMarshalUnmarshalRoundTrips(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b, err := json.Marshal(tt.shape)
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("marshal %T: %v", tt.shape, err)
+			}
 
 			// A fresh value of the same dynamic type is the unmarshal target, so
 			// the round trip must preserve every field including nested and
 			// omitted-pointer shapes.
-			out := zeroLike(tt.shape)
-			require.NoError(t, json.Unmarshal(b, out))
-			require.Equal(t, tt.shape, deref(out))
+			out := reflect.New(reflect.TypeOf(tt.shape)).Interface()
+			if err := json.Unmarshal(b, out); err != nil {
+				t.Fatalf("unmarshal %T: %v", tt.shape, err)
+			}
+			got := reflect.ValueOf(out).Elem().Interface()
+			if !reflect.DeepEqual(tt.shape, got) {
+				t.Fatalf("round trip mismatch for %T:\n got: %#v\nwant: %#v", tt.shape, got, tt.shape)
+			}
 		})
 	}
 }
@@ -232,74 +242,64 @@ func TestOmitEmpty(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b, err := json.Marshal(tt.shape)
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("marshal %T: %v", tt.shape, err)
+			}
 
 			var obj map[string]json.RawMessage
-			require.NoError(t, json.Unmarshal(b, &obj))
+			if err := json.Unmarshal(b, &obj); err != nil {
+				t.Fatalf("unmarshal into map: %v", err)
+			}
 
 			for _, key := range tt.absent {
-				_, ok := obj[key]
-				require.False(t, ok, "field %q should be omitted", key)
+				if _, ok := obj[key]; ok {
+					t.Errorf("field %q should be omitted", key)
+				}
 			}
 			for _, key := range tt.present {
-				_, ok := obj[key]
-				require.True(t, ok, "field %q should be present", key)
+				if _, ok := obj[key]; !ok {
+					t.Errorf("field %q should be present", key)
+				}
 			}
 			for _, key := range tt.nulls {
 				raw, ok := obj[key]
-				require.True(t, ok, "field %q should be present", key)
-				require.Equal(t, "null", string(raw), "field %q should be JSON null", key)
+				if !ok {
+					t.Errorf("field %q should be present", key)
+					continue
+				}
+				if string(raw) != "null" {
+					t.Errorf("field %q should be JSON null, got %s", key, raw)
+				}
 			}
 		})
 	}
 }
 
 func TestContractConstants(t *testing.T) {
-	require.Equal(t, 1, ProtocolVersion)
-	require.Equal(t, "vulnetix", ServerName)
-
-	require.Equal(t, -32800, CodeRequestCancelled)
-	require.Equal(t, -32801, CodeContentModified)
-
-	require.Equal(t, 1, SeverityError)
-	require.Equal(t, 2, SeverityWarning)
-	require.Equal(t, 3, SeverityInformation)
-	require.Equal(t, 4, SeverityHint)
-
-	require.Equal(t, "vulnetix/serverInfo", MethodServerInfo)
-	require.Equal(t, "vulnetix/scanWorkspace", MethodScanWorkspace)
-	require.Equal(t, "vulnetix/scanStatus", MethodScanStatus)
-	require.Equal(t, "vulnetix/findings", MethodFindings)
-}
-
-// zeroLike returns a pointer to a fresh zero value of v's dynamic type.
-func zeroLike(v any) any {
-	switch v.(type) {
-	case Diagnostic:
-		return &Diagnostic{}
-	case Finding:
-		return &Finding{}
-	case ScanWorkspaceResult:
-		return &ScanWorkspaceResult{}
-	case InitializeParams:
-		return &InitializeParams{}
-	default:
-		panic("round-trip case without a zeroLike branch")
+	tests := []struct {
+		name string
+		got  any
+		want any
+	}{
+		{"ProtocolVersion", ProtocolVersion, 1},
+		{"ServerName", ServerName, "vulnetix"},
+		{"CodeRequestCancelled", CodeRequestCancelled, -32800},
+		{"CodeContentModified", CodeContentModified, -32801},
+		{"SeverityError", SeverityError, 1},
+		{"SeverityWarning", SeverityWarning, 2},
+		{"SeverityInformation", SeverityInformation, 3},
+		{"SeverityHint", SeverityHint, 4},
+		{"MethodServerInfo", MethodServerInfo, "vulnetix/serverInfo"},
+		{"MethodScanWorkspace", MethodScanWorkspace, "vulnetix/scanWorkspace"},
+		{"MethodScanStatus", MethodScanStatus, "vulnetix/scanStatus"},
+		{"MethodFindings", MethodFindings, "vulnetix/findings"},
 	}
-}
 
-// deref returns the value behind a pointer to a known shape.
-func deref(v any) any {
-	switch p := v.(type) {
-	case *Diagnostic:
-		return *p
-	case *Finding:
-		return *p
-	case *ScanWorkspaceResult:
-		return *p
-	case *InitializeParams:
-		return *p
-	default:
-		panic("round-trip case without a deref branch")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Errorf("%s = %v, want %v", tt.name, tt.got, tt.want)
+			}
+		})
 	}
 }
