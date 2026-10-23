@@ -39,7 +39,9 @@ jobs:
 
       - name: gofmt
         run: |
-          unformatted=$(gofmt -l ./cmd ./pkg ./internal)
+          # testdata holds deliberately invalid Go (the SAST efficacy cases), which gofmt
+          # would report as a syntax error; the go tool skips it, so skip it here too.
+          unformatted=$(find ./cmd ./pkg ./internal -name '*.go' -not -path '*/testdata/*' -print0 | xargs -0 gofmt -l)
           if [ -n "$unformatted" ]; then
             echo "::error::these files are not gofmt'd:"
             echo "$unformatted"
