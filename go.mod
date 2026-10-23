@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Vulnetix/vdb-cyclonedx v0.17.0
+	github.com/Vulnetix/vdb-manifest v0.0.0-00010101000000-000000000000
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
@@ -107,3 +108,6 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+// Sibling module, not yet tagged: cloned next to this repo like vdb-api and vdb-site do.
+replace github.com/Vulnetix/vdb-manifest => ../vdb-manifest

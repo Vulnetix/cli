@@ -10,7 +10,9 @@ import (
 
 func TestApplyNpmOverridesPrefersPackageJSONNextToLockfile(t *testing.T) {
 	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"dependencies":{"parent":"1.0.0"}}`), 0o644))
+	// Overrides are now spliced into the text in the file's own layout (a minified
+	// file stays minified), so the input is laid out the way the assertion reads.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte("{\n  \"dependencies\": {\n    \"parent\": \"1.0.0\"\n  }\n}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "package-lock.json"), []byte(`{"lockfileVersion":3}`), 0o644))
 
 	err := applyNpmOverrides(FixBatch{

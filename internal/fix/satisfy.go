@@ -2,9 +2,10 @@ package fix
 
 import (
 	"sort"
-	"strings"
 
 	semver "github.com/Masterminds/semver/v3"
+
+	manifest "github.com/Vulnetix/vdb-manifest"
 
 	vers "github.com/vulnetix/cli/v3/internal/versions"
 )
@@ -18,31 +19,16 @@ import (
 // fix-version SELECTION (picking an upgrade target); it must never be used
 // for affected-status determination — that lives in internal/versions,
 // where prereleases are included in vulnerability ranges.
+//
+// The implementation is shared with the server through
+// github.com/Vulnetix/vdb-manifest.
 func Satisfies(version, constraint string) bool {
-	version = normalizeVersion(version)
-	constraint = strings.TrimSpace(constraint)
-	if version == "" || constraint == "" || constraint == "*" {
-		return constraint == "" || constraint == "*"
-	}
-	c, err := semver.NewConstraint(constraint)
-	if err != nil {
-		return strings.TrimPrefix(version, "v") == strings.TrimPrefix(constraint, "v")
-	}
-	v, err := semver.NewVersion(version)
-	if err != nil {
-		return false
-	}
-	return c.Check(v)
+	return manifest.Satisfies(version, constraint)
 }
 
+// BestInRange returns the highest candidate that satisfies constraint, or "".
 func BestInRange(candidates []string, constraint string) string {
-	versions := sortableVersions(candidates, false)
-	for _, v := range versions {
-		if Satisfies(v, constraint) {
-			return v
-		}
-	}
-	return ""
+	return manifest.BestInRange(candidates, constraint)
 }
 
 func normalizeVersion(v string) string {

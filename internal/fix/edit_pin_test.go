@@ -77,6 +77,29 @@ func TestApplyOverridePinsTransitiveAcrossEcosystems(t *testing.T) {
 	})
 }
 
+// The writers moved to github.com/Vulnetix/vdb-manifest. These shims keep the
+// original assertions above running through the same production path
+// (pinTransitive) for each manifest file.
+func pinFile(file, content, name, target string) (string, bool) {
+	return pinTransitive(content, FixCandidate{SourceFile: file, PackageName: name, TargetVer: target})
+}
+
+func ensureRequirementPinned(content, name, target string) (string, bool) {
+	return pinFile("requirements.txt", content, name, target)
+}
+
+func ensureMavenManaged(content, name, target string) (string, bool) {
+	return pinFile("pom.xml", content, name, target)
+}
+
+func ensureComposerRequire(content, name, target string) (string, bool) {
+	return pinFile("composer.json", content, name, target)
+}
+
+func ensureGemfilePinned(content, name, target string) (string, bool) {
+	return pinFile("Gemfile", content, name, target)
+}
+
 func countSubstr(s, sub string) int {
 	n := 0
 	for i := 0; i+len(sub) <= len(s); i++ {
