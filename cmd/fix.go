@@ -39,7 +39,7 @@ Examples:
   vulnetix fix --yes                      # non-interactive: safe defaults, no prompts
   vulnetix fix --strategy safest          # the highest stable release Safe Harbour clears
   vulnetix fix --strategy latest          # the highest stable release, never a pre-release
-  vulnetix fix --strategy rolling         # from the latest release day, the version closest to yours
+  vulnetix fix --strategy rolling         # from the latest release day (malware excluded), the closest to yours
   vulnetix fix --manifest package.json    # restrict edits to one manifest
   vulnetix fix --max-major-bump 1         # refuse targets crossing >1 major version`,
 	Args: cobra.MaximumNArgs(1),
