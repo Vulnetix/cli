@@ -4146,7 +4146,7 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().Int("version-lag", 0, "Exit with code 1 when any dependency is within the N most recently published versions of that package (0 = disabled).")
 	cmd.Flags().Int("cooldown", 0, "Exit with code 1 when any dependency version was published within the last N days (0 = disabled, best-effort).")
 	cmd.Flags().Bool("sca-autofix", false, "Apply validated SCA fixes with the project package manager, then rescan to confirm (alias: --fix)")
-	cmd.Flags().String("sca-autofix-strategy", "stable", "SCA autofix target strategy: latest, safest, or stable (alias: --fix-strategy)")
+	cmd.Flags().String("sca-autofix-strategy", "stable", "SCA autofix target strategy: "+autofix.StrategyList()+" (alias: --fix-strategy)")
 	cmd.Flags().String("sca-autofix-manifest", "", "Restrict SCA autofix edits to one manifest file")
 	cmd.Flags().Bool("yes", false, "Non-interactive mode for SCA autofix: auto-pick safe defaults and never prompt")
 	cmd.Flags().Int("sca-autofix-max-major-bump", 0, "Refuse SCA autofix targets crossing more than N major versions")
@@ -4186,7 +4186,7 @@ func addScanFlags(cmd *cobra.Command) {
 		[]string{"inclusive", "individual"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = cmd.Flags().MarkDeprecated("format", "use --output instead")
 	_ = cmd.RegisterFlagCompletionFunc("sca-autofix-strategy", cobra.FixedCompletions(
-		[]string{"stable", "safest", "latest"}, cobra.ShellCompDirectiveNoFileComp))
+		autofix.ValidStrategies(), cobra.ShellCompDirectiveNoFileComp))
 	_ = cmd.RegisterFlagCompletionFunc("exploits", cobra.FixedCompletions(
 		scan.ValidExploitThresholds, cobra.ShellCompDirectiveNoFileComp))
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions(

@@ -1,7 +1,12 @@
 package cmd
 
 import (
+	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
+	autofix "github.com/vulnetix/cli/v3/internal/fix"
 )
 
 func resetFixFlags(t *testing.T) {
@@ -113,6 +118,45 @@ func TestFixCommandSurface(t *testing.T) {
 	for _, flag := range []string{"rule", "list-default-rules", "disable-default-rules", "snippet-context"} {
 		if target.Flags().Lookup(flag) != nil {
 			t.Errorf("fix should not carry the SAST flag --%s", flag)
+		}
+	}
+}
+
+// TestStrategyFlagsOfferEveryStrategy keeps the three places that list the
+// strategies (fix, the scan family and the org quality gate) on one list, so a
+// new strategy is a one-line change.
+func TestStrategyFlagsOfferEveryStrategy(t *testing.T) {
+	want := autofix.ValidStrategies()
+	if len(want) != 4 {
+		t.Fatalf("ValidStrategies = %v, want four", want)
+	}
+	if !reflect.DeepEqual(qualityGateAutofixStrats, want) {
+		t.Errorf("quality gate strategies = %v, want %v", qualityGateAutofixStrats, want)
+	}
+
+	for _, c := range []struct {
+		cmd  *cobra.Command
+		flag string
+	}{
+		{fixCmd, "strategy"},
+		{scaCmd, "sca-autofix-strategy"},
+		{scanCmd, "sca-autofix-strategy"},
+	} {
+		f := c.cmd.Flags().Lookup(c.flag)
+		if f == nil {
+			t.Fatalf("%s is missing --%s", c.cmd.Name(), c.flag)
+		}
+		if c.flag == "strategy" && !strings.Contains(f.Usage, autofix.StrategyList()) {
+			t.Errorf("--strategy usage %q does not list %q", f.Usage, autofix.StrategyList())
+		}
+		fn, ok := c.cmd.GetFlagCompletionFunc(c.flag)
+		if !ok {
+			t.Errorf("%s --%s has no completion", c.cmd.Name(), c.flag)
+			continue
+		}
+		got, _ := fn(c.cmd, nil, "")
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s --%s completes %v, want %v", c.cmd.Name(), c.flag, got, want)
 		}
 	}
 }

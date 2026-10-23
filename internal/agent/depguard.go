@@ -236,8 +236,14 @@ func fixFor(a Assessment, p Policy) scaview.Fix {
 		return scaview.Fix{State: scaview.FixNone, Reason: decision.Reason}
 	}
 	f := scaview.Fix{State: scaview.FixAvailable, Target: target}
-	if a.Insight != nil && a.Insight.SafeHarbour != nil && a.Insight.SafeHarbour.Recommendation != nil {
-		f.Reason = strings.TrimSpace(a.Insight.SafeHarbour.Recommendation.Reason)
+	if a.Insight != nil && a.Insight.SafeHarbour != nil {
+		f.Picks = scaview.PicksFrom(a.Insight.SafeHarbour.Picks)
+		if a.Insight.SafeHarbour.Recommendation != nil {
+			f.Reason = strings.TrimSpace(a.Insight.SafeHarbour.Recommendation.Reason)
+		}
+	}
+	if f.Reason == "" {
+		f.Reason = decision.Note
 	}
 	return f
 }

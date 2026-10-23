@@ -372,6 +372,8 @@ type CliSafeHarbourVersion struct {
 	IsMalware          bool     `json:"isMalware,omitempty"`
 	ExploitCount       int      `json:"exploitCount,omitempty"`
 	CveIds             []string `json:"cveIds,omitempty"`
+	// PublishedAt is the release date in Unix ms; older servers omit it.
+	PublishedAt *int64 `json:"publishedAt,omitempty"`
 }
 
 // CliSafeHarbourSummary mirrors the recommendation block returned with ranked
@@ -380,6 +382,25 @@ type CliSafeHarbourSummary struct {
 	RecommendedVersions []string                      `json:"recommendedVersions,omitempty"`
 	HighestScore        float64                       `json:"highestScore,omitempty"`
 	Recommendation      *CliSafeHarbourRecommendation `json:"recommendation,omitempty"`
+	// Picks is the server's answer per strategy. An older server omits it, and
+	// the CLI then derives the pick from SafeVersions itself.
+	Picks *CliSafeHarbourPicks `json:"picks,omitempty"`
+}
+
+// CliSafeHarbourPicks mirrors the vdb-api per-strategy picks. Stable and
+// RollingTarget are computed for the installed version the request named. A
+// pick the server could not make is empty, with the cause in Reasons keyed by
+// strategy name. The CLI only depends on the stable subset below.
+type CliSafeHarbourPicks struct {
+	Scheme        string            `json:"scheme,omitempty"`
+	Orderable     bool              `json:"orderable,omitempty"`
+	Latest        string            `json:"latest,omitempty"`
+	Safest        string            `json:"safest,omitempty"`
+	Stable        string            `json:"stable,omitempty"`
+	Rolling       []string          `json:"rolling,omitempty"`
+	RollingDate   string            `json:"rollingDate,omitempty"`
+	RollingTarget string            `json:"rollingTarget,omitempty"`
+	Reasons       map[string]string `json:"reasons,omitempty"`
 }
 
 type CliSafeHarbourRecommendation struct {

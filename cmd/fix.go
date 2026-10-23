@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
+	autofix "github.com/vulnetix/cli/v3/internal/fix"
 )
 
 // fixCmd owns remediation. Autofix used to be reachable only as
@@ -36,8 +37,9 @@ Examples:
   vulnetix fix                            # propose and apply fixes interactively
   vulnetix fix --dry-run                  # show the plan, change nothing
   vulnetix fix --yes                      # non-interactive: safe defaults, no prompts
-  vulnetix fix --strategy safest          # prefer the lowest safe version
-  vulnetix fix --strategy latest          # prefer the newest version
+  vulnetix fix --strategy safest          # the highest stable release Safe Harbour clears
+  vulnetix fix --strategy latest          # the highest stable release, never a pre-release
+  vulnetix fix --strategy rolling         # from the latest release day, the version closest to yours
   vulnetix fix --manifest package.json    # restrict edits to one manifest
   vulnetix fix --max-major-bump 1         # refuse targets crossing >1 major version`,
 	Args: cobra.MaximumNArgs(1),
@@ -109,11 +111,11 @@ func init() {
 		f.Usage = "Show the fix plan and change nothing. Unlike the rest of the scan family this still queries the VDB — the plan is built from it — but no manifest is edited, no install runs and no rescan runs"
 	}
 
-	fixCmd.Flags().String("strategy", "stable", "Fix target strategy: stable, safest or latest")
+	fixCmd.Flags().String("strategy", "stable", "Fix target strategy: "+autofix.StrategyList())
 	fixCmd.Flags().String("manifest", "", "Restrict fixes to one manifest file")
 	fixCmd.Flags().Int("max-major-bump", 0, "Refuse fix targets crossing more than N major versions (0 = no limit)")
 	_ = fixCmd.RegisterFlagCompletionFunc("strategy", cobra.FixedCompletions(
-		[]string{"stable", "safest", "latest"}, cobra.ShellCompDirectiveNoFileComp))
+		autofix.ValidStrategies(), cobra.ShellCompDirectiveNoFileComp))
 
 	// The scan-family spellings still work (a pipeline may pass them verbatim) but
 	// are hidden here so `vulnetix fix --help` advertises one name per knob.

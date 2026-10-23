@@ -250,7 +250,7 @@ vulnetix config set quality-gate --severity high --block-malware true --cooldown
 | `--sca-autofix-max-major-bump` | `≥ 0 \| null` | Refuse autofix targets crossing more than *n* major versions |
 | `--exploits` | `poc\|active\|weaponized\|null` | Exit `1` when exploit maturity reaches the threshold |
 | `--severity` | `low\|medium\|high\|critical\|null` | Exit `1` when any vulnerability or SAST finding meets or exceeds this level |
-| `--sca-autofix-strategy` | `latest\|safest\|stable\|null` | Target strategy for `--sca-autofix` |
+| `--sca-autofix-strategy` | `safest\|stable\|latest\|rolling\|null` | Target strategy for `--sca-autofix` |
 
 Every flag takes a value (e.g. `--block-malware true`). Pass **`null`** to unset a setting entirely for the org — the value is cleared and members fall back to their own scan flag or the builtin default:
 
@@ -679,7 +679,7 @@ vulnetix fix [path] [flags]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--strategy` | `stable` | Fix target strategy: `stable`, `safest`, `latest` |
+| `--strategy` | `stable` | Fix target strategy: `safest`, `stable`, `latest`, `rolling` |
 | `--manifest` | - | Restrict edits to one manifest file |
 | `--max-major-bump` | `0` | Refuse targets crossing more than N major versions |
 | `--yes` | `false` | Non-interactive: safe defaults, never prompt |

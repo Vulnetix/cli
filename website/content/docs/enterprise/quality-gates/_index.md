@@ -22,7 +22,7 @@ Nine settings map one-to-one onto the equivalent `vulnetix scan` flags. Each is 
 | **SCA autofix max major bump** | int | `≥ 0` | Refuses autofix targets crossing more than *n* major versions. |
 | **Exploits** | string | `poc\|active\|weaponized` | Exploit maturity reaching the threshold. |
 | **Severity** | string | `low\|medium\|high\|critical` | Any vulnerability or SAST finding meeting or exceeding the level. |
-| **SCA autofix strategy** | string | `latest\|safest\|stable` | Target strategy for `--sca-autofix`. |
+| **SCA autofix strategy** | string | `safest\|stable\|latest\|rolling` | Target strategy for `--sca-autofix`. See the [strategy definitions](/docs/cli-reference/sca-autofix/#strategies). |
 
 Each setting is independently **set**, **unset**, or **left unchanged**. From the CLI, pass a value to set it, or `null` to unset it entirely for the org (`vulnetix config set quality-gate --severity null`); from the console, clear the field. An **unset** setting reverts to the member's own scan flag or the builtin default — it is not the same as setting `false` or `0`, which actively enforce that value.
 

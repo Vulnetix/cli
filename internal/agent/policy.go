@@ -167,16 +167,13 @@ func LoadPolicy(root string) (Policy, error) {
 func (p Policy) withDefaults() Policy {
 	d := DefaultPolicy()
 
-	switch strings.ToLower(string(p.SafeHarbourStrategy)) {
-	case string(fix.StrategyLatest):
-		p.SafeHarbourStrategy = fix.StrategyLatest
-	case string(fix.StrategyStable):
-		p.SafeHarbourStrategy = fix.StrategyStable
-	case string(fix.StrategySafest):
-		p.SafeHarbourStrategy = fix.StrategySafest
-	default:
-		p.SafeHarbourStrategy = d.SafeHarbourStrategy
+	chosen := d.SafeHarbourStrategy
+	for _, name := range fix.ValidStrategies() {
+		if strings.EqualFold(string(p.SafeHarbourStrategy), name) {
+			chosen = fix.Strategy(name)
+		}
 	}
+	p.SafeHarbourStrategy = chosen
 
 	if p.MaxMajorBump < 0 {
 		p.MaxMajorBump = d.MaxMajorBump

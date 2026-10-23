@@ -1,6 +1,7 @@
 package fix
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -55,4 +56,25 @@ func TestRemediationFallbackTargetHonorsMajorGuardrail(t *testing.T) {
 
 	require.Empty(t, target)
 	require.True(t, decision.Skipped)
+}
+
+func TestValidateStrategyAcceptsEveryListedStrategy(t *testing.T) {
+	require.Equal(t, []string{"safest", "stable", "latest", "rolling"}, ValidStrategies())
+	for _, name := range ValidStrategies() {
+		got, err := ValidateStrategy(" " + strings.ToUpper(name) + " ")
+		require.NoError(t, err, name)
+		require.Equal(t, Strategy(name), got)
+	}
+	got, err := ValidateStrategy("")
+	require.NoError(t, err)
+	require.Equal(t, StrategyStable, got)
+}
+
+func TestValidateStrategyRejectsUnknownAndListsAllFour(t *testing.T) {
+	_, err := ValidateStrategy("closest")
+	require.Error(t, err)
+	for _, name := range ValidStrategies() {
+		require.Contains(t, err.Error(), name)
+	}
+	require.Equal(t, "safest, stable, latest or rolling", StrategyList())
 }

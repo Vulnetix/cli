@@ -9,25 +9,31 @@ import (
 type TargetDecision struct {
 	Skipped bool
 	Reason  string
+	// Note is set when the target was chosen by a different route than the
+	// strategy asked for, so the caller can print one line saying so.
+	Note string
 }
+
+// noRollingSetNote is what a rolling run says when the server gave it no set to
+// pick from and the stable logic stood in.
+const noRollingSetNote = "server did not return a rolling set; using stable"
 
 func ResolveTarget(current string, strategy Strategy, latest []vdb.CliVersionStamp, safe []vdb.CliSafeHarbourVersion, summary *vdb.CliSafeHarbourSummary, maxMajorBump int) (string, TargetDecision) {
 	current = normalizeVersion(current)
-	var target string
-	switch strategy {
-	case StrategyLatest:
-		if len(latest) > 0 {
-			target = normalizeVersion(latest[0].Version)
+	target := serverPick(strategy, summary)
+	var note string
+	if target == "" {
+		if strategy == StrategyRolling {
+			note = noRollingSetNote
+			if summary != nil && summary.Picks != nil {
+				note = "no rolling target"
+				if why := summary.Picks.Reasons[string(StrategyRolling)]; why != "" {
+					note += " (" + why + ")"
+				}
+				note += "; using stable"
+			}
 		}
-		if target == "" {
-			target = newestSafeVersion(safe)
-		}
-	case StrategySafest:
-		target = safestVersion(safe)
-	case StrategyStable:
-		target = stableVersion(current, safe)
-	default:
-		target = stableVersion(current, safe)
+		target = localPick(current, strategy, latest, safe)
 	}
 	if target == "" && summary != nil {
 		if summary.Recommendation != nil {
@@ -37,23 +43,64 @@ func ResolveTarget(current string, strategy Strategy, latest []vdb.CliVersionSta
 			target = normalizeVersion(summary.RecommendedVersions[0])
 		}
 	}
+	skip := func(reason string) (string, TargetDecision) {
+		return "", TargetDecision{Skipped: true, Reason: reason, Note: note}
+	}
 	if target == "" {
-		return "", TargetDecision{Skipped: true, Reason: "no Safe-Harbour fix version available"}
+		return skip("no Safe-Harbour fix version available")
 	}
 	if current != "" && normalizeVersion(target) == current {
-		return "", TargetDecision{Skipped: true, Reason: fmt.Sprintf("target %s is already installed", target)}
+		return skip(fmt.Sprintf("target %s is already installed", target))
 	}
 	if current != "" && lessThan(target, current) {
-		return "", TargetDecision{Skipped: true, Reason: fmt.Sprintf("target %s would downgrade from %s", target, current)}
+		return skip(fmt.Sprintf("target %s would downgrade from %s", target, current))
 	}
 	if maxMajorBump >= 0 && current != "" {
 		curMajor, okCur := majorOf(current)
 		tgtMajor, okTarget := majorOf(target)
 		if okCur && okTarget && int(tgtMajor-curMajor) > maxMajorBump {
-			return "", TargetDecision{Skipped: true, Reason: fmt.Sprintf("target %s crosses more than %d major version(s)", target, maxMajorBump)}
+			return skip(fmt.Sprintf("target %s crosses more than %d major version(s)", target, maxMajorBump))
 		}
 	}
-	return target, TargetDecision{}
+	return target, TargetDecision{Note: note}
+}
+
+// serverPick reads the version the server chose for the strategy, or "" when
+// the server sent no picks (an older server) or could not make this one.
+func serverPick(strategy Strategy, summary *vdb.CliSafeHarbourSummary) string {
+	if summary == nil || summary.Picks == nil {
+		return ""
+	}
+	p := summary.Picks
+	switch strategy {
+	case StrategyLatest:
+		return normalizeVersion(p.Latest)
+	case StrategySafest:
+		return normalizeVersion(p.Safest)
+	case StrategyRolling:
+		return normalizeVersion(p.RollingTarget)
+	default:
+		return normalizeVersion(p.Stable)
+	}
+}
+
+// localPick derives the target from the ranked safe versions, for a server that
+// sent no picks or left this one empty. Rolling has no local equivalent and
+// uses the stable logic.
+func localPick(current string, strategy Strategy, latest []vdb.CliVersionStamp, safe []vdb.CliSafeHarbourVersion) string {
+	switch strategy {
+	case StrategyLatest:
+		if len(latest) > 0 {
+			if v := normalizeVersion(latest[0].Version); v != "" {
+				return v
+			}
+		}
+		return newestSafeVersion(safe)
+	case StrategySafest:
+		return safestVersion(safe)
+	default:
+		return stableVersion(current, safe)
+	}
 }
 
 func stableVersion(current string, safe []vdb.CliSafeHarbourVersion) string {

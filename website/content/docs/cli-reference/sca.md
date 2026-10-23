@@ -51,7 +51,7 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--version-lag` | int | `0` | Exit `1` when any dep is within the N most recently published versions (0 = disabled) |
 | `--cooldown` | int | `0` | Exit `1` when any dep was published within the last N days (0 = disabled) |
 | `--sca-autofix` | bool | `false` | Apply validated SCA fixes with the project package manager, then rescan to confirm |
-| `--sca-autofix-strategy` | string | `stable` | Target strategy: `stable`, `safest`, or `latest` |
+| `--sca-autofix-strategy` | string | `stable` | Target strategy: `safest`, `stable`, `latest` or `rolling` ([definitions](/docs/cli-reference/sca-autofix/#strategies)) |
 | `--sca-autofix-manifest` | string | - | Restrict autofix edits to one manifest file |
 | `--sca-autofix-max-major-bump` | int | `0` | Refuse targets crossing more than N major versions |
 | `--yes` | bool | `false` | Non-interactive autofix mode: auto-pick safe defaults and never prompt |

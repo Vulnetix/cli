@@ -14,10 +14,30 @@ import (
 type Strategy string
 
 const (
-	StrategyLatest Strategy = "latest"
-	StrategySafest Strategy = "safest"
-	StrategyStable Strategy = "stable"
+	StrategyLatest  Strategy = "latest"
+	StrategySafest  Strategy = "safest"
+	StrategyStable  Strategy = "stable"
+	StrategyRolling Strategy = "rolling"
 )
+
+// validStrategies is the one list the validator, the flag help and the shell
+// completion read, in the order they are shown.
+var validStrategies = []Strategy{StrategySafest, StrategyStable, StrategyLatest, StrategyRolling}
+
+// ValidStrategies returns the accepted strategy names.
+func ValidStrategies() []string {
+	out := make([]string, len(validStrategies))
+	for i, s := range validStrategies {
+		out[i] = string(s)
+	}
+	return out
+}
+
+// StrategyList renders the names for help and error text: "a, b, c or d".
+func StrategyList() string {
+	names := ValidStrategies()
+	return strings.Join(names[:len(names)-1], ", ") + " or " + names[len(names)-1]
+}
 
 type FixMethod string
 
@@ -179,6 +199,9 @@ func BuildPlans(vulns []scan.EnrichedVuln, packages []scan.ScopedPackage, groups
 					fc.LatestAvailable = ins.LatestVersions[0].Version
 				}
 			}
+		}
+		if decision.Note != "" && fc.Reason == "" {
+			fc.Reason = decision.Note
 		}
 		if decision.Skipped {
 			fc.Skipped = true
@@ -343,16 +366,16 @@ func CountPlans(plans []FixCandidate) ProofCounts {
 }
 
 func ValidateStrategy(s string) (Strategy, error) {
-	switch Strategy(strings.ToLower(strings.TrimSpace(s))) {
-	case StrategyLatest:
-		return StrategyLatest, nil
-	case StrategySafest:
-		return StrategySafest, nil
-	case "", StrategyStable:
+	v := Strategy(strings.ToLower(strings.TrimSpace(s)))
+	if v == "" {
 		return StrategyStable, nil
-	default:
-		return "", fmt.Errorf("invalid --sca-autofix-strategy %q: must be latest, safest, or stable", s)
 	}
+	for _, ok := range validStrategies {
+		if v == ok {
+			return v, nil
+		}
+	}
+	return "", fmt.Errorf("invalid --sca-autofix-strategy %q: must be %s", s, StrategyList())
 }
 
 func packageKey(name, version, ecosystem, source string) string {

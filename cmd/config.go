@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/vulnetix/cli/v3/internal/display"
+	autofix "github.com/vulnetix/cli/v3/internal/fix"
 	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -57,7 +58,7 @@ func validateSeverity(flag, value string) error {
 var (
 	qualityGateSeverities    = []string{"low", "medium", "high", "critical"}
 	qualityGateExploits      = []string{"poc", "active", "weaponized"}
-	qualityGateAutofixStrats = []string{"latest", "safest", "stable"}
+	qualityGateAutofixStrats = autofix.ValidStrategies()
 )
 
 func validateEnum(flag, value string, allowed []string) error {
@@ -416,7 +417,7 @@ for the org — members then fall back to their own scan flags / builtin default
 	cmd.Flags().String("sca-autofix-max-major-bump", "", "Maximum major-version bump SCA autofix may apply (integer >= 0, or 'null' to unset for the org)")
 	cmd.Flags().String("exploits", "", "Exploit maturity gate (poc, active, weaponized, or 'null' to unset for the org)")
 	cmd.Flags().String("severity", "", "Severity gate (low, medium, high, critical, or 'null' to unset for the org)")
-	cmd.Flags().String("sca-autofix-strategy", "", "SCA autofix target strategy (latest, safest, stable, or 'null' to unset for the org)")
+	cmd.Flags().String("sca-autofix-strategy", "", "SCA autofix target strategy ("+strings.Join(qualityGateAutofixStrats, ", ")+", or 'null' to unset for the org)")
 	cmd.Flags().String("base-url", vdb.DefaultBaseURL, "VDB API base URL")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 

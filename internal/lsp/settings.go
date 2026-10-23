@@ -168,8 +168,8 @@ func ParseSettings(raw map[string]any, logf func(string, ...any)) Settings {
 	if v, ok := readString(raw, "sca", "safeHarbourStrategy"); ok {
 		strategy, valid := parseStrategy(v)
 		if !valid {
-			warn("settings: sca.safeHarbourStrategy %q is not safest, latest or stable; using %q",
-				v, defaultSCASettings().Strategy)
+			warn("settings: sca.safeHarbourStrategy %q is not %s; using %q",
+				v, strings.Join(fix.ValidStrategies(), ", "), defaultSCASettings().Strategy)
 		} else {
 			s.SCA.Strategy = strategy
 		}
@@ -188,13 +188,11 @@ func ParseSettings(raw map[string]any, logf func(string, ...any)) Settings {
 
 // parseStrategy maps a configured string onto a fix strategy.
 func parseStrategy(v string) (fix.Strategy, bool) {
-	switch strings.ToLower(strings.TrimSpace(v)) {
-	case "safest":
-		return fix.StrategySafest, true
-	case "latest":
-		return fix.StrategyLatest, true
-	case "stable":
-		return fix.StrategyStable, true
+	v = strings.ToLower(strings.TrimSpace(v))
+	for _, name := range fix.ValidStrategies() {
+		if v == name {
+			return fix.Strategy(name), true
+		}
 	}
 	return defaultSCASettings().Strategy, false
 }

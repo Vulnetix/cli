@@ -28,9 +28,14 @@ The CLI requests ranked Safe-Harbour versions from `/v2/cli.sca`, plans direct a
 
 | Strategy | Meaning |
 |----------|---------|
-| `stable` | Default. Pick the smallest Safe-Harbour version greater than or equal to the installed version. No downgrades. |
-| `safest` | Pick the newest highest-scoring Safe-Harbour version, preferring vulnerability-, exploit-, and malware-free versions. |
-| `latest` | Pick the newest registry version when available, falling back to Safe-Harbour data. No downgrades. |
+| `safest` | The highest stable release that Safe Harbour clears (no known vulnerability, exploit or malware report). Chosen by version order. A pre-release is never picked. |
+| `stable` | Default. The stable release closest to the one you run (major, then minor, then patch, a tie goes to the higher). It can be lower than the one you run. |
+| `latest` | The highest stable release by the ecosystem's own version rules. A pre-release is never picked. For SemVer ecosystems it is the highest version whatever its date. Where versions cannot be ordered by number it is the most recent release by date. A point release on an old branch is newer by date but is not the latest. |
+| `rolling` | Take every cleared version published on the most recent release day (UTC), pre-releases included, and pick the one closest to the version you run. |
+
+All four are drawn from versions Safe Harbour clears. `safest` and `latest` are computed separately and can differ in future; today they usually agree.
+
+The server makes the pick: the VDB returns `safest`, `stable`, `latest` and `rolling` for each package, and the CLI reads them without recomputing. Against an older server that does not return picks, the CLI derives them from the ranked Safe-Harbour versions, and `rolling` falls back to `stable` with a note in the plan. Whatever the strategy, a plan never downgrades a package and never targets the version you already run, so a `stable` pick below your version is dropped from the plan.
 
 Use `--sca-autofix-max-major-bump N` to refuse targets crossing more than `N` major versions. The default is `0`.
 
@@ -50,6 +55,25 @@ For transitive dependencies, the CLI walks the manifest and lockfile graph to re
 | pnpm, yarn, bun | Direct upgrades plus transitive pinning via `pnpm.overrides` / `resolutions` / `overrides`. |
 | Go, Cargo, PyPI (`requirements.txt`, `pyproject.toml`), RubyGems, Composer, Maven (`pom.xml`) | In-place manifest edits for direct dependencies, then a package-manager re-resolve. |
 | Other ecosystems | Command guidance and manual remediation fallback where in-place editing is not yet reliable. |
+
+### How an override lands in the manifest
+
+When a transitive package has to be pinned, the CLI writes the pin into the manifest section its package manager reads. What is written depends on the ecosystem:
+
+| Ecosystem | Where the pin goes |
+|-----------|--------------------|
+| npm, bun | `overrides` in `package.json` |
+| pnpm | `pnpm.overrides` in `package.json` |
+| yarn | `resolutions` in `package.json` |
+| PyPI | A pinned line in `requirements.txt` (or `.in`), appended when the package is not already declared. `pyproject.toml` is edited only where the package is already listed. |
+| Maven | A pinned entry in `<dependencyManagement>` in `pom.xml` |
+| Composer | The package added to `require` in `composer.json` |
+| RubyGems | A pinned entry in the `Gemfile` |
+| Go, Cargo | No manifest section is written. `go get <module>@<version>` with `go mod tidy`, or `cargo update -p <crate> --precise <version>`, moves the pin in `go.mod` or `Cargo.lock`. |
+
+For the `package.json` sections the file is rewritten as indented JSON, so the order of keys can change. Edits to the other manifests are text edits that leave the rest of the file as it was.
+
+Lockfiles are never edited by hand. After the manifest edit the CLI runs the project's package manager (`npm install`, `pnpm install`, `go mod tidy` and so on), which regenerates the lockfile, and the rescan then confirms the result. The `--dry-run` plan lists the override and the command without touching either file.
 
 The report prints proof-of-work counts:
 

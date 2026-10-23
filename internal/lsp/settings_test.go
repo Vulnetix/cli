@@ -1,6 +1,8 @@
 package lsp
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -120,6 +122,31 @@ func TestParseSettingsAcceptsDottedKeys(t *testing.T) {
 
 // The editor default is deliberately not the CLI default. Pin it so the
 // divergence stays a decision rather than becoming a drift.
+func TestParseSettingsAcceptsEveryStrategy(t *testing.T) {
+	for _, name := range []string{"safest", "stable", "latest", "rolling", " Rolling "} {
+		got := ParseSettings(map[string]any{
+			"sca": map[string]any{"safeHarbourStrategy": name},
+		}, nil)
+		if want := fix.Strategy(strings.ToLower(strings.TrimSpace(name))); got.SCA.Strategy != want {
+			t.Errorf("safeHarbourStrategy %q: Strategy = %q, want %q", name, got.SCA.Strategy, want)
+		}
+	}
+}
+
+func TestParseSettingsWarnsOnUnknownStrategyListingAllFour(t *testing.T) {
+	var warnings []string
+	got := ParseSettings(map[string]any{
+		"sca": map[string]any{"safeHarbourStrategy": "closest"},
+	}, func(format string, args ...any) { warnings = append(warnings, fmt.Sprintf(format, args...)) })
+
+	if got.SCA.Strategy != fix.StrategySafest {
+		t.Errorf("Strategy = %q, want the default safest", got.SCA.Strategy)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "rolling") {
+		t.Errorf("warnings = %q, want one naming rolling", warnings)
+	}
+}
+
 func TestDefaultStrategyIsSafest(t *testing.T) {
 	if got := DefaultSettings().SCA.Strategy; got != fix.StrategySafest {
 		t.Errorf("default strategy = %q, want safest", got)

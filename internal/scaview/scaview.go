@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 // maxCardVulns caps the vulnerability list in a card. A dependency with forty
@@ -72,6 +73,30 @@ type Fix struct {
 	// Reason explains a FixNone, or annotates a FixAvailable when the server
 	// supplied a rationale.
 	Reason string
+	// Picks is what each strategy would choose, in display order. Empty when
+	// the server sent none.
+	Picks []Pick
+}
+
+// Pick is one strategy's choice. Version is empty when the strategy had no
+// answer for this package.
+type Pick struct {
+	Strategy string
+	Version  string
+}
+
+// PicksFrom lists the four strategies' choices from the server's picks, or nil
+// when the server sent none (an older server).
+func PicksFrom(p *vdb.CliSafeHarbourPicks) []Pick {
+	if p == nil {
+		return nil
+	}
+	return []Pick{
+		{"safest", p.Safest},
+		{"stable", p.Stable},
+		{"latest", p.Latest},
+		{"rolling", p.RollingTarget},
+	}
 }
 
 // Insight carries the flags that are not vulnerabilities but change what the
@@ -274,13 +299,31 @@ func writeFixSection(b *strings.Builder, f Fix) {
 			reason = "no safe version available"
 		}
 		fmt.Fprintf(b, "\n**Fix:** none available — %s\n", reason)
+		writePicks(b, f.Picks)
 	case FixAvailable:
 		fmt.Fprintf(b, "\n**Quick fix:** bump to %s", f.Target)
 		if reason := strings.TrimSpace(f.Reason); reason != "" {
 			fmt.Fprintf(b, " — %s", reason)
 		}
 		b.WriteString("\n")
+		writePicks(b, f.Picks)
 	}
+}
+
+// writePicks renders each strategy's choice on one line.
+func writePicks(b *strings.Builder, picks []Pick) {
+	if len(picks) == 0 {
+		return
+	}
+	parts := make([]string, len(picks))
+	for i, p := range picks {
+		v := p.Version
+		if v == "" {
+			v = "none"
+		}
+		parts[i] = p.Strategy + " " + v
+	}
+	fmt.Fprintf(b, "\n**Picks:** %s\n", strings.Join(parts, ", "))
 }
 
 func writeInsightNotes(b *strings.Builder, in *Insight) {

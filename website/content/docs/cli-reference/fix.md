@@ -29,7 +29,7 @@ vulnetix fix [path] [flags]
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--path` | string | `.` | Directory to scan; positional `[path]` overrides |
-| `--strategy` | string | `stable` | Fix target strategy: `stable`, `safest` or `latest` |
+| `--strategy` | string | `stable` | Fix target strategy: `safest`, `stable`, `latest` or `rolling` |
 | `--manifest` | string | - | Restrict edits to one manifest file |
 | `--max-major-bump` | int | `0` | Refuse targets crossing more than N major versions (0 = no limit) |
 | `--yes` | bool | `false` | Non-interactive: pick safe defaults, never prompt |
@@ -60,8 +60,11 @@ vulnetix fix --dry-run
 # Non-interactive (CI): safe defaults, no prompts
 vulnetix fix --yes
 
-# Prefer the lowest safe version rather than the stable default
+# The highest stable release Safe Harbour clears, rather than the stable default
 vulnetix fix --strategy safest
+
+# From the most recent release day, the version closest to the one you run
+vulnetix fix --strategy rolling
 
 # Stay within one major version
 vulnetix fix --max-major-bump 1
@@ -78,7 +81,8 @@ vulnetix sca --sca-autofix
 
 1. **Discover and resolve** — the SCA pipeline parses manifests and lockfiles and
    queries the VDB, so the fix plan is built from the same findings a scan reports.
-2. **Plan** — for each vulnerable package a target version is chosen by strategy,
+2. **Plan** — for each vulnerable package a target version is chosen by strategy
+   (`safest`, `stable`, `latest` or `rolling`, [defined here](../sca-autofix/#strategies)),
    bounded by `--max-major-bump`. Packages with no vulnerability-free version are
    kept in the report rather than dropped.
 3. **Apply** — manifest edits are written and the project's package manager

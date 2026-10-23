@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 func v(id, sev string, cvss, epss float64, kev bool, exploits int) scan.EnrichedVuln {
@@ -209,5 +210,26 @@ func TestSeveritySplitOmitsTheTail(t *testing.T) {
 	counts := map[string]int{"critical": 2, "high": 3, "medium": 9, "low": 40}
 	if got := SeveritySplit(counts); got != "2 critical, 3 high" {
 		t.Errorf("got %q, want the two worst buckets only", got)
+	}
+}
+
+func TestCardListsEveryStrategyPickWhenTheServerSentThem(t *testing.T) {
+	s := Subject{
+		Pkg:      Pkg{Name: "ruff", Version: "0.15.10", Ecosystem: "pypi"},
+		Vulns:    []scan.EnrichedVuln{v("CVE-2020-1", "high", 7.0, 0, false, 0)},
+		OwnVulns: 1,
+		Fix: Fix{State: FixAvailable, Target: "0.17.2", Picks: PicksFrom(&vdb.CliSafeHarbourPicks{
+			Safest: "0.17.2", Stable: "0.15.12", Latest: "0.17.2",
+		})},
+	}
+	got := Card(s)
+	want := "**Picks:** safest 0.17.2, stable 0.15.12, latest 0.17.2, rolling none"
+	if !strings.Contains(got, want) {
+		t.Errorf("missing %q:\n%s", want, got)
+	}
+
+	s.Fix.Picks = PicksFrom(nil)
+	if got := Card(s); strings.Contains(got, "Picks") {
+		t.Errorf("an older server sends no picks and the card must not invent them:\n%s", got)
 	}
 }

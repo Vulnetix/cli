@@ -44,7 +44,7 @@ mutates `go.mod`, so every run starts clean):
 4. **scan** — `vulnetix scan` (full local scan)
 5. **scan + autofix:safest** — `vulnetix scan --sca-autofix --sca-autofix-strategy safest --yes`
 
-`safest` is the conservative autofix target strategy (vs `latest` / `stable`).
+`safest` is the conservative autofix target strategy: the highest stable release with no known vulnerability, exploit or malware report (vs `stable`, `latest` and `rolling`).
 
 ## Output
 

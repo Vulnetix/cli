@@ -103,8 +103,14 @@ func (e *scaEngine) fixFor(a *scaAnnotation) scaview.Fix {
 	}
 
 	f := scaview.Fix{State: scaview.FixAvailable, Target: target}
-	if v.Insight != nil && v.Insight.SafeHarbour != nil && v.Insight.SafeHarbour.Recommendation != nil {
-		f.Reason = strings.TrimSpace(v.Insight.SafeHarbour.Recommendation.Reason)
+	if v.Insight != nil && v.Insight.SafeHarbour != nil {
+		f.Picks = scaview.PicksFrom(v.Insight.SafeHarbour.Picks)
+		if v.Insight.SafeHarbour.Recommendation != nil {
+			f.Reason = strings.TrimSpace(v.Insight.SafeHarbour.Recommendation.Reason)
+		}
+	}
+	if f.Reason == "" {
+		f.Reason = decision.Note
 	}
 	return f
 }

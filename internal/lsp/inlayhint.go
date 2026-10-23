@@ -106,6 +106,6 @@ func (e *scaEngine) hintLabel(a *scaAnnotation) (label, tooltip string, ok bool)
 	if target == "" {
 		return "", "", false
 	}
-	return "→ " + target, fmt.Sprintf("Safe-Harbour target for %s@%s",
-		a.Pkg.Name, a.Pkg.Version), true
+	return "→ " + target, fmt.Sprintf("Safe-Harbour target for %s@%s (%s strategy)",
+		a.Pkg.Name, a.Pkg.Version, e.settings().Strategy), true
 }

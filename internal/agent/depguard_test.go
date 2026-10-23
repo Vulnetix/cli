@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vulnetix/cli/v3/internal/fix"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -317,5 +318,50 @@ func TestVulnerablePackageStillGetsTheTarget(t *testing.T) {
 	}
 	if !strings.Contains(got.Message, "bump to 4.17.21") {
 		t.Fatalf("message should carry the target:\n%s", got.Message)
+	}
+}
+
+func TestWithDefaultsKeepsEveryStrategyAndFallsBackOnUnknown(t *testing.T) {
+	for _, name := range []string{"safest", "stable", "latest", "rolling", "ROLLING"} {
+		p := Policy{SafeHarbourStrategy: fix.Strategy(name)}.withDefaults()
+		if want := fix.Strategy(strings.ToLower(name)); p.SafeHarbourStrategy != want {
+			t.Errorf("%q: strategy = %q, want %q", name, p.SafeHarbourStrategy, want)
+		}
+	}
+	for _, name := range []string{"", "closest"} {
+		p := Policy{SafeHarbourStrategy: fix.Strategy(name)}.withDefaults()
+		if p.SafeHarbourStrategy != fix.StrategySafest {
+			t.Errorf("%q: strategy = %q, want the default safest", name, p.SafeHarbourStrategy)
+		}
+	}
+}
+
+func TestRollingStrategyUsesTheServerPick(t *testing.T) {
+	a := Assessment{
+		Candidate: pkg("axios", "1.5.0"),
+		Vulns:     []scan.EnrichedVuln{vuln("CVE-2020-4444", "medium", false)},
+		Insight: &vdb.CliPackageInsight{
+			SafeVersions: safe("1.5.1"),
+			SafeHarbour: &vdb.CliSafeHarbourSummary{Picks: &vdb.CliSafeHarbourPicks{
+				Stable: "1.5.1", RollingTarget: "1.6.0-rc.1",
+			}},
+		},
+	}
+	p := DefaultPolicy()
+	p.MaxMajorBump = 2
+
+	p.SafeHarbourStrategy = fix.StrategyRolling
+	got := EvaluateDependency(p, []Assessment{a})
+	if got.Decision != Inform || !strings.Contains(got.Message, "1.6.0-rc.1") {
+		t.Fatalf("rolling: decision = %v, want Inform naming 1.6.0-rc.1\n%s", got.Decision, got.Message)
+	}
+	if !strings.Contains(got.Message, "rolling none") && !strings.Contains(got.Message, "rolling 1.6.0-rc.1") {
+		t.Fatalf("message must list the picks:\n%s", got.Message)
+	}
+
+	p.SafeHarbourStrategy = fix.StrategyStable
+	got = EvaluateDependency(p, []Assessment{a})
+	if !strings.Contains(got.Message, "1.5.1") {
+		t.Fatalf("stable: message must name 1.5.1\n%s", got.Message)
 	}
 }
