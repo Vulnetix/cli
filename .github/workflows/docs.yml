@@ -44,10 +44,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+      - name: Configure private fetch of vdb-sca-match and vdb-manifest (not yet in module proxy)
         run: |
-          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
           git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-manifest".insteadOf "https://github.com/Vulnetix/vdb-manifest"
 
       - name: Build Hugo site
         working-directory: website

@@ -31,10 +31,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+      - name: Configure private fetch of vdb-sca-match and vdb-manifest (not yet in module proxy)
         run: |
-          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
           git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-manifest".insteadOf "https://github.com/Vulnetix/vdb-manifest"
 
       - name: gofmt
         run: |
@@ -80,10 +81,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+      - name: Configure private fetch of vdb-sca-match and vdb-manifest (not yet in module proxy)
         run: |
-          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
           git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-manifest".insteadOf "https://github.com/Vulnetix/vdb-manifest"
 
       # The host binary only. build.sh cross-compiles six targets with CGO_ENABLED=0, which the
       # bundled tree-sitter grammars rule out; the release workflow cross-compiles with zig.
@@ -145,10 +147,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+      - name: Configure private fetch of vdb-sca-match and vdb-manifest (not yet in module proxy)
         run: |
-          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
           git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-manifest".insteadOf "https://github.com/Vulnetix/vdb-manifest"
 
       - name: Build the CLI
         run: go build -o "$RUNNER_TEMP/vulnetix" .
@@ -208,10 +211,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+      - name: Configure private fetch of vdb-sca-match and vdb-manifest (not yet in module proxy)
         run: |
-          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
           git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-manifest".insteadOf "https://github.com/Vulnetix/vdb-manifest"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
