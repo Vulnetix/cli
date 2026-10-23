@@ -80,15 +80,15 @@ type Hit struct {
 
 // Profile is the measurement of one rule over a corpus.
 type Profile struct {
-	Rule      string        `json:"rule"`
-	ID        string        `json:"id"`
-	Compile   time.Duration `json:"compile_ns"`
-	Eval      time.Duration `json:"eval_ns"` // sum over projects of the fastest repetition
-	Findings  int           `json:"findings"`
-	Files     int           `json:"files"` // distinct files with a finding
+	Rule      string         `json:"rule"`
+	ID        string         `json:"id"`
+	Compile   time.Duration  `json:"compile_ns"`
+	Eval      time.Duration  `json:"eval_ns"` // sum over projects of the fastest repetition
+	Findings  int            `json:"findings"`
+	Files     int            `json:"files"` // distinct files with a finding
 	ByProject map[string]int `json:"by_project,omitempty"`
-	Hits      []Hit         `json:"hits,omitempty"`
-	Err       string        `json:"error,omitempty"`
+	Hits      []Hit          `json:"hits,omitempty"`
+	Err       string         `json:"error,omitempty"`
 }
 
 // ProfileOptions controls Profile.

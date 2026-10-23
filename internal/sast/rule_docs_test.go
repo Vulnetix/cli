@@ -66,7 +66,7 @@ func proseLines(doc string) map[int]string {
 
 // stripCodeSpans removes inline code as CommonMark reads it: a run of N
 // backticks opens a span that only a run of exactly N backticks closes, so
-// `` ` `` is one span holding a backtick.
+// “ ` “ is one span holding a backtick.
 func stripCodeSpans(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); {
