@@ -183,6 +183,14 @@ jobs:
           cd bin
           sha256sum * > checksums.txt
 
+      # The subject list for the provenance job: the same bytes as the release
+      # asset, so the signed statement names exactly what a user downloads.
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-subjects
+          path: bin/checksums.txt
+          retention-days: 1
+
       - name: Create or update Release
         run: |
           VERSION=${{ needs.version.outputs.version }}
@@ -222,6 +230,18 @@ jobs:
           git tag -f v3 "$VERSION"
           git push origin -f refs/tags/v3
           echo "v3 -> $VERSION"
+
+  # SLSA v1 build provenance for every binary in the release, signed and
+  # verified by the shared reusable workflow (also called by belai).
+  provenance:
+    needs: release
+    permissions:
+      contents: write
+      id-token: write
+    uses: ./.github/workflows/slsa-provenance.yml
+    with:
+      subjects_artifact: release-subjects
+      version: ${{ needs.release.outputs.version }}
 
   test-go-install:
     needs: release
@@ -430,7 +450,11 @@ jobs:
   # `tea` regression fails the release that introduced it rather than the next
   # one.
   publish-tea:
-    needs: [release, update-packages]
+    needs: [release, update-packages, provenance]
+    # A provenance failure publishes the release without the bundle, with a
+    # warning below, rather than leaving the transparency log silent about it.
+    # The other two needs still have to succeed, as they did before.
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.update-packages.result == 'success' }}
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     # id-token lets this job get an OIDC token from GitHub, which is the
@@ -449,6 +473,24 @@ jobs:
         with:
           name: cross-binaries
           path: bin
+
+      # The bundle for every binary in the release, signed by the provenance
+      # job. Not fatal: `tea release` drops a file it cannot read and says so.
+      - name: Download the provenance bundle
+        id: provenance
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: slsa-provenance
+          path: provenance
+
+      - name: Report whether the provenance was produced
+        run: |
+          if [ -s provenance/provenance.sigstore.json ]; then
+            echo "provenance: $(wc -c < provenance/provenance.sigstore.json) bytes"
+          else
+            echo "::warning::no provenance bundle was produced; publishing the release without it"
+          fi
 
       - name: Install the binary this release built
         run: |
@@ -543,7 +585,7 @@ jobs:
           # the digests from the same file a user verifies a download against.
           # The remaining channels have no single file to fetch, so they are
           # named rather than linked.
-          vulnetix tea release vulnetix.cdx.json \
+          vulnetix tea release vulnetix.cdx.json provenance/provenance.sigstore.json \
             --version "$VERSION" \
             --checksums checksums.txt \
             --exclude checksums.txt \

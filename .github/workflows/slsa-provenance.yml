@@ -1,0 +1,156 @@
+# Signs SLSA v1 build provenance for a release's binaries, verifies the bundle,
+# and uploads it to the GitHub release.
+#
+# This is a reusable workflow: it runs inside the CALLING repository's run, so
+# `GITHUB_REPOSITORY`, `GITHUB_SHA` and `GITHUB_REF` name the caller, which is
+# what the provenance has to say about. The signing identity is this file,
+# though: the certificate Fulcio issues names `job_workflow_ref`, the called
+# workflow. A consumer therefore checks for this workflow, not for whichever
+# repository's release it signed.
+#
+# What the statement claims, and what it does not. Its subjects are the digests
+# in the release's own checksums.txt (plus checksums.txt itself), so every
+# binary a user can download is covered by one signed document. It is signed in
+# a separate job from the build, by a workflow the build job cannot edit, with
+# the run's OIDC identity. That is signed provenance of the build workflow, not
+# an isolated builder: the build still runs on this organisation's runners, and
+# the claim says so in `runner_environment`. Read it as SLSA Build L2, not L3.
+#
+# Same statement shape as the Pix sandbox image workflow in the website
+# repository, with one difference: that repository is private, so it signs
+# without a Rekor entry. Both callers of this workflow are public, so the
+# default signing config is used and every bundle carries a public Rekor entry.
+name: SLSA Provenance
+
+on:
+  workflow_call:
+    # Input names use underscores, not hyphens; see the note in tea-release.yml.
+    inputs:
+      subjects_artifact:
+        description: 'name of an artifact in this run that holds the release checksums.txt'
+        type: string
+        required: true
+      version:
+        description: 'release tag the bundle is uploaded to (e.g. v1.2.3)'
+        type: string
+        required: true
+
+# No permissions: block, deliberately, for the reason given in tea-release.yml.
+# The caller's job must grant `id-token: write` (Sigstore signs with the OIDC
+# identity) and `contents: write` (the upload to the release).
+jobs:
+  provenance:
+    name: Sign and verify provenance
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.subjects_artifact }}
+          path: subjects
+
+      - uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Build the statement
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          test -s subjects/checksums.txt
+
+          # The subject list is the release's checksums.txt, one entry per asset,
+          # plus the file itself so the bundle can be verified against it.
+          {
+            cat subjects/checksums.txt
+            printf '%s  checksums.txt\n' "$(sha256sum subjects/checksums.txt | cut -d' ' -f1)"
+          } > subjects.txt
+
+          # The builder id is this workflow at the ref the caller pinned. It is
+          # read from the same OIDC claim Fulcio puts in the certificate, so the
+          # statement and the signature cannot name different workflows.
+          token="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sigstore" | jq -r .value)"
+          payload="$(printf '%s' "$token" | cut -d. -f2 | tr '_-' '/+')"
+          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="${payload}="; done
+          signer="$(printf '%s' "$payload" | base64 -d | jq -r .job_workflow_ref)"
+          case "$signer" in
+            Vulnetix/cli/.github/workflows/slsa-provenance.yml@*) ;;
+            *) echo "::error::unexpected signing workflow: $signer"; exit 1 ;;
+          esac
+
+          # GITHUB_WORKFLOW_REF is the caller's workflow: owner/repo/path@ref.
+          caller="${GITHUB_WORKFLOW_REF%@*}"
+          caller_path="${caller#"${GITHUB_REPOSITORY}/"}"
+
+          jq -R -s \
+            --arg repo "https://github.com/${GITHUB_REPOSITORY}" \
+            --arg ref "$GITHUB_REF" --arg sha "$GITHUB_SHA" --arg path "$caller_path" \
+            --arg event "$GITHUB_EVENT_NAME" --arg rid "$GITHUB_REPOSITORY_ID" --arg oid "$GITHUB_REPOSITORY_OWNER_ID" \
+            --arg env "$RUNNER_ENVIRONMENT" --arg version "$VERSION" \
+            --arg builder "https://github.com/${signer}" \
+            --arg invocation "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}" \
+            '{_type: "https://in-toto.io/Statement/v1",
+              subject: (split("\n") | map(select(length > 0) | capture("^(?<h>[0-9a-f]{64})  (?<n>.+)$") | {name: .n, digest: {sha256: .h}})),
+              predicateType: "https://slsa.dev/provenance/v1",
+              predicate: {
+                buildDefinition: {
+                  buildType: "https://actions.github.io/buildtypes/workflow/v1",
+                  externalParameters: {workflow: {ref: $ref, repository: $repo, path: $path}, release: $version},
+                  internalParameters: {github: {event_name: $event, repository_id: $rid, repository_owner_id: $oid, runner_environment: $env}},
+                  resolvedDependencies: [{uri: ("git+" + $repo + "@" + $ref), digest: {gitCommit: $sha}}]},
+                runDetails: {builder: {id: $builder}, metadata: {invocationId: $invocation}}}}' subjects.txt > statement.json
+
+          # A line that did not match the capture would be dropped silently by
+          # the select, leaving a binary the document does not cover.
+          want="$(grep -c . subjects.txt)"
+          jq -e --argjson n "$want" '.subject | length == $n' statement.json >/dev/null
+          echo "subjects: $want"
+
+      - name: Sign
+        run: cosign attest-blob --yes --statement statement.json --bundle candidate.sigstore.json subjects/checksums.txt
+
+      # Only a bundle that verifies is named provenance.sigstore.json. The first
+      # check is the signature, this workflow's identity, the transparency log
+      # entry and checksums.txt as a subject. The second is the path a user
+      # takes: a single binary named by digest, with no blob on disk.
+      - name: Verify
+        run: |
+          set -euo pipefail
+          identity='^https://github.com/Vulnetix/cli/\.github/workflows/slsa-provenance\.yml@'
+          cosign verify-blob-attestation \
+            --bundle candidate.sigstore.json --new-bundle-format \
+            --type slsaprovenance1 \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "$identity" \
+            subjects/checksums.txt
+
+          # Every line of checksums.txt must be a subject of the signed statement.
+          statement="$(jq -r '.dsseEnvelope.payload' candidate.sigstore.json | base64 -d)"
+          while read -r digest name; do
+            echo "$statement" | jq -e --arg d "$digest" --arg n "${name#\*}" \
+              '.subject | any(.name == $n and .digest.sha256 == $d)' >/dev/null \
+              || { echo "::error::$name is in checksums.txt but not in the statement"; exit 1; }
+          done < subjects/checksums.txt
+
+          first="$(head -n1 subjects/checksums.txt | cut -d' ' -f1)"
+          cosign verify-blob-attestation \
+            --bundle candidate.sigstore.json --new-bundle-format \
+            --type slsaprovenance1 \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "$identity" \
+            --digest "$first" --digestAlg sha256
+
+          mv candidate.sigstore.json provenance.sigstore.json
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: gh release upload "$VERSION" provenance.sigstore.json --clobber --repo "$GITHUB_REPOSITORY"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: slsa-provenance
+          path: provenance.sigstore.json
+          # Only the caller's publish-tea job reads this, in this same run.
+          retention-days: 1
