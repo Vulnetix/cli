@@ -4149,7 +4149,7 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().String("sca-autofix-strategy", "stable", "SCA autofix target strategy: "+autofix.StrategyList()+" (alias: --fix-strategy)")
 	cmd.Flags().String("sca-autofix-manifest", "", "Restrict SCA autofix edits to one manifest file")
 	cmd.Flags().Bool("yes", false, "Non-interactive mode for SCA autofix: auto-pick safe defaults and never prompt")
-	cmd.Flags().Int("sca-autofix-max-major-bump", 0, "Refuse SCA autofix targets crossing more than N major versions")
+	cmd.Flags().Int("sca-autofix-max-major-bump", 0, "Refuse SCA autofix targets crossing more than N major versions (0 = stay on the current major, negative = no limit)")
 	cmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
 	cmd.Flags().String("reachability", "both",
 		"Tree-sitter reachability mode for the CVEs this scan produces: \"direct\" (scan only each vulnerable package's installed directory), \"transitive\" (sweep the rest of the project for callers), \"both\" (default), or \"off\" (skip the analysis and the server-side query fetch). Use \"off\" or \"direct\" on large monorepos where the whole-tree sweep is too slow.")

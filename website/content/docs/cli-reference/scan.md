@@ -330,7 +330,7 @@ The flags the [output section](#reading-the-output) lists as superseded (`--seve
 | `--sca-autofix` | bool | `false` | Apply validated SCA fixes with the project package manager, then rescan to confirm. See [SCA Autofix](sca-autofix/). |
 | `--sca-autofix-strategy` | string | `stable` | Target strategy for `--sca-autofix`: `safest`, `stable`, `latest` or `rolling` ([definitions](/docs/cli-reference/sca-autofix/#strategies)). |
 | `--sca-autofix-manifest` | string | - | Restrict autofix edits to one manifest file; implies non-interactive manifest selection. |
-| `--sca-autofix-max-major-bump` | int | `0` | Refuse autofix targets crossing more than N major versions. |
+| `--sca-autofix-max-major-bump` | int | `0` | Refuse autofix targets crossing more than N major versions. `0` stays on the current major; a negative value lifts the cap. |
 | `--yes` | bool | `false` | Non-interactive autofix mode: auto-pick safe defaults and never prompt. |
 | `--evaluate-sast` | bool | `false` | Enable SAST analysis (exclusive mode — disables all other features not explicitly enabled) |
 | `--no-sast` | bool | `false` | Skip SAST (sast-kind) rules |

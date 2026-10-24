@@ -180,3 +180,24 @@ func TestResolveTargetServerPickKeepsGuardsForEveryStrategy(t *testing.T) {
 		require.Contains(t, decision.Reason, "already installed", string(s))
 	}
 }
+
+// The major-version cap: 0 keeps the current major (the documented default),
+// N allows up to N majors, and a negative value lifts the cap.
+func TestResolveTargetMajorCapZeroNegativeAndN(t *testing.T) {
+	safe := []vdb.CliSafeHarbourVersion{{Version: "3.1.0"}}
+	_, decision := ResolveTarget("1.0.0", StrategySafest, nil, safe, nil, 0)
+	require.True(t, decision.Skipped, "0 must refuse any new major")
+	require.Contains(t, decision.Reason, "new major version")
+
+	_, decision = ResolveTarget("1.0.0", StrategySafest, nil, safe, nil, 1)
+	require.True(t, decision.Skipped, "1 must refuse a two-major jump")
+	require.Contains(t, decision.Reason, "crosses more than 1 major version")
+
+	target, decision := ResolveTarget("1.0.0", StrategySafest, nil, safe, nil, 2)
+	require.False(t, decision.Skipped)
+	require.Equal(t, "3.1.0", target)
+
+	target, decision = ResolveTarget("1.0.0", StrategySafest, nil, safe, nil, -1)
+	require.False(t, decision.Skipped, "a negative cap is no limit")
+	require.Equal(t, "3.1.0", target)
+}

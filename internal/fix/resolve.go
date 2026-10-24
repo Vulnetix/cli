@@ -59,6 +59,9 @@ func ResolveTarget(current string, strategy Strategy, latest []vdb.CliVersionSta
 		curMajor, okCur := majorOf(current)
 		tgtMajor, okTarget := majorOf(target)
 		if okCur && okTarget && int(tgtMajor-curMajor) > maxMajorBump {
+			if maxMajorBump == 0 {
+				return skip(fmt.Sprintf("target %s is a new major version and the major-version cap is 0", target))
+			}
 			return skip(fmt.Sprintf("target %s crosses more than %d major version(s)", target, maxMajorBump))
 		}
 	}

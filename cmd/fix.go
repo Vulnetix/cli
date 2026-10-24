@@ -113,7 +113,7 @@ func init() {
 
 	fixCmd.Flags().String("strategy", "stable", "Fix target strategy: "+autofix.StrategyList())
 	fixCmd.Flags().String("manifest", "", "Restrict fixes to one manifest file")
-	fixCmd.Flags().Int("max-major-bump", 0, "Refuse fix targets crossing more than N major versions (0 = no limit)")
+	fixCmd.Flags().Int("max-major-bump", 0, "Refuse fix targets crossing more than N major versions (0 = stay on the current major, negative = no limit)")
 	_ = fixCmd.RegisterFlagCompletionFunc("strategy", cobra.FixedCompletions(
 		autofix.ValidStrategies(), cobra.ShellCompDirectiveNoFileComp))
 

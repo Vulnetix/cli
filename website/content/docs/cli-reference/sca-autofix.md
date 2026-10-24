@@ -37,7 +37,7 @@ Malware is removed before any strategy picks. `safest`, `stable` and `latest` ar
 
 The server makes the pick: the VDB returns `safest`, `stable`, `latest` and `rolling` for each package, and the CLI reads them without recomputing. Against an older server that does not return picks, the CLI derives them from the ranked Safe-Harbour versions, and `rolling` falls back to `stable` with a note in the plan. Whatever the strategy, a plan never downgrades a package and never targets the version you already run, so a `stable` pick below your version is dropped from the plan.
 
-Use `--sca-autofix-max-major-bump N` to refuse targets crossing more than `N` major versions. The default is `0`.
+Use `--sca-autofix-max-major-bump N` to refuse targets crossing more than `N` major versions. The default is `0`, which keeps every target on the major version you run: a package whose only cleared versions are in a new major is listed as manual. A negative value lifts the cap.
 
 ## Direct and Transitive Fixes
 
@@ -74,6 +74,8 @@ When a transitive package has to be pinned, the CLI writes the pin into the mani
 For the `package.json` sections the file is rewritten as indented JSON, so the order of keys can change. Edits to the other manifests are text edits that leave the rest of the file as it was.
 
 Lockfiles are never edited by hand. After the manifest edit the CLI runs the project's package manager (`npm install`, `pnpm install`, `go mod tidy` and so on), which regenerates the lockfile, and the rescan then confirms the result. The `--dry-run` plan lists the override and the command without touching either file.
+
+The command runs in the manifest's own directory. For Python, a lockfile beside the manifest picks the manager: `uv.lock` runs `uv sync`, `poetry.lock` runs `poetry update <package>`, `pdm.lock` runs `pdm update <package>` and `Pipfile.lock` runs `pipenv update <package>`. Without one, a requirements file (`requirements.txt`, `requirements-dev.txt`, `requirements.in`) runs `pip install -r <file>`, a `pyproject.toml`, `setup.py` or `setup.cfg` project is reinstalled with `pip install .`, and a `Pipfile` runs `pipenv install`.
 
 The report prints proof-of-work counts:
 

@@ -31,7 +31,7 @@ vulnetix fix [path] [flags]
 | `--path` | string | `.` | Directory to scan; positional `[path]` overrides |
 | `--strategy` | string | `stable` | Fix target strategy: `safest`, `stable`, `latest` or `rolling` |
 | `--manifest` | string | - | Restrict edits to one manifest file |
-| `--max-major-bump` | int | `0` | Refuse targets crossing more than N major versions (0 = no limit) |
+| `--max-major-bump` | int | `0` | Refuse targets crossing more than N major versions. `0` stays on the current major; a negative value lifts the cap |
 | `--yes` | bool | `false` | Non-interactive: pick safe defaults, never prompt |
 | `--dry-run` | bool | `false` | Show the fix plan and change nothing |
 | `--depth` | int | `3` | Max recursion depth |

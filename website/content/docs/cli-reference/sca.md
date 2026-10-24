@@ -53,7 +53,7 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--sca-autofix` | bool | `false` | Apply validated SCA fixes with the project package manager, then rescan to confirm |
 | `--sca-autofix-strategy` | string | `stable` | Target strategy: `safest`, `stable`, `latest` or `rolling` ([definitions](/docs/cli-reference/sca-autofix/#strategies)) |
 | `--sca-autofix-manifest` | string | - | Restrict autofix edits to one manifest file |
-| `--sca-autofix-max-major-bump` | int | `0` | Refuse targets crossing more than N major versions |
+| `--sca-autofix-max-major-bump` | int | `0` | Refuse targets crossing more than N major versions. `0` stays on the current major; a negative value lifts the cap |
 | `--yes` | bool | `false` | Non-interactive autofix mode: auto-pick safe defaults and never prompt |
 | `--dry-run` | bool | `false` | Parse packages locally, replay stored results, then exit — zero API calls |
 
