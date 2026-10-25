@@ -595,3 +595,28 @@ jobs:
             --channel "name=go install github.com/vulnetix/cli/v3@${VERSION},purl=pkg:golang/github.com/vulnetix/cli/v3@${VERSION}" \
             --channel "name=Install script: curl -fsSL https://cli.vulnetix.com/install.sh | sh,url=https://cli.vulnetix.com/install.sh" \
             --visibility public
+
+  # cross-binaries and darwin-binaries are read only by release and publish-tea, in this run, so
+  # they go as soon as both succeed. retention-days: 1 alone held about 7 GB of release binaries a
+  # day in October 2026, which with belai's filled the org's Actions artifact quota: other repos'
+  # uploads failed with "Artifact storage quota has been hit" (vdb-manager Deploy Docs). A failed
+  # run keeps them for its one day, so a rerun can still read them. release-subjects and the
+  # provenance bundle are left alone.
+  delete-artifacts:
+    needs: [release, publish-tea]
+    if: always() && needs.release.result == 'success' && needs.publish-tea.result == 'success'
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Delete the release binaries artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            --jq '.artifacts[] | select(.name == "cross-binaries" or .name == "darwin-binaries") | .id' \
+            | while read -r id; do
+                gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
+                echo "deleted artifact $id"
+              done
