@@ -24,6 +24,13 @@ env:
   # Force JS actions to Node 24 so deprecated Node 20 runs stop firing while
   # action versions catch up (silences upload-artifact@v5 et al.).
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # Binaries pass between jobs through the S3 stage, not Actions artifacts, which are billed in
+  # GB-hours per month (github-runner-aws README, "Staging large hand-offs in S3"). The role is
+  # assumed through OIDC and can read and write only this repository's prefix; objects expire
+  # after a day. Release assets, which users install from, are unchanged.
+  STAGE_BUCKET: vulnetix-gha-stage-061882422009
+  STAGE_PREFIX: ${{ github.event.repository.name }}/${{ github.run_id }}
+  STAGE_ROLE: arn:aws:iam::061882422009:role/gha-stage-${{ github.event.repository.name }}
 
 jobs:
   version:
@@ -48,6 +55,9 @@ jobs:
     needs: version
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -108,18 +118,24 @@ jobs:
           build_target windows amd64 x86_64-windows-gnu    ".exe"
           build_target windows arm64 aarch64-windows-gnu   ".exe"
 
-      - uses: actions/upload-artifact@v6
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
-          name: cross-binaries
-          path: bin/*
-          # Only the release job below reads these, in this same run.
-          retention-days: 1
+          role-to-assume: ${{ env.STAGE_ROLE }}
+          aws-region: ap-southeast-2
+      # Read by release and publish-tea, in this same run.
+      - name: Stage cross-binaries
+        run: |
+          set -euo pipefail
+          tar -czf - -C bin . | aws s3 cp - "s3://$STAGE_BUCKET/$STAGE_PREFIX/cross-binaries.tgz"
 
   build-darwin:
     # Darwin builds run natively on macOS so Apple's SDK is available for CGO.
     needs: version
     runs-on: macos-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -149,16 +165,22 @@ jobs:
             CGO_CFLAGS="-arch x86_64 -w" CGO_LDFLAGS="-arch x86_64" \
             go build -ldflags "$LDFLAGS" -o bin/vulnetix-darwin-amd64 .
 
-      - uses: actions/upload-artifact@v6
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
-          name: darwin-binaries
-          path: bin/*
-          retention-days: 1
+          role-to-assume: ${{ env.STAGE_ROLE }}
+          aws-region: ap-southeast-2
+      - name: Stage darwin-binaries
+        run: |
+          set -euo pipefail
+          tar -czf - -C bin . | aws s3 cp - "s3://$STAGE_BUCKET/$STAGE_PREFIX/darwin-binaries.tgz"
 
   release:
     needs: [version, build-cross, build-darwin]
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
+    permissions:
+      contents: write
+      id-token: write
     outputs:
       version: ${{ needs.version.outputs.version }}
     steps:
@@ -166,14 +188,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v7
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
-          name: cross-binaries
-          path: bin
-      - uses: actions/download-artifact@v7
-        with:
-          name: darwin-binaries
-          path: bin
+          role-to-assume: ${{ env.STAGE_ROLE }}
+          aws-region: ap-southeast-2
+      - name: Fetch the staged binaries
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          for name in cross-binaries darwin-binaries; do
+            aws s3 cp "s3://$STAGE_BUCKET/$STAGE_PREFIX/$name.tgz" - | tar -xzf - -C bin
+          done
 
       - name: Copy install script
         run: cp install.sh bin/install.sh
@@ -469,10 +494,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v7
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
-          name: cross-binaries
-          path: bin
+          role-to-assume: ${{ env.STAGE_ROLE }}
+          aws-region: ap-southeast-2
+      - name: Fetch the staged cross-binaries
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          aws s3 cp "s3://$STAGE_BUCKET/$STAGE_PREFIX/cross-binaries.tgz" - | tar -xzf - -C bin
 
       # The bundle for every binary in the release, signed by the provenance
       # job. Not fatal: `tea release` drops a file it cannot read and says so.
@@ -596,27 +626,3 @@ jobs:
             --channel "name=Install script: curl -fsSL https://cli.vulnetix.com/install.sh | sh,url=https://cli.vulnetix.com/install.sh" \
             --visibility public
 
-  # cross-binaries and darwin-binaries are read only by release and publish-tea, in this run, so
-  # they go as soon as both succeed. retention-days: 1 alone held about 7 GB of release binaries a
-  # day in October 2026, which with belai's filled the org's Actions artifact quota: other repos'
-  # uploads failed with "Artifact storage quota has been hit" (vdb-manager Deploy Docs). A failed
-  # run keeps them for its one day, so a rerun can still read them. release-subjects and the
-  # provenance bundle are left alone.
-  delete-artifacts:
-    needs: [release, publish-tea]
-    if: always() && needs.release.result == 'success' && needs.publish-tea.result == 'success'
-    runs-on: [self-hosted, Linux, X64, vulnetix-local]
-    timeout-minutes: 5
-    permissions:
-      actions: write
-    steps:
-      - name: Delete the release binaries artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-            --jq '.artifacts[] | select(.name == "cross-binaries" or .name == "darwin-binaries") | .id' \
-            | while read -r id; do
-                gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
-                echo "deleted artifact $id"
-              done
