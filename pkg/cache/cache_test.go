@@ -171,62 +171,117 @@ func TestCacheVersionDir(t *testing.T) {
 	}
 }
 
-func TestCleanOldCaches(t *testing.T) {
-	// Set up a fake base dir structure
-	baseDir := t.TempDir()
+func TestCleanOldCachesRemovesOtherVersions(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 
-	// Create versioned dirs
-	if err := os.MkdirAll(filepath.Join(baseDir, "v1.7"), 0700); err != nil {
-		t.Fatal(err)
+	baseDir := filepath.Join(home, ".vulnetix", "cache", "vdb")
+	for _, name := range []string{"v1.7", "v1.8", "v1.9"} {
+		if err := os.MkdirAll(filepath.Join(baseDir, name), 0700); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if err := os.MkdirAll(filepath.Join(baseDir, "v1.8"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Join(baseDir, "v1.9"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	// Create a legacy bare JSON file
 	if err := os.WriteFile(filepath.Join(baseDir, "abc123.json"), []byte("{}"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	// Create a non-version dir that should be left alone
 	if err := os.MkdirAll(filepath.Join(baseDir, "other"), 0700); err != nil {
 		t.Fatal(err)
 	}
 
-	// Simulate cleanup for version 1.8.x — only v1.8 should survive
-	current := cacheVersionDir("1.8.5")
-	entries, _ := os.ReadDir(baseDir)
-	removed := 0
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() {
-			if name == current {
-				continue
-			}
-			if name[0] != 'v' {
-				continue
-			}
-			if err := os.RemoveAll(filepath.Join(baseDir, name)); err == nil {
-				removed++
-			}
-		} else if filepath.Ext(name) == ".json" {
-			if err := os.Remove(filepath.Join(baseDir, name)); err == nil {
-				removed++
-			}
-		}
+	removed, err := CleanOldCaches("1.8.5")
+	if err != nil {
+		t.Fatalf("CleanOldCaches: %v", err)
 	}
-
 	if removed != 3 { // v1.7, v1.9, abc123.json
 		t.Fatalf("expected 3 removals, got %d", removed)
 	}
 
-	// v1.8 should still exist
-	if _, err := os.Stat(filepath.Join(baseDir, "v1.8")); err != nil {
-		t.Fatal("v1.8 should survive cleanup")
+	for _, name := range []string{"v1.8", "other"} {
+		if _, err := os.Stat(filepath.Join(baseDir, name)); err != nil {
+			t.Fatalf("%s should survive cleanup: %v", name, err)
+		}
 	}
-	// "other" should still exist
-	if _, err := os.Stat(filepath.Join(baseDir, "other")); err != nil {
-		t.Fatal("non-version dir should survive cleanup")
+	for _, name := range []string{"v1.7", "v1.9", "abc123.json"} {
+		if _, err := os.Stat(filepath.Join(baseDir, name)); !os.IsNotExist(err) {
+			t.Fatalf("%s should be removed", name)
+		}
+	}
+}
+
+func TestCleanOldCachesAbsentBaseDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	removed, err := CleanOldCaches("1.8.5")
+	if err != nil {
+		t.Fatalf("CleanOldCaches: %v", err)
+	}
+	if removed != 0 {
+		t.Fatalf("expected 0 removals, got %d", removed)
+	}
+}
+
+func TestNewDiskCacheDirLayout(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	c, err := NewDiskCache("1.8.5")
+	if err != nil {
+		t.Fatalf("NewDiskCache: %v", err)
+	}
+	want := filepath.Join(home, ".vulnetix", "cache", "vdb", "v1.8")
+	if got := c.Dir(); got != want {
+		t.Fatalf("Dir() = %q, want %q", got, want)
+	}
+	info, err := os.Stat(want)
+	if err != nil {
+		t.Fatalf("cache dir should exist: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0700 {
+		t.Fatalf("cache dir mode = %o, want 0700", perm)
+	}
+
+	baseDir, err := CacheBaseDir()
+	if err != nil {
+		t.Fatalf("CacheBaseDir: %v", err)
+	}
+	if want := filepath.Join(home, ".vulnetix", "cache", "vdb"); baseDir != want {
+		t.Fatalf("CacheBaseDir() = %q, want %q", baseDir, want)
+	}
+}
+
+func TestNewDiskCacheAt(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "custom", "cache")
+	c, err := NewDiskCacheAt(dir)
+	if err != nil {
+		t.Fatalf("NewDiskCacheAt: %v", err)
+	}
+	if got := c.Dir(); got != dir {
+		t.Fatalf("Dir() = %q, want %q", got, dir)
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatalf("cache dir should exist: %v", err)
+	}
+}
+
+func TestCacheVersionDirEdges(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"1", "v1"},
+		{"1.8", "v1.8"},
+		{"v", "v"},
+		{"", "v"},
+	}
+	for _, tt := range tests {
+		if got := cacheVersionDir(tt.in); got != tt.want {
+			t.Errorf("cacheVersionDir(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestDir(t *testing.T) {
+	dir := t.TempDir()
+	c := &DiskCache{dir: dir}
+	if got := c.Dir(); got != dir {
+		t.Fatalf("Dir() = %q, want %q", got, dir)
 	}
 }
