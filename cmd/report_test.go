@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 // storedReportFixture writes the CycloneDX document the scanners persist, with a
@@ -42,24 +44,46 @@ func storedReportFixture(t *testing.T) string {
 	return root
 }
 
-func resetReportFlags(t *testing.T) {
+// noAPICalls points the API at a closed port so any SCA/API round-trip fails the
+// test instead of passing quietly.
+func noAPICalls(t *testing.T) {
 	t.Helper()
-	for flag, value := range map[string]string{
-		"path":             ".",
-		"fresh-exploits":   "false",
-		"fresh-advisories": "false",
-		"fresh-vulns":      "false",
-	} {
-		if err := reportCmd.Flags().Set(flag, value); err != nil {
-			t.Fatalf("resetting report --%s: %v", flag, err)
+	t.Setenv("VULNETIX_API_URL", "http://127.0.0.1:1")
+}
+
+// resetFlagSet restores the given command's mutable flags to their defaults.
+// Cobra flag values live on the command object, so a test that sets a flag would
+// otherwise leave it set for every test that runs after it.
+func resetFlagSet(t *testing.T, cmd *cobra.Command, defaults map[string]string) {
+	t.Helper()
+	for flag, value := range defaults {
+		if cmd.Flags().Lookup(flag) == nil {
+			continue // not every command registers every family flag
+		}
+		if err := cmd.Flags().Set(flag, value); err != nil {
+			t.Fatalf("resetting %s --%s: %v", cmd.Name(), flag, err)
 		}
 	}
+}
+
+// reportFlagDefaults are the report command's mutable flags a test can leave set;
+// each value is the flag's registered default.
+var reportFlagDefaults = map[string]string{
+	"path":             ".",
+	"fresh-exploits":   "false",
+	"fresh-advisories": "false",
+	"fresh-vulns":      "false",
+}
+
+func resetReportFlags(t *testing.T) {
+	t.Helper()
+	resetFlagSet(t, reportCmd, reportFlagDefaults)
 }
 
 // TestReportRendersStoredFindings is the core of the new owner: replaying results
 // needs no scan and no network.
 func TestReportRendersStoredFindings(t *testing.T) {
-	t.Setenv("VULNETIX_API_URL", "http://127.0.0.1:1")
+	noAPICalls(t)
 	resetReportFlags(t)
 	root := storedReportFixture(t)
 
@@ -76,7 +100,7 @@ func TestReportRendersStoredFindings(t *testing.T) {
 }
 
 func TestReportAcceptsPositionalPath(t *testing.T) {
-	t.Setenv("VULNETIX_API_URL", "http://127.0.0.1:1")
+	noAPICalls(t)
 	resetReportFlags(t)
 	root := storedReportFixture(t)
 
@@ -91,7 +115,7 @@ func TestReportAcceptsPositionalPath(t *testing.T) {
 }
 
 func TestReportWithoutStoredResultsExplainsItself(t *testing.T) {
-	t.Setenv("VULNETIX_API_URL", "http://127.0.0.1:1")
+	noAPICalls(t)
 	resetReportFlags(t)
 
 	_, err := executeCommand(t, rootCmd, "report",
@@ -108,7 +132,7 @@ func TestReportWithoutStoredResultsExplainsItself(t *testing.T) {
 // still works and produces the report, so existing pipelines are not broken by
 // moving ownership.
 func TestScanFromMemoryDelegatesToReport(t *testing.T) {
-	t.Setenv("VULNETIX_API_URL", "http://127.0.0.1:1")
+	noAPICalls(t)
 	resetScanFamilyFlags(t, "scan")
 	root := storedReportFixture(t)
 	t.Cleanup(func() {

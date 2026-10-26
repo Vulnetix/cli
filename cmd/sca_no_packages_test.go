@@ -20,7 +20,7 @@ import (
 // The API is pointed at a closed port, so any attempt to call it fails the test
 // rather than passing quietly.
 func TestSCAWithNoDeclaredDependenciesMakesNoAPICall(t *testing.T) {
-	t.Setenv("VULNETIX_API_URL", "http://127.0.0.1:1")
+	noAPICalls(t)
 
 	root := t.TempDir()
 	// A go.mod with no requires needs no lockfile, so the build-or-lock gate stays
@@ -54,7 +54,7 @@ func TestSCAWithNoDeclaredDependenciesMakesNoAPICall(t *testing.T) {
 // TestScanWithNoDeclaredDependenciesSucceeds is the same guarantee through the
 // orchestrator, which reaches the SCA stage via a different flag path.
 func TestScanWithNoDeclaredDependenciesSucceeds(t *testing.T) {
-	t.Setenv("VULNETIX_API_URL", "http://127.0.0.1:1")
+	noAPICalls(t)
 
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "package.json"),

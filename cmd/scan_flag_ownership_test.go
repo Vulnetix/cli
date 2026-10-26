@@ -14,24 +14,22 @@ import (
 // --list-default-rules` scanned instead of printing rules.
 var scanFamily = []string{"scan", "sca", "sast", "secrets", "containers", "iac"}
 
+// scanFamilyFlagDefaults are the flags the scan-family commands share and that a
+// test can leave set; each value is the flag's registered default.
+var scanFamilyFlagDefaults = map[string]string{
+	"dry-run":            "false",
+	"list-default-rules": "false",
+	"path":               ".",
+	"no-progress":        "false",
+}
+
 func resetScanFamilyFlags(t *testing.T, name string) {
 	t.Helper()
 	cmd, _, err := rootCmd.Find([]string{name})
 	if err != nil {
 		t.Fatalf("finding %s: %v", name, err)
 	}
-	for flag, value := range map[string]string{
-		"dry-run":            "false",
-		"list-default-rules": "false",
-		"path":               ".",
-		"no-progress":        "false",
-	} {
-		if f := cmd.Flags().Lookup(flag); f != nil {
-			if err := cmd.Flags().Set(flag, value); err != nil {
-				t.Fatalf("resetting %s --%s: %v", name, flag, err)
-			}
-		}
-	}
+	resetFlagSet(t, cmd, scanFamilyFlagDefaults)
 }
 
 func dryRunFixture(t *testing.T) string {
@@ -57,7 +55,7 @@ func dryRunFixture(t *testing.T) string {
 // command that offers it. The test points the API at a closed port — a command
 // that reaches the network fails instead of succeeding.
 func TestDryRunHonouredAcrossScanFamily(t *testing.T) {
-	t.Setenv("VULNETIX_API_URL", "http://127.0.0.1:1")
+	noAPICalls(t)
 	root := dryRunFixture(t)
 
 	for _, name := range scanFamily {
@@ -85,7 +83,7 @@ func TestDryRunHonouredAcrossScanFamily(t *testing.T) {
 // TestDryRunScopeMatchesCommand checks the report is per-command rather than a
 // copy of the generic scan plan.
 func TestDryRunScopeMatchesCommand(t *testing.T) {
-	t.Setenv("VULNETIX_API_URL", "http://127.0.0.1:1")
+	noAPICalls(t)
 	root := dryRunFixture(t)
 
 	cases := map[string]struct {
@@ -124,7 +122,7 @@ func TestDryRunScopeMatchesCommand(t *testing.T) {
 // flag: every command that registers --list-default-rules must print the table
 // and exit rather than scanning.
 func TestListDefaultRulesHonouredWhereRegistered(t *testing.T) {
-	t.Setenv("VULNETIX_API_URL", "http://127.0.0.1:1")
+	noAPICalls(t)
 
 	for _, name := range scanFamily {
 		cmd, _, err := rootCmd.Find([]string{name})
