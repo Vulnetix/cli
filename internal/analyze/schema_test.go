@@ -37,6 +37,28 @@ func TestEmbeddedSchemasMatchSource(t *testing.T) {
 	}
 }
 
+// The Go const that Builder stamps into every report and the schema's
+// schemaVersion const are two spellings of one fact, and nothing but this test
+// keeps them in step. A one-sided bump otherwise surfaces only when a
+// marshalled report fails validation at write or upload time, in production —
+// not at test time, as the package comment promises.
+func TestSchemaVersionConstantMatchesSchema(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "schemas", "vulnetix-analyze-report.schema.json"))
+	require.NoError(t, err)
+
+	var schema struct {
+		Properties struct {
+			SchemaVersion struct {
+				Const string `json:"const"`
+			} `json:"schemaVersion"`
+		} `json:"properties"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &schema))
+
+	require.Equal(t, SchemaVersion, schema.Properties.SchemaVersion.Const,
+		"report.go SchemaVersion and the schema's schemaVersion const have drifted; bump both together")
+}
+
 func TestValidateReport_MinimalReportIsValid(t *testing.T) {
 	require.NoError(t, ValidateReport(goldenReport(t, nil)))
 }
