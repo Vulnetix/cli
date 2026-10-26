@@ -1,6 +1,7 @@
 package aifirewall
 
 import (
+	"sort"
 	"strings"
 	"testing"
 )
@@ -101,5 +102,56 @@ func TestFindSnippetListsValidPairsOnMiss(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "python/openai") {
 		t.Errorf("the error should list the valid pairs: %v", err)
+	}
+}
+
+func contains(list []string, want string) bool {
+	for _, v := range list {
+		if v == want {
+			return true
+		}
+	}
+	return false
+}
+
+// SnippetLangs and SnippetSDKs feed shell completion; they must be sorted and
+// complete or a valid pair will not be offered.
+func TestSnippetLangsAndSDKs(t *testing.T) {
+	langs := SnippetLangs()
+	if !sort.StringsAreSorted(langs) {
+		t.Errorf("langs not sorted: %v", langs)
+	}
+	for _, want := range []string{"go", "python", "sh", "ts"} {
+		if !contains(langs, want) {
+			t.Errorf("SnippetLangs missing %q", want)
+		}
+	}
+
+	sdks := SnippetSDKs()
+	if !sort.StringsAreSorted(sdks) {
+		t.Errorf("sdks not sorted: %v", sdks)
+	}
+	for _, want := range []string{"anthropic", "curl", "openai", "vercel-ai"} {
+		if !contains(sdks, want) {
+			t.Errorf("SnippetSDKs missing %q", want)
+		}
+	}
+}
+
+func TestSnippetSupports(t *testing.T) {
+	anthropic, _ := FindSnippet("python", "anthropic")
+	if anthropic.Supports(Provider{Slug: "openai"}) {
+		t.Error("a provider-pinned snippet must not support another provider")
+	}
+	if !anthropic.Supports(Provider{Slug: "anthropic"}) {
+		t.Error("a provider-pinned snippet must support its own provider")
+	}
+
+	openai, _ := FindSnippet("python", "openai")
+	if !openai.Supports(Provider{Slug: "openai", Wire: WireChat}) {
+		t.Error("a wire-matched snippet must be supported")
+	}
+	if openai.Supports(Provider{Slug: "xai", Wire: WireMessages}) {
+		t.Error("a wire-mismatched snippet must not be supported")
 	}
 }
