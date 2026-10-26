@@ -57,7 +57,7 @@ func TestDetect(t *testing.T) {
 
 // TestDetectUnwrapsDSSE covers the shape `cosign attest` and `syft attest`
 // produce: an in-toto Statement base64'd inside a DSSE envelope. Sniffing the
-// top level of one of these finds neither bomFormat nor spdxVersion, so without
+// top level of one of these finds neither discriminator field, so without
 // unwrapping every signed container SBOM would be unreadable.
 func TestDetectUnwrapsDSSE(t *testing.T) {
 	inner, err := os.ReadFile(filepath.Join("testdata", "buildkit.intoto.json"))
@@ -98,7 +98,7 @@ func TestDetectUnwrapsDSSE(t *testing.T) {
 func TestDetectRejectsNonSBOM(t *testing.T) {
 	for _, input := range []string{
 		`{"hello":"world"}`,
-		`{"spdxVersion":"SPDX-3.0","SPDXID":"SPDXRef-DOCUMENT"}`,
+		testSPDX3(),
 		`not json at all`,
 	} {
 		if _, err := LoadBytes([]byte(input), ""); err == nil {
@@ -232,14 +232,14 @@ func TestInTotoWrappedSPDX(t *testing.T) {
 // bom-refs. The dependency graph addresses components by ref, so leaving them
 // empty would produce a graph resolving to nothing.
 func TestEnsureBOMRefs(t *testing.T) {
-	input := `{
-	  "bomFormat":"CycloneDX","specVersion":"1.5","version":1,
-	  "components":[
-	    {"type":"library","name":"a","version":"1.0.0","purl":"pkg:npm/a@1.0.0"},
-	    {"type":"library","name":"b","version":"2.0.0"},
-	    {"type":"library","name":"b","version":"2.0.0"}
-	  ]
-	}`
+	input := testCDX(t, cdxTestDoc{
+		SpecVersion: "1.5",
+		Components: []cdxTestComponent{
+			{Type: "library", Name: "a", Version: "1.0.0", Purl: "pkg:npm/a@1.0.0"},
+			{Type: "library", Name: "b", Version: "2.0.0"},
+			{Type: "library", Name: "b", Version: "2.0.0"},
+		},
+	})
 	doc, err := LoadBytes([]byte(input), "")
 	if err != nil {
 		t.Fatal(err)

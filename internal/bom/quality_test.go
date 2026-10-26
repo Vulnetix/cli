@@ -50,13 +50,12 @@ func TestQualityReportsPerField(t *testing.T) {
 // missing the field. A bare count tells a user their SBOM is deficient; the
 // names tell them where to look.
 func TestQualityNamesOffenders(t *testing.T) {
-	input := `{
-	  "bomFormat":"CycloneDX","specVersion":"1.6","version":1,
-	  "components":[
-	    {"type":"library","name":"alpha","purl":"pkg:npm/alpha"},
-	    {"type":"library","name":"beta","version":"1.0.0","purl":"pkg:npm/beta@1.0.0"}
-	  ]
-	}`
+	input := testCDX(t, cdxTestDoc{
+		Components: []cdxTestComponent{
+			{Type: "library", Name: "alpha", Purl: "pkg:npm/alpha"},
+			{Type: "library", Name: "beta", Version: "1.0.0", Purl: "pkg:npm/beta@1.0.0"},
+		},
+	})
 	doc, err := LoadBytes([]byte(input), "")
 	if err != nil {
 		t.Fatal(err)

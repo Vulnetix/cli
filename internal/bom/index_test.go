@@ -20,70 +20,81 @@ func corpusFixture(t *testing.T) string {
 		}
 	}
 
-	write("payments.cdx.json", `{
-	  "bomFormat":"CycloneDX","specVersion":"1.6","version":1,
-	  "serialNumber":"urn:uuid:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-	  "metadata":{
-	    "timestamp":"2026-08-01T00:00:00Z",
-	    "component":{"type":"application","bom-ref":"root","name":"payment-service","version":"2.4.0"},
-	    "properties":[
-	      {"name":"vulnetix:deployment/cluster","value":"prod-eu"},
-	      {"name":"vulnetix:deployment/project","value":"payment-service"}
-	    ]
-	  },
-	  "components":[
-	    {"type":"library","bom-ref":"pkg:npm/lodash@4.17.20","name":"lodash","version":"4.17.20","purl":"pkg:npm/lodash@4.17.20","licenses":[{"license":{"id":"MIT"}}]},
-	    {"type":"library","bom-ref":"pkg:npm/express@4.18.2","name":"express","version":"4.18.2","purl":"pkg:npm/express@4.18.2"},
-	    {"type":"library","bom-ref":"pkg:npm/left-pad@1.3.0","name":"left-pad","version":"1.3.0","purl":"pkg:npm/left-pad@1.3.0"}
-	  ],
-	  "dependencies":[
-	    {"ref":"root","dependsOn":["pkg:npm/lodash@4.17.20","pkg:npm/express@4.18.2"]},
-	    {"ref":"pkg:npm/express@4.18.2","dependsOn":["pkg:npm/left-pad@1.3.0"]}
-	  ],
-	  "vulnerabilities":[
-	    {"id":"CVE-2021-44228","description":"Log4Shell remote code execution",
-	     "ratings":[{"score":10.0,"severity":"critical"}],
-	     "affects":[{"ref":"pkg:npm/lodash@4.17.20"}]}
-	  ]
-	}`)
+	write("payments.cdx.json", testCDX(t, cdxTestDoc{
+		SerialNumber: "urn:uuid:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+		Metadata: &cdxTestMetadata{
+			Timestamp: "2026-08-01T00:00:00Z",
+			Component: &cdxTestComponent{Type: "application", BOMRef: "root", Name: "payment-service", Version: "2.4.0"},
+			Properties: []cdxTestProperty{
+				{Name: "vulnetix:deployment/cluster", Value: "prod-eu"},
+				{Name: "vulnetix:deployment/project", Value: "payment-service"},
+			},
+		},
+		Components: []cdxTestComponent{
+			{Type: "library", BOMRef: "pkg:npm/lodash@4.17.20", Name: "lodash", Version: "4.17.20", Purl: "pkg:npm/lodash@4.17.20", Licenses: []cdxTestLicense{{License: &cdxTestLicenseID{ID: "MIT"}}}},
+			{Type: "library", BOMRef: "pkg:npm/express@4.18.2", Name: "express", Version: "4.18.2", Purl: "pkg:npm/express@4.18.2"},
+			{Type: "library", BOMRef: "pkg:npm/left-pad@1.3.0", Name: "left-pad", Version: "1.3.0", Purl: "pkg:npm/left-pad@1.3.0"},
+		},
+		Dependencies: []cdxTestDependency{
+			{Ref: "root", DependsOn: []string{"pkg:npm/lodash@4.17.20", "pkg:npm/express@4.18.2"}},
+			{Ref: "pkg:npm/express@4.18.2", DependsOn: []string{"pkg:npm/left-pad@1.3.0"}},
+		},
+		Vulnerabilities: []cdxTestVulnerability{
+			{
+				ID: "CVE-2021-44228", Description: "Log4Shell remote code execution",
+				Ratings: []cdxTestRating{{Score: 10.0, Severity: "critical"}},
+				Affects: []cdxTestAffect{{Ref: "pkg:npm/lodash@4.17.20"}},
+			},
+		},
+	}))
 
-	write("checkout.cdx.json", `{
-	  "bomFormat":"CycloneDX","specVersion":"1.6","version":1,
-	  "serialNumber":"urn:uuid:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-	  "metadata":{
-	    "timestamp":"2026-08-02T00:00:00Z",
-	    "component":{"type":"application","bom-ref":"root","name":"checkout-service","version":"1.9.0"},
-	    "properties":[{"name":"vulnetix:deployment/cluster","value":"prod-us"}]
-	  },
-	  "components":[
-	    {"type":"library","bom-ref":"pkg:npm/lodash@4.17.21","name":"lodash","version":"4.17.21","purl":"pkg:npm/lodash@4.17.21","licenses":[{"license":{"id":"MIT"}}]},
-	    {"type":"library","bom-ref":"pkg:npm/chalk@5.3.0","name":"chalk","version":"5.3.0","purl":"pkg:npm/chalk@5.3.0","licenses":[{"license":{"id":"AGPL-3.0-only"}}]}
-	  ],
-	  "dependencies":[
-	    {"ref":"root","dependsOn":["pkg:npm/lodash@4.17.21","pkg:npm/chalk@5.3.0"]}
-	  ]
-	}`)
+	write("checkout.cdx.json", testCDX(t, cdxTestDoc{
+		SerialNumber: "urn:uuid:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+		Metadata: &cdxTestMetadata{
+			Timestamp: "2026-08-02T00:00:00Z",
+			Component: &cdxTestComponent{Type: "application", BOMRef: "root", Name: "checkout-service", Version: "1.9.0"},
+			Properties: []cdxTestProperty{
+				{Name: "vulnetix:deployment/cluster", Value: "prod-us"},
+			},
+		},
+		Components: []cdxTestComponent{
+			{Type: "library", BOMRef: "pkg:npm/lodash@4.17.21", Name: "lodash", Version: "4.17.21", Purl: "pkg:npm/lodash@4.17.21", Licenses: []cdxTestLicense{{License: &cdxTestLicenseID{ID: "MIT"}}}},
+			{Type: "library", BOMRef: "pkg:npm/chalk@5.3.0", Name: "chalk", Version: "5.3.0", Purl: "pkg:npm/chalk@5.3.0", Licenses: []cdxTestLicense{{License: &cdxTestLicenseID{ID: "AGPL-3.0-only"}}}},
+		},
+		Dependencies: []cdxTestDependency{
+			{Ref: "root", DependsOn: []string{"pkg:npm/lodash@4.17.21", "pkg:npm/chalk@5.3.0"}},
+		},
+	}))
 
 	// SPDX, so the corpus proves it queries across formats.
-	write("docs.spdx.json", `{
-	  "spdxVersion":"SPDX-2.3","dataLicense":"CC0-1.0","SPDXID":"SPDXRef-DOCUMENT",
-	  "name":"docs-site","documentNamespace":"https://example.com/spdx/docs",
-	  "creationInfo":{"created":"2026-08-03T00:00:00Z","creators":["Tool: syft-1.18.1"]},
-	  "documentDescribes":["SPDXRef-Package-root"],
-	  "packages":[
-	    {"SPDXID":"SPDXRef-Package-root","name":"docs-site","versionInfo":"3.0.0",
-	     "downloadLocation":"NOASSERTION","licenseConcluded":"NOASSERTION","licenseDeclared":"NOASSERTION",
-	     "copyrightText":"NOASSERTION","filesAnalyzed":false,"primaryPackagePurpose":"APPLICATION"},
-	    {"SPDXID":"SPDXRef-Package-lodash","name":"lodash","versionInfo":"3.10.1",
-	     "downloadLocation":"NOASSERTION","licenseConcluded":"MIT","licenseDeclared":"MIT",
-	     "copyrightText":"NOASSERTION","filesAnalyzed":false,
-	     "externalRefs":[{"referenceCategory":"PACKAGE-MANAGER","referenceType":"purl","referenceLocator":"pkg:npm/lodash@3.10.1"}]}
-	  ],
-	  "relationships":[
-	    {"spdxElementId":"SPDXRef-DOCUMENT","relationshipType":"DESCRIBES","relatedSpdxElement":"SPDXRef-Package-root"},
-	    {"spdxElementId":"SPDXRef-Package-root","relationshipType":"DEPENDS_ON","relatedSpdxElement":"SPDXRef-Package-lodash"}
-	  ]
-	}`)
+	write("docs.spdx.json", testSPDX(t, spdxTestDoc{
+		Name:              "docs-site",
+		DocumentNamespace: "https://example.com/spdx/docs",
+		CreationInfo: spdxTestCreationInfo{
+			Created:  "2026-08-03T00:00:00Z",
+			Creators: []string{"Tool: syft-1.18.1"},
+		},
+		DocumentDescribes: []string{"SPDXRef-Package-root"},
+		Packages: []spdxTestPackage{
+			{
+				SPDXID: "SPDXRef-Package-root", Name: "docs-site", VersionInfo: "3.0.0",
+				DownloadLocation: "NOASSERTION", LicenseConcluded: "NOASSERTION", LicenseDeclared: "NOASSERTION",
+				CopyrightText: "NOASSERTION", FilesAnalyzed: false, PrimaryPackagePurpose: "APPLICATION",
+			},
+			{
+				SPDXID: "SPDXRef-Package-lodash", Name: "lodash", VersionInfo: "3.10.1",
+				DownloadLocation: "NOASSERTION", LicenseConcluded: "MIT", LicenseDeclared: "MIT",
+				CopyrightText: "NOASSERTION", FilesAnalyzed: false,
+				ExternalRefs: []spdxTestExternalRef{
+					{ReferenceCategory: "PACKAGE-MANAGER", ReferenceType: "purl", ReferenceLocator: "pkg:npm/lodash@3.10.1"},
+				},
+			},
+		},
+		Relationships: []spdxTestRelationship{
+			{SPDXElementID: "SPDXRef-DOCUMENT", RelationshipType: "DESCRIBES", RelatedSPDXElement: "SPDXRef-Package-root"},
+			{SPDXElementID: "SPDXRef-Package-root", RelationshipType: "DEPENDS_ON", RelatedSPDXElement: "SPDXRef-Package-lodash"},
+		},
+	}))
 
 	// Not an SBOM: a corpus directory in the wild holds these too.
 	write("notes.json", `{"todo":"nothing"}`)
@@ -143,7 +154,7 @@ func TestCollectGlobAndMissingPath(t *testing.T) {
 func TestCollectReportsUnreadable(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "broken.cdx.json"),
-		[]byte(`{"bomFormat":"CycloneDX","specVersion":"1.6",`), 0o644); err != nil {
+		[]byte(testCDXTruncated()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	collected, err := Collect(CollectOptions{Paths: []string{filepath.Join(dir, "broken.cdx.json")}})
@@ -261,10 +272,12 @@ func TestSkew(t *testing.T) {
 func TestSkewIgnoresUnversioned(t *testing.T) {
 	dir := t.TempDir()
 	for i, body := range []string{
-		`{"bomFormat":"CycloneDX","specVersion":"1.6","version":1,
-		  "components":[{"type":"library","name":"thing","purl":"pkg:npm/thing"}]}`,
-		`{"bomFormat":"CycloneDX","specVersion":"1.6","version":1,
-		  "components":[{"type":"library","name":"thing","purl":"pkg:npm/thing"}]}`,
+		testCDX(t, cdxTestDoc{Components: []cdxTestComponent{
+			{Type: "library", Name: "thing", Purl: "pkg:npm/thing"},
+		}}),
+		testCDX(t, cdxTestDoc{Components: []cdxTestComponent{
+			{Type: "library", Name: "thing", Purl: "pkg:npm/thing"},
+		}}),
 	} {
 		name := filepath.Join(dir, "doc"+string(rune('a'+i))+".cdx.json")
 		if err := os.WriteFile(name, []byte(body), 0o644); err != nil {

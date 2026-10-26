@@ -75,19 +75,18 @@ func TestBuildTreeDepthLimit(t *testing.T) {
 // recursed into. Go modules and Maven both permit cycles, so this is a real
 // input, not a hypothetical.
 func TestBuildTreeCycle(t *testing.T) {
-	input := `{
-	  "bomFormat":"CycloneDX","specVersion":"1.6","version":1,
-	  "metadata":{"component":{"type":"application","bom-ref":"root","name":"app"}},
-	  "components":[
-	    {"type":"library","bom-ref":"a","name":"a","version":"1.0.0"},
-	    {"type":"library","bom-ref":"b","name":"b","version":"1.0.0"}
-	  ],
-	  "dependencies":[
-	    {"ref":"root","dependsOn":["a"]},
-	    {"ref":"a","dependsOn":["b"]},
-	    {"ref":"b","dependsOn":["a"]}
-	  ]
-	}`
+	input := testCDX(t, cdxTestDoc{
+		Metadata: &cdxTestMetadata{Component: &cdxTestComponent{Type: "application", BOMRef: "root", Name: "app"}},
+		Components: []cdxTestComponent{
+			{Type: "library", BOMRef: "a", Name: "a", Version: "1.0.0"},
+			{Type: "library", BOMRef: "b", Name: "b", Version: "1.0.0"},
+		},
+		Dependencies: []cdxTestDependency{
+			{Ref: "root", DependsOn: []string{"a"}},
+			{Ref: "a", DependsOn: []string{"b"}},
+			{Ref: "b", DependsOn: []string{"a"}},
+		},
+	})
 	doc, err := LoadBytes([]byte(input), "")
 	if err != nil {
 		t.Fatal(err)
@@ -111,7 +110,7 @@ func TestBuildTreeCycle(t *testing.T) {
 }
 
 func TestBuildTreeNoRoot(t *testing.T) {
-	doc, err := LoadBytes([]byte(`{"bomFormat":"CycloneDX","specVersion":"1.6","version":1}`), "")
+	doc, err := LoadBytes([]byte(testCDX(t, cdxTestDoc{})), "")
 	if err != nil {
 		t.Fatal(err)
 	}

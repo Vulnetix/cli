@@ -82,13 +82,16 @@ func TestDiffDirectness(t *testing.T) {
 		t.Errorf("chalk Direct = %v, want a direct dependency of the root", added.Direct)
 	}
 
-	noGraph := `{"bomFormat":"CycloneDX","specVersion":"1.6","version":1,
-	  "components":[{"type":"library","name":"x","version":"1.0.0","purl":"pkg:npm/x@1.0.0"}]}`
+	noGraph := testCDX(t, cdxTestDoc{
+		Components: []cdxTestComponent{
+			{Type: "library", Name: "x", Version: "1.0.0", Purl: "pkg:npm/x@1.0.0"},
+		},
+	})
 	a, err := LoadBytes([]byte(noGraph), "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := LoadBytes([]byte(`{"bomFormat":"CycloneDX","specVersion":"1.6","version":1}`), "")
+	b, err := LoadBytes([]byte(testCDX(t, cdxTestDoc{})), "")
 	if err != nil {
 		t.Fatal(err)
 	}
