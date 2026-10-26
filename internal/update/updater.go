@@ -29,7 +29,7 @@ func DetectInstallMethod(version, commit string) InstallMethod {
 	}
 
 	// Check if binary is inside GOBIN or GOPATH/bin
-	exe, err := os.Executable()
+	exe, err := executablePath()
 	if err == nil {
 		exe, _ = filepath.EvalSymlinks(exe)
 		dir := filepath.Dir(exe)
@@ -53,26 +53,16 @@ func DetectInstallMethod(version, commit string) InstallMethod {
 	return MethodPrebuilt
 }
 
-// Update performs a self-update of the binary.
-func Update(currentVersion, commit string) error {
-	method := DetectInstallMethod(currentVersion, commit)
+// executablePath returns the current executable path. Overridable in tests.
+var executablePath = os.Executable
 
-	switch method {
-	case MethodSourceBuild:
-		return fmt.Errorf("this binary was built from source; use 'go build' or 'make dev' to update")
+// goosOverride mirrors runtime.GOOS and is overridable in tests.
+var goosOverride = runtime.GOOS
 
-	case MethodGoInstall:
-		return updateViaGoInstall()
+// goInstallRunner performs the "go install" self-update. Overridable in tests.
+var goInstallRunner = defaultUpdateViaGoInstall
 
-	case MethodPrebuilt:
-		return updatePrebuilt()
-
-	default:
-		return fmt.Errorf("unknown install method")
-	}
-}
-
-func updateViaGoInstall() error {
+func defaultUpdateViaGoInstall() error {
 	fmt.Println("Updating via go install...")
 	cmd := exec.Command("go", "install", "github.com/vulnetix/cli/v3@latest")
 	cmd.Stdout = os.Stdout
@@ -84,6 +74,28 @@ func updateViaGoInstall() error {
 	return nil
 }
 
+// detectInstallMethod is overridable in tests.
+var detectInstallMethod = DetectInstallMethod
+
+// Update performs a self-update of the binary.
+func Update(currentVersion, commit string) error {
+	method := detectInstallMethod(currentVersion, commit)
+
+	switch method {
+	case MethodSourceBuild:
+		return fmt.Errorf("this binary was built from source; use 'go build' or 'make dev' to update")
+
+	case MethodGoInstall:
+		return goInstallRunner()
+
+	case MethodPrebuilt:
+		return updatePrebuilt()
+
+	default:
+		return fmt.Errorf("unknown install method")
+	}
+}
+
 func updatePrebuilt() error {
 	release, err := CheckLatest()
 	if err != nil {
@@ -92,12 +104,12 @@ func updatePrebuilt() error {
 
 	downloadURL := FindAsset(release)
 	if downloadURL == "" {
-		return fmt.Errorf("no release asset found for %s/%s", runtime.GOOS, runtime.GOARCH)
+		return fmt.Errorf("no release asset found for %s/%s", goosOverride, runtime.GOARCH)
 	}
 
 	fmt.Printf("Downloading %s...\n", release.TagName)
 
-	exe, err := os.Executable()
+	exe, err := executablePath()
 	if err != nil {
 		return fmt.Errorf("cannot determine executable path: %w", err)
 	}
@@ -140,7 +152,7 @@ func updatePrebuilt() error {
 	}
 
 	// On Windows, rename current binary first (can't overwrite running exe)
-	if runtime.GOOS == "windows" {
+	if goosOverride == "windows" {
 		oldPath := exe + ".old"
 		os.Remove(oldPath) // ignore error
 		if err := os.Rename(exe, oldPath); err != nil {

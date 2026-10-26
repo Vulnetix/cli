@@ -9,7 +9,14 @@ import (
 	"time"
 )
 
-const releasesURL = "https://api.github.com/repos/Vulnetix/cli/releases/latest"
+const defaultReleasesURL = "https://api.github.com/repos/Vulnetix/cli/releases/latest"
+
+// releaseURL is overridable in tests.
+var releaseURL = defaultReleasesURL
+
+// goos and goarch mirror runtime.GOOS/GOARCH and are overridable in tests.
+var goos = runtime.GOOS
+var goarch = runtime.GOARCH
 
 // Release represents the relevant fields from a GitHub release.
 type Release struct {
@@ -26,7 +33,7 @@ type Asset struct {
 // CheckLatest fetches the latest release from GitHub and returns it.
 func CheckLatest() (*Release, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", releasesURL, nil)
+	req, err := http.NewRequest("GET", releaseURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +60,8 @@ func CheckLatest() (*Release, error) {
 
 // FindAsset returns the download URL for the current OS/arch from the release assets.
 func FindAsset(release *Release) string {
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
+	goos := goos
+	goarch := goarch
 
 	suffix := ""
 	if goos == "windows" {
