@@ -2,6 +2,7 @@ package sast
 
 import (
 	"io"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -17,9 +18,12 @@ func TestBatchedEvaluationParity(t *testing.T) {
 	if testing.Short() {
 		t.Skip("evaluates every embedded rule twice")
 	}
+	root := filepath.Join("..", "..", "testdata", "vulnetix-fixture-app")
+	if _, err := os.Stat(filepath.Join(root, "src", "vuln.go")); err != nil {
+		t.Skip("fixture app submodule not checked out")
+	}
 	modules, err := LoadAllModules(DefaultRulesFS, false, nil, "", io.Discard)
 	require.NoError(t, err)
-	root := filepath.Join("..", "..", "testdata", "vulnetix-fixture-app")
 
 	run := func(batching bool, bytes, workers int) *SASTReport {
 		t.Helper()
