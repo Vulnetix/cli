@@ -140,11 +140,13 @@ func TestCachedEvaluationParity(t *testing.T) {
 		"a run that changed nothing compiles only the rules that read the clock")
 
 	// Shards and workers decide how the work is split, not what is cached.
-	t.Setenv("VULNETIX_SAST_SHARDS", "1")
-	t.Setenv("VULNETIX_SAST_WORKERS", "1")
-	resharded := run(true)
-	same(base, resharded)
-	require.Zero(t, resharded.EvaluatedGroups)
+	t.Run("resharded", func(t *testing.T) {
+		t.Setenv("VULNETIX_SAST_SHARDS", "1")
+		t.Setenv("VULNETIX_SAST_WORKERS", "1")
+		resharded := run(true)
+		same(base, resharded)
+		require.Zero(t, resharded.EvaluatedGroups)
+	})
 
 	vuln := filepath.Join(root, "src", "vuln.go")
 	src, err := os.ReadFile(vuln)
