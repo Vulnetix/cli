@@ -51,18 +51,36 @@ func newRegoInput(in *ScanInput) (*regoInput, error) {
 // value is the input document for a job that may read the files of `in`,
 // which is the ScanInput the terms were made from or a scopedInput of it.
 func (r *regoInput) value(in *ScanInput) ast.Value {
+	return r.valueOf(inputPaths(in))
+}
+
+// valueOf is the input document with only the named files in file_contents;
+// file_set and the other fields stay whole.
+func (r *regoInput) valueOf(paths []string) ast.Value {
 	// A new object over the shared terms: Object.Copy would deep-copy file_set.
 	obj := ast.NewObject()
 	r.base.Foreach(func(k, v *ast.Term) { obj.Insert(k, v) })
-	if len(in.FileContents) == 0 {
-		return obj // file_contents is omitempty in ScanInput's JSON
-	}
 	files := ast.NewObject()
-	for p := range in.FileContents {
-		files.Insert(ast.StringTerm(p), r.contents[p])
+	for _, p := range paths {
+		if t, ok := r.contents[p]; ok {
+			files.Insert(ast.StringTerm(p), t)
+		}
 	}
-	obj.Insert(fileContentsKey, ast.NewTerm(files))
+	if files.Len() > 0 { // file_contents is omitempty in ScanInput's JSON
+		obj.Insert(fileContentsKey, ast.NewTerm(files))
+	}
 	return obj
+}
+
+// size is the bytes of text the named files hold.
+func (r *regoInput) size(paths []string) int {
+	n := 0
+	for _, p := range paths {
+		if t, ok := r.contents[p]; ok {
+			n += len(t.Value.(ast.String))
+		}
+	}
+	return n
 }
 
 // jsonText is s as it reads after a JSON round trip, which is what rules saw

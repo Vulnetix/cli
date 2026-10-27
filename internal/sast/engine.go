@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"os"
 	"runtime"
 	"sort"
@@ -17,12 +16,12 @@ import (
 	"github.com/vulnetix/cli/v3/internal/secretscan"
 )
 
-// Sharded compilation tuning. Compiling the full embedded rule set (~1900
-// modules) into one OPA compiler is the dominant fixed cost of a scan (~85s on
-// this host) and is single-threaded; evaluation then scales with files on top.
-// Rules live in independent `vulnetix.rules.<id>` packages, so splitting them
-// across N compilers and evaluating each shard concurrently against the shared
-// input produces the identical union of findings while using all cores.
+// Sharded compilation tuning. One OPA compiler is single-threaded: the full
+// embedded rule set (~1900 modules) compiles in about 1.7s in one, 0.3s across
+// 16 (session.go measured it). Rules live in independent
+// `vulnetix.rules.<id>` packages, so splitting them across compilers and
+// evaluating each concurrently produces the identical union of findings. Rules
+// that read one file at a time are split further, by file batch (eval_units.go).
 const (
 	shardMinRules = 64 // below this, a single compile is cheaper than sharding
 	shardMaxCount = 16 // ceiling on concurrent compiler+eval shards
@@ -204,69 +203,50 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	// every line of every file. Rules are grouped by scope and each group gets
 	// an input whose FileContents holds only in-scope files; FileSet stays
 	// complete so existence checks ("is go.sum present") are unchanged.
-	groups := groupByScope(rules)
-	type job struct {
-		mods  map[string]string
-		input *ScanInput
-	}
-	var jobs []job
-	for _, g := range groups {
-		in := scopedInput(scanInput, g.scope)
-		k := 1
-		if n > 1 {
-			k = max(1, (n*len(g.rules)+len(rules)/2)/len(rules))
-		}
-		for _, shard := range shardModules(g.rules, min(k, len(g.rules))) {
-			if len(shard) == 0 {
-				continue
-			}
-			mods := make(map[string]string, len(shared)+len(shard))
-			needsFlow := shardUsesFlow(shard)
-			for name, src := range shared {
-				if isFlowModule(src) && !needsFlow {
-					continue
-				}
-				mods[name] = src
-			}
-			maps.Copy(mods, shard)
-			jobs = append(jobs, job{mods, in})
-		}
-	}
-
+	//
+	// Within a group, a rule whose findings each come from one file's text
+	// (classifyReach) is compiled once and evaluated a batch of files at a time
+	// across the workers, so one large group no longer runs on one core while
+	// the rest sit idle, and OPA's per-evaluation memo only ever holds one
+	// batch. Every other rule runs once over its whole scope, sharded as before.
+	idx := indexModules(modules)
 	terms, err := newRegoInput(scanInput)
 	if err != nil {
 		return nil, err
 	}
-
-	reports := make([]*SASTReport, len(jobs))
-	errs := make([]error, len(jobs))
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, max(1, n))
-	for i := range jobs {
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(i int) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			reports[i], errs[i] = evalModules(jobs[i].mods, terms.value(jobs[i].input))
-		}(i)
-	}
-	wg.Wait()
-
-	// A compile/eval error in any shard is fatal, matching the previous
-	// all-or-nothing single-compile behaviour.
-	for _, e := range errs {
-		if e != nil {
-			return nil, e
+	var units []*evalUnit
+	for _, g := range groupByScope(rules) {
+		in := scopedInput(scanInput, g.scope)
+		perFile, whole := map[string]string{}, map[string]string{}
+		for name, src := range g.rules {
+			if perFileBatching && idx.reach[name].perFile {
+				perFile[name] = src
+			} else {
+				whole[name] = src
+			}
 		}
+		if len(perFile) > 0 {
+			units = append(units, &evalUnit{mods: withShared(idx.sharedFor(shared, perFile), perFile), batches: fileBatches(in, batchBytes)})
+		}
+		k := 1
+		if n > 1 && len(whole) > 0 {
+			k = max(1, (n*len(whole)+len(rules)/2)/len(rules))
+		}
+		for _, shard := range shardModules(whole, min(k, len(whole))) {
+			if len(shard) > 0 {
+				units = append(units, &evalUnit{mods: withShared(idx.sharedFor(shared, shard), shard), batches: [][]string{inputPaths(in)}})
+			}
+		}
+	}
+
+	reports, err := runUnits(units, terms, evalWorkers())
+	if err != nil {
+		return nil, err
 	}
 
 	var allRules []RuleMetadata
 	var allFindings []Finding
 	for _, rep := range reports {
-		if rep == nil {
-			continue
-		}
 		allRules = append(allRules, rep.Rules...)
 		allFindings = append(allFindings, rep.Findings...)
 	}

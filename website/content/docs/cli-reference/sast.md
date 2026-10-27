@@ -47,7 +47,9 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 - **Text files** in the scan path, up to 1 MiB each. Larger files are listed as "not content-scanned" in the scan's degradations, never as clean.
 - **Binary files are not read.** Printable-strings and EXIF extraction feeds the secret rules only, so `sast` skips it. `vulnetix scan` with secrets enabled still extracts them, and no SAST rule sees that synthetic content (`__binary_strings__/`, `__exif__/`, `__git_history__/`, `__k8s_secret__/`).
 
-## Memory
+## Parallelism and memory
+
+Rules are evaluated on a pool of workers, one per core up to 16. A rule that judges one file at a time, most of them, is evaluated a batch of files at a time, so a large project spreads across every worker. A rule that reads more than one file (a configuration value used in code, a constant declared elsewhere) runs once over the files in its scope. Set `VULNETIX_SAST_WORKERS` to change the number of workers; fewer workers use less memory.
 
 A scan sets a soft Go memory limit of 75% of the machine's memory, or of its cgroup's `memory.max` when that is lower, so the runtime collects garbage harder before the kernel would kill the process. Set `GOMEMLIMIT` to choose your own limit; the scan then leaves it alone.
 
