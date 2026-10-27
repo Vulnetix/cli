@@ -42,6 +42,15 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--sast-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 | `--suppress-test-code` | bool | `false` | Suppress findings located in the project's test suite (see [Test-suite detection](#test-suite-detection)) |
 
+## What is read
+
+- **Text files** in the scan path, up to 1 MiB each. Larger files are listed as "not content-scanned" in the scan's degradations, never as clean.
+- **Binary files are not read.** Printable-strings and EXIF extraction feeds the secret rules only, so `sast` skips it. `vulnetix scan` with secrets enabled still extracts them, and no SAST rule sees that synthetic content (`__binary_strings__/`, `__exif__/`, `__git_history__/`, `__k8s_secret__/`).
+
+## Memory
+
+A scan sets a soft Go memory limit of 75% of the machine's memory, or of its cgroup's `memory.max` when that is lower, so the runtime collects garbage harder before the kernel would kill the process. Set `GOMEMLIMIT` to choose your own limit; the scan then leaves it alone.
+
 ## Examples
 
 ```bash

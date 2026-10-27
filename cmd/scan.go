@@ -402,6 +402,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	if handled, err := handleSASTRuleListing(cmd); handled {
 		return err
 	}
+	applyScanMemoryLimit()
 
 	// One place knows how a scan-family flag becomes an analysis input. What it
 	// leaves zero — detected files, the No* feature booleans, LockedKinds,

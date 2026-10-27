@@ -946,6 +946,8 @@ SAST rules are organized into four sub-categories that can be toggled independen
 | Container rules | `--no-containers` | `oci` | Dockerfile / Containerfile analysis |
 | IaC rules | `--no-iac` | `iac` | Terraform HCL, Nix files |
 
+Binary files are read only when secret detection runs: their printable strings and EXIF metadata go to the secret rules alone. A scan sets a soft memory limit of 75% of the machine's memory (or of its cgroup limit) unless `GOMEMLIMIT` is set; see [SAST: Memory](../sast/#memory).
+
 ### Disabling SAST
 
 ```bash
