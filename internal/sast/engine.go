@@ -233,6 +233,11 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 		}
 	}
 
+	terms, err := newRegoInput(scanInput)
+	if err != nil {
+		return nil, err
+	}
+
 	reports := make([]*SASTReport, len(jobs))
 	errs := make([]error, len(jobs))
 	var wg sync.WaitGroup
@@ -243,7 +248,7 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 		go func(i int) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			reports[i], errs[i] = evalModules(jobs[i].mods, jobs[i].input)
+			reports[i], errs[i] = evalModules(jobs[i].mods, terms.value(jobs[i].input))
 		}(i)
 	}
 	wg.Wait()
@@ -277,10 +282,10 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	}, nil
 }
 
-// evalModules compiles the given modules and evaluates them against scanInput,
+// evalModules compiles the given modules and evaluates them against input,
 // returning the rules and findings for that module set. Used per shard and for
 // the single-shard fast path.
-func evalModules(modules map[string]string, scanInput any) (*SASTReport, error) {
+func evalModules(modules map[string]string, input ast.Value) (*SASTReport, error) {
 	compiler, err := compileModules(modules)
 	if err != nil {
 		return nil, err
@@ -288,7 +293,7 @@ func evalModules(modules map[string]string, scanInput any) (*SASTReport, error) 
 	r := rego.New(
 		rego.Compiler(compiler),
 		rego.Query("data.vulnetix.rules"),
-		rego.Input(scanInput),
+		rego.ParsedInput(input),
 	)
 	rs, err := r.Eval(context.Background())
 	if err != nil {

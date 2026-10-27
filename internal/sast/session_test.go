@@ -50,7 +50,9 @@ func TestSessionParityWithEngine(t *testing.T) {
 	warm, err := s.Run(ctx, modules, nil, in)
 	require.NoError(t, err)
 
-	cold, err := evalModules(modules, in)
+	terms, err := newRegoInput(in)
+	require.NoError(t, err)
+	cold, err := evalModules(modules, terms.value(in))
 	require.NoError(t, err)
 
 	require.Equal(t, fingerprintSet(cold.Findings), fingerprintSet(warm.Findings),
