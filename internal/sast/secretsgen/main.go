@@ -158,9 +158,8 @@ findings contains finding if {
 	not secrets.skip_path(path)
 {{if .HasKeywords}}	secrets.has_keyword(content, _keywords)
 {{else}}	regex.match(_file_gate, content)
-{{end}}	lines := split(content, "\n")
-	some i, line in lines
-{{if .HasKeywords}}	secrets.has_keyword(line, _keywords)
+{{end}}{{if .HasKeywords}}	some i, line in secrets.keyword_lines(content, _keywords)
+{{else}}	some i, line in secrets.pattern_lines(content, _pattern)
 {{end}}	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]

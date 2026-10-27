@@ -16,11 +16,14 @@ import (
 // runs. Doing it in init() guarantees that ordering and makes it idempotent.
 //
 // We keep the custom-builtin surface minimal: the only thing pure Rego cannot
-// express is Shannon entropy, so that is the only computation exported here.
-// Allowlist/stopword/path logic stays in Rego (see rules/_lib/lib_secrets.rego)
-// where it is auditable and extensible per rule without a binary rebuild.
+// express is Shannon entropy, and the rest are Rego idioms that were too slow
+// interpreted (builtins_lines.go), each computing exactly what the Rego it
+// replaces did. Allowlist/stopword/path logic stays in Rego (see
+// rules/lib_secrets.rego) where it is auditable and extensible per rule
+// without a binary rebuild.
 func init() {
 	registerEntropyBuiltin()
+	registerLineBuiltins()
 }
 
 // registerEntropyBuiltin exposes vulnetix.shannon_entropy(string) -> number,

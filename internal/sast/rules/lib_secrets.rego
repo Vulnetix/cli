@@ -48,12 +48,20 @@ skip_path(p) if {
 
 # --- keyword prefilter ------------------------------------------------------
 # Cheap contains() gate that must pass before a rule runs its regex. `kws` is a
-# list of lower-case substrings; the line matches if any is present.
-has_keyword(line, kws) if {
-	low := lower(line)
-	some k in kws
-	contains(low, k)
-}
+# list of lower-case substrings; the line matches if any is present. The
+# builtin is `some k in kws; contains(lower(line), k)`, computed in Go, with a
+# file's lower case computed once per evaluation however many rules ask.
+has_keyword(line, kws) if vulnetix.contains_any_fold(line, kws)
+
+# The lines of split(text, "\n") on which has_keyword holds, keyed by their
+# index. `some i, line in keyword_lines(content, kws)` visits exactly the
+# lines that `some i, line in split(content, "\n"); has_keyword(line, kws)`
+# does, without interpreting a loop over every line of the file.
+keyword_lines(text, kws) := vulnetix.keyword_lines(text, kws)
+
+# The lines of split(text, "\n") that the regular expression matches, keyed by
+# their index: regex.match(pattern, line) over each line, in Go.
+pattern_lines(text, pattern) := vulnetix.pattern_lines(text, pattern)
 
 # --- placeholder / stopword allowlist ---------------------------------------
 # Runs of one character ("xxxxxx", "000000") are not stopwords: they are judged

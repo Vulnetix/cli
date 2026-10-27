@@ -32,8 +32,7 @@ findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
 	regex.match(_file_gate, content)
-	lines := split(content, "\n")
-	some i, line in lines
+	some i, line in secrets.pattern_lines(content, _pattern)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]
