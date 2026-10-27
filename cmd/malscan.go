@@ -460,6 +460,17 @@ func runMalscanEngine(opts malscanOptions) (*malscanResult, error) {
 	maliciousLabels := map[string]bool{}
 	manifestBudget := malscanMaxManifests
 
+	// The IOC scans are the expensive part and independent of one another;
+	// with several targets (a monorepo's node_modules, a venv beside them,
+	// --include-home caches) they run at once, and each report is folded below
+	// in target order, as when they ran one after another.
+	var iocReports []*iocscan.Report
+	var iocErrs []error
+	if opts.IOCFeeds && len(res.Targets) > 1 {
+		reportMalscanProgress(opts, fmt.Sprintf("Scanning IOCs in %d targets", len(res.Targets)))
+		iocReports, iocErrs = iocscanTargets(res.Targets, opts)
+	}
+
 	for i, target := range res.Targets {
 		reportMalscanProgress(opts, fmt.Sprintf("Scanning target %d/%d: %s %s", i+1, len(res.Targets), target.Ecosystem, target.Label))
 		caps := capabilitiesFor(target.EngineSlug)
@@ -469,7 +480,11 @@ func runMalscanEngine(opts malscanOptions) (*malscanResult, error) {
 		// 1) STIX IOC filesystem scan (network-backed feeds).
 		if opts.IOCFeeds {
 			reportMalscanProgress(opts, fmt.Sprintf("Scanning IOCs %d/%d: %s", i+1, len(res.Targets), target.Label))
-			scanTargetIOC(target, opts, res, maliciousLabels)
+			if iocReports != nil {
+				foldTargetIOC(target, opts, res, maliciousLabels, iocReports[i], iocErrs[i])
+			} else {
+				scanTargetIOC(target, opts, res, maliciousLabels)
+			}
 		}
 
 		// 2/3/4) Per-package manifest detectors: detect.Detect + ioc.ExtractIOCs
@@ -503,7 +518,40 @@ func reportMalscanProgress(opts malscanOptions, stage string) {
 // scanTargetIOC runs iocscan.Scan over one target and folds its evidence into
 // the result (findings + IOCs + samples).
 func scanTargetIOC(target ecosystems.Target, opts malscanOptions, res *malscanResult, malicious map[string]bool) {
-	report, err := iocscan.Scan(iocscan.Options{
+	report, err := iocscanTarget(target, opts)
+	foldTargetIOC(target, opts, res, malicious, report, err)
+}
+
+// malscanIOCWorkers bounds how many targets' IOC scans run at once. Each scan
+// is one core and loads its own indicator set, so the bound is memory as much
+// as cores.
+const malscanIOCWorkers = 4
+
+// iocscanTargets runs the IOC scan of every target, several at once, and
+// returns each target's report and error by index. A scan reads only its own
+// target's files and the feed cache, whose writes are atomic, and the reports
+// are folded into the result in target order afterwards, so the result is the
+// one scanning them in turn would give.
+func iocscanTargets(targets []ecosystems.Target, opts malscanOptions) ([]*iocscan.Report, []error) {
+	reports := make([]*iocscan.Report, len(targets))
+	errs := make([]error, len(targets))
+	sem := make(chan struct{}, malscanIOCWorkers)
+	var wg sync.WaitGroup
+	for i, t := range targets {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			reports[i], errs[i] = iocscanTarget(t, opts)
+		}()
+	}
+	wg.Wait()
+	return reports, errs
+}
+
+func iocscanTarget(target ecosystems.Target, opts malscanOptions) (*iocscan.Report, error) {
+	return iocscan.Scan(iocscan.Options{
 		Root:           target.Path,
 		Ecosystem:      target.EngineSlug,
 		Depth:          opts.Depth,
@@ -513,6 +561,10 @@ func scanTargetIOC(target ecosystems.Target, opts malscanOptions, res *malscanRe
 		SkipDirs:       ecosystems.ScanSkipDirs(),
 		BadnetDir:      opts.BadnetDir,
 	})
+}
+
+// foldTargetIOC adds one target's IOC report to the result.
+func foldTargetIOC(target ecosystems.Target, opts malscanOptions, res *malscanResult, malicious map[string]bool, report *iocscan.Report, err error) {
 	if report != nil {
 		res.FilesScanned += report.FilesScanned
 		res.IndicatorCount += report.IndicatorCount
