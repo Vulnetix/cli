@@ -680,9 +680,13 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	// bail so `scan`/`sca --block-malware` still gate on installed-dependency
 	// malware in repos with no scannable root manifest; merged into every return.
 	// An explain run skips it: it explains a finding, and malscan uploads.
-	var malscanBreach *GateBreach
+	// The engine starts here and runs alongside the dependency parsing and the
+	// VDB lookup. Every return below joins it, and the scan joins it before it
+	// first reads memory (BeforeMemory), so what it writes lands first, as it
+	// did when the pass ran to completion here.
+	malscanJoin := func() *GateBreach { return nil }
 	if opts.Explain == "" {
-		malscanBreach = runMalscanPassForScan(cmd, scanPath, blockMalware, gitCtx)
+		malscanJoin = startMalscanPassForScan(cmd, scanPath, blockMalware, gitCtx)
 	}
 
 	if len(files) == 0 {
@@ -694,7 +698,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		sastFamilyEnabled := !noSAST || !noSecrets || !noContainers || !noIAC
 		if !sastFamilyEnabled {
 			fmt.Fprintln(os.Stderr, "No scannable files detected.")
-			return mergeMalscanBreach(nil, malscanBreach)
+			return mergeMalscanBreach(nil, malscanJoin())
 		}
 	}
 
@@ -780,7 +784,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		sastFamilyEnabled := !noSAST || !noSecrets || !noContainers || !noIAC
 		if !sastFamilyEnabled {
 			fmt.Fprintln(os.Stderr, "\nNo supported manifest files found for scanning.")
-			return mergeMalscanBreach(nil, malscanBreach)
+			return mergeMalscanBreach(nil, malscanJoin())
 		}
 	}
 
@@ -791,7 +795,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		sastFamilyEnabled := !noSAST || !noSecrets || !noContainers || !noIAC
 		if !sastFamilyEnabled {
 			fmt.Fprintln(os.Stderr, "\nNo supported manifest files found for scanning.")
-			return mergeMalscanBreach(nil, malscanBreach)
+			return mergeMalscanBreach(nil, malscanJoin())
 		}
 	}
 
@@ -842,6 +846,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	// Single-rule mode (--rule-id) forces the feature booleans above, and the
 	// scanPath default is applied after parsing, so take both from the locals.
 	opts.RootPath = scanPath
+	opts.BeforeMemory = func() { malscanJoin() }
 
 	scanErr := runLocalScan(
 		ctx,
@@ -854,7 +859,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		pipeline.NewTerminalReporter("Scan", 7, silent, noProgress),
 	)
 
-	return mergeMalscanBreach(scanErr, malscanBreach)
+	return mergeMalscanBreach(scanErr, malscanJoin())
 }
 
 // ---------------------------------------------------------------------------
@@ -1417,6 +1422,9 @@ func runLocalScan(
 	// Memory is loaded and reconciled BEFORE building the BOM so that VEX
 	// entries for remediated / regressed findings can be included in the SBOM.
 	vulnetixDir := filepath.Join(rootPath, ".vulnetix")
+	if opts.BeforeMemory != nil {
+		opts.BeforeMemory()
+	}
 	var mem *memory.Memory
 	if !disableMemory {
 		mem, _ = memory.Load(vulnetixDir)

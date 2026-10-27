@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -638,12 +639,22 @@ func reconcileMalscanMemory(rootPath string, gitCtx *gitctx.GitContext, res *mal
 // and uploads, returning the malicious package/file labels so the caller can fold
 // them into the malware quality gate. Best-effort: a nil result on error.
 func runMalscanForGate(rootPath string, includeHome bool, gitCtx *gitctx.GitContext) (*malscanResult, []string) {
-	res, err := runMalscanEngine(malscanOptions{
+	res, err := runMalscanEngine(gateMalscanOptions(rootPath, includeHome))
+	return finishMalscanForGate(rootPath, gitCtx, res, err)
+}
+
+func gateMalscanOptions(rootPath string, includeHome bool) malscanOptions {
+	return malscanOptions{
 		Root:           rootPath,
 		IncludeHome:    includeHome,
 		BinaryAnalysis: true,
 		IOCFeeds:       true,
-	})
+	}
+}
+
+// finishMalscanForGate is everything runMalscanForGate does with the engine's
+// result: the SARIF, the memory reconcile, the upload and the gate labels.
+func finishMalscanForGate(rootPath string, gitCtx *gitctx.GitContext, res *malscanResult, err error) (*malscanResult, []string) {
 	if err != nil || res == nil {
 		return nil, nil
 	}
@@ -700,15 +711,46 @@ func mergeMalscanBreach(scanErr error, breach *GateBreach) error {
 	return scanErr
 }
 
-// runMalscanPassForScan runs the malscan pass for the scan/sca pipeline (when
-// applicable) and returns the malware GateBreach to merge — nil when malscan is
-// not applicable, found nothing, or block-malware is not in effect. It always
-// uploads findings when it runs; gating is separate from reporting.
-func runMalscanPassForScan(cmd *cobra.Command, scanPath string, blockMalware bool, gitCtx *gitctx.GitContext) *GateBreach {
+// startMalscanPassForScan runs the malscan pass for the scan/sca pipeline (when
+// applicable). It starts the engine and returns the join, which waits for the
+// engine, writes and uploads its findings, and returns the malware GateBreach
+// to merge: nil when malscan is not applicable, found nothing, or
+// block-malware is not in effect. Gating is separate from reporting: the
+// findings are uploaded either way.
+//
+// The engine reads only the dependency install dirs, so it runs alongside the
+// scan's dependency parsing and VDB lookup; everything it writes (SARIF,
+// memory, VEX, upload) happens at the join, which the scan calls before it
+// first reads memory. The join may be called any number of times; the work is
+// done once.
+func startMalscanPassForScan(cmd *cobra.Command, scanPath string, blockMalware bool, gitCtx *gitctx.GitContext) func() *GateBreach {
 	if !shouldRunMalscanPass(cmd, blockMalware) {
-		return nil
+		return func() *GateBreach { return nil }
 	}
-	_, labels := runMalscanForGate(scanPath, false, gitCtx)
+	type engineResult struct {
+		res *malscanResult
+		err error
+	}
+	done := make(chan engineResult, 1)
+	go func() {
+		res, err := runMalscanEngine(gateMalscanOptions(scanPath, false))
+		done <- engineResult{res, err}
+	}()
+	var once sync.Once
+	var breach *GateBreach
+	return func() *GateBreach {
+		once.Do(func() {
+			r := <-done
+			_, labels := finishMalscanForGate(scanPath, gitCtx, r.res, r.err)
+			breach = malscanGateBreach(blockMalware, labels)
+		})
+		return breach
+	}
+}
+
+// malscanGateBreach is the malware gate breach for the labels malscan flagged,
+// nil unless block-malware is in effect and something was flagged.
+func malscanGateBreach(blockMalware bool, labels []string) *GateBreach {
 	if !blockMalware || len(labels) == 0 {
 		return nil
 	}

@@ -129,6 +129,12 @@ type Options struct {
 	RuleRegistry string
 	// RuleID restricts the run to a single VNX-NNNN rule.
 	RuleID string
+	// BeforeMemory, when set, runs once, immediately before the run first reads
+	// .vulnetix/memory.yaml. The scan command finishes the malscan pass there:
+	// the engine runs alongside dependency parsing and the VDB lookup, and its
+	// memory reconcile, SARIF and upload still land before this run reads or
+	// writes memory, as they did when the pass ran first.
+	BeforeMemory func()
 	// PreloadedModules are rule modules already loaded by the caller, as
 	// sast.LoadAllModules returns them, so the packs are not fetched twice. Nil
 	// means load them.
