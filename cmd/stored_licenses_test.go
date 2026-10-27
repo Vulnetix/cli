@@ -30,6 +30,12 @@ func TestLookupStoredLicensesUsesPersistenceKeys(t *testing.T) {
 	}))
 	defer srv.Close()
 	t.Setenv("VULNETIX_API_URL", srv.URL)
+	// The client caches responses under HOME, and earlier tests leave
+	// credentials behind: either one keeps this request off the test server.
+	t.Setenv("HOME", t.TempDir())
+	saved := vdbCreds
+	vdbCreds = nil
+	t.Cleanup(func() { vdbCreds = saved })
 
 	got := lookupStoredLicenses([]license.PackageLicense{
 		{PackageName: "left-pad", PackageVersion: "1.3.0", Ecosystem: "npm"},
