@@ -1,6 +1,7 @@
 package ignore
 
 import (
+	"math/rand"
 	"strings"
 	"testing"
 )
@@ -87,6 +88,46 @@ func TestGlobs(t *testing.T) {
 	for _, c := range cases {
 		if got := Globs([]string{c.pattern}).Ignored(c.path, c.isDir); got != c.want {
 			t.Errorf("Globs(%q).Ignored(%q, dir=%v) = %v, want %v", c.pattern, c.path, c.isDir, got, c.want)
+		}
+	}
+}
+
+// The substring prefilters only skip a regexp that could not have matched:
+// over random rule sets and paths, every answer is the one the regexps alone
+// give.
+func TestLiteralFiltersChangeNoAnswer(t *testing.T) {
+	names := []string{"node_modules", "build", "dist", "*.log", "a", "ab", "x?z", "[bc]at", "**", "**/tmp", "docs/*.tmp", "keep.log", "vendor", "*.min.js", "a/**/b", ".env", "*~"}
+	segs := []string{"node_modules", "build", "dist", "app.log", "a", "ab", "xyz", "cat", "bat", "tmp", "docs", "x.tmp", "keep.log", "vendor", "y.min.js", "b", ".env", "f~", "src", "\n", "é", "Build"}
+	rng := rand.New(rand.NewSource(3))
+	for range 200 {
+		var lines []string
+		for range 1 + rng.Intn(10) {
+			p := names[rng.Intn(len(names))]
+			switch rng.Intn(5) {
+			case 0:
+				p = "/" + p
+			case 1:
+				p += "/"
+			case 2:
+				p = "!" + p
+			}
+			lines = append(lines, p)
+		}
+		m := New()
+		m.addPatterns("", strings.Join(lines, "\n"))
+		m.addPatterns(segs[rng.Intn(len(segs))], strings.Join(lines[:len(lines)/2], "\n"))
+		for range 200 {
+			var parts []string
+			for range 1 + rng.Intn(5) {
+				parts = append(parts, segs[rng.Intn(len(segs))])
+			}
+			path, isDir := strings.Join(parts, "/"), rng.Intn(2) == 0
+			literalFilters = false
+			want := m.Ignored(path, isDir)
+			literalFilters = true
+			if got := m.Ignored(path, isDir); got != want {
+				t.Fatalf("rules %q, path %q dir=%v: filtered %v, regexps %v", lines, path, isDir, got, want)
+			}
 		}
 	}
 }

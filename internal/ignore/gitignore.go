@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/vulnetix/cli/v3/internal/regexlit"
 )
 
 // Matcher evaluates paths against a stack of .gitignore files
@@ -30,7 +32,15 @@ type gitignoreRule struct {
 	dirOnly bool
 	core    *regexp.Regexp // matches the entry itself
 	under   *regexp.Regexp // matches any path beneath a matched directory
+	// coreLit and underLit rule out, by a substring test, the paths the
+	// expressions cannot match (a rule for node_modules on a path without
+	// that word), so most rules never run a regexp on most paths.
+	coreLit, underLit *regexlit.Filter
 }
+
+// literalFilters turns the substring prefilters off, for the test that
+// proves they change no answer.
+var literalFilters = true
 
 // New returns an empty matcher.
 func New() *Matcher { return &Matcher{} }
@@ -99,6 +109,7 @@ func (m *Matcher) addPatterns(baseDir, content string) {
 		line = strings.TrimPrefix(line, "/")
 		rule.core, rule.under = compileGitignoreGlob(line, anchored)
 		if rule.core != nil {
+			rule.coreLit, rule.underLit = regexlit.For(rule.core), regexlit.For(rule.under)
 			m.rules = append(m.rules, rule)
 		}
 	}
@@ -120,12 +131,12 @@ func (m *Matcher) Ignored(relPath string, isDir bool) bool {
 			}
 			local = relPath[len(r.baseDir)+1:]
 		}
-		if r.under.MatchString(local) {
+		if (!literalFilters || r.underLit.MayMatchString(local)) && r.under.MatchString(local) {
 			// Path is beneath a matched directory — always ignored.
 			matched = !r.negate
 			continue
 		}
-		if r.core.MatchString(local) {
+		if (!literalFilters || r.coreLit.MayMatchString(local)) && r.core.MatchString(local) {
 			if r.dirOnly && !isDir {
 				continue
 			}
