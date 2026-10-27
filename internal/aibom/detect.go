@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vulnetix/cli/v3/internal/regexlit"
+
 	cdx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/vulnetix/cli/v3/internal/sast"
 )
@@ -352,9 +354,9 @@ func findSubmatches(content string, re *regexp.Regexp) []extracted {
 	return out
 }
 
-func anyMatch(res []*regexp.Regexp, content string) bool {
+func anyMatch(res []*regexp.Regexp, text *regexlit.Text) bool {
 	for _, re := range res {
-		if re.MatchString(content) {
+		if regexlit.MatchString(re, text) {
 			return true
 		}
 	}

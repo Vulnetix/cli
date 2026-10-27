@@ -1,9 +1,12 @@
 package cbom
 
 import (
+	"maps"
+	"slices"
 	"strings"
 
 	cdx "github.com/Vulnetix/vdb-cyclonedx"
+	"github.com/vulnetix/cli/v3/internal/regexlit"
 	"github.com/vulnetix/cli/v3/internal/sast"
 )
 
@@ -17,11 +20,16 @@ func (c *collector) detectSource(input *sast.ScanInput) {
 	if input == nil {
 		return
 	}
-	for path, content := range input.FileContents {
+	// Path order, so the evidence kept under the per-item cap is the same every run.
+	for _, path := range slices.Sorted(maps.Keys(input.FileContents)) {
+		content := input.FileContents[path]
 		langs := sast.LanguagesForPath(path)
 		if len(langs) == 0 {
 			continue
 		}
+		// A pattern is run only on a file holding a literal every match of
+		// it must contain (internal/regexlit).
+		text := regexlit.NewText(content)
 		for i := range c.cat.Algorithms {
 			a := &c.cat.Algorithms[i]
 			for lang, res := range a.Source {
@@ -29,6 +37,9 @@ func (c *collector) detectSource(input *sast.ScanInput) {
 					continue
 				}
 				for _, re := range res {
+					if !regexlit.For(re).MayMatch(text) {
+						continue
+					}
 					for _, m := range matchLines(content, re) {
 						c.addAlgo(a, cdx.CryptoEvidence{
 							Method: "source", Category: "api", Locator: locOf(path, m.line), Snippet: m.text,
@@ -40,6 +51,9 @@ func (c *collector) detectSource(input *sast.ScanInput) {
 		for i := range c.cat.Extractors {
 			ex := &c.cat.Extractors[i]
 			if ex.Languages != nil && !intersectLangs(ex.Languages, langs) {
+				continue
+			}
+			if !regexlit.For(ex.Re).MayMatch(text) {
 				continue
 			}
 			for _, sm := range findCaptures(content, ex.Re) {

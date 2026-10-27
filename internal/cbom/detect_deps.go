@@ -1,7 +1,9 @@
 package cbom
 
 import (
+	"maps"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	cdx "github.com/Vulnetix/vdb-cyclonedx"
@@ -29,7 +31,9 @@ func (c *collector) detectDeps(input *sast.ScanInput) {
 	if input == nil {
 		return
 	}
-	for path, content := range input.FileContents {
+	// Path order, so the evidence kept under the per-item cap is the same every run.
+	for _, path := range slices.Sorted(maps.Keys(input.FileContents)) {
+		content := input.FileContents[path]
 		if len(content) > maxDepsScanBytes {
 			continue
 		}

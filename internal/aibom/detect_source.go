@@ -1,7 +1,11 @@
 package aibom
 
 import (
+	"maps"
+	"slices"
+
 	cdx "github.com/Vulnetix/vdb-cyclonedx"
+	"github.com/vulnetix/cli/v3/internal/regexlit"
 	"github.com/vulnetix/cli/v3/internal/sast"
 )
 
@@ -18,21 +22,29 @@ func (c *collector) detectSource(input *sast.ScanInput) {
 		sast.LoadFileContents(input, maxSourceFileSize)
 	}
 
-	for path, content := range input.FileContents {
+	// Path order, so the evidence kept under the per-item cap is the same every run.
+	for _, path := range slices.Sorted(maps.Keys(input.FileContents)) {
+		content := input.FileContents[path]
 		langs := sast.LanguagesForPath(path)
 		if len(langs) == 0 {
 			continue
 		}
+		// Most patterns need a word (the library's name) that most files do
+		// not hold; the filter skips running those patterns on those files.
+		text := regexlit.NewText(content)
 		for i := range c.cat.Libraries {
 			lib := &c.cat.Libraries[i]
 			if !intersect(lib.Langs, langs) {
 				continue
 			}
-			if !anyMatch(lib.Imports, content) {
+			if !anyMatch(lib.Imports, text) {
 				continue
 			}
 			c.libUsage(lib.Def, path)
 			for _, me := range lib.Models {
+				if !regexlit.For(me.Re).MayMatch(text) {
+					continue
+				}
 				for _, ex := range findSubmatches(content, me.Re) {
 					loc := path
 					if ex.line > 0 {
