@@ -518,7 +518,7 @@ func reportMalscanProgress(opts malscanOptions, stage string) {
 // scanTargetIOC runs iocscan.Scan over one target and folds its evidence into
 // the result (findings + IOCs + samples).
 func scanTargetIOC(target ecosystems.Target, opts malscanOptions, res *malscanResult, malicious map[string]bool) {
-	report, err := iocscanTarget(target, opts)
+	report, err := iocscanSplit(target, opts)
 	foldTargetIOC(target, opts, res, malicious, report, err)
 }
 
@@ -543,7 +543,7 @@ func iocscanTargets(targets []ecosystems.Target, opts malscanOptions) ([]*iocsca
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			reports[i], errs[i] = iocscanTarget(t, opts)
+			reports[i], errs[i] = iocscanSplit(t, opts)
 		}()
 	}
 	wg.Wait()
