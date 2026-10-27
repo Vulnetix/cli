@@ -301,6 +301,17 @@ an exception does not lapse on the next dependency bump. An expired exception
 stops applying and says so; exempted findings are retained, badged and counted
 separately, and only the gate ignores them.
 
+GitHub licence lookups (`internal/license/github.go`) are written as
+`gh api <path> --jq <expr>` calls but answered in process by `ghAPIDirect`
+(`ghapi.go`), with the token gh uses (`gh auth token`, asked once) and the
+answer printed as gh prints it (a string raw, null as an empty line). It was
+one gh process per request, 645 on every scan of this repository. Only the
+three expressions the lookups use are rendered; anything else, a non-default
+`GH_HOST`, or a path outside `[A-Za-z0-9._/-]` still runs gh. A failure other
+than HTTP 404 still marks the repo indefinite, so the same misses are stored.
+`VULNETIX_GH_PARITY=1 go test ./internal/license -run TestGHAPIDirectMatchesGH`
+compares the two against the live API; run it when adding an expression.
+
 ### SBOM/CDX Subcommand
 
 The `cdx` command (alias `sbom`, implemented in `cmd/cdx.go`) writes one offline CycloneDX document — no VDB lookup, upload, memory write, quality gate or container daemon. Discovery passes: manifests/lockfiles, installed package trees (`internal/ecosystems`), container package DBs (dpkg/apk/pacman), Dockerfile/compose/k8s/Helm, CI/CD pipeline files, shell scripts + Makefile/justfile recipes, and **compiled artefacts** via `internal/binpkg`. AIBOM and CBOM components are merged into the same file.
@@ -408,7 +419,7 @@ The `malscan` command runs the `malscan-engine` (module `github.com/vulnetix/mal
 
 Scan targets are resolved per ecosystem by `internal/ecosystems/locations.go` — the single source of truth mapping each ecosystem to its engine slug + project-local install dirs (npm `node_modules`, python `site-packages`/`.venv`, go `vendor`, rust/cargo, ruby, php, java, dotnet, dart, elixir) and user-scoped/home caches (`~/.npm`, `~/go/pkg/mod`, `~/.cargo`, `~/.m2`, …). Home caches are scanned only with `--include-home`. Findings are SARIF (with code samples, evidence context and host env), always written to `.vulnetix/malscan.sarif` (override with `--output-file`), pretty-printed unless `-o {json,sarif}`, and uploaded to `/v2/cli.malscan` when authenticated. Flags: `--path`, `--include-home`, `-o`, `--output-file`, `--no-binary-analysis`, `--scan-depth`, `--max-file-size`, `--no-ioc-feeds`, `--catalog`, `--no-upload`.
 
-Exit status is non-zero when malware is found on direct `malscan` usage. The pass is also hooked into `scan` (runs by default; `--no-malscan` disables) and `sca` (runs only when `--block-malware` is passed or org policy `blockMalware` is enforced); in those, it contributes a `malware` quality-gate breach only when block-malware is in effect. In `scan`/`sca` the engine runs alongside dependency parsing and the VDB lookup (`startMalscanPassForScan`), and the scan joins it immediately before it first reads memory (`pipeline.Options.BeforeMemory`) or at any earlier return. Everything the pass writes (SARIF, memory reconcile, VEX, upload, the breach) happens at the join, so it still lands before the scan touches memory; keep it there. The engine itself (`iocscan`, one walk, regexps per line) is single-threaded and lives in `malscan-engine`. The backend endpoint persists a `MALWARE` ScannerRun + IngestionSnapshot + Finding/Triage/OpenVEX plus `MalwareIoc` rows with offending-file samples stored to S3 (ecosystem-attributed `{ecosystem}/files/{sha256}/{filename}`).
+Exit status is non-zero when malware is found on direct `malscan` usage. The pass is also hooked into `scan` (runs by default; `--no-malscan` disables) and `sca` (runs only when `--block-malware` is passed or org policy `blockMalware` is enforced); in those, it contributes a `malware` quality-gate breach only when block-malware is in effect. In `scan`/`sca` the engine runs alongside dependency parsing and the VDB lookup (`startMalscanPassForScan`), and the scan joins it immediately before it first reads memory (`pipeline.Options.BeforeMemory`) or at any earlier return. Everything the pass writes (SARIF, memory reconcile, VEX, upload, the breach) happens at the join, so it still lands before the scan touches memory; keep it there. The engine's walk (`iocscan.Scan`) is single-threaded, so the CLI runs several: up to four install targets at once, and within a target one walk per top-level entry on every core (`cmd/malscan_split.go`). That is exact because the engine classifies a file by whole path segments and its name, so a file under `<target>/<entry>/` is classified alike from either root, unless `<entry>` is itself such a segment (`malscanTierSegments`, copied from the engine; such a target, or a depth limit, is walked whole). The indicator set is built once the way `Scan` builds it and shared; evidence is joined in the single walk's order with `RelPath` put back. `TestIOCScanSplitMatchesWholeWalk` compares against `iocscan.Scan`, and `TestMalscanEnginePinnedForSplit` fails on an engine bump so the segment list is rechecked. The backend endpoint persists a `MALWARE` ScannerRun + IngestionSnapshot + Finding/Triage/OpenVEX plus `MalwareIoc` rows with offending-file samples stored to S3 (ecosystem-attributed `{ecosystem}/files/{sha256}/{filename}`).
 
 ## Build and Development Commands
 
