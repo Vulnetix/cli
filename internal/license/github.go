@@ -508,6 +508,14 @@ var ghIndefinite sync.Map // "owner/repo" -> true
 
 // ghAPI runs `gh api args...` for owner/repo and returns its stdout.
 func ghAPI(owner, repo string, args ...string) ([]byte, error) {
+	if len(args) == 3 && args[1] == "--jq" {
+		if out, ok, err := ghAPIDirect(args[0], args[2]); ok {
+			if err != nil && !strings.Contains(err.Error(), "HTTP 404") {
+				ghIndefinite.Store(owner+"/"+repo, true)
+			}
+			return out, err
+		}
+	}
 	cmd := exec.Command("gh", append([]string{"api"}, args...)...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
