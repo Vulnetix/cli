@@ -7,6 +7,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/vulnetix/cli/v3/internal/secretscan"
 )
 
 // File scoping. A rule is a claim about the source it understands, and many of
@@ -161,19 +163,51 @@ type ruleScope struct {
 	languages []string
 	sastKind  bool
 	docs      bool
+	// secrets is true for kind "secrets", the only rules written for the
+	// synthetic content (binary strings, EXIF, git history, decoded Kubernetes
+	// secrets) that the secrets pass adds to file_contents.
+	secrets bool
 }
 
 func (s ruleScope) key() string {
-	return fmt.Sprintf("%v|%v|%v", s.languages, s.sastKind, s.docs)
+	return fmt.Sprintf("%v|%v|%v|%v", s.languages, s.sastKind, s.docs, s.secrets)
 }
 
 // allows reports whether a file is in scope: findingApplies without the
 // comment-line test, which depends on the line, not the file.
 func (s ruleScope) allows(path string) bool {
+	if !s.secrets && isSyntheticPath(path) {
+		return false
+	}
 	if s.sastKind && !s.docs && isProsePath(path) {
 		return false
 	}
 	return ruleAppliesToFile(s.languages, path)
+}
+
+// syntheticPrefixes mark file_contents entries that are not a file in the
+// working tree: they exist for the secrets rules.
+var syntheticPrefixes = []string{
+	secretscan.PathBinaryPrefix, secretscan.PathEXIFPrefix,
+	secretscan.PathGitHistoryPrefix, secretscan.K8sSecretPrefix,
+}
+
+func hasSyntheticContent(in *ScanInput) bool {
+	for p := range in.FileContents {
+		if isSyntheticPath(p) {
+			return true
+		}
+	}
+	return false
+}
+
+func isSyntheticPath(path string) bool {
+	for _, p := range syntheticPrefixes {
+		if strings.HasPrefix(path, p) {
+			return true
+		}
+	}
+	return false
 }
 
 var (
@@ -190,7 +224,7 @@ func scopeOf(src string) ruleScope {
 	if m := kindRe.FindStringSubmatch(src); m != nil {
 		kind = m[1]
 	}
-	return ruleScope{languages: sorted, sastKind: kind == "sast", docs: tagsDocsRe.MatchString(src)}
+	return ruleScope{languages: sorted, sastKind: kind == "sast", docs: tagsDocsRe.MatchString(src), secrets: kind == "secrets"}
 }
 
 type scopeGroup struct {
@@ -226,7 +260,7 @@ func groupByScope(rules map[string]string) []scopeGroup {
 // scopedInput returns a shallow copy of in whose FileContents holds only the
 // files the scope allows. A universal scope gets the input itself.
 func scopedInput(in *ScanInput, s ruleScope) *ScanInput {
-	if len(s.languages) == 0 && !s.sastKind {
+	if len(s.languages) == 0 && !s.sastKind && (s.secrets || !hasSyntheticContent(in)) {
 		return in
 	}
 	out := *in

@@ -89,3 +89,30 @@ func TestFindingAppliesSkipsCommentLines(t *testing.T) {
 		t.Fatal("a secret in a comment is still a secret")
 	}
 }
+
+func TestSyntheticContentReachesOnlySecretsRules(t *testing.T) {
+	in := &ScanInput{
+		FileSet: map[string]bool{"app.py": true, "logo.png": true},
+		FileContents: map[string]string{
+			"app.py":                         "import os",
+			"__binary_strings__/logo.png":    "IHDR junk",
+			"__exif__/logo.png":              "Make: x",
+			"__git_history__/abc123/app.py":  "old",
+			"__k8s_secret__/s.yaml/password": "hunter2",
+		},
+	}
+	secrets := scopeOf(`metadata := {"kind": "secrets"}`)
+	if got := scopedInput(in, secrets); got != in {
+		t.Fatalf("a secrets rule must see the whole input, got %d entries", len(got.FileContents))
+	}
+	for _, src := range []string{`metadata := {"kind": "iac"}`, `metadata := {"kind": "sast"}`, `metadata := {"kind": "sast", "languages": ["python"]}`} {
+		got := scopedInput(in, scopeOf(src))
+		if len(got.FileContents) != 1 || got.FileContents["app.py"] == "" {
+			t.Errorf("%s: file_contents = %v, want only app.py", src, got.FileContents)
+		}
+	}
+	plain := &ScanInput{FileContents: map[string]string{"main.tf": "resource"}}
+	if got := scopedInput(plain, scopeOf(`metadata := {"kind": "iac"}`)); got != plain {
+		t.Error("a universal rule with no synthetic content should share the input, not copy it")
+	}
+}

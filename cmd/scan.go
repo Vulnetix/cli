@@ -1609,26 +1609,21 @@ func runLocalScan(
 			var eerr error
 			rep.Stage(fmt.Sprintf("Evaluating %d %s rule(s)", len(modules), strings.ToLower(analysisLabel)))
 			// Binary and git-history scanning only make sense for the secrets
-			// subcommand. We enable them automatically when the SAST engine
-			// is being driven by kind "secrets"; the user can still turn
-			// them off with --ignore-binaries / --ignore-git.
-			enableBinaryInspection := !noSecrets
-			enableGitHistory := !noSecrets
+			// rules. They run only when secrets are in the scan; the user can
+			// still turn them off with --ignore-binaries / --ignore-git.
+			// Without secrets, the printable strings of every image under the
+			// size cap were held as text for rules that never read them.
 			sastReport, eerr = eng.Evaluate(sast.EvalOptions{
 				MaxDepth:             depth,
 				Excludes:             excludes,
 				IgnoreGlobs:          ignoreGlobs,
 				IgnoreGit:            ignoreGit,
-				IgnoreBinaries:       ignoreBinaries,
-				GitHistory:           enableGitHistory && gitHistory,
+				IgnoreBinaries:       ignoreBinaries || noSecrets,
+				GitHistory:           !noSecrets && gitHistory,
 				GitHistoryMaxCommits: gitHistoryMaxCommits,
 				GitHistoryMaxFiles:   gitHistoryMaxFiles,
 				RespectGitignore:     respectGitignore,
 			})
-			// Hint the caller that the synthetic-content behaviour was engaged.
-			if enableBinaryInspection && !ignoreBinaries {
-				_ = enableBinaryInspection // currently a no-op; binary inspection always runs when not ignored
-			}
 			if eerr != nil {
 				fmt.Fprintf(progressStderr, "  warning: SAST evaluation failed: %v\n", eerr)
 			}
