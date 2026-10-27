@@ -15,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/rego"
 
 	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v3/internal/secretscan"
 )
 
 // Project is one scanned tree in a corpus snapshot. Projects are kept apart
@@ -28,8 +29,11 @@ type Project struct {
 }
 
 // Snapshot builds the scan input for each corpus directory the way the sast
-// command does: gitignore respected, text up to 1 MiB, binaries skipped.
-func Snapshot(dirs []string) ([]Project, error) {
+// command does: gitignore respected, text up to 1 MiB, binaries skipped. With
+// secrets it is built the way the secrets command does instead: binaries read
+// for their strings and the git history merged in, up to the command's
+// default limits, which is most of what a secrets rule evaluates.
+func Snapshot(dirs []string, secrets bool) ([]Project, error) {
 	var out []Project
 	for _, d := range dirs {
 		abs, err := filepath.Abs(d)
@@ -38,14 +42,21 @@ func Snapshot(dirs []string) ([]Project, error) {
 		}
 		in, err := sast.BuildScanInputWithOptions(abs, sast.BuildOptions{
 			MaxDepth:         64,
-			IgnoreGit:        true,
-			IgnoreBinaries:   true,
+			IgnoreGit:        !secrets,
+			IgnoreBinaries:   !secrets,
 			RespectGitignore: true,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", d, err)
 		}
-		sast.LoadFileContentsWithOptions(in, sast.LoadOptions{MaxFileSize: 1 << 20, IgnoreBinaries: true})
+		sast.LoadFileContentsWithOptions(in, sast.LoadOptions{MaxFileSize: 1 << 20, IgnoreBinaries: !secrets})
+		if secrets {
+			entries, err := secretscan.ScanGitHistory(abs, secretscan.GitHistoryOptions{MaxCommits: 500, MaxFiles: 5000, MaxFileBytes: 4 << 20})
+			if err != nil {
+				return nil, fmt.Errorf("%s: git history: %w", d, err)
+			}
+			sast.MergeGitHistoryEntries(in, entries)
+		}
 		out = append(out, Project{Name: filepath.Base(abs), Root: abs, Input: in})
 	}
 	return out, nil

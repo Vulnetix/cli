@@ -6,7 +6,7 @@
 //	sasteff cases    [stem...]          run fixture cases (internal/sast/testdata/efficacy)
 //	sasteff secrets                     prove each generated secret rule fires on its own token shape
 //	sasteff coverage                    list rules with no positive or no negative case
-//	sasteff snapshot -out f.json dir... freeze a corpus for repeatable measurement
+//	sasteff snapshot -out f.json [-secrets] dir... freeze a corpus for repeatable measurement
 //	sasteff perf -snapshot f.json       per-rule compile/eval cost and finding counts
 //	sasteff hits -snapshot f.json stem  the findings one rule produces on the corpus
 //	sasteff total dir...                full-ruleset wall time through the engine
@@ -357,12 +357,13 @@ func runCoverage(args []string) int {
 func runSnapshot(args []string) int {
 	fs := flag.NewFlagSet("snapshot", flag.ExitOnError)
 	out := fs.String("out", "", "snapshot file to write")
+	secrets := fs.Bool("secrets", false, "build the input as the secrets command does: binary strings and git history")
 	_ = fs.Parse(args)
 	if *out == "" || fs.NArg() == 0 {
-		fatal("snapshot -out FILE DIR...")
+		fatal("snapshot -out FILE [-secrets] DIR...")
 	}
 	start := time.Now()
-	ps, err := efficacy.Snapshot(fs.Args())
+	ps, err := efficacy.Snapshot(fs.Args(), *secrets)
 	if err != nil {
 		fatal("%v", err)
 	}
