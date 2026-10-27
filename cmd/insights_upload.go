@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -20,48 +21,53 @@ type cliInsightsRequestEnvelope struct {
 	Payload *vdb.CliInsightsRequest `json:"payload,omitempty"`
 }
 
+// prepareCliInsightsUpload attaches the report artifact to req when the request still fits
+// the API's decompressed size limit, and reports the size it will be.
+//
+// The artifact is the report compacted: the indented form on disk is about a third larger,
+// and as a JSON string every quote in it is escaped again. The request is marshalled once
+// without the artifact, and the artifact's escaped length is added to that, so a large graph
+// is not marshalled twice just to be measured.
 func prepareCliInsightsUpload(req *vdb.CliInsightsRequest, env vdb.CliEnv, reportBody []byte) (cliInsightsUploadBudget, error) {
 	budget := cliInsightsUploadBudget{LimitBytes: cliInsightsDecompressedBodyLimitBytes}
 	if req == nil {
 		return budget, fmt.Errorf("cli.insights request is nil")
 	}
 
-	if len(reportBody) > 0 {
-		req.ReportJSON = string(reportBody)
-	}
-	size, err := cliInsightsEnvelopeSize(env, req)
+	req.ReportJSON = ""
+	base, err := json.Marshal(cliInsightsRequestEnvelope{Env: env, Payload: req})
 	if err != nil {
-		return budget, err
+		return budget, fmt.Errorf("marshal cli.insights request: %w", err)
 	}
-	budget.SizeBytes = size
-	if size <= cliInsightsDecompressedBodyLimitBytes {
+	budget.SizeBytes = len(base)
+	if len(base) > cliInsightsDecompressedBodyLimitBytes {
+		return budget, fmt.Errorf("cli.insights request is %s decompressed, over the API limit of %s",
+			formatByteSize(len(base)), formatByteSize(cliInsightsDecompressedBodyLimitBytes))
+	}
+	if len(reportBody) == 0 {
 		return budget, nil
 	}
 
-	if req.ReportJSON != "" {
-		req.ReportJSON = ""
-		size, err = cliInsightsEnvelopeSize(env, req)
-		if err != nil {
-			return budget, err
-		}
-		budget.SizeBytes = size
-		budget.ReportJSONOmitted = true
-		if size <= cliInsightsDecompressedBodyLimitBytes {
-			return budget, nil
-		}
+	artifact := reportBody
+	var compact bytes.Buffer
+	if json.Compact(&compact, reportBody) == nil {
+		artifact = compact.Bytes()
 	}
-
-	return budget, fmt.Errorf("cli.insights request is %s decompressed, over the API limit of %s",
-		formatByteSize(size), formatByteSize(cliInsightsDecompressedBodyLimitBytes))
-}
-
-func cliInsightsEnvelopeSize(env vdb.CliEnv, req *vdb.CliInsightsRequest) (int, error) {
-	raw, err := json.Marshal(cliInsightsRequestEnvelope{Env: env, Payload: req})
+	escaped, err := json.Marshal(string(artifact))
 	if err != nil {
-		return 0, fmt.Errorf("marshal cli.insights request: %w", err)
+		return budget, fmt.Errorf("marshal cli.insights report artifact: %w", err)
 	}
-
-	return len(raw), nil
+	size := len(base) + len(`"reportJson":`) + len(escaped)
+	if !bytes.Contains(base, []byte(`"payload":{}`)) {
+		size++ // the comma before it
+	}
+	if size > cliInsightsDecompressedBodyLimitBytes {
+		budget.ReportJSONOmitted = true
+		return budget, nil
+	}
+	req.ReportJSON = string(artifact)
+	budget.SizeBytes = size
+	return budget, nil
 }
 
 func formatByteSize(bytes int) string {
