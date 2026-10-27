@@ -1579,6 +1579,34 @@ func runLocalScan(
 	// ── SAST analysis ────────────────────────────────────────────────────
 	// Run SAST if at least one SAST sub-category is enabled.
 	disableAllSAST := (noSASTRules && noSecrets && noContainers && noIAC) || explainNamedPackages
+
+	// The graph insights read only the tree, so they are built while SAST evaluates and
+	// joined after the local scan state is written. Every file the scan has changed by now
+	// (autofix runs above, through its own scan) is in place; what the scan writes from here
+	// on goes under .vulnetix/, which the graph does not read.
+	var graphInsights *future[*scannerGraph]
+	if !explaining {
+		graphToolName := "vulnetix-scan-graph"
+		switch {
+		case containerOnly:
+			graphToolName = "vulnetix-containers-graph"
+		case iacOnly:
+			graphToolName = "vulnetix-iac-graph"
+		case secretsOnly:
+			graphToolName = "vulnetix-secrets-graph"
+		case noSCA && !disableAllSAST:
+			graphToolName = "vulnetix-static-graph"
+		}
+		workers := 0
+		if !disableAllSAST {
+			workers = graphWorkersBesideSAST()
+		}
+		graphCtx, cancelGraph := context.WithCancel(context.Background())
+		// A return before the join stops the graph rather than leaving it reading the tree.
+		defer cancelGraph()
+		graphInsights = startScannerGraphInsights(graphCtx, rootPath, graphToolName, gitCtx, workers, opts.NoSASTCache)
+	}
+
 	var sastReport *sast.SASTReport
 	if !disableAllSAST {
 		rep.Stage(fmt.Sprintf("Loading %s rules", strings.ToLower(analysisLabel)))
@@ -2012,20 +2040,7 @@ func runLocalScan(
 		rep.Update(6, "Skipped local scan state (--disable-memory)")
 	}
 
-	graphToolName := "vulnetix-scan-graph"
-	switch {
-	case containerOnly:
-		graphToolName = "vulnetix-containers-graph"
-	case iacOnly:
-		graphToolName = "vulnetix-iac-graph"
-	case secretsOnly:
-		graphToolName = "vulnetix-secrets-graph"
-	case noSCA && !disableAllSAST:
-		graphToolName = "vulnetix-static-graph"
-	}
-	if !explaining {
-		postScannerGraphInsights(rootPath, graphToolName, gitCtx, progressStderr)
-	}
+	finishScannerGraphInsights(graphInsights, progressStderr)
 
 	// ── Third-party VEX ───────────────────────────────────────────────────
 	// Applied here, in one place, immediately before the gates. Every gate that
@@ -4240,7 +4255,7 @@ func addSASTFlags(cmd *cobra.Command) {
 	cmd.Flags().Int("snippet-context", -1,
 		"Surrounding non-empty source lines to capture around each SARIF finding (-1 = dynamic: 3 if span <10 lines else 5; 0 disables)")
 	cmd.Flags().Bool("no-cache", false,
-		"Evaluate every file, not reusing rule results kept for files unchanged since an earlier run")
+		"Evaluate and parse every file, not reusing rule results or graph facts kept for files unchanged since an earlier run")
 }
 
 // suppressTestCode is set from the --suppress-test-code flag in
