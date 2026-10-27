@@ -359,7 +359,7 @@ The flags the [output section](#reading-the-output) lists as superseded (`--seve
 | `--bom-manufacturer` | string | repo owner | Organization that created the BOM — see [BOM authoring identity](#bom-authoring-identity) |
 | `--lifecycle` | string | derived | Lifecycle stage(s) the BOM data was captured at, comma-separated |
 | `--snippet-context` | int | `-1` | Surrounding non-empty source lines captured around each SARIF finding (`-1` = dynamic, `0` disables). Also available on `sast`, `secrets`, `containers` and `iac` |
-| `--no-cache` | bool | `false` | Evaluate every file, not reusing the rule results kept for files unchanged since an earlier run ([SAST: Result cache](../sast/#result-cache)). Also available on `sast`, `secrets`, `containers` and `iac` |
+| `--no-cache` | bool | `false` | Evaluate and parse every file, not reusing the rule results or graph facts kept for files unchanged since an earlier run ([SAST: Result cache](../sast/#result-cache), [Graph insights](../sast/#graph-insights)). Also available on `sast`, `secrets`, `containers` and `iac` |
 | `--no-malscan` | bool | `false` | Skip the in-process [malscan](../malscan/) pass over local dependency install dirs |
 | `--no-aibom` | bool | `false` | Skip the [AIBOM](../aibom/) inventory pass |
 | `--no-cbom` | bool | `false` | Skip the [CBOM](../cbom/) cryptography inventory pass |
