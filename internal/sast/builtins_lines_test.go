@@ -34,6 +34,9 @@ want_kw_lines := {i: line | some i, line in split(input.text, "\n"); rego_has(li
 
 pat_lines := vulnetix.pattern_lines(input.text, input.pattern)
 want_pat_lines := {i: line | some i, line in split(input.text, "\n"); regex.match(input.pattern, line)}
+
+sub_lines := vulnetix.lines_containing(input.text, input.kws)
+want_sub_lines := {i: line | some i, line in split(input.text, "\n"); some s in input.kws; contains(line, s)}
 `
 	q, err := rego.New(
 		rego.Query("data.t"),
@@ -50,6 +53,7 @@ want_pat_lines := {i: line | some i, line in split(input.text, "\n"); regex.matc
 		require.Equal(t, want, got["has"], "contains_any_fold(%q, %v)", text, kws)
 		require.Equal(t, got["want_kw_lines"], got["kw_lines"], "keyword_lines(%q, %v)", text, kws)
 		require.Equal(t, got["want_pat_lines"], got["pat_lines"], "pattern_lines(%q, %q)", text, pattern)
+		require.Equal(t, got["want_sub_lines"], got["sub_lines"], "lines_containing(%q, %v)", text, kws)
 	}
 
 	texts := []string{
@@ -72,6 +76,9 @@ want_pat_lines := {i: line | some i, line in split(input.text, "\n"); regex.matc
 		{"�"},
 		{1, "secret", true},
 		{},
+		{"=="},
+		{"Secret", "TOKEN", "\n"},
+		{""},
 	}
 	patterns := []string{`(?i)secret`, `^\s*$`, `[A-Z]{4}`, `token|password`, `\x{FFFD}`}
 	for _, text := range texts {

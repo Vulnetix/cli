@@ -143,10 +143,9 @@ findings contains finding if {
 	not _skip(path)
 	cands := _file_candidates(path, content)
 	count(cands) > 0
-	lines := split(content, "\n")
-	some i, line in lines
-	some c in cands
-	contains(line, c)
+	# The lines holding a candidate, found in Go rather than by testing
+	# every candidate against every line.
+	some i, line in vulnetix.lines_containing(content, cands)
 	regex.match(_gate, line)
 	not helpers.is_comment_line(line)
 	not _pagination(line)

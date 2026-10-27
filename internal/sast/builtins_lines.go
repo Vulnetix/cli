@@ -29,12 +29,37 @@ import (
 //	vulnetix.contains_any_fold(s, kws)    some k in kws; contains(lower(s), k)
 //	vulnetix.keyword_lines(text, kws)     {i: line | some i, line in split(text, "\n"); contains_any_fold(line, kws)}
 //	vulnetix.pattern_lines(text, pattern) {i: line | some i, line in split(text, "\n"); regex.match(pattern, line)}
+//	vulnetix.lines_containing(text, subs) {i: line | some i, line in split(text, "\n"); some s in subs; contains(line, s)}
 //
 // TestLineBuiltinsMatchRego checks each against that Rego.
 
 func registerLineBuiltins() {
 	collection := types.NewAny(types.NewArray(nil, types.A), types.NewSet(types.A), types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))
 	lineObject := types.NewObject(nil, types.NewDynamicProperty(types.N, types.S))
+
+	rego.RegisterBuiltin2(
+		&rego.Function{
+			Name:        "vulnetix.lines_containing",
+			Description: `The lines of split(text, "\n"), keyed by index, that contain any string in subs.`,
+			Decl:        types.NewFunction(types.Args(types.S, collection), lineObject),
+		},
+		func(_ rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+			text, err := builtins.StringOperand(a.Value, 1)
+			if err != nil {
+				return nil, err
+			}
+			subs, err := stringMembers(b.Value)
+			if err != nil {
+				return nil, err
+			}
+			hit := substringHits(string(text), subs)
+			i := -1
+			return selectLines(string(text), func(string) bool {
+				i++
+				return hit[i]
+			}), nil
+		},
+	)
 
 	rego.RegisterBuiltin2(
 		&rego.Function{
@@ -187,15 +212,25 @@ func lowerOf(bctx rego.BuiltinContext, s string) string { return lowered(bctx, s
 // newlines is the offset of every "\n" in e.low.
 func (e lowerEntry) newlines() []int {
 	if *e.nl == nil {
-		nl := make([]int, 0, strings.Count(e.low, "\n"))
-		for i := 0; i < len(e.low); i++ {
-			if e.low[i] == '\n' {
-				nl = append(nl, i)
-			}
-		}
-		*e.nl = nl
+		*e.nl = newlineOffsets(e.low)
 	}
 	return *e.nl
+}
+
+func newlineOffsets(s string) []int {
+	nl := make([]int, 0, strings.Count(s, "\n"))
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			nl = append(nl, i)
+		}
+	}
+	return nl
+}
+
+// substringHits reports, for each line of split(text, "\n"), whether it
+// contains any of subs.
+func substringHits(text string, subs []string) []bool {
+	return lineHits(text, newlineOffsets(text), subs)
 }
 
 // keywordHits reports, for each line of split(text, "\n"), whether its lower
@@ -210,10 +245,16 @@ func (e lowerEntry) newlines() []int {
 // by line.
 func keywordHits(bctx rego.BuiltinContext, text string, kws []string) []bool {
 	e := lowered(bctx, text)
-	low := e.low
-	nl := e.newlines()
+	return lineHits(e.low, e.newlines(), kws)
+}
+
+// lineHits reports, for each line of text (nl holds its newline offsets),
+// whether the line contains any of subs. Each sub is searched for over the
+// whole text and a match mapped to its line; a sub holding "\n" could match
+// across lines that way, so it is tested line by line.
+func lineHits(low string, nl []int, subs []string) []bool {
 	hit := make([]bool, len(nl)+1)
-	for _, k := range kws {
+	for _, k := range subs {
 		switch {
 		case k == "":
 			for i := range hit {

@@ -55,8 +55,9 @@ findings contains finding if {
 	_file_ctx(content)
 	regex.match(`[A-Za-z0-9+/]{86}==`, content)
 	lines := split(content, "\n")
-	some i, line in lines
-	contains(line, "==")
+	# Only the lines holding "==", found in Go; lines stays the whole split
+	# so _has_ctx can read the lines above.
+	some i, line in vulnetix.lines_containing(content, ["=="])
 	m := regex.find_all_string_submatch_n(_token_re, line, -1)
 	some hit in m
 	token := hit[1]
