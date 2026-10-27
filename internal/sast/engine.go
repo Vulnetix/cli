@@ -220,39 +220,71 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	if err != nil {
 		return nil, err
 	}
+	//
+	// With a result cache, per-file rules that read nothing else are served
+	// per file, and the rest of a group (whole-tree rules and per-file rules
+	// that read the file list) is served as one entry while nothing it reads
+	// has changed. Rules calling a volatile builtin always run. Once the cache
+	// holds every rule's metadata, a unit with nothing to evaluate is not
+	// built, so a run that changed nothing compiles nothing.
 	cache := newCacheRun(opts, scanInput, modules)
+	cachedRules := cache.rules()
 	var units []*evalUnit
 	for _, g := range groupByScope(rules) {
 		in := scopedInput(scanInput, g.scope)
-		perFile, cacheable, whole := map[string]string{}, map[string]string{}, map[string]string{}
+		scope := g.scope.key()
+		cacheable := map[string]string{}
+		// [true] is this group's cached entry, [false] what always runs.
+		perFile := [2]map[string]string{{}, {}}
+		whole := [2]map[string]string{{}, {}}
 		for name, src := range g.rules {
 			r := idx.reach[name]
+			grouped := 0
+			if cache != nil && !r.volatile {
+				grouped = 1
+			}
 			switch {
-			case perFileBatching && r.perFile && !r.usesTree && cache != nil:
+			case grouped == 1 && perFileBatching && r.perFile && !r.usesTree:
 				cacheable[name] = src
 			case perFileBatching && r.perFile:
-				perFile[name] = src
+				perFile[grouped][name] = src
 			default:
-				whole[name] = src
+				whole[grouped][name] = src
 			}
 		}
-		if len(perFile) > 0 {
-			units = append(units, &evalUnit{mods: withShared(idx.sharedFor(shared, perFile), perFile), batches: fileBatches(in, batchBytes)})
-		}
 		if len(cacheable) > 0 {
-			units = append(units, &evalUnit{
-				mods:      withShared(idx.sharedFor(shared, cacheable), cacheable),
-				batches:   batchPaths(cache.missesOf(in), in.FileContents, batchBytes),
-				cacheable: true,
-			})
+			misses := cache.missesOf(in)
+			if len(misses) > 0 || cachedRules == nil {
+				units = append(units, &evalUnit{
+					mods:      withShared(idx.sharedFor(shared, cacheable), cacheable),
+					batches:   batchPaths(misses, in.FileContents, batchBytes),
+					cacheable: true,
+				})
+			}
 		}
-		k := 1
-		if n > 1 && len(whole) > 0 {
-			k = max(1, (n*len(whole)+len(rules)/2)/len(rules))
-		}
-		for _, shard := range shardModules(whole, min(k, len(whole))) {
-			if len(shard) > 0 {
-				units = append(units, &evalUnit{mods: withShared(idx.sharedFor(shared, shard), shard), batches: [][]string{inputPaths(in)}})
+		for grouped := range 2 {
+			if len(perFile[grouped])+len(whole[grouped]) == 0 {
+				continue
+			}
+			group := ""
+			if grouped == 1 {
+				if cache.group(scope, in) {
+					continue
+				}
+				group = scope
+			}
+			if pf := perFile[grouped]; len(pf) > 0 {
+				units = append(units, &evalUnit{mods: withShared(idx.sharedFor(shared, pf), pf), batches: fileBatches(in, batchBytes), group: group})
+			}
+			w := whole[grouped]
+			k := 1
+			if n > 1 && len(w) > 0 {
+				k = max(1, (n*len(w)+len(rules)/2)/len(rules))
+			}
+			for _, shard := range shardModules(w, min(k, len(w))) {
+				if len(shard) > 0 {
+					units = append(units, &evalUnit{mods: withShared(idx.sharedFor(shared, shard), shard), batches: [][]string{inputPaths(in)}, group: group})
+				}
 			}
 		}
 	}
@@ -262,25 +294,29 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 		return nil, err
 	}
 
-	var allRules []RuleMetadata
+	allRules := cachedRules
 	var allFindings []Finding
 	for _, rep := range reports {
-		allRules = append(allRules, rep.Rules...)
+		if cachedRules == nil {
+			allRules = append(allRules, rep.Rules...)
+		}
 		allFindings = append(allFindings, rep.Findings...)
 	}
-	allFindings = append(allFindings, cache.finish(units, reports)...)
+	allFindings = append(allFindings, cache.finish(units, reports, allRules)...)
 	// Deterministic order across shards/runs (the single-eval path was already
 	// map-order, so callers must not depend on order; this just makes it stable).
 	sortFindings(allFindings)
 
-	hits, evaluated := cache.counts()
+	hits, evaluated, groupHits, groupsEvaluated := cache.counts()
 	return &SASTReport{
-		Findings:       allFindings,
-		Rules:          allRules,
-		RulesLoaded:    len(allRules),
-		Degradations:   degradations,
-		CachedFiles:    hits,
-		EvaluatedFiles: evaluated,
+		Findings:        allFindings,
+		Rules:           allRules,
+		RulesLoaded:     len(allRules),
+		Degradations:    degradations,
+		CachedFiles:     hits,
+		EvaluatedFiles:  evaluated,
+		CachedGroups:    groupHits,
+		EvaluatedGroups: groupsEvaluated,
 	}, nil
 }
 
@@ -388,9 +424,11 @@ func shardCount(nRules int) int {
 	return max(n, 1)
 }
 
-// sortFindings orders findings deterministically by rule, file, line, message.
+// sortFindings orders findings deterministically by rule, file, line, message,
+// then the remaining detection fields, so two findings that differ only in
+// their end line or snippet keep one order whichever unit or cache served them.
 func sortFindings(fs []Finding) {
-	sort.Slice(fs, func(i, j int) bool {
+	sort.SliceStable(fs, func(i, j int) bool {
 		a, b := fs[i], fs[j]
 		if a.RuleID != b.RuleID {
 			return a.RuleID < b.RuleID
@@ -401,7 +439,19 @@ func sortFindings(fs []Finding) {
 		if a.StartLine != b.StartLine {
 			return a.StartLine < b.StartLine
 		}
-		return a.Message < b.Message
+		if a.Message != b.Message {
+			return a.Message < b.Message
+		}
+		if a.EndLine != b.EndLine {
+			return a.EndLine < b.EndLine
+		}
+		if a.Snippet != b.Snippet {
+			return a.Snippet < b.Snippet
+		}
+		if a.Severity != b.Severity {
+			return a.Severity < b.Severity
+		}
+		return a.Level < b.Level
 	})
 }
 

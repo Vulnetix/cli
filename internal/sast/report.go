@@ -15,4 +15,9 @@ type SASTReport struct {
 	// EvaluatedFiles were evaluated by them. Both are 0 without a cache.
 	CachedFiles    int
 	EvaluatedFiles int
+	// CachedGroups were scope groups whose other rules (whole-tree rules, and
+	// per-file rules that read the file list) were served from the result
+	// cache; EvaluatedGroups were evaluated. Both are 0 without a cache.
+	CachedGroups    int
+	EvaluatedGroups int
 }

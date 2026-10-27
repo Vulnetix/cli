@@ -4,6 +4,7 @@ import (
 	"io"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -131,6 +132,29 @@ findings contains f if {
 	input.file_set["package-lock.json"]
 	f := {"artifact_uri": "package-lock.json"}
 }`, moduleReach{usesTree: true}},
+		{"the clock", `package vulnetix.rules.a
+import rego.v1
+findings contains f if {
+	some path, content in input.file_contents
+	to_number(content) < time.now_ns()
+	f := {"artifact_uri": path}
+}`, moduleReach{perFile: true, volatile: true}},
+		{"the clock through a rule in the same package", `package vulnetix.rules.a
+import rego.v1
+_expired(exp) if exp * 1000000000 < time.now_ns()
+findings contains f if {
+	some path, content in input.file_contents
+	_expired(to_number(content))
+	f := {"artifact_uri": path}
+}`, moduleReach{perFile: true, volatile: true}},
+		{"a validity check that reads the clock", `package vulnetix.rules.a
+import rego.v1
+findings contains f if {
+	some path, content in input.file_contents
+	[valid, _, _] := io.jwt.decode_verify(content, {"secret": "s"})
+	valid
+	f := {"artifact_uri": path}
+}`, moduleReach{perFile: true, volatile: true}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -164,6 +188,21 @@ func TestClassifyReachEmbedded(t *testing.T) {
 	}
 	t.Logf("sast rules: %d, per file: %d, per file and cacheable: %d", total, perFile, cacheable)
 	require.Greater(t, perFile, total/2, "most sast rules read one file at a time")
+}
+
+// A rule whose verdict changes with the clock must not be served from the
+// result cache: an unexpired token would stay unexpired forever.
+func TestClassifyReachClockRuleIsVolatile(t *testing.T) {
+	modules, err := LoadAllModules(DefaultRulesFS, false, nil, "", io.Discard)
+	require.NoError(t, err)
+	var found bool
+	for name, r := range classifyReach(modules) {
+		if strings.Contains(modules[name], "package vulnetix.rules.vnx_sec_011\n") {
+			found = true
+			require.True(t, r.volatile, "%s reads time.now_ns", name)
+		}
+	}
+	require.True(t, found, "vnx-sec-011 is embedded")
 }
 
 func TestSharedFor(t *testing.T) {

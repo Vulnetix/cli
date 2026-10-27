@@ -24,8 +24,13 @@ type moduleReach struct {
 	perFile bool
 	// usesTree is true when a finding can also depend on the rest of the scan
 	// input: the file list, the language directories or the scan root. Those
-	// change when any file is added, so these findings are never cached.
+	// change when any file is added, so these findings are never cached
+	// per file.
 	usesTree bool
+	// volatile is true when a finding can depend on something other than the
+	// scan input: the clock, a network lookup, a random number. Its findings
+	// are never cached at all.
+	volatile bool
 }
 
 // ruleFacts is what one rule (one definition of a name) reads.
@@ -34,6 +39,7 @@ type ruleFacts struct {
 	fcTop     int  // of those, outside comprehensions
 	fcLiteral bool // input.file_contents["a/literal/path"]
 	tree      bool // input.file_set, dirs_by_language, scan_root, or input itself
+	volatile  bool // calls a builtin whose result is not a function of its arguments
 	deps      []string
 }
 
@@ -43,6 +49,7 @@ type reachIndex struct {
 	facts    map[string][]ruleFacts
 	fcMemo   map[string]bool
 	treeMemo map[string]bool
+	volMemo  map[string]bool
 }
 
 // classifyReach returns the reach of every rule module (package
@@ -87,7 +94,7 @@ func indexModules(modules map[string]string) *moduleIndex {
 		}
 	}
 
-	idx := &reachIndex{facts: map[string][]ruleFacts{}, fcMemo: map[string]bool{}, treeMemo: map[string]bool{}}
+	idx := &reachIndex{facts: map[string][]ruleFacts{}, fcMemo: map[string]bool{}, treeMemo: map[string]bool{}, volMemo: map[string]bool{}}
 	for _, mod := range parsed {
 		pkg := mod.Package.Path.String()
 		aliases := importAliases(mod)
@@ -113,12 +120,18 @@ func indexModules(modules map[string]string) *moduleIndex {
 			if f.tree {
 				reach.usesTree = true
 			}
+			if f.volatile {
+				reach.volatile = true
+			}
 			for _, d := range f.deps {
 				if idx.readsFiles(d) {
 					reach.perFile = false
 				}
 				if idx.readsTree(d) {
 					reach.usesTree = true
+				}
+				if idx.isVolatile(d) {
+					reach.volatile = true
 				}
 			}
 		}
@@ -207,6 +220,31 @@ func (x *reachIndex) readsTree(id string) bool {
 	return x.walk(id, x.treeMemo, func(f ruleFacts) bool { return f.tree })
 }
 
+// isVolatile reports whether rule id, or anything it calls, calls a builtin
+// whose result is not a function of its arguments.
+func (x *reachIndex) isVolatile(id string) bool {
+	return x.walk(id, x.volMemo, func(f ruleFacts) bool { return f.volatile })
+}
+
+// clockBuiltins read the current time without OPA marking them
+// nondeterministic: they check a token's or certificate's validity period.
+var clockBuiltins = map[string]bool{
+	"io.jwt.decode_verify":                                   true,
+	"crypto.x509.parse_and_verify_certificates":              true,
+	"crypto.x509.parse_and_verify_certificates_with_options": true,
+}
+
+// volatileCall reports whether ref names a builtin whose result can change
+// between two evaluations of the same input.
+func volatileCall(ref ast.Ref) bool {
+	name := ref.String()
+	if clockBuiltins[name] {
+		return true
+	}
+	b, ok := ast.BuiltinMap[name]
+	return ok && b.IsNondeterministic()
+}
+
 func (x *reachIndex) walk(id string, memo map[string]bool, direct func(ruleFacts) bool) bool {
 	if v, ok := memo[id]; ok {
 		return v
@@ -263,6 +301,9 @@ func factsOf(r *ast.Rule, pkg string, local map[string]bool, aliases map[string]
 	var f ruleFacts
 	ast.WalkRefs(r, func(ref ast.Ref) bool {
 		countInputRef(ref, &f, &f.fcAll)
+		if volatileCall(ref) {
+			f.volatile = true
+		}
 		f.deps = appendDep(f.deps, ref, aliases)
 		return false
 	})

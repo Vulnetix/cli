@@ -35,6 +35,9 @@ type evalUnit struct {
 	// cacheable units hold per-file rules that read nothing but one file's
 	// text; their batches are the files the result cache could not serve.
 	cacheable bool
+	// group is the scope key of the result-cache group entry this unit's
+	// findings are stored under, or "" for a unit that always runs.
+	group string
 
 	once  sync.Once
 	query rego.PreparedEvalQuery
@@ -45,9 +48,14 @@ type evalUnit struct {
 	meta     []RuleMetadata
 }
 
+// unitsCompiled counts unit compiles, for the test that a run which changed
+// nothing compiles nothing.
+var unitsCompiled atomic.Int64
+
 // prepare compiles the unit once, whichever worker gets to it first.
 func (u *evalUnit) prepare(ctx context.Context) (rego.PreparedEvalQuery, error) {
 	u.once.Do(func() {
+		unitsCompiled.Add(1)
 		u.query, u.err = prepareModules(ctx, u.mods)
 	})
 	return u.query, u.err

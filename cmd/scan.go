@@ -1634,8 +1634,9 @@ func runLocalScan(
 			}
 			if sastReport != nil {
 				sastReport.RulesTotal = totalLoaded
-				if sastReport.CachedFiles > 0 {
-					rep.Stage(fmt.Sprintf("Reused results for %d unchanged file(s), evaluated %d", sastReport.CachedFiles, sastReport.EvaluatedFiles))
+				if sastReport.CachedFiles > 0 || sastReport.CachedGroups > 0 {
+					rep.Stage(fmt.Sprintf("Reused results for %d unchanged file(s) and %d rule group(s), evaluated %d file(s) and %d group(s)",
+						sastReport.CachedFiles, sastReport.CachedGroups, sastReport.EvaluatedFiles, sastReport.EvaluatedGroups))
 				}
 			}
 		}
