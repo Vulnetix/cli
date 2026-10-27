@@ -260,6 +260,7 @@ func TestOptionsFieldsAreReachable(t *testing.T) {
 		"SeedBOM",           //
 		"VulnetixSeedBOM",   //
 		"PreloadedModules",  // loaded by the --explain pre-pass to find its rule
+		"BeforeMemory",      // the malscan join, set by runScanWithFeatures
 	} {
 		mapped[field] = true
 	}

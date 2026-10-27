@@ -635,14 +635,8 @@ func reconcileMalscanMemory(rootPath string, gitCtx *gitctx.GitContext, res *mal
 	}
 }
 
-// runMalscanForGate is the entry point the scan/sca hooks use: it runs the engine
-// and uploads, returning the malicious package/file labels so the caller can fold
-// them into the malware quality gate. Best-effort: a nil result on error.
-func runMalscanForGate(rootPath string, includeHome bool, gitCtx *gitctx.GitContext) (*malscanResult, []string) {
-	res, err := runMalscanEngine(gateMalscanOptions(rootPath, includeHome))
-	return finishMalscanForGate(rootPath, gitCtx, res, err)
-}
-
+// gateMalscanOptions are the engine options of the malscan pass the scan/sca
+// hooks run (startMalscanPassForScan).
 func gateMalscanOptions(rootPath string, includeHome bool) malscanOptions {
 	return malscanOptions{
 		Root:           rootPath,
@@ -652,8 +646,9 @@ func gateMalscanOptions(rootPath string, includeHome bool) malscanOptions {
 	}
 }
 
-// finishMalscanForGate is everything runMalscanForGate does with the engine's
-// result: the SARIF, the memory reconcile, the upload and the gate labels.
+// finishMalscanForGate is what the scan/sca hooks do with the engine's result:
+// the SARIF, the memory reconcile and the upload, returning the malicious
+// package/file labels for the malware quality gate. Best-effort: nil on error.
 func finishMalscanForGate(rootPath string, gitCtx *gitctx.GitContext, res *malscanResult, err error) (*malscanResult, []string) {
 	if err != nil || res == nil {
 		return nil, nil

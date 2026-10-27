@@ -44,7 +44,7 @@ Every capability has exactly one owner, reached through one options-struct entry
 | AI inventory | `runAIBOMPass(AIBOMPassOptions)` | `cmd/aibom.go` |
 | Crypto inventory | `runCBOMPass(CBOMPassOptions)` | `cmd/cbom.go` |
 | Built-in rule listing | `handleSASTRuleListing` / `listBuiltinSASTRules` | `cmd/sast_rules.go` |
-| Local malware | `runMalscanForGate` | `cmd/malscan.go` |
+| Local malware | `startMalscanPassForScan` | `cmd/malscan.go` |
 | Remediation (autofix) | `fixCmd` + helpers | `cmd/fix.go`, `cmd/fix_autofix.go` |
 | Report replay | `renderStoredReport` → `LoadFromMemory` | `cmd/report.go`, `cmd/from_memory.go` |
 | SBOM reading | `runBOMImport(BOMImportOptions)` | `cmd/bom.go` |
