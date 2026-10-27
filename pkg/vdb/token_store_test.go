@@ -1,6 +1,7 @@
 package vdb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -131,7 +132,7 @@ func TestRejectedCachedTokenIsExchangedOnce(t *testing.T) {
 	for _, call := range []func(*Client) error{
 		func(c *Client) error { _, err := c.DoRequest("POST", "/ping", map[string]string{"a": "b"}); return err },
 		func(c *Client) error {
-			_, err := cliPostWithEnvContext[map[string]any](nil, c, "cli.ping", CliEnv{}, map[string]string{"a": "b"})
+			_, err := cliPostWithEnvContext[map[string]any](context.TODO(), c, "cli.ping", CliEnv{}, map[string]string{"a": "b"})
 			return err
 		},
 	} {

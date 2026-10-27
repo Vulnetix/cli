@@ -49,7 +49,8 @@ func TestCliRequestsCarryTheScanTargetRepository(t *testing.T) {
 		t.Errorf("Git.RepoRoot = %q, want the scan target %q", env.Git.RepoRoot, target)
 	}
 	// The scan's own context and the requests' are one collection.
-	if cwdGitContext(target) != cwdGitContext(target) {
+	first, second := cwdGitContext(target), cwdGitContext(target)
+	if first != second {
 		t.Error("cwdGitContext collected the scan target twice")
 	}
 }

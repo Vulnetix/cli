@@ -30,8 +30,7 @@ func foldAliases(in []Advisory) []Advisory {
 		families[i] = map[string]bool{idFamily(a.ID): true}
 		index[strings.ToUpper(strings.TrimSpace(a.ID))] = i
 	}
-	var find func(int) int
-	find = func(i int) int {
+	find := func(i int) int {
 		for parent[i] != i {
 			parent[i] = parent[parent[i]]
 			i = parent[i]

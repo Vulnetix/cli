@@ -722,7 +722,7 @@ func loadBenchLabels(path string) (map[string]benchLabel, error) {
 			continue
 		}
 		var cwe int
-		fmt.Sscanf(strings.TrimSpace(f[3]), "%d", &cwe)
+		_, _ = fmt.Sscanf(strings.TrimSpace(f[3]), "%d", &cwe) // a label with no CWE stays 0
 		out[strings.TrimSpace(f[0])] = benchLabel{cwe: cwe, real: strings.TrimSpace(f[2]) == "true"}
 	}
 	return out, nil

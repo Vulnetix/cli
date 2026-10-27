@@ -40,7 +40,8 @@ func TestBackgroundOutputIsHeldUntilJoinAndKeepsStartOrder(t *testing.T) {
 func TestFutureIsComputedOnceAndNilIsZero(t *testing.T) {
 	var calls atomic.Int32
 	f := startFuture(func() int { calls.Add(1); return 42 })
-	if f.get() != 42 || f.get() != 42 || calls.Load() != 1 {
+	first, second := f.get(), f.get()
+	if first != 42 || second != 42 || calls.Load() != 1 {
 		t.Fatalf("future recomputed or lost its value (calls=%d)", calls.Load())
 	}
 	var nilFuture *future[[]string]

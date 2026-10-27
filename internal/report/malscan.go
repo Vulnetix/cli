@@ -206,10 +206,7 @@ func RenderMalscan(m MalscanReport, o Options, t *display.Terminal) string {
 		b.WriteString(headLine(head, s.Dim(fmt.Sprintf("%s %s %s known-bad indicators", plural(v.files, "file"), s.G.Sep, commas(m.Indicators))), s))
 	}
 	if flagged > 0 || len(v.incomplete) == 0 {
-		var sub []string
-		for _, e := range ecosystemTally(m.Targets) {
-			sub = append(sub, e)
-		}
+		sub := ecosystemTally(m.Targets)
 		line := strings.Join(sub, " "+s.G.Sep+" ")
 		if line != "" {
 			line += " packages"

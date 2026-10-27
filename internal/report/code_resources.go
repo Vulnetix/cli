@@ -155,13 +155,13 @@ func (b *resBlock) where() string {
 }
 
 type resourceView struct {
-	action, wait             []*resBlock
-	tests                    []CodeFinding
-	vendored                 codeView
-	problemsA, problemsW     int
-	findings, folded, nTests int
-	files                    map[string]bool
-	resources                map[string]bool
+	action, wait         []*resBlock
+	tests                []CodeFinding
+	vendored             codeView
+	problemsA, problemsW int
+	findings, folded     int
+	files                map[string]bool
+	resources            map[string]bool
 }
 
 func buildResourceView(r CodeReport, o Options) resourceView {
@@ -287,13 +287,12 @@ func renderResources(r CodeReport, o Options, t *display.Terminal, containers bo
 func resourceHeadline(v resourceView, containers bool, sep string) string {
 	problems := v.problemsA + v.problemsW
 	if containers {
-		cards := len(v.action) + len(v.wait)
 		// An image with action and wait problems is one image.
 		seen := map[string]bool{}
 		for _, bl := range append(append([]*resBlock{}, v.action...), v.wait...) {
 			seen[bl.path+"|"+bl.name] = true
 		}
-		cards = len(seen)
+		cards := len(seen)
 		return fmt.Sprintf("%s %s %s", plural(cards, "image"), sep, plural(problems, "problem"))
 	}
 	return fmt.Sprintf("%s on %s in %s", plural(problems, "problem"), plural(len(v.resources), "resource"), plural(len(v.files), "file"))

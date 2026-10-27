@@ -62,7 +62,7 @@ func blameSecrets(cr *report.CodeReport, root string) {
 		if rest, ok := strings.CutPrefix(f.Path, historyPrefix); ok {
 			sha, path, _ := strings.Cut(rest, "/")
 			if sha == "loose" {
-				sha, path, _ = strings.Cut(path, "/")
+				sha, _, _ = strings.Cut(path, "/")
 				path = "(unreachable git object " + sha + ")"
 			}
 			f.Path, f.InHistory, f.Blamed, f.Committed, f.Commit = path, true, true, true, sha
