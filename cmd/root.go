@@ -364,7 +364,9 @@ func Execute() error {
 	// Match `vulnetix version --short`, which prints the bare version.
 	// Cobra's default template prefixes "vulnetix version ".
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
+	stopProfiles := startProfiles(os.Getenv("VULNETIX_PPROF_DIR"))
 	err := rootCmd.Execute()
+	stopProfiles()
 	// No command may exit with background requests in flight.
 	waitBackground()
 	if err == nil {
