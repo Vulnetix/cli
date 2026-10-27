@@ -62,9 +62,11 @@ _loop_vars(header) := {v |
 	v != "_"
 }
 
-# The loop that encloses line i: its header is shallower, and no line between
-# them is at or above the header's indentation (the loop has not ended).
-_enclosing_loop(lines, i) := k if {
+# The loops that enclose line i: each header is shallower, and no line between
+# it and i is at or above the header's indentation (the loop has not ended).
+# Nested loops give more than one, and a query keyed by any of their variables
+# runs once per iteration.
+_enclosing_loops(lines, i) := {k |
 	ii := _indent(lines[i])
 	some k in numbers.range(max([0, i - 25]), i - 1)
 	regex.match(_for_re, lines[k])
@@ -105,7 +107,7 @@ _runs_statement(tail, vars) if {
 
 # Query in a loop body, keyed by the loop variable or a name derived from it.
 _n_plus_one(lines, i, tail) if {
-	k := _enclosing_loop(lines, i)
+	some k in _enclosing_loops(lines, i)
 	vars := _loop_vars(lines[k])
 	not _batched(tail)
 	not _runs_statement(tail, vars)
