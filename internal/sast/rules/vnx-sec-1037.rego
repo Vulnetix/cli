@@ -25,11 +25,14 @@ metadata := {
 _pattern := `\b(st\.[0-9a-f]{24}\.[0-9a-f]{24,}\.[0-9a-f]{24,})\b`
 _keywords := ["st."]
 
+# The vulnetix.* builtins are what secrets.has_keyword, keyword_lines and
+# pattern_lines call. They are called directly because a Rego function call
+# hashes its arguments for its memo, and here an argument is the whole file.
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	secrets.has_keyword(content, _keywords)
-	some i, line in secrets.keyword_lines(content, _keywords)
+	vulnetix.contains_any_fold(content, _keywords)
+	some i, line in vulnetix.keyword_lines(content, _keywords)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]

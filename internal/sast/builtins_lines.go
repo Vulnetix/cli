@@ -3,6 +3,7 @@ package sast
 import (
 	"errors"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"unsafe"
@@ -60,7 +61,7 @@ func registerLineBuiltins() {
 			Description: `The lines of split(text, "\n"), keyed by index, whose lower case contains any string in kws.`,
 			Decl:        types.NewFunction(types.Args(types.S, collection), lineObject),
 		},
-		func(_ rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+		func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
 			text, err := builtins.StringOperand(a.Value, 1)
 			if err != nil {
 				return nil, err
@@ -69,8 +70,11 @@ func registerLineBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			return selectLines(string(text), func(line string) bool {
-				return containsAnyFold(strings.ToLower(line), kws)
+			hit := keywordHits(bctx, string(text), kws)
+			i := -1
+			return selectLines(string(text), func(string) bool {
+				i++
+				return hit[i]
 			}), nil
 		},
 	)
@@ -160,20 +164,85 @@ type lowerKey struct {
 
 type lowerEntry struct {
 	src, low string
+	// nl is the offset of every "\n" in low, filled on first use.
+	nl *[]int
 }
 
-// lowerOf is strings.ToLower(s), computed once per evaluation for a long s.
-func lowerOf(bctx rego.BuiltinContext, s string) string {
+// lowered is strings.ToLower(s), computed once per evaluation for a long s.
+func lowered(bctx rego.BuiltinContext, s string) lowerEntry {
 	if len(s) < lowerMemoMin || bctx.Cache == nil {
-		return strings.ToLower(s)
+		return lowerEntry{src: s, low: strings.ToLower(s), nl: new([]int)}
 	}
 	k := lowerKey{unsafe.StringData(s), len(s)}
 	if v, ok := bctx.Cache.Get(k); ok {
-		return v.(lowerEntry).low
+		return v.(lowerEntry)
 	}
-	low := strings.ToLower(s)
-	bctx.Cache.Put(k, lowerEntry{src: s, low: low})
-	return low
+	e := lowerEntry{src: s, low: strings.ToLower(s), nl: new([]int)}
+	bctx.Cache.Put(k, e)
+	return e
+}
+
+func lowerOf(bctx rego.BuiltinContext, s string) string { return lowered(bctx, s).low }
+
+// newlines is the offset of every "\n" in e.low.
+func (e lowerEntry) newlines() []int {
+	if *e.nl == nil {
+		nl := make([]int, 0, strings.Count(e.low, "\n"))
+		for i := 0; i < len(e.low); i++ {
+			if e.low[i] == '\n' {
+				nl = append(nl, i)
+			}
+		}
+		*e.nl = nl
+	}
+	return *e.nl
+}
+
+// keywordHits reports, for each line of split(text, "\n"), whether its lower
+// case contains any of kws.
+//
+// It searches the whole text's lower case once per keyword instead of
+// lowering and searching each line. That is the same answer because
+// strings.ToLower maps each rune (and each byte of an invalid sequence) on its
+// own, leaves "\n" as it is and never produces a 0x0A byte for anything else,
+// so the lines of lower(text) are the lowered lines of text, in order. A
+// keyword holding "\n" can span lines in the whole text, so it is tested line
+// by line.
+func keywordHits(bctx rego.BuiltinContext, text string, kws []string) []bool {
+	e := lowered(bctx, text)
+	low := e.low
+	nl := e.newlines()
+	hit := make([]bool, len(nl)+1)
+	for _, k := range kws {
+		switch {
+		case k == "":
+			for i := range hit {
+				hit[i] = true
+			}
+		case strings.Contains(k, "\n"):
+			i := 0
+			for line := range strings.SplitSeq(low, "\n") {
+				if strings.Contains(line, k) {
+					hit[i] = true
+				}
+				i++
+			}
+		default:
+			for pos := 0; pos < len(low); {
+				j := strings.Index(low[pos:], k)
+				if j < 0 {
+					break
+				}
+				line := sort.SearchInts(nl, pos+j) // newlines before the match
+				hit[line] = true
+				if line == len(nl) {
+					break
+				}
+				pos = nl[line] + 1
+			}
+		}
+	}
+	return hit
 }
 
 var patternCache sync.Map // pattern → *regexp.Regexp or error

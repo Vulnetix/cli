@@ -153,13 +153,16 @@ _pattern := ` + "`{{.Pattern}}`" + `
 # matches any line of it, so a file it cannot match is never split into lines.
 _file_gate := ` + "`(?m){{.Pattern}}`" + `
 {{end}}
+# The vulnetix.* builtins are what secrets.has_keyword, keyword_lines and
+# pattern_lines call. They are called directly because a Rego function call
+# hashes its arguments for its memo, and here an argument is the whole file.
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
-{{if .HasKeywords}}	secrets.has_keyword(content, _keywords)
+{{if .HasKeywords}}	vulnetix.contains_any_fold(content, _keywords)
 {{else}}	regex.match(_file_gate, content)
-{{end}}{{if .HasKeywords}}	some i, line in secrets.keyword_lines(content, _keywords)
-{{else}}	some i, line in secrets.pattern_lines(content, _pattern)
+{{end}}{{if .HasKeywords}}	some i, line in vulnetix.keyword_lines(content, _keywords)
+{{else}}	some i, line in vulnetix.pattern_lines(content, _pattern)
 {{end}}	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]

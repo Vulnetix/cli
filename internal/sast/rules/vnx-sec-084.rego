@@ -28,11 +28,14 @@ _pattern := `\b(00[a-zA-Z0-9]{13}![A-Za-z0-9._]{96,})`
 # matches any line of it, so a file it cannot match is never split into lines.
 _file_gate := `(?m)\b(00[a-zA-Z0-9]{13}![A-Za-z0-9._]{96,})`
 
+# The vulnetix.* builtins are what secrets.has_keyword, keyword_lines and
+# pattern_lines call. They are called directly because a Rego function call
+# hashes its arguments for its memo, and here an argument is the whole file.
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
 	regex.match(_file_gate, content)
-	some i, line in secrets.pattern_lines(content, _pattern)
+	some i, line in vulnetix.pattern_lines(content, _pattern)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]
