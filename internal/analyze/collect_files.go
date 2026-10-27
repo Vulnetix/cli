@@ -14,12 +14,13 @@ package analyze
 // have to trust.
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vulnetix/cli/v3/internal/reachability"
@@ -77,28 +78,49 @@ var decisionQueries = map[treesitter.LanguageID]string{
 }
 
 // skipDirs are never walked. Vendored and generated trees are not this repository's code, and
-// counting them makes every metric about somebody else's work.
+// counting them makes every metric about somebody else's work. .vulnetix is the scanner's own
+// output (SARIF, SBOM, memory.yaml): reading it reported the scanner's findings as the
+// repository's egress and infrastructure, and a scan that writes it while the graph is built
+// would make the graph depend on timing.
 var skipDirs = map[string]bool{
 	".git": true, "node_modules": true, "vendor": true, ".venv": true, "venv": true,
 	"__pycache__": true, "dist": true, "build": true, "target": true, ".gradle": true,
 	".idea": true, ".vscode": true, ".next": true, ".nuxt": true, "coverage": true,
 	".cache": true, "site-packages": true, "third_party": true, ".terraform": true,
+	".vulnetix": true,
 }
 
 const maxFileBytes = 1 << 20 // 1 MiB. Past this a source file is generated, not written.
 
 type fileStats struct {
 	files []*FileRecord
+	// facts holds what was read from each file in files, by path, for the symbol collector.
+	facts map[string]*fileFacts
+}
+
+// sourceFile is a file the walk accepted, before it is read.
+type sourceFile struct {
+	path string
+	rec  *FileRecord
+	lang treesitter.LanguageID
 }
 
 func collectFiles(b *Builder, root string, git *gitStats, opts Options, now time.Time, pr reporter) (*fileStats, error) {
-	engine := reachability.NewEngine()
-	ctx := context.Background()
+	return collectFilesCached(b, root, git, opts, now, pr, nil)
+}
 
-	st := &fileStats{}
+// collectFilesCached walks the tree, then reads and parses the accepted files in parallel
+// (served from cache where their text is unchanged), then assembles the records in walk
+// order. Record ids are minted during the walk, in walk order, exactly as before.
+func collectFilesCached(b *Builder, root string, git *gitStats, opts Options, now time.Time, pr reporter, cache *graphCache) (*fileStats, error) {
+	engine := reachability.NewEngine()
+	ctx := opts.ctx()
+
+	st := &fileStats{facts: map[string]*fileFacts{}}
 	skippedLangs := map[string]int{}
 	var skippedLarge int
 	fileIDs := map[string]string{}
+	var accepted []sourceFile
 
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -134,27 +156,57 @@ func collectFiles(b *Builder, root string, git *gitStats, opts Options, now time
 			return nil
 		}
 
-		rec := &FileRecord{
+		accepted = append(accepted, sourceFile{path: path, lang: lang, rec: &FileRecord{
 			ID:        uniqueRecordID("file-", rel, fileIDs),
 			Type:      "file",
 			Path:      rel,
 			Language:  string(lang),
 			SizeBytes: &size,
+		}})
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walk files: %w", err)
+	}
+
+	// Parsing every file with tree-sitter is the slowest pass, so it runs on every core. A
+	// count that climbs is a tool that is working.
+	facts := make([]*fileFacts, len(accepted))
+	var done atomic.Int64
+	var progress sync.Mutex
+	eachIndex(len(accepted), graphWorkers(opts), func(i int) {
+		if ctx.Err() != nil {
+			return
 		}
+		f := accepted[i]
+		src, rerr := os.ReadFile(f.path)
+		if rerr != nil {
+			facts[i] = &fileFacts{}
+		} else {
+			facts[i] = cache.factsFor(f.rec.Path, src, func() *fileFacts { return computeFileFacts(ctx, engine, f.lang, src) })
+		}
+		if n := done.Add(1); n%100 == 0 {
+			progress.Lock()
+			pr.Stage("Reading files (" + plural(int(n), "file", "files") + ")")
+			progress.Unlock()
+		}
+	})
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
-		src, rerr2 := os.ReadFile(path)
-		if rerr2 == nil {
-			lines := strings.Count(string(src), "\n") + 1
+	for i, f := range accepted {
+		rec, ff := f.rec, facts[i]
+		rel := rec.Path
+		st.facts[rel] = ff
+		if ff.Read {
+			lines := ff.Lines
 			rec.Lines = &lines
-
-			query, supported := decisionQueries[lang]
-			if !supported {
-				skippedLangs[string(lang)]++
-			} else if matches, qerr := engine.Run(ctx, lang, src, query); qerr == nil {
-				// Cyclomatic complexity: decision points plus one.
-				c := len(matches) + 1
-				rec.Complexity = &c
+			if ff.Decision == queryNone {
+				skippedLangs[rec.Language]++
 			}
+			rec.Complexity = ff.Complexity
 		}
 
 		// History-derived facts, if the file has any. A file with no commits in the window is not
@@ -193,17 +245,6 @@ func collectFiles(b *Builder, root string, git *gitStats, opts Options, now time
 		}
 
 		st.files = append(st.files, rec)
-
-		// Parsing every file with tree-sitter is the second-slowest pass. Same reason as the
-		// history walk: a count that climbs is a tool that is working.
-		if len(st.files)%100 == 0 {
-			pr.Stage("Reading files (" + plural(len(st.files), "file", "files") + ")")
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("walk files: %w", err)
 	}
 
 	sort.Slice(st.files, func(i, j int) bool { return st.files[i].Path < st.files[j].Path })

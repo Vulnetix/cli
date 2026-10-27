@@ -17,7 +17,6 @@ package analyze
 // the mistake that buried the threat-model canvas under dependency nodes.
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -133,11 +132,24 @@ type egressStats struct {
 }
 
 func collectEgress(root string, deps *depStats) *egressStats {
+	return collectEgressCached(root, deps, Options{}, nil)
+}
+
+// egressFile is a file the walk accepted, before it is read.
+type egressFile struct {
+	path, rel, source, language string
+}
+
+// collectEgressCached walks the tree, reads and scans the accepted files in parallel (served
+// from cache where their text is unchanged), then records every sighting in walk order. The
+// order matters: the first sighting of a host sets its first path, and the host cap admits
+// hosts first come.
+func collectEgressCached(root string, deps *depStats, opts Options, cache *graphCache) *egressStats {
 	st := &egressStats{}
 	byHost := map[string]*egressHost{}
 
 	engine := reachability.NewEngine()
-	ctx := context.Background()
+	ctx := opts.ctx()
 
 	record := func(s egressSighting) {
 		h, ok := byHost[s.Host]
@@ -177,6 +189,7 @@ func collectEgress(root string, deps *depStats) *egressStats {
 		addTo(h.keyPaths, s.KeyPath)
 	}
 
+	var accepted []egressFile
 	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -209,31 +222,54 @@ func collectEgress(root string, deps *depStats) *egressStats {
 		if ierr != nil || info.Size() > maxEgressFileBytes {
 			return nil
 		}
-
-		body, rerr2 := os.ReadFile(path)
-		if rerr2 != nil || isBinary(body) {
-			return nil
-		}
-		st.filesScanned++
-
-		// Source code goes to the parser, which is the only thing that can tell a
-		// destination from a dotted identifier. Comments come out first, for the
-		// same reason the contract collector strips them: a licence header or a
-		// doc link is not somewhere this code reaches.
-		if language != "" {
-			stripped := []byte(stripEgressComments(string(body), language))
-			scanEgressCode(ctx, engine, treesitter.LanguageID(language), stripped, rel, record)
-
-			return nil
-		}
-
-		// Everything else is configuration, and every format here has a parser or
-		// a grammar of its own. Reading them as text is what produced `http.host`
-		// and `steps.scan.outputs.total` — expression syntax, not hostnames.
-		scanEgressConfig(string(body), source, rel, record)
+		accepted = append(accepted, egressFile{path: path, rel: rel, source: source, language: language})
 
 		return nil
 	})
+
+	scanned := make([]bool, len(accepted))
+	sightings := make([][]egressSighting, len(accepted))
+	eachIndex(len(accepted), graphWorkers(opts), func(i int) {
+		if ctx.Err() != nil {
+			return
+		}
+		f := accepted[i]
+		body, rerr := os.ReadFile(f.path)
+		if rerr != nil || isBinary(body) {
+			return
+		}
+		scanned[i] = true
+		sightings[i] = cache.egressFor(f.rel, body, func() []egressSighting {
+			var out []egressSighting
+			collect := func(s egressSighting) { out = append(out, s) }
+
+			// Source code goes to the parser, which is the only thing that can tell a
+			// destination from a dotted identifier. Comments come out first, for the
+			// same reason the contract collector strips them: a licence header or a
+			// doc link is not somewhere this code reaches.
+			if f.language != "" {
+				stripped := []byte(stripEgressComments(string(body), f.language))
+				scanEgressCode(ctx, engine, treesitter.LanguageID(f.language), stripped, f.rel, collect)
+
+				return out
+			}
+
+			// Everything else is configuration, and every format here has a parser or
+			// a grammar of its own. Reading them as text is what produced `http.host`
+			// and `steps.scan.outputs.total` — expression syntax, not hostnames.
+			scanEgressConfig(string(body), f.source, f.rel, collect)
+
+			return out
+		})
+	})
+	for i := range accepted {
+		if scanned[i] {
+			st.filesScanned++
+		}
+		for _, s := range sightings[i] {
+			record(s)
+		}
+	}
 
 	// Dependencies resolved from somewhere other than a registry name a host by
 	// definition — the resolver asks DNS for it. They are merged into the same

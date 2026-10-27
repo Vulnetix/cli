@@ -12,7 +12,6 @@ package analyze
 // language.
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path"
@@ -161,7 +160,7 @@ type callSite struct {
 
 func collectSymbols(b *Builder, root string, files *fileStats, modulePath string, opts Options, pr reporter) *symbolStats {
 	engine := reachability.NewEngine()
-	ctx := context.Background()
+	ctx := opts.ctx()
 
 	st := &symbolStats{
 		langsSkipped:     map[string]int{},
@@ -190,20 +189,26 @@ func collectSymbols(b *Builder, root string, files *fileStats, modulePath string
 		}
 
 		lang := treesitter.LanguageID(f.Language)
-		query, ok := symbolQueries[lang]
-		if !ok {
+		if _, ok := symbolQueries[lang]; !ok {
 			st.langsSkipped[f.Language]++
 
 			continue
 		}
 
-		src, err := os.ReadFile(filepath.Join(root, f.Path))
-		if err != nil {
+		// The file collector has normally read and parsed the file already; a fileStats built
+		// any other way is read here.
+		ff := files.facts[f.Path]
+		if ff == nil {
+			src, err := os.ReadFile(filepath.Join(root, f.Path))
+			if err != nil {
+				continue
+			}
+			ff = computeFileFacts(ctx, engine, lang, src)
+		}
+		if !ff.Read {
 			continue
 		}
-
-		matches, err := engine.Run(ctx, lang, src, query)
-		if err != nil {
+		if ff.Symbol != queryRan {
 			// A query that does not compile against this grammar is our bug, not the user's code
 			// being wrong. Record it and move on rather than failing the scan.
 			st.langsSkipped[f.Language]++
@@ -217,8 +222,8 @@ func collectSymbols(b *Builder, root string, files *fileStats, modulePath string
 
 		fileNode := "file:" + f.Path
 
-		for _, m := range matches {
-			if src := m.Captures["import.source"]; src != "" {
+		for _, m := range ff.Symbols {
+			if src := m.Import; src != "" {
 				target := resolveImport(f.Path, src, known, lang, modulePath)
 				if target == "" {
 					continue
@@ -245,10 +250,7 @@ func collectSymbols(b *Builder, root string, files *fileStats, modulePath string
 				continue
 			}
 
-			kind, name := symbolOf(m.Captures)
-			if kind == "" || name == "" {
-				continue
-			}
+			kind, name := m.Kind, m.Name
 
 			// Two symbols in one file can share a name. Go permits several `init()` per file;
 			// methods on different receivers collide; overloaded methods collide in every language
@@ -293,28 +295,17 @@ func collectSymbols(b *Builder, root string, files *fileStats, modulePath string
 			})
 		}
 
-		callQuery, ok := callQueries[lang]
-		if !ok {
+		if ff.Call != queryRan {
 			st.callLangsSkipped[f.Language]++
 
 			continue
 		}
-		callMatches, err := engine.Run(ctx, lang, src, callQuery)
-		if err != nil {
-			st.callLangsSkipped[f.Language]++
-
-			continue
-		}
-		for _, m := range callMatches {
-			name := strings.TrimSpace(m.Captures["call.name"])
-			if name == "" {
-				continue
-			}
+		for _, c := range ff.Calls {
 			callSites = append(callSites, callSite{
 				file:     f.Path,
-				line:     m.StartLine,
-				name:     name,
-				receiver: strings.TrimSpace(m.Captures["call.receiver"]),
+				line:     c.Line,
+				name:     c.Name,
+				receiver: c.Receiver,
 			})
 		}
 	}

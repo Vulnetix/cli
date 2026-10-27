@@ -50,6 +50,25 @@ type Options struct {
 	// Progress receives stage and step updates. Nil is valid and reports nothing — a long walk
 	// with no output is indistinguishable from a hang, but only a terminal needs telling.
 	Progress Reporter
+
+	// Workers is how many files the file, symbol and egress passes read and parse at once.
+	// Zero is VULNETIX_GRAPH_WORKERS, or the number of cores.
+	Workers int
+
+	// CacheDir, when set, keeps each file's graph facts between runs (graph_cache.go), so an
+	// unchanged file is not parsed again. CacheSalt names the build that computed them.
+	CacheDir  string
+	CacheSalt string
+
+	// Context stops the file passes early when cancelled. Nil is context.Background().
+	Context context.Context
+}
+
+func (o Options) ctx() context.Context {
+	if o.Context != nil {
+		return o.Context
+	}
+	return context.Background()
 }
 
 func DefaultOptions() Options {
@@ -174,6 +193,7 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 	// Every collector reports through this. A nil Reporter makes each call a no-op, so nothing
 	// below needs to know whether a terminal is attached.
 	pr := reporter{opts.Progress}
+	cache := openGraphCache(opts, root)
 
 	var err error
 
@@ -212,7 +232,7 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 	} else {
 		t := time.Now()
 		pr.Stage("Reading files")
-		fstats, err = collectFiles(b, root, gstats, opts, now, pr)
+		fstats, err = collectFilesCached(b, root, gstats, opts, now, pr, cache)
 		if err != nil {
 			b.Collected(Collector{Name: "files", Status: "failed", Reason: err.Error(),
 				DurationSeconds: time.Since(t).Seconds()})
@@ -348,10 +368,14 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 	} else {
 		t := time.Now()
 		pr.Stage("Finding egress hosts")
-		egstats = collectEgress(root, dstats)
+		egstats = collectEgressCached(root, dstats, opts, cache)
 		b.Collected(Collector{Name: "egress", Status: "completed",
 			DurationSeconds: time.Since(t).Seconds()})
 	}
+	if err := opts.ctx().Err(); err != nil {
+		return nil, nil, err
+	}
+	cache.save()
 
 	pr.Stage("Assembling the graph")
 	b.SetGraph(buildGraph(target, fstats, dstats, gstats, sstats, cstats, cpstats, tstats, egstats))
@@ -386,6 +410,7 @@ func RunGraphOnly(tool Tool, opts Options, pre *Preflight) (*Report, []byte, err
 	target := pre.Target
 	b := NewBuilder(tool, target, started)
 	pr := reporter{opts.Progress}
+	cache := openGraphCache(opts, root)
 
 	var fstats *fileStats
 	if opts.NoFiles {
@@ -394,7 +419,7 @@ func RunGraphOnly(tool Tool, opts Options, pre *Preflight) (*Report, []byte, err
 		t := time.Now()
 		pr.Stage("Reading files for graph")
 		var err error
-		fstats, err = collectFiles(b, root, nil, opts, started, pr)
+		fstats, err = collectFilesCached(b, root, nil, opts, started, pr, cache)
 		if err != nil {
 			b.Collected(Collector{Name: "files", Status: "failed", Reason: err.Error(), DurationSeconds: time.Since(t).Seconds()})
 			b.Diagnose(Diagnostic{Level: "warning", Collector: "files", Message: err.Error()})
@@ -451,9 +476,13 @@ func RunGraphOnly(tool Tool, opts Options, pre *Preflight) (*Report, []byte, err
 	} else {
 		t := time.Now()
 		pr.Stage("Finding egress hosts for graph")
-		egstats = collectEgress(root, dstats)
+		egstats = collectEgressCached(root, dstats, opts, cache)
 		b.Collected(Collector{Name: "egress", Status: "completed", DurationSeconds: time.Since(t).Seconds()})
 	}
+	if err := opts.ctx().Err(); err != nil {
+		return nil, nil, err
+	}
+	cache.save()
 
 	b.SetGraph(buildGraph(target, fstats, dstats, nil, sstats, cstats, nil, nil, egstats))
 	return b.Finish(time.Now())
