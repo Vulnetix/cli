@@ -142,6 +142,9 @@ type Options struct {
 	// SnippetContext shapes SARIF snippets: -1 picks a width from the finding
 	// span, 0 disables snippets.
 	SnippetContext int
+	// NoSASTCache evaluates every file even when the SAST result cache holds
+	// its findings from an earlier run (--no-cache).
+	NoSASTCache bool
 
 	// Reachability selects the tree-sitter reachability mode applied to the
 	// CVEs the SCA pass produces: "direct" scans only each vulnerable

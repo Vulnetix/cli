@@ -40,6 +40,7 @@ var NotReplayed = map[string]string{
 	"environment": "document label", "tag": "document label",
 
 	"concurrency": "how fast, not what is found",
+	"no-cache":    "an explain run uses no result cache anyway",
 	"no-banner":   "display",
 
 	// What is shown, not what is found.

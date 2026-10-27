@@ -173,6 +173,7 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 		opts.RuleRegistry = sast.DefaultRegistry
 	}
 	opts.RuleID = strings.ToUpper(strings.TrimSpace(getString("rule-id")))
+	opts.NoSASTCache = getBool("no-cache")
 
 	// -1 means "choose a width from the finding span"; an explicitly passed 0
 	// disables snippets. Only an explicit --snippet-context overrides the

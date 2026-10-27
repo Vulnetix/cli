@@ -34,6 +34,7 @@ vulnetix iac [flags]
 | `--dry-run` | bool | `false` | Report what this command would scan — rule kinds, external rule packs, discovered files — then replay stored results. Zero API calls. |
 | `--list-default-rules` | bool | `false` | Print the built-in rule table and exit |
 | `--snippet-context` | int | `-1` | Source lines captured around each SARIF finding (`-1` = dynamic, `0` disables) |
+| `--no-cache` | bool | `false` | Evaluate every file, not reusing rule results kept for unchanged files (see [SAST: Result cache](../sast/#result-cache)) |
 | `--iac-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 
 ## Detected File Types

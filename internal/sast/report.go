@@ -11,4 +11,8 @@ type SASTReport struct {
 	// SARIF toolExecutionNotifications so a report consumer can distinguish
 	// "scanned clean" from "not fully scanned".
 	Degradations []string
+	// CachedFiles were served from the result cache for the per-file rules;
+	// EvaluatedFiles were evaluated by them. Both are 0 without a cache.
+	CachedFiles    int
+	EvaluatedFiles int
 }

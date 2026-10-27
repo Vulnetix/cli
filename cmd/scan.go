@@ -1624,12 +1624,19 @@ func runLocalScan(
 				GitHistoryMaxCommits: gitHistoryMaxCommits,
 				GitHistoryMaxFiles:   gitHistoryMaxFiles,
 				RespectGitignore:     respectGitignore,
+				// An explain run reads everything fresh: it is asked why a
+				// finding applies, and a cached one says nothing about that.
+				CacheDir:  sastCacheDir(opts.NoSASTCache || explaining),
+				CacheSalt: sastCacheSalt(),
 			})
 			if eerr != nil {
 				fmt.Fprintf(progressStderr, "  warning: SAST evaluation failed: %v\n", eerr)
 			}
 			if sastReport != nil {
 				sastReport.RulesTotal = totalLoaded
+				if sastReport.CachedFiles > 0 {
+					rep.Stage(fmt.Sprintf("Reused results for %d unchanged file(s), evaluated %d", sastReport.CachedFiles, sastReport.EvaluatedFiles))
+				}
 			}
 		}
 		var nosecHits []sast.NosecHit
@@ -4231,6 +4238,8 @@ func addSASTFlags(cmd *cobra.Command) {
 	// set it for their own output.
 	cmd.Flags().Int("snippet-context", -1,
 		"Surrounding non-empty source lines to capture around each SARIF finding (-1 = dynamic: 3 if span <10 lines else 5; 0 disables)")
+	cmd.Flags().Bool("no-cache", false,
+		"Evaluate every file, not reusing rule results kept for files unchanged since an earlier run")
 }
 
 // suppressTestCode is set from the --suppress-test-code flag in

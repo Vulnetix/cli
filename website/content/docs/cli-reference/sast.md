@@ -41,6 +41,7 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--snippet-context` | int | `-1` | Source lines captured around each SARIF finding (`-1` = dynamic, `0` disables) |
 | `--sast-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 | `--suppress-test-code` | bool | `false` | Suppress findings located in the project's test suite (see [Test-suite detection](#test-suite-detection)) |
+| `--no-cache` | bool | `false` | Evaluate every file, not reusing rule results kept for unchanged files (see [Result cache](#result-cache)) |
 
 ## What is read
 
@@ -50,6 +51,12 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 ## Parallelism and memory
 
 Rules are evaluated on a pool of workers, one per core up to 16. A rule that judges one file at a time, most of them, is evaluated a batch of files at a time, so a large project spreads across every worker. A rule that reads more than one file (a configuration value used in code, a constant declared elsewhere) runs once over the files in its scope. Set `VULNETIX_SAST_WORKERS` to change the number of workers; fewer workers use less memory.
+
+## Result cache
+
+A rule that judges one file's text and nothing else gives the same findings for the same text, so a scan keeps those findings and reuses them for files that have not changed. A file is reused when its path and the SHA-256 of its text match the earlier run's. The cache is keyed by the CLI build and by every rule evaluated, so a new release, an edited rule, an added `--rule` pack or a language new to the project starts afresh. Rules that read more than one file, or the file list, are always evaluated. Nosec comments, ignore rules and the org policy apply to every finding on every run, cached or not.
+
+The cache lives in your user cache directory (`~/.cache/vulnetix/sast` on Linux), one file per scanned directory and rule set, with the three newest kept. It holds finding text, which includes the matched source line. Set `VULNETIX_SAST_CACHE_DIR` to move it (for example into a CI cache step), or pass `--no-cache` to evaluate every file. `--explain` never uses it.
 
 A scan sets a soft Go memory limit of 75% of the machine's memory, or of its cgroup's `memory.max` when that is lower, so the runtime collects garbage harder before the kernel would kill the process. Set `GOMEMLIMIT` to choose your own limit; the scan then leaves it alone.
 

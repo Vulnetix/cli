@@ -61,6 +61,12 @@ type EvalOptions struct {
 	// sast/secrets/containers/iac commands set it true by default; the
 	// user opts out with --<mode>-include-ignored.
 	RespectGitignore bool
+
+	// CacheDir, when set, keeps the findings of per-file rules between runs so
+	// an unchanged file is not evaluated again (result_cache.go). CacheSalt
+	// identifies the CLI build in the cache key.
+	CacheDir  string
+	CacheSalt string
 }
 
 // NewEngine constructs an Engine with the given Rego modules.
@@ -214,19 +220,31 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	if err != nil {
 		return nil, err
 	}
+	cache := newCacheRun(opts, scanInput, modules)
 	var units []*evalUnit
 	for _, g := range groupByScope(rules) {
 		in := scopedInput(scanInput, g.scope)
-		perFile, whole := map[string]string{}, map[string]string{}
+		perFile, cacheable, whole := map[string]string{}, map[string]string{}, map[string]string{}
 		for name, src := range g.rules {
-			if perFileBatching && idx.reach[name].perFile {
+			r := idx.reach[name]
+			switch {
+			case perFileBatching && r.perFile && !r.usesTree && cache != nil:
+				cacheable[name] = src
+			case perFileBatching && r.perFile:
 				perFile[name] = src
-			} else {
+			default:
 				whole[name] = src
 			}
 		}
 		if len(perFile) > 0 {
 			units = append(units, &evalUnit{mods: withShared(idx.sharedFor(shared, perFile), perFile), batches: fileBatches(in, batchBytes)})
+		}
+		if len(cacheable) > 0 {
+			units = append(units, &evalUnit{
+				mods:      withShared(idx.sharedFor(shared, cacheable), cacheable),
+				batches:   batchPaths(cache.missesOf(in), in.FileContents, batchBytes),
+				cacheable: true,
+			})
 		}
 		k := 1
 		if n > 1 && len(whole) > 0 {
@@ -250,15 +268,19 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 		allRules = append(allRules, rep.Rules...)
 		allFindings = append(allFindings, rep.Findings...)
 	}
+	allFindings = append(allFindings, cache.finish(units, reports)...)
 	// Deterministic order across shards/runs (the single-eval path was already
 	// map-order, so callers must not depend on order; this just makes it stable).
 	sortFindings(allFindings)
 
+	hits, evaluated := cache.counts()
 	return &SASTReport{
-		Findings:     allFindings,
-		Rules:        allRules,
-		RulesLoaded:  len(allRules),
-		Degradations: degradations,
+		Findings:       allFindings,
+		Rules:          allRules,
+		RulesLoaded:    len(allRules),
+		Degradations:   degradations,
+		CachedFiles:    hits,
+		EvaluatedFiles: evaluated,
 	}, nil
 }
 

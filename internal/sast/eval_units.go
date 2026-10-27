@@ -32,6 +32,9 @@ var (
 type evalUnit struct {
 	mods    map[string]string
 	batches [][]string
+	// cacheable units hold per-file rules that read nothing but one file's
+	// text; their batches are the files the result cache could not serve.
+	cacheable bool
 
 	once  sync.Once
 	query rego.PreparedEvalQuery
@@ -81,11 +84,16 @@ func inputPaths(in *ScanInput) []string {
 // is one empty batch, so its rules are still evaluated once and report their
 // metadata.
 func fileBatches(in *ScanInput, max int) [][]string {
+	return batchPaths(inputPaths(in), in.FileContents, max)
+}
+
+// batchPaths is fileBatches over a chosen, sorted subset of the files.
+func batchPaths(paths []string, text map[string]string, max int) [][]string {
 	var batches [][]string
 	var cur []string
 	size := 0
-	for _, p := range inputPaths(in) {
-		n := len(in.FileContents[p])
+	for _, p := range paths {
+		n := len(text[p])
 		if len(cur) > 0 && size+n > max {
 			batches = append(batches, cur)
 			cur, size = nil, 0
@@ -195,10 +203,11 @@ func runUnits(units []*evalUnit, terms *regoInput, workers int) ([]*SASTReport, 
 		}
 		rep.Findings = append(rep.Findings, findings[i]...)
 	}
-	out := make([]*SASTReport, 0, len(units))
-	for _, u := range units {
-		if rep := byUnit[u]; rep != nil {
-			out = append(out, rep)
+	out := make([]*SASTReport, len(units)) // out[i] is units[i]'s report
+	for i, u := range units {
+		out[i] = byUnit[u]
+		if out[i] == nil {
+			out[i] = &SASTReport{}
 		}
 	}
 	return out, nil
