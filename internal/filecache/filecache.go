@@ -19,8 +19,11 @@ import (
 )
 
 // Keep is how many documents (keys) are kept per scanned directory; older ones
-// are removed when a new one is written.
-const Keep = 3
+// are removed when a new one is written. Each rule set is its own key, and
+// scan, sast, secrets, iac and containers each evaluate a different one, so
+// fewer than five meant running them in turn over one tree evicted every
+// cache before it was read again.
+const Keep = 8
 
 // Path is the document for the scan root and key under dir.
 func Path(dir, root, key string) string {

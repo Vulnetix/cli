@@ -55,6 +55,16 @@ func TestFileBatches(t *testing.T) {
 	require.Equal(t, [][]string{nil}, fileBatches(&ScanInput{}, 100), "an empty scope still evaluates once")
 }
 
+func TestPerFileShards(t *testing.T) {
+	require.Equal(t, 1, perFileShards(1000, 40, batchBytes, 16), "enough batches to go round: no split")
+	require.Equal(t, 16, perFileShards(1000, 1, 1000, 16), "one batch is split across every worker")
+	require.Equal(t, 4, perFileShards(1000, 4, 1000, 16))
+	require.Equal(t, 6, perFileShards(1000, 40, 6*batchBytes, 4*4), "a file six batches long is cut six ways")
+	require.Equal(t, 2, perFileShards(70, 1, 1000, 16), "never below perFileShardMinRules rules a shard")
+	require.Equal(t, 1, perFileShards(10, 1, 1000, 16))
+	require.Equal(t, 1, perFileShards(1000, 1, 1000, 1), "one worker, one shard")
+}
+
 func findingKeys(fs []Finding) []string {
 	out := make([]string, len(fs))
 	for i, f := range fs {

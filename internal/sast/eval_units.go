@@ -26,6 +26,54 @@ var (
 	perFileBatching = true
 )
 
+// perFileShardMinRules is the fewest rules a per-file unit is split down to.
+// Each shard compiles the shared modules again, so a shard of a handful of
+// rules would cost more to compile than its evaluation saves.
+const perFileShardMinRules = 32
+
+// perFileUnits is the units that evaluate per-file rules over batches. One
+// unit runs every rule over one batch at a time, so a batch is one worker's
+// job however many rules there are: a scope with fewer batches than workers
+// (most small repositories) leaves cores idle, and one file much larger than a
+// batch (a minified bundle, a binary's strings) is a serial tail while the
+// other workers wait. The rules are split into shards for both, each shard
+// compiled once and evaluated over every batch. The rules are independent
+// packages, so the union of the shards' findings is the unsplit unit's.
+func perFileUnits(idx *moduleIndex, shared, rules map[string]string, batches [][]string, text map[string]string, workers int) []*evalUnit {
+	largest := 0
+	for _, b := range batches {
+		n := 0
+		for _, p := range b {
+			n += len(text[p])
+		}
+		largest = max(largest, n)
+	}
+	k := perFileShards(len(rules), len(batches), largest, workers)
+	if k == 1 {
+		return []*evalUnit{{mods: withShared(idx.sharedFor(shared, rules), rules), batches: batches}}
+	}
+	var units []*evalUnit
+	for _, shard := range shardModules(rules, k) {
+		units = append(units, &evalUnit{mods: withShared(idx.sharedFor(shared, shard), shard), batches: batches})
+	}
+	return units
+}
+
+// perFileShards is how many rule shards a per-file unit is split into: enough
+// that its batches give every worker a job, and that the largest batch is cut
+// to about the work of an ordinary one, never below perFileShardMinRules
+// rules a shard or above the workers.
+func perFileShards(rules, batches, largest, workers int) int {
+	k := 1
+	if batches > 0 && batches < workers {
+		k = (workers + batches - 1) / batches
+	}
+	if largest > batchBytes {
+		k = max(k, (largest+batchBytes-1)/batchBytes)
+	}
+	return max(1, min(k, workers, rules/perFileShardMinRules))
+}
+
 // evalUnit is one compiled module set and the batches of files it is
 // evaluated against. A whole-scope unit has one batch holding every file in
 // its scope; a per-file unit has as many as its scope needs.

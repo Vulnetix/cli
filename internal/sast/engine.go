@@ -229,6 +229,7 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	// built, so a run that changed nothing compiles nothing.
 	cache := newCacheRun(opts, scanInput, modules)
 	cachedRules := cache.rules()
+	workers := evalWorkers()
 	var units []*evalUnit
 	for _, g := range groupByScope(rules) {
 		in := scopedInput(scanInput, g.scope)
@@ -255,11 +256,11 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 		if len(cacheable) > 0 {
 			misses := cache.missesOf(in)
 			if len(misses) > 0 || cachedRules == nil {
-				units = append(units, &evalUnit{
-					mods:      withShared(idx.sharedFor(shared, cacheable), cacheable),
-					batches:   batchPaths(misses, in.FileContents, batchBytes),
-					cacheable: true,
-				})
+				batches := batchPaths(misses, in.FileContents, batchBytes)
+				for _, u := range perFileUnits(idx, shared, cacheable, batches, in.FileContents, workers) {
+					u.cacheable = true
+					units = append(units, u)
+				}
 			}
 		}
 		for grouped := range 2 {
@@ -274,7 +275,10 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 				group = scope
 			}
 			if pf := perFile[grouped]; len(pf) > 0 {
-				units = append(units, &evalUnit{mods: withShared(idx.sharedFor(shared, pf), pf), batches: fileBatches(in, batchBytes), group: group})
+				for _, u := range perFileUnits(idx, shared, pf, fileBatches(in, batchBytes), in.FileContents, workers) {
+					u.group = group
+					units = append(units, u)
+				}
 			}
 			w := whole[grouped]
 			k := 1
@@ -289,7 +293,7 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 		}
 	}
 
-	reports, err := runUnits(units, terms, evalWorkers())
+	reports, err := runUnits(units, terms, workers)
 	if err != nil {
 		return nil, err
 	}
