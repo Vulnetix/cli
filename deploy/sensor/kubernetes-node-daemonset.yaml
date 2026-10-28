@@ -1,0 +1,57 @@
+# The Vulnetix sensor on every node, reading process starts from Tetragon.
+#
+# Tetragon (https://tetragon.io) runs the eBPF programs and writes its events
+# to /var/run/cilium/tetragon/tetragon.log on each node. The sensor tails that
+# file, hashes each new executable from the host filesystem mounted read-only
+# at /host, and reports any whose hash is an indicator in your feeds. It
+# detects and reports; it does not stop a process.
+#
+# Install Tetragon first (helm install tetragon cilium/tetragon -n kube-system),
+# create the credentials secret in kube-system, build the sensor image from
+# deploy/sensor/Dockerfile, then apply this.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: vulnetix-sensor
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels: { app: vulnetix-sensor }
+  template:
+    metadata:
+      labels: { app: vulnetix-sensor }
+    spec:
+      containers:
+        - name: vulnetix-sensor
+          image: <your registry>/vulnetix-sensor:<version>  # built from deploy/sensor/Dockerfile
+          args:
+            - --mode=monitor
+            - --tetragon-export=/var/run/cilium/tetragon/tetragon.log
+            - --host-root=/host
+            - --feed=https://vulnetix.com/feeds/<org>/<feed>
+            - --feed-key=<base64 Ed25519 public key>
+            - --state-dir=/state
+          envFrom:
+            - secretRef: { name: vulnetix-sensor }
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            # Reads binaries any user on the node can execute; nothing more.
+            runAsUser: 0
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL], add: [DAC_READ_SEARCH] }
+          volumeMounts:
+            - { name: tetragon, mountPath: /var/run/cilium/tetragon, readOnly: true }
+            - { name: host, mountPath: /host, readOnly: true }
+            - { name: state, mountPath: /state }
+      volumes:
+        - name: tetragon
+          hostPath: { path: /var/run/cilium/tetragon, type: Directory }
+        - name: host
+          hostPath: { path: /, type: Directory }
+        - name: state
+          hostPath: { path: /var/lib/vulnetix-sensor, type: DirectoryOrCreate }
+      tolerations:
+        - operator: Exists

@@ -44,7 +44,7 @@ func TestDeployFilesUseRealFlags(t *testing.T) {
 	fs.VisitAll(func(f *flag.Flag) { known[f.Name] = true })
 
 	flagToken := regexp.MustCompile(`--([a-z][a-z-]+)`)
-	for _, name := range []string{"install.sh", "ssm-document.yaml", "ecs-sidecar.json", "kubernetes-sidecar.yaml", "README.md"} {
+	for _, name := range []string{"install.sh", "ssm-document.yaml", "ecs-sidecar.json", "kubernetes-sidecar.yaml", "kubernetes-node-daemonset.yaml", "README.md"} {
 		body, err := os.ReadFile(filepath.Join("..", "..", "deploy", "sensor", name))
 		if err != nil {
 			t.Fatal(err)

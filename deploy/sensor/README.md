@@ -32,10 +32,15 @@ In every mode:
 Every rule's load result is reported, so the console only calls a rule protecting
 where a sensor compiled it and runs it in block mode.
 
-The sensor does not yet use eBPF, ptrace or DNS interception. Process and file
-events are not watched, and outbound calls from software that ignores
-`HTTPS_PROXY` are not checked. It reports those capabilities as off, so the
-console says so too.
+With `--tetragon-export`, the sensor reads process starts from
+[Tetragon](https://tetragon.io), which does the kernel side with eBPF. It hashes
+each new executable and reports any whose hash is an indicator in your feeds.
+This detects and reports; it does not stop the process, and the sensor reports
+`ebpf` on and `bpfLsm` off so the console says it cannot block there.
+
+The sensor does not yet use ptrace or DNS interception, and outbound calls from
+software that ignores `HTTPS_PROXY` are not checked. Those capabilities are
+reported as off.
 
 ## Which packages are in use
 
@@ -63,7 +68,7 @@ login` writes. Every release attaches `vulnetix-sensor-linux-amd64` and
 | EC2 | `ssm-document.yaml` (SSM Run Command or a State Manager association), which runs `install.sh` |
 | EMR | `install.sh` as a bootstrap action, after writing `/etc/vulnetix-sensor.env` |
 | ECS on Fargate or EC2 | `ecs-sidecar.json`: the sensor in front of the app in the same task |
-| EKS | `kubernetes-sidecar.yaml`: the sensor as a sidecar in the pod |
+| EKS | `kubernetes-sidecar.yaml`: the sensor as a sidecar in the pod; `kubernetes-node-daemonset.yaml`: one per node beside Tetragon, for process starts |
 | Lambda | Not supported yet. A Lambda extension needs the Runtime API proxy, which this sensor does not have. |
 
 Build the container image with `deploy/sensor/Dockerfile`; no image is
@@ -78,6 +83,8 @@ published yet.
 --upstream http://127.0.0.1:8081
 --health-path /healthz         repeatable; never held
 --egress-listen 127.0.0.1:3128 outbound proxy (set HTTPS_PROXY to it)
+--tetragon-export <file>       Tetragon's JSON export; check every process start
+--host-root /                  where the host filesystem is mounted
 --feed <url>                   repeatable; a published feed's base URL
 --feed-key <base64>            Ed25519 public key the feeds are signed with
 --state-dir /var/lib/vulnetix-sensor

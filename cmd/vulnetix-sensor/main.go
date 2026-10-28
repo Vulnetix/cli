@@ -33,6 +33,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/binpkg"
 	"github.com/vulnetix/cli/v3/internal/sensor/agent"
 	"github.com/vulnetix/cli/v3/internal/sensor/decide"
+	"github.com/vulnetix/cli/v3/internal/sensor/execwatch"
 	"github.com/vulnetix/cli/v3/internal/sensor/feed"
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
 	"github.com/vulnetix/cli/v3/internal/sensor/inventory"
@@ -80,6 +81,7 @@ func inventoryCmd(args []string) error {
 
 type options struct {
 	mode, listen, upstream, egressListen, feedKey, stateDir, endpoint *string
+	tetragonExport, hostRoot                                          *string
 	hold                                                              *time.Duration
 	offline, showVersion                                              *bool
 	feeds, healthPaths                                                multi
@@ -99,6 +101,9 @@ func defineFlags(fs *flag.FlagSet) *options {
 		endpoint:     fs.String("endpoint", uplink.DefaultEndpoint, "Vulnetix site API"),
 		offline:      fs.Bool("offline", false, "run without reporting to Vulnetix (rules still load from the feeds)"),
 		showVersion:  fs.Bool("version", false, "print the version and exit"),
+		tetragonExport: fs.String("tetragon-export", "",
+			"Tetragon JSON export file (e.g. "+execwatch.DefaultExport+"); every process start is checked against the feeds' file hashes"),
+		hostRoot: fs.String("host-root", "/", "where the host filesystem is mounted, for hashing what a process ran"),
 	}
 	fs.Var(&o.feeds, "feed", "published detection rule feed URL (repeatable)")
 	fs.Var(&o.healthPaths, "health-path", "path a load balancer probes; never held (repeatable)")
@@ -126,8 +131,8 @@ func run(args []string) error {
 	if len(feeds) == 0 {
 		return errors.New("at least one --feed is required")
 	}
-	if *listen == "" && *egressListen == "" {
-		return errors.New("set --listen with --upstream, --egress-listen, or both")
+	if *listen == "" && *egressListen == "" && *o.tetragonExport == "" {
+		return errors.New("set --listen with --upstream, --egress-listen, --tetragon-export, or a combination")
 	}
 
 	var key []byte
@@ -175,6 +180,7 @@ func run(args []string) error {
 		cfg.Egress = &proxy.Egress{}
 		cfg.EgressListen = *egressListen
 	}
+	cfg.TetragonExport, cfg.HostRoot = *o.tetragonExport, *o.hostRoot
 
 	log.Printf("vulnetix-sensor %s: %s on %s (%s), mode %s", version, sensorKey, facts.Hostname, facts.ComputeKind, *mode)
 

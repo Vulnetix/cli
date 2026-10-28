@@ -18,6 +18,7 @@ import (
 
 	"github.com/vulnetix/cli/v3/internal/sensor/decide"
 	"github.com/vulnetix/cli/v3/internal/sensor/engine"
+	"github.com/vulnetix/cli/v3/internal/sensor/execwatch"
 	"github.com/vulnetix/cli/v3/internal/sensor/feed"
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
 	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
@@ -41,6 +42,13 @@ type Config struct {
 	ReverseListen string
 	Egress        *proxy.Egress
 	EgressListen  string
+
+	// TetragonExport is Tetragon's JSON export file. When set, every process
+	// start is checked against the feeds' file-hash indicators.
+	TetragonExport string
+	// HostRoot is where the host's filesystem is visible to the sensor, for
+	// hashing what a process ran: "/" on the host, or a mount in a container.
+	HostRoot string
 
 	FeedEvery      time.Duration
 	HeartbeatEvery time.Duration
@@ -135,6 +143,15 @@ func (a *Agent) Run(ctx context.Context) error {
 	}
 
 	go a.decisionLoop(ctx)
+
+	if a.cfg.TetragonExport != "" {
+		w := &execwatch.Watcher{Root: a.cfg.HostRoot, Rules: a.Rules.Load, Verdicts: a.Verdicts, Report: a.Enqueue}
+		go func() {
+			if err := execwatch.Follow(ctx, a.cfg.TetragonExport, w.Check); err != nil {
+				a.cfg.Logf("sensor: stopped reading %s: %v", a.cfg.TetragonExport, err)
+			}
+		}()
+	}
 
 	feedTick := time.NewTicker(a.cfg.FeedEvery)
 	beat := time.NewTicker(a.cfg.HeartbeatEvery)
@@ -264,9 +281,11 @@ func (a *Agent) register(ctx context.Context, loads []uplink.RuleLoad) error {
 // make that statement false.
 func (a *Agent) capabilities() map[string]bool {
 	return map[string]bool{
-		"proxy":  a.cfg.Reverse != nil || a.cfg.Egress != nil,
-		"dns":    false,
-		"ebpf":   false,
+		"proxy": a.cfg.Reverse != nil || a.cfg.Egress != nil,
+		"dns":   false,
+		// Kernel events through Tetragon's eBPF, read for detection. Nothing
+		// here refuses an exec in the kernel, so bpfLsm stays off.
+		"ebpf":   a.cfg.TetragonExport != "",
 		"bpfLsm": false,
 		"ptrace": false,
 	}
