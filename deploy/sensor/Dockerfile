@@ -6,12 +6,14 @@
 # shell, and it runs as a non-root user.
 FROM golang:1.25-alpine AS build
 ARG VERSION=dev
+# The feed signing public key to pin; empty means sensors need --feed-key.
+ARG FEED_PUBLIC_KEY=
 WORKDIR /src
 RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" \
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.pinnedFeedKey=${FEED_PUBLIC_KEY}" \
     -o /out/vulnetix-sensor ./cmd/vulnetix-sensor
 
 FROM gcr.io/distroless/static-debian12:nonroot

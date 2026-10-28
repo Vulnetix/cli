@@ -18,7 +18,7 @@ trap 'rm -rf "$STAGE"' EXIT
 
 mkdir -p "$STAGE/extensions" "$STAGE/vulnetix" "$OUT"
 CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" go build -trimpath \
-  -ldflags "-s -w -X main.version=${VERSION}" -o "$STAGE/vulnetix/vulnetix-sensor" ./cmd/vulnetix-sensor
+  -ldflags "-s -w -X main.version=${VERSION} -X main.pinnedFeedKey=${VULNETIX_FEED_PUBLIC_KEY:-}" -o "$STAGE/vulnetix/vulnetix-sensor" ./cmd/vulnetix-sensor
 cp "$HERE/extensions/vulnetix-sensor" "$STAGE/extensions/vulnetix-sensor"
 cp "$HERE/wrapper" "$STAGE/vulnetix/wrapper"
 chmod 0755 "$STAGE/extensions/vulnetix-sensor" "$STAGE/vulnetix/wrapper" "$STAGE/vulnetix/vulnetix-sensor"

@@ -102,7 +102,7 @@ func defineFlags(fs *flag.FlagSet) *options {
 		listen:       fs.String("listen", "", "address the inbound proxy listens on, e.g. :8080"),
 		upstream:     fs.String("upstream", "", "the workload the inbound proxy forwards to, e.g. http://127.0.0.1:8081"),
 		egressListen: fs.String("egress-listen", "", "address the outbound proxy listens on, e.g. 127.0.0.1:3128 (set HTTPS_PROXY to it)"),
-		feedKey:      fs.String("feed-key", os.Getenv("VULNETIX_FEED_KEY"), "base64 Ed25519 public key feeds are signed with; without it every rule reports and never blocks"),
+		feedKey:      fs.String("feed-key", defaultFeedKey(), "base64 Ed25519 public key feeds are signed with (default: VULNETIX_FEED_KEY, else the key pinned at build); without one every rule reports and never blocks"),
 		stateDir:     fs.String("state-dir", "/var/lib/vulnetix-sensor", "where the sensor keeps its key"),
 		endpoint:     fs.String("endpoint", uplink.DefaultEndpoint, "Vulnetix site API"),
 		offline:      fs.Bool("offline", false, "run without reporting to Vulnetix (rules still load from the feeds)"),
@@ -206,4 +206,20 @@ func run(args []string) error {
 	log.Printf("vulnetix-sensor %s: %s on %s (%s), mode %s", version, sensorKey, facts.Hostname, facts.ComputeKind, *mode)
 
 	return agent.New(cfg).Run(ctx)
+}
+
+// pinnedFeedKey is the Vulnetix feed signing public key, set at release build
+// with -ldflags "-X main.pinnedFeedKey=<base64>" from the repository variable
+// VULNETIX_FEED_PUBLIC_KEY. Empty in a build without it, where a key must be
+// given explicitly.
+var pinnedFeedKey = ""
+
+// defaultFeedKey is VULNETIX_FEED_KEY when set (a self-hosted feed signer, or
+// a rotation in progress), else the key pinned at build.
+func defaultFeedKey() string {
+	if k := strings.TrimSpace(os.Getenv("VULNETIX_FEED_KEY")); k != "" {
+		return k
+	}
+
+	return pinnedFeedKey
 }

@@ -92,3 +92,16 @@ func TestVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestDefaultFeedKeyPrefersTheEnvironment(t *testing.T) {
+	pinnedFeedKey = "pinned"
+	defer func() { pinnedFeedKey = "" }()
+	t.Setenv("VULNETIX_FEED_KEY", "")
+	if defaultFeedKey() != "pinned" {
+		t.Fatal("with no environment key, the build's pinned key is used")
+	}
+	t.Setenv("VULNETIX_FEED_KEY", " rotated ")
+	if defaultFeedKey() != "rotated" {
+		t.Fatal("an environment key overrides the pinned one, for rotation")
+	}
+}

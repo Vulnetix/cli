@@ -50,7 +50,7 @@ func lambdaExtensionCmd(_ []string) error {
 		return errors.New("VULNETIX_SENSOR_FEEDS is required")
 	}
 	var key []byte
-	if k := os.Getenv("VULNETIX_FEED_KEY"); k != "" {
+	if k := defaultFeedKey(); k != "" {
 		pk, err := feed.ParsePublicKey(k)
 		if err != nil {
 			return err

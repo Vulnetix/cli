@@ -65,6 +65,25 @@ A running sensor reports the same inventory every `--inventory-every` (default
 6h) from `--host-root`, so a finding page can say whether the vulnerable
 package is loaded, and where.
 
+## The feed signing key
+
+Release builds pin the feed signing public key from the repository variable
+`VULNETIX_FEED_PUBLIC_KEY`, so `--feed-key` is only needed to override it
+(`VULNETIX_FEED_KEY` does the same, for a rotation). Generate the pair once with
+OpenSSL, on a trusted machine:
+
+```sh
+umask 077
+openssl genpkey -algorithm ed25519 -out feed-signing-key.pem
+# vdb-site secret VULNETIX_FEED_SIGNING_KEY: the 32-byte seed, base64
+openssl pkey -in feed-signing-key.pem -outform DER | tail -c 32 | base64 -w0
+# cli repository variable VULNETIX_FEED_PUBLIC_KEY: the 32-byte public key, base64
+openssl pkey -in feed-signing-key.pem -pubout -outform DER | tail -c 32 | base64 -w0
+```
+
+Keep the PEM file offline or in your secrets manager, not in a repository.
+Republish each feed after the secret is set, so its manifest is signed.
+
 ## Install
 
 The sensor takes the CLI's credentials: `VULNETIX_ORG_ID` and `VULNETIX_API_KEY`

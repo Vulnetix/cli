@@ -92,6 +92,10 @@ jobs:
           # link past it and die with "no space left on device". runner.temp is
           # on the root volume.
           GOTMPDIR: ${{ runner.temp }}
+          # The feed signing public key pinned into vulnetix-sensor. A repository
+          # variable, not a secret: it is public by design. Empty leaves sensors
+          # needing --feed-key.
+          VULNETIX_FEED_PUBLIC_KEY: ${{ vars.VULNETIX_FEED_PUBLIC_KEY }}
         run: |
           VERSION=${{ needs.version.outputs.version }}
           COMMIT=$(git rev-parse --short HEAD)
@@ -123,7 +127,7 @@ jobs:
           for arch in amd64 arm64; do
             echo "Building vulnetix-sensor linux/${arch}..."
             CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" \
-              go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" \
+              go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.pinnedFeedKey=${VULNETIX_FEED_PUBLIC_KEY}" \
               -o "bin/vulnetix-sensor-linux-${arch}" ./cmd/vulnetix-sensor
             # The same binary as a Lambda layer (deploy/sensor/lambda).
             sh deploy/sensor/lambda/build-layer.sh "${arch}" "${VERSION}" bin
