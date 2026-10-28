@@ -15,7 +15,7 @@
 // Where there is no eBPF (Fargate), the sensor can start the workload itself
 // and refuse its execs before they run:
 //
-//	vulnetix-sensor run --mode guard --feed <url> -- /app/server --port 8081
+//	vulnetix-sensor run --mode guard --feed <url> -- /app/server
 //
 // Credentials are the CLI's: VULNETIX_ORG_ID with VULNETIX_API_KEY, or the
 // credentials file `vulnetix auth login` writes.
@@ -146,7 +146,7 @@ func (e exitCode) Error() string { return fmt.Sprintf("workload exited with %d",
 // guardCmd starts a workload under the seccomp exec guard and exits with its
 // code. It takes the sensor's flags, then -- and the command.
 //
-//	vulnetix-sensor run --mode guard --feed <url> -- /app/server --port 8081
+//	vulnetix-sensor run --mode guard --feed <url> -- /app/server
 func guardCmd(args []string) error { return runSensor(args, true) }
 
 func run(args []string) error { return runSensor(args, false) }

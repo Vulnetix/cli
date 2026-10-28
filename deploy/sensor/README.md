@@ -55,7 +55,7 @@ reports exit 126). Refusing an exec can be undone, so guard holds it like a
 request. Every other system call runs untouched.
 
 ```sh
-vulnetix-sensor run --mode guard --feed <url> -- /app/server --port 8081
+vulnetix-sensor run --mode guard --feed <url> -- /app/server
 ```
 
 Use it as the container's entrypoint, with the sensor binary copied into the
