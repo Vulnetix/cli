@@ -78,7 +78,7 @@ func (s IOCSet) add(r decide.RuleRef, ruleType, body string) (int, error) {
 
 // stixComparison pulls the comparisons out of a STIX pattern:
 // [domain-name:value = 'evil.example' OR ipv4-addr:value = '203.0.113.9'].
-var stixComparison = regexp.MustCompile(`([a-z0-9-]+):([a-z0-9_.'-]+)\s*=\s*'((?:[^'\\]|\\.)*)'`)
+var stixComparison = regexp.MustCompile(`([a-z0-9-]+):([A-Za-z0-9_.'-]+)\s*=\s*'((?:[^'\\]|\\.)*)'`)
 
 func (s IOCSet) addSTIX(r decide.RuleRef, body string) error {
 	var doc struct {

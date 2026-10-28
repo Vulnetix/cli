@@ -112,4 +112,7 @@ func TestIOCSets(t *testing.T) {
 	if r, ok := set.IOC.MatchHash(strings.ToUpper("0123456789abcdef0123456789abcdef")); !ok || r != (decide.RuleRef{Table: "countermeasure", UUID: "openioc"}) {
 		t.Fatal("hash lookup must be case-insensitive")
 	}
+	if r, ok := set.IOC.MatchHash(strings.Repeat("a", 64)); !ok || r.UUID != "stix" {
+		t.Fatal("a STIX file:hashes.'SHA-256' indicator must load")
+	}
 }
