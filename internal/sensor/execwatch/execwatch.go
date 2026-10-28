@@ -97,6 +97,9 @@ type Watcher struct {
 
 	mu    sync.Mutex
 	cache map[string]cached
+
+	yaraSet  *engine.Set
+	yaraHits map[string][]engine.Hit
 }
 
 type cached struct {
@@ -139,7 +142,7 @@ func (w *Watcher) Check(e Exec) {
 		w.report(e, hit.Rule, "countermeasure", detail, now, "sigma")
 	}
 
-	if len(set.IOC.Hashes) == 0 {
+	if len(set.IOC.Hashes) == 0 && !set.HasFileRules() {
 		return
 	}
 	sum, path, err := w.hash(e)
@@ -151,6 +154,44 @@ func (w *Watcher) Check(e Exec) {
 		detail["sha256"], detail["path"] = sum, path
 		w.report(e, rule, "malware", detail, now, sum)
 	}
+	for _, hit := range w.yara(set, path, sum) {
+		detail := copyMap(base)
+		detail["sha256"], detail["path"], detail["rule"] = sum, path, hit.Detail
+		w.report(e, hit.Rule, "malware", detail, now, "yara"+sum)
+	}
+}
+
+// yara runs the YARA rules over a binary, once per content: results are
+// cached by hash, and the cache is dropped whenever the rule set changes.
+func (w *Watcher) yara(set *engine.Set, path, sum string) []engine.Hit {
+	if !set.HasFileRules() {
+		return nil
+	}
+	w.mu.Lock()
+	if w.yaraSet != set {
+		w.yaraSet, w.yaraHits = set, map[string][]engine.Hit{}
+	}
+	if hits, ok := w.yaraHits[sum]; ok {
+		w.mu.Unlock()
+
+		return hits
+	}
+	w.mu.Unlock()
+
+	info, err := os.Stat(path)
+	if err != nil || info.Size() > engine.MaxYaraFile {
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	hits := set.MatchFile(data)
+	w.mu.Lock()
+	w.yaraHits[sum] = hits
+	w.mu.Unlock()
+
+	return hits
 }
 
 // report asks the verdict engine and sends the event. The watcher cannot stop

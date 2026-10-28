@@ -28,7 +28,8 @@ In every mode:
 | Layer 7 regex | Go RE2; a pattern that needs lookaround or backreferences is rejected, not approximated |
 | STIX, OpenIOC | Domain, address and hash sets; outbound calls through `--egress-listen` are checked against them |
 | Sigma, `process_creation` | Evaluated against each process start from Tetragon (`Image`, `CommandLine`, `ParentImage`, `ParentCommandLine`, `CurrentDirectory`, `User`). A rule for another logsource, or with an unsupported field, modifier or aggregation, is rejected with the reason |
-| Snort, Suricata, YARA, AWS WAF, Cloudflare, nginx | Not run by this sensor; reported as `no-engine` |
+| YARA | A pure-Go evaluator over the binary of each process start (64 MB cap): text strings (nocase, wide, ascii, fullword), hex strings with wildcards, jumps and alternation, regexes, and conditions with and/or/not, `N of`, `filesize` and `uintN(offset)`. Modules, for loops, counts, offsets, `at`/`in`, xor and base64 are rejected with the reason |
+| Snort, Suricata, AWS WAF, Cloudflare, nginx | Not run by this sensor; reported as `no-engine` |
 
 Every rule's load result is reported, so the console only calls a rule protecting
 where a sensor compiled it and runs it in block mode.

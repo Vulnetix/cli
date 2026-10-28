@@ -31,6 +31,7 @@ require (
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/term v0.44.0
 	gopkg.in/yaml.v3 v3.0.1
+	rsc.io/binaryregexp v0.2.0
 )
 
 require (
@@ -59,7 +60,6 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.55.0 // indirect
-	rsc.io/binaryregexp v0.2.0 // indirect
 )
 
 require (

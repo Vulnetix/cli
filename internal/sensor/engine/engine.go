@@ -17,7 +17,10 @@
 //
 //   - SIGMA rules for process_creation run against process starts (sigma.go).
 //
-// Snort, Suricata, YARA, AWS WAF, Cloudflare and nginx rules are loaded as
+//   - YARA rules in the subset yara.go evaluates run against the binary of
+//     each process start.
+//
+// Snort, Suricata, AWS WAF, Cloudflare and nginx rules are loaded as
 // no-engine: this sensor build cannot run them, and says so.
 package engine
 
@@ -56,12 +59,13 @@ type Set struct {
 	modsec *modsecEngine
 	regex  []regexRule
 	sigma  []*sigmaRule
+	yara   []*yaraRule
 	IOC    IOCSet
 }
 
 // HasProcessRules reports whether anything checks process starts.
 func (s *Set) HasProcessRules() bool {
-	return len(s.sigma) > 0 || len(s.IOC.Hashes) > 0
+	return len(s.sigma) > 0 || len(s.IOC.Hashes) > 0 || len(s.yara) > 0
 }
 
 type regexRule struct {
@@ -103,6 +107,16 @@ func Compile(rules []feed.Rule) (*Set, []Result) {
 			}
 			rule.ref = ref(r)
 			set.sigma = append(set.sigma, rule)
+			results = append(results, Result{Rule: r, Status: Compiled})
+		case "YARA":
+			rule, reason := compileYara(r.Body)
+			if rule == nil {
+				results = append(results, Result{Rule: r, Status: Rejected, Reason: reason})
+
+				continue
+			}
+			rule.ref = ref(r)
+			set.yara = append(set.yara, rule)
 			results = append(results, Result{Rule: r, Status: Compiled})
 		case "STIX", "OPENIOC":
 			n, err := set.IOC.add(ref(r), r.RuleType, r.Body)

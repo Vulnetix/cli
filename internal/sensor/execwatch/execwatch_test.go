@@ -165,3 +165,33 @@ func TestFollowReadsNewLinesAndRotation(t *testing.T) {
 		t.Fatalf("seen = %v: the existing line is skipped, the new one and the rotated file's are read", seen)
 	}
 }
+
+func TestCheckRunsYaraOverTheBinary(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "usr", "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "usr", "bin", "helper"), []byte("\x7fELF ... stratum+tcp://pool:3333 ..."), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rule := feed.Rule{RuleTable: "countermeasure", RuleUUID: "y-1", RuleType: "YARA", DeployMode: "log",
+		Body: `rule Miner { strings: $p = "stratum+tcp://" condition: uint32(0) == 0x464c457f and $p }`}
+	set, results := engine.Compile([]feed.Rule{rule})
+	if results[0].Status != engine.Compiled {
+		t.Fatalf("compile = %+v", results[0])
+	}
+	verdicts := decide.New(decide.Monitor, decide.Config{})
+	verdicts.SetRules([]decide.Rule{{Ref: decide.RuleRef{Table: "countermeasure", UUID: "y-1"}, Verified: true}})
+	var got []uplink.Event
+	w := &Watcher{Root: root, Rules: func() *engine.Set { return set }, Verdicts: verdicts, Report: func(e uplink.Event) { got = append(got, e) }}
+
+	e, _ := ParseLine([]byte(`{"process_exec":{"process":{"pid":77,"binary":"/usr/bin/helper"}},"time":"2026-10-28T12:00:00Z"}`))
+	w.Check(e)
+	w.Check(e)
+	if len(got) != 2 || got[0].RuleUUID != "y-1" || got[0].Lane != "malware" || got[0].Detail["rule"] != "Miner" {
+		t.Fatalf("events = %+v", got)
+	}
+	if len(w.yaraHits) != 1 {
+		t.Fatal("the same binary is evaluated once and the result reused")
+	}
+}
