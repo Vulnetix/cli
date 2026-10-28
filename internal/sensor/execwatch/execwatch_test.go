@@ -82,6 +82,41 @@ func TestCheckReportsAHashMatchWithoutClaimingABlock(t *testing.T) {
 	}
 }
 
+func TestCheckRunsSigmaOverTheStart(t *testing.T) {
+	rule := feed.Rule{RuleTable: "countermeasure", RuleUUID: "sg-1", RuleType: "SIGMA", DeployMode: "log", Body: `
+title: Shell spawned by a web server
+logsource: {category: process_creation, product: linux}
+detection:
+  parent: {ParentImage|endswith: [/nginx, /httpd]}
+  shell: {Image|endswith: [/sh, /bash]}
+  condition: parent and shell
+`}
+	set, results := engine.Compile([]feed.Rule{rule})
+	if results[0].Status != engine.Compiled {
+		t.Fatalf("compile = %+v", results[0])
+	}
+	verdicts := decide.New(decide.Monitor, decide.Config{})
+	verdicts.SetRules([]decide.Rule{{Ref: decide.RuleRef{Table: "countermeasure", UUID: "sg-1"}, Verified: true}})
+	var got []uplink.Event
+	w := &Watcher{Root: t.TempDir(), Rules: func() *engine.Set { return set }, Verdicts: verdicts, Report: func(e uplink.Event) { got = append(got, e) }}
+
+	line := `{"process_exec":{"process":{"pid":9,"binary":"/bin/sh","arguments":"-c id","cwd":"/var/www"},"parent":{"binary":"/usr/sbin/nginx"}},"time":"2026-10-28T12:00:00Z"}`
+	e, ok := ParseLine([]byte(line))
+	if !ok || e.ParentBinary != "/usr/sbin/nginx" || e.Cwd != "/var/www" {
+		t.Fatalf("exec = %+v", e)
+	}
+	w.Check(e)
+	if len(got) != 1 || got[0].Lane != "countermeasure" || got[0].RuleUUID != "sg-1" || got[0].Detail["commandLine"] != "/bin/sh -c id" {
+		t.Fatalf("events = %+v", got)
+	}
+
+	e.ParentBinary = "/usr/bin/cron"
+	w.Check(e)
+	if len(got) != 1 {
+		t.Fatal("a shell under cron does not match")
+	}
+}
+
 func TestFollowReadsNewLinesAndRotation(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tetragon.log")

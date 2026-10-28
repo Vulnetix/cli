@@ -8,13 +8,17 @@
 //   - MODSECURITY and the generated virtual patches in that format run on
 //     Coraza, in detection-only mode: Coraza says which rule matched and the
 //     verdict engine decides what to do about it.
+//
 //   - REGEX_L7 runs on Go's RE2. A pattern that needs PCRE (lookaround,
 //     backreferences) is rejected with that reason rather than approximated.
+//
 //   - STIX and OpenIOC become sets of domains, IP addresses and file hashes
 //     for the egress proxy, the DNS check and the file scan.
 //
-// Snort, Suricata, YARA, Sigma, AWS WAF, Cloudflare and nginx rules are loaded
-// as no-engine: this sensor build cannot run them, and says so.
+//   - SIGMA rules for process_creation run against process starts (sigma.go).
+//
+// Snort, Suricata, YARA, AWS WAF, Cloudflare and nginx rules are loaded as
+// no-engine: this sensor build cannot run them, and says so.
 package engine
 
 import (
@@ -51,7 +55,13 @@ type Hit struct {
 type Set struct {
 	modsec *modsecEngine
 	regex  []regexRule
+	sigma  []*sigmaRule
 	IOC    IOCSet
+}
+
+// HasProcessRules reports whether anything checks process starts.
+func (s *Set) HasProcessRules() bool {
+	return len(s.sigma) > 0 || len(s.IOC.Hashes) > 0
 }
 
 type regexRule struct {
@@ -83,6 +93,16 @@ func Compile(rules []feed.Rule) (*Set, []Result) {
 				continue
 			}
 			set.regex = append(set.regex, regexRule{ref: ref(r), re: re})
+			results = append(results, Result{Rule: r, Status: Compiled})
+		case "SIGMA":
+			rule, reason := compileSigma(r.Body)
+			if rule == nil {
+				results = append(results, Result{Rule: r, Status: Rejected, Reason: reason})
+
+				continue
+			}
+			rule.ref = ref(r)
+			set.sigma = append(set.sigma, rule)
 			results = append(results, Result{Rule: r, Status: Compiled})
 		case "STIX", "OPENIOC":
 			n, err := set.IOC.add(ref(r), r.RuleType, r.Body)

@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,12 +38,15 @@ const DefaultExport = "/var/run/cilium/tetragon/tetragon.log"
 
 // Exec is one process start.
 type Exec struct {
-	PID       int
-	Binary    string
-	Arguments string
-	Pod       string
-	Namespace string
-	Time      time.Time
+	PID             int
+	Binary          string
+	Arguments       string
+	Cwd             string
+	ParentBinary    string
+	ParentArguments string
+	Pod             string
+	Namespace       string
+	Time            time.Time
 }
 
 // ParseLine reads one Tetragon export line. ok is false for any event that is
@@ -54,11 +58,16 @@ func ParseLine(line []byte) (Exec, bool) {
 				PID       int    `json:"pid"`
 				Binary    string `json:"binary"`
 				Arguments string `json:"arguments"`
+				Cwd       string `json:"cwd"`
 				Pod       *struct {
 					Name      string `json:"name"`
 					Namespace string `json:"namespace"`
 				} `json:"pod"`
 			} `json:"process"`
+			Parent *struct {
+				Binary    string `json:"binary"`
+				Arguments string `json:"arguments"`
+			} `json:"parent"`
 		} `json:"process_exec"`
 		Time time.Time `json:"time"`
 	}
@@ -66,9 +75,12 @@ func ParseLine(line []byte) (Exec, bool) {
 		return Exec{}, false
 	}
 	p := ev.ProcessExec.Process
-	e := Exec{PID: p.PID, Binary: p.Binary, Arguments: p.Arguments, Time: ev.Time}
+	e := Exec{PID: p.PID, Binary: p.Binary, Arguments: p.Arguments, Cwd: p.Cwd, Time: ev.Time}
 	if p.Pod != nil {
 		e.Pod, e.Namespace = p.Pod.Name, p.Pod.Namespace
+	}
+	if parent := ev.ProcessExec.Parent; parent != nil {
+		e.ParentBinary, e.ParentArguments = parent.Binary, parent.Arguments
 	}
 
 	return e, true
@@ -96,50 +108,83 @@ type cached struct {
 // maxHashBytes skips files too large to be worth hashing on every start.
 const maxHashBytes = 256 << 20
 
-// Check hashes the exec's binary and reports a match. It prefers the
-// process's own /proc/<pid>/exe, which is the file that ran even if the path
-// was replaced since, and falls back to the path Tetragon reported.
+// Check runs the process rules over one exec: the feeds' Sigma rules against
+// the start itself, and the file-hash indicators against the binary. Hashing
+// prefers the process's own /proc/<pid>/exe, which is the file that ran even
+// if the path was replaced since, and falls back to the path Tetragon
+// reported.
 func (w *Watcher) Check(e Exec) {
 	set := w.Rules()
-	if set == nil || len(set.IOC.Hashes) == 0 {
-		return
-	}
-	sum, path, err := w.hash(e)
-	if err != nil {
-		return
-	}
-	rule, ok := set.IOC.MatchHash(sum)
-	if !ok {
+	if set == nil || !set.HasProcessRules() {
 		return
 	}
 	now := time.Now()
 	if !e.Time.IsZero() {
 		now = e.Time
 	}
-	subject := e.Binary
-	v := w.Verdicts.Decide(decide.Match{Rule: rule, Subject: subject, Reversible: false}, now)
-	detail := map[string]any{"sha256": sum, "path": path, "reason": v.Reason, "pid": e.PID}
+	base := map[string]any{"pid": e.PID}
 	if e.Pod != "" {
-		detail["pod"] = e.Namespace + "/" + e.Pod
+		base["pod"] = e.Namespace + "/" + e.Pod
 	}
+
+	commandLine := strings.TrimSpace(e.Binary + " " + e.Arguments)
+	for _, hit := range set.MatchProcess(engine.Process{
+		Image: e.Binary, CommandLine: commandLine, ParentImage: e.ParentBinary,
+		ParentCommandLine: strings.TrimSpace(e.ParentBinary + " " + e.ParentArguments),
+		CurrentDirectory:  e.Cwd,
+	}) {
+		detail := copyMap(base)
+		detail["rule"] = hit.Detail
+		detail["commandLine"] = clip(commandLine)
+		w.report(e, hit.Rule, "countermeasure", detail, now, "sigma")
+	}
+
+	if len(set.IOC.Hashes) == 0 {
+		return
+	}
+	sum, path, err := w.hash(e)
+	if err != nil {
+		return
+	}
+	if rule, ok := set.IOC.MatchHash(sum); ok {
+		detail := copyMap(base)
+		detail["sha256"], detail["path"] = sum, path
+		w.report(e, rule, "malware", detail, now, sum)
+	}
+}
+
+// report asks the verdict engine and sends the event. The watcher cannot stop
+// a process, so the event always says allowed; when the engine would have
+// stopped it, the reason says so instead of claiming a block.
+func (w *Watcher) report(e Exec, rule decide.RuleRef, lane string, detail map[string]any, now time.Time, keySalt string) {
+	v := w.Verdicts.Decide(decide.Match{Rule: rule, Subject: e.Binary, Reversible: false}, now)
+	detail["reason"] = v.Reason
 	if v.Action != decide.Allowed {
-		// The verdict engine would stop it; this watcher cannot, and says so
-		// rather than reporting a block that did not happen.
 		detail["reason"] = v.Reason + "; exec watch reports only"
 	}
-	if w.Report != nil {
-		w.Report(uplink.Event{
-			EventKey:    newKey(e, sum),
-			RuleTable:   rule.Table,
-			RuleUUID:    rule.UUID,
-			Lane:        "malware",
-			SubjectKind: "process",
-			Subject:     clip(subject),
-			Action:      string(decide.Allowed),
-			Detail:      detail,
-			ObservedAt:  now.UnixMilli(),
-		})
+	if w.Report == nil {
+		return
 	}
+	w.Report(uplink.Event{
+		EventKey:    newKey(e, keySalt+rule.UUID),
+		RuleTable:   rule.Table,
+		RuleUUID:    rule.UUID,
+		Lane:        lane,
+		SubjectKind: "process",
+		Subject:     clip(e.Binary),
+		Action:      string(decide.Allowed),
+		Detail:      detail,
+		ObservedAt:  now.UnixMilli(),
+	})
+}
+
+func copyMap(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m)+4)
+	for k, v := range m {
+		out[k] = v
+	}
+
+	return out
 }
 
 func (w *Watcher) hash(e Exec) (string, string, error) {

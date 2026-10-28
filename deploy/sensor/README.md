@@ -27,7 +27,8 @@ In every mode:
 | ModSecurity | Coraza, in front of your app (`--listen`, `--upstream`) |
 | Layer 7 regex | Go RE2; a pattern that needs lookaround or backreferences is rejected, not approximated |
 | STIX, OpenIOC | Domain, address and hash sets; outbound calls through `--egress-listen` are checked against them |
-| Snort, Suricata, YARA, Sigma, AWS WAF, Cloudflare, nginx | Not run by this sensor; reported as `no-engine` |
+| Sigma, `process_creation` | Evaluated against each process start from Tetragon (`Image`, `CommandLine`, `ParentImage`, `ParentCommandLine`, `CurrentDirectory`, `User`). A rule for another logsource, or with an unsupported field, modifier or aggregation, is rejected with the reason |
+| Snort, Suricata, YARA, AWS WAF, Cloudflare, nginx | Not run by this sensor; reported as `no-engine` |
 
 Every rule's load result is reported, so the console only calls a rule protecting
 where a sensor compiled it and runs it in block mode.
