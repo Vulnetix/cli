@@ -64,6 +64,12 @@ type Config struct {
 	// hashing what a process ran: "/" on the host, or a mount in a container.
 	HostRoot string
 
+	// ExecGuard is a workload command the sensor starts under its seccomp exec
+	// guard (vulnetix-sensor run -- <command>), for compute with no eBPF such
+	// as Fargate. Every exec the workload makes waits for the rules; Run
+	// returns when the workload exits, with its code in ExitCode.
+	ExecGuard []string
+
 	// InventoryEvery is how often the in-use package inventory is read from
 	// HostRoot/proc and reported. Zero turns it off.
 	InventoryEvery time.Duration
@@ -81,6 +87,8 @@ type Agent struct {
 	cfg      Config
 	Verdicts *decide.Engine
 	Rules    *proxy.Rules
+	// ExitCode is the guarded workload's exit code, once Run returns.
+	ExitCode int
 
 	mu      sync.Mutex
 	queue   []uplink.Event
@@ -189,6 +197,27 @@ func (a *Agent) Run(ctx context.Context) error {
 		}()
 	}
 
+	// The guarded workload decides when the sensor stops: a signal goes to
+	// the workload (execguard forwards it), and the sensor flushes after it
+	// exits.
+	var guardDone chan int
+	stopped := ctx.Done()
+	if len(a.cfg.ExecGuard) > 0 {
+		guardDone = make(chan int, 1)
+		go a.runExecGuard(guardDone)
+		stopped = nil
+	}
+	shutdown := func() error {
+		sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		for _, s := range servers {
+			_ = s.Shutdown(sctx)
+		}
+		a.Flush(sctx)
+
+		return nil
+	}
+
 	feedTick := time.NewTicker(a.cfg.FeedEvery)
 	beat := time.NewTicker(a.cfg.HeartbeatEvery)
 	flush := time.NewTicker(a.cfg.FlushEvery)
@@ -198,15 +227,12 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	for {
 		select {
-		case <-ctx.Done():
-			shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			for _, s := range servers {
-				_ = s.Shutdown(shutdown)
-			}
-			a.Flush(shutdown)
-			cancel()
+		case <-stopped:
+			return shutdown()
+		case code := <-guardDone:
+			a.ExitCode = code
 
-			return nil
+			return shutdown()
 		case <-feedTick.C:
 			if loads := a.RefreshRules(ctx); loads != nil {
 				if err := a.register(ctx, loads); err != nil {
@@ -324,6 +350,9 @@ func (a *Agent) capabilities() map[string]bool {
 		"ebpf":   a.cfg.TetragonExport != "",
 		"bpfLsm": false,
 		"ptrace": false,
+		// The seccomp exec guard refuses an exec before it runs, for the
+		// workload it started and its children only.
+		"seccomp": len(a.cfg.ExecGuard) > 0,
 	}
 }
 

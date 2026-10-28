@@ -47,6 +47,10 @@ type Exec struct {
 	Pod             string
 	Namespace       string
 	Time            time.Time
+	// PreExec is an exec that has not happened yet (the seccomp guard asks
+	// before it runs): /proc/<pid>/exe is still the caller, so the binary is
+	// read from its path.
+	PreExec bool
 }
 
 // ParseLine reads one Tetragon export line. ok is false for any event that is
@@ -116,10 +120,18 @@ const maxHashBytes = 256 << 20
 // prefers the process's own /proc/<pid>/exe, which is the file that ran even
 // if the path was replaced since, and falls back to the path Tetragon
 // reported.
-func (w *Watcher) Check(e Exec) {
+func (w *Watcher) Check(e Exec) { w.evaluate(e, false) }
+
+// Gate runs the same rules over an exec that has not happened yet and says
+// whether to refuse it. Refusing an exec can be undone (the next one can be
+// allowed), so the verdict engine may hold or block it, and the event says
+// what was done.
+func (w *Watcher) Gate(e Exec) (refuse bool) { return w.evaluate(e, true) }
+
+func (w *Watcher) evaluate(e Exec, gate bool) (refuse bool) {
 	set := w.Rules()
 	if set == nil || !set.HasProcessRules() {
-		return
+		return false
 	}
 	now := time.Now()
 	if !e.Time.IsZero() {
@@ -139,26 +151,28 @@ func (w *Watcher) Check(e Exec) {
 		detail := copyMap(base)
 		detail["rule"] = hit.Detail
 		detail["commandLine"] = clip(commandLine)
-		w.report(e, hit.Rule, "countermeasure", detail, now, "sigma")
+		refuse = w.report(e, hit.Rule, "countermeasure", detail, now, "sigma", gate) || refuse
 	}
 
 	if len(set.IOC.Hashes) == 0 && !set.HasFileRules() {
-		return
+		return refuse
 	}
 	sum, path, err := w.hash(e)
 	if err != nil {
-		return
+		return refuse
 	}
 	if rule, ok := set.IOC.MatchHash(sum); ok {
 		detail := copyMap(base)
 		detail["sha256"], detail["path"] = sum, path
-		w.report(e, rule, "malware", detail, now, sum)
+		refuse = w.report(e, rule, "malware", detail, now, sum, gate) || refuse
 	}
 	for _, hit := range w.yara(set, path, sum) {
 		detail := copyMap(base)
 		detail["sha256"], detail["path"], detail["rule"] = sum, path, hit.Detail
-		w.report(e, hit.Rule, "malware", detail, now, "yara"+sum)
+		refuse = w.report(e, hit.Rule, "malware", detail, now, "yara"+sum, gate) || refuse
 	}
+
+	return refuse
 }
 
 // yara runs the YARA rules over a binary, once per content: results are
@@ -194,17 +208,23 @@ func (w *Watcher) yara(set *engine.Set, path, sum string) []engine.Hit {
 	return hits
 }
 
-// report asks the verdict engine and sends the event. The watcher cannot stop
-// a process, so the event always says allowed; when the engine would have
-// stopped it, the reason says so instead of claiming a block.
-func (w *Watcher) report(e Exec, rule decide.RuleRef, lane string, detail map[string]any, now time.Time, keySalt string) {
-	v := w.Verdicts.Decide(decide.Match{Rule: rule, Subject: e.Binary, Reversible: false}, now)
+// report asks the verdict engine, sends the event, and says whether the exec
+// is refused. Watching (gate false), the process already runs and cannot be
+// stopped, so the event says allowed and, when the engine would have stopped
+// it, the reason says so instead of claiming a block.
+func (w *Watcher) report(e Exec, rule decide.RuleRef, lane string, detail map[string]any, now time.Time, keySalt string, gate bool) bool {
+	v := w.Verdicts.Decide(decide.Match{Rule: rule, Subject: e.Binary, Reversible: gate}, now)
+	action := decide.Allowed
 	detail["reason"] = v.Reason
-	if v.Action != decide.Allowed {
+	switch {
+	case gate:
+		action = v.Action
+	case v.Action != decide.Allowed:
 		detail["reason"] = v.Reason + "; exec watch reports only"
 	}
+	refuse := action != decide.Allowed
 	if w.Report == nil {
-		return
+		return refuse
 	}
 	w.Report(uplink.Event{
 		EventKey:    newKey(e, keySalt+rule.UUID),
@@ -213,10 +233,12 @@ func (w *Watcher) report(e Exec, rule decide.RuleRef, lane string, detail map[st
 		Lane:        lane,
 		SubjectKind: "process",
 		Subject:     clip(e.Binary),
-		Action:      string(decide.Allowed),
+		Action:      string(action),
 		Detail:      detail,
 		ObservedAt:  now.UnixMilli(),
 	})
+
+	return refuse
 }
 
 func copyMap(m map[string]any) map[string]any {
@@ -234,6 +256,9 @@ func (w *Watcher) hash(e Exec) (string, string, error) {
 		root = "/"
 	}
 	candidates := []string{filepath.Join(root, "proc", strconv.Itoa(e.PID), "exe"), filepath.Join(root, e.Binary)}
+	if e.PreExec {
+		candidates = candidates[1:]
+	}
 	var lastErr error
 	for _, p := range candidates {
 		info, err := os.Stat(p)

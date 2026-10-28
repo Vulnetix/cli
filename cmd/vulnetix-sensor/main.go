@@ -12,6 +12,11 @@
 //	  --egress-listen 127.0.0.1:3128 \
 //	  --feed https://vulnetix.com/feeds/<org>/<feed> --feed-key <base64 Ed25519 public key>
 //
+// Where there is no eBPF (Fargate), the sensor can start the workload itself
+// and refuse its execs before they run:
+//
+//	vulnetix-sensor run --mode guard --feed <url> -- /app/server --port 8081
+//
 // Credentials are the CLI's: VULNETIX_ORG_ID with VULNETIX_API_KEY, or the
 // credentials file `vulnetix auth login` writes.
 package main
@@ -34,6 +39,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/sensor/agent"
 	"github.com/vulnetix/cli/v3/internal/sensor/decide"
 	"github.com/vulnetix/cli/v3/internal/sensor/dnsguard"
+	"github.com/vulnetix/cli/v3/internal/sensor/execguard"
 	"github.com/vulnetix/cli/v3/internal/sensor/execwatch"
 	"github.com/vulnetix/cli/v3/internal/sensor/feed"
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
@@ -52,6 +58,10 @@ func (m *multi) String() string     { return strings.Join(*m, ",") }
 func (m *multi) Set(v string) error { *m = append(*m, v); return nil }
 
 func main() {
+	// The re-executed half of `run`: installs the seccomp filter and becomes
+	// the workload. Does not return there.
+	execguard.MaybeChild()
+
 	args := os.Args[1:]
 	run := run
 	if len(args) > 0 {
@@ -60,9 +70,16 @@ func main() {
 			run, args = inventoryCmd, args[1:]
 		case "lambda-extension":
 			run, args = lambdaExtensionCmd, args[1:]
+		case "run":
+			run, args = guardCmd, args[1:]
 		}
 	}
-	if err := run(args); err != nil {
+	err := run(args)
+	var exit exitCode
+	if errors.As(err, &exit) {
+		os.Exit(int(exit))
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "vulnetix-sensor:", err)
 		os.Exit(1)
 	}
@@ -121,11 +138,31 @@ func defineFlags(fs *flag.FlagSet) *options {
 	return o
 }
 
-func run(args []string) error {
+// exitCode carries a guarded workload's exit code out of run.
+type exitCode int
+
+func (e exitCode) Error() string { return fmt.Sprintf("workload exited with %d", int(e)) }
+
+// guardCmd starts a workload under the seccomp exec guard and exits with its
+// code. It takes the sensor's flags, then -- and the command.
+//
+//	vulnetix-sensor run --mode guard --feed <url> -- /app/server --port 8081
+func guardCmd(args []string) error { return runSensor(args, true) }
+
+func run(args []string) error { return runSensor(args, false) }
+
+func runSensor(args []string, guard bool) error {
 	fs := flag.NewFlagSet("vulnetix-sensor", flag.ContinueOnError)
 	o := defineFlags(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	var command []string
+	if guard {
+		command = fs.Args()
+		if len(command) == 0 {
+			return errors.New("run needs a command after --")
+		}
 	}
 	mode, hold, listen, upstream, egressListen := o.mode, o.hold, o.listen, o.upstream, o.egressListen
 	feedKey, stateDir, endpoint, offline, showVersion := o.feedKey, o.stateDir, o.endpoint, o.offline, o.showVersion
@@ -141,7 +178,7 @@ func run(args []string) error {
 	if len(feeds) == 0 {
 		return errors.New("at least one --feed is required")
 	}
-	if *listen == "" && *egressListen == "" && *o.tetragonExport == "" && *o.dnsListen == "" {
+	if !guard && *listen == "" && *egressListen == "" && *o.tetragonExport == "" && *o.dnsListen == "" {
 		return errors.New("set --listen with --upstream, --egress-listen, --dns-listen, --tetragon-export, or a combination")
 	}
 
@@ -203,9 +240,19 @@ func run(args []string) error {
 		cfg.DNSListen, cfg.DNSUpstream = *o.dnsListen, upstreamDNS
 	}
 
+	cfg.ExecGuard = command
+
 	log.Printf("vulnetix-sensor %s: %s on %s (%s), mode %s", version, sensorKey, facts.Hostname, facts.ComputeKind, *mode)
 
-	return agent.New(cfg).Run(ctx)
+	a := agent.New(cfg)
+	if err := a.Run(ctx); err != nil {
+		return err
+	}
+	if guard {
+		return exitCode(a.ExitCode)
+	}
+
+	return nil
 }
 
 // pinnedFeedKey is the Vulnetix feed signing public key, set at release build

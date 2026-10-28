@@ -45,6 +45,35 @@ at it, and a lookup of an indicator domain (or any subdomain of one) answers
 NXDOMAIN in enforce, is held in guard, and is reported in monitor. This covers
 software that ignores `HTTPS_PROXY`. Lookups it cannot parse are forwarded.
 
+### Refusing execs where there is no eBPF (Fargate)
+
+`vulnetix-sensor run` starts the workload itself, under a seccomp filter that
+stops every `execve` and `execveat` until the sensor answers. Each exec is
+checked with the same Sigma, hash and YARA rules as the Tetragon path, before
+it runs, and in guard or enforce a match is refused with `EPERM` (a shell
+reports exit 126). Refusing an exec can be undone, so guard holds it like a
+request. Every other system call runs untouched.
+
+```sh
+vulnetix-sensor run --mode guard --feed <url> -- /app/server --port 8081
+```
+
+Use it as the container's entrypoint, with the sensor binary copied into the
+image. It needs no capability beyond what any process has; it sets
+`no_new_privs`, so a setuid binary in the workload no longer gains privilege.
+It is off unless you start the workload this way, and it reports `seccomp` on.
+
+Limits:
+
+- It covers the workload it started and that workload's children, nothing else
+  on the host.
+- The path is read from the workload's memory while the exec waits. A workload
+  with a second thread could change it between the check and the kernel's read,
+  so this is a policy control for software that is not already hostile.
+- It has been tested on Linux 7.2 (amd64). Seccomp user notifications need 5.0
+  or later; on Fargate platform 1.4 (kernel 5.10) it should work, and has not
+  been run there yet.
+
 The sensor does not use ptrace, and reports it as off.
 
 ## Which packages are in use
