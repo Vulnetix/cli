@@ -219,3 +219,32 @@ func TestReportInventoryFromTheHost(t *testing.T) {
 		t.Fatal("a host with no readable processes is an error, not an empty report")
 	}
 }
+
+func TestHostChecksQueueOncePerDay(t *testing.T) {
+	a, _ := newAgent(t, decide.Monitor)
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "etc", "ssh"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "etc", "ssh", "sshd_config"), []byte("PermitRootLogin yes\nPasswordAuthentication no\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.cfg.HostRoot = root
+	day := time.Date(2026, 10, 28, 9, 0, 0, 0, time.UTC)
+
+	if n := a.ReportHostChecks(day); n != 1 {
+		t.Fatalf("findings = %d", n)
+	}
+	a.ReportHostChecks(day.Add(6 * time.Hour))
+	a.ReportHostChecks(day.Add(24 * time.Hour))
+	if len(a.queue) != 3 {
+		t.Fatalf("queued = %d", len(a.queue))
+	}
+	ev := a.queue[0]
+	if ev.RuleTable != "host_check" || ev.RuleUUID != "VNX-HOST-SSH-ROOT" || ev.Lane != "cis" || ev.Subject != "/etc/ssh/sshd_config" {
+		t.Fatalf("event = %+v", ev)
+	}
+	if a.queue[0].EventKey != a.queue[1].EventKey || a.queue[1].EventKey == a.queue[2].EventKey {
+		t.Fatal("the same failure on the same day is one event; the next day is a new one")
+	}
+}

@@ -10,6 +10,8 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -26,6 +28,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/sensor/execwatch"
 	"github.com/vulnetix/cli/v3/internal/sensor/feed"
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
+	"github.com/vulnetix/cli/v3/internal/sensor/hostcheck"
 	"github.com/vulnetix/cli/v3/internal/sensor/inventory"
 	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
 	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
@@ -427,6 +430,7 @@ func (a *Agent) inventoryLoop(ctx context.Context) {
 		if err := a.ReportInventory(ctx); err != nil {
 			a.cfg.Logf("sensor: inventory not reported: %v", err)
 		}
+		a.ReportHostChecks(time.Now())
 		select {
 		case <-ctx.Done():
 			return
@@ -461,4 +465,32 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 	_, err := a.cfg.Uplink.PostInventory(ctx, a.cfg.SensorKey, pkgs)
 
 	return err
+}
+
+// ReportHostChecks reads the host's configuration and queues each failing
+// check as an event in the cis lane. The event key includes the day, so a
+// failure that persists is reported once a day, and one that is fixed stops.
+func (a *Agent) ReportHostChecks(now time.Time) int {
+	root := a.cfg.HostRoot
+	if root == "" {
+		root = "/"
+	}
+	findings := hostcheck.Run(root, a.cfg.Facts.ComputeKind)
+	day := now.UTC().Format("2006-01-02")
+	for _, f := range findings {
+		sum := sha256.Sum256([]byte(a.cfg.SensorKey + "|" + f.ID + "|" + f.Detail + "|" + day))
+		a.Enqueue(uplink.Event{
+			EventKey:    hex.EncodeToString(sum[:16]),
+			RuleTable:   "host_check",
+			RuleUUID:    f.ID,
+			Lane:        "cis",
+			SubjectKind: "file",
+			Subject:     f.Path,
+			Action:      "allowed",
+			Detail:      map[string]any{"title": f.Title, "detail": f.Detail, "fix": f.Fix, "severity": f.Severity},
+			ObservedAt:  now.UnixMilli(),
+		})
+	}
+
+	return len(findings)
 }
