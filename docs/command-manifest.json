@@ -1419,7 +1419,7 @@
       ]
     },
     "gha": {
-      "short": "GitHub Actions artifact management",
+      "short": "GitHub Actions: publish scanner reports and analyse GitHub posture",
       "flags": [
         "disable-memory",
         "no-analytics",
@@ -1430,9 +1430,114 @@
         "verbose"
       ],
       "subcommands": [
+        "actions",
+        "audit",
+        "org",
+        "settings",
         "setup",
         "status",
-        "upload"
+        "upload",
+        "workflows"
+      ]
+    },
+    "gha actions": {
+      "short": "Check the actions and images workflows run",
+      "flags": [
+        "disable-memory",
+        "fail-on",
+        "format",
+        "github-api-url",
+        "json",
+        "max-action-refs",
+        "min-severity",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "offline",
+        "org",
+        "org-id",
+        "output",
+        "ref",
+        "repo",
+        "rule",
+        "silent",
+        "upload",
+        "verbose"
+      ]
+    },
+    "gha audit": {
+      "short": "Run every GitHub posture check: workflows, actions, settings and org",
+      "flags": [
+        "disable-memory",
+        "fail-on",
+        "format",
+        "github-api-url",
+        "json",
+        "max-action-refs",
+        "min-severity",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "offline",
+        "org",
+        "org-id",
+        "output",
+        "ref",
+        "repo",
+        "rule",
+        "silent",
+        "upload",
+        "verbose"
+      ]
+    },
+    "gha org": {
+      "short": "Check organisation settings",
+      "flags": [
+        "disable-memory",
+        "fail-on",
+        "format",
+        "github-api-url",
+        "json",
+        "max-action-refs",
+        "min-severity",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "offline",
+        "org",
+        "org-id",
+        "output",
+        "ref",
+        "repo",
+        "rule",
+        "silent",
+        "upload",
+        "verbose"
+      ]
+    },
+    "gha settings": {
+      "short": "Check repository settings that protect the code and CI",
+      "flags": [
+        "disable-memory",
+        "fail-on",
+        "format",
+        "github-api-url",
+        "json",
+        "max-action-refs",
+        "min-severity",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "offline",
+        "org",
+        "org-id",
+        "output",
+        "ref",
+        "repo",
+        "rule",
+        "silent",
+        "upload",
+        "verbose"
       ]
     },
     "gha setup": {
@@ -1486,6 +1591,31 @@
         "org-id",
         "silent",
         "strict",
+        "verbose"
+      ]
+    },
+    "gha workflows": {
+      "short": "Find injection, privilege and trust flaws in GitHub Actions workflows",
+      "flags": [
+        "disable-memory",
+        "fail-on",
+        "format",
+        "github-api-url",
+        "json",
+        "max-action-refs",
+        "min-severity",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "offline",
+        "org",
+        "org-id",
+        "output",
+        "ref",
+        "repo",
+        "rule",
+        "silent",
+        "upload",
         "verbose"
       ]
     },

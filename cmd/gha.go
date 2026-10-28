@@ -38,11 +38,19 @@ var (
 // ghaCmd represents the gha command for GitHub Actions artifact management
 var ghaCmd = &cobra.Command{
 	Use:   "gha",
-	Short: "GitHub Actions artifact management",
-	Long: `Manage GitHub Actions artifacts for Vulnetix.
+	Short: "GitHub Actions: publish scanner reports and analyse GitHub posture",
+	Long: `Work with GitHub and GitHub Actions.
 
-This command allows you to upload workflow artifacts to Vulnetix and check their status.
-It is designed to work within GitHub Actions workflows.`,
+Publish a workflow run's scanner reports to Vulnetix and check what landed
+(upload, status), generate a scanner workflow (setup), and analyse GitHub
+posture with the same rules the Vulnetix Software Factory evaluates on GitHub
+App events:
+
+  workflows   injection, privilege and trust flaws in workflow files
+  actions     the actions and images workflows run
+  settings    repository protection, Actions and security settings
+  org         organisation settings
+  audit       all of the above, as one report`,
 }
 
 // ghaUploadCmd handles uploading artifacts from GitHub Actions

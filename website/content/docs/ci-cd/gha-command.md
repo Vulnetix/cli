@@ -1,7 +1,7 @@
 ---
 title: "GHA Command"
 weight: 32
-description: "Publish a GitHub Actions workflow run's scanner reports to Vulnetix, and report what actually landed."
+description: "Publish a GitHub Actions workflow run's scanner reports to Vulnetix, report what actually landed, and analyse the repository's GitHub posture."
 ---
 
 `vulnetix gha` publishes the reports a workflow run produced, and tells you what
@@ -186,3 +186,36 @@ scanners finished, or they are missing from `needs`.
 
 **A tool is missing from `gha status`.** Its artifact was absent, empty, or not a
 format Vulnetix accepts. `gha upload --json` names the file and the reason.
+
+## GitHub posture: `gha workflows`, `actions`, `settings`, `org`, `audit`
+
+These run the [GitHub rules]({{< relref "../github-rules" >}}) over the repository: the workflows
+themselves, the actions and images they run, and the repository's and organisation's settings.
+The Vulnetix Software Factory runs the same rules on every relevant GitHub App event, so a CLI run
+and an event-driven finding agree.
+
+```yaml
+- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+  with:
+    persist-credentials: false
+- run: vulnetix gha audit --fail-on high --upload
+  env:
+    GITHUB_TOKEN: ${{ github.token }}
+    VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+    VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+```
+
+The workflow's own token can read the workflow files and resolve action references. Repository
+settings (branch protection, Actions permissions, environments) need Administration: read, which
+the workflow token does not have; use a fine-grained token with read access to the repository's
+Administration, Environments and Secrets, or let the Vulnetix GitHub App do it continuously.
+Whatever cannot be read is listed as not evaluated rather than reported as passing.
+
+| Output | |
+|---|---|
+| `--format table` | findings with where, why, how settings changed the rating, and the fix |
+| `--format json` | findings, coverage (what was and was not evaluated) and notes |
+| `--format sarif` | SARIF 2.1.0, driver `Vulnetix GitHub`, for code scanning or `--upload` |
+
+Where a line edit fixes a finding safely it is attached to the finding, checked to keep the
+workflow valid and to clear the finding, and shown as the suggested fix.

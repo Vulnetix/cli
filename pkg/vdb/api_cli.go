@@ -1491,6 +1491,13 @@ func (c *Client) CliMalscan(env CliEnv, req CliMalscanRequest) (*CliResponse[Cli
 func (c *Client) CliIAC(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
 	return cliPostWithEnv[CliSARIFResponse](c, "cli.iac", env, req)
 }
+
+// CliGitHub posts GitHub posture SARIF (`vulnetix gha audit` and the other
+// gha analysis tasks) to /v2/cli.github, where it is stored as an IAC
+// snapshot attributed to "Vulnetix GitHub".
+func (c *Client) CliGitHub(ctx context.Context, env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
+	return cliPostWithEnvContext[CliSARIFResponse](ctx, c, "cli.github", env, req)
+}
 func (c *Client) CliContainers(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
 	return cliPostWithEnv[CliSARIFResponse](c, "cli.containers", env, req)
 }

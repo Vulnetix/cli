@@ -13,8 +13,8 @@ github.com/Vulnetix/vdb-cyclonedx v0.17.0 h1:tub0UYMnzDgAjW9d+NEDA0oynqHSkZ2T5Ih
 github.com/Vulnetix/vdb-cyclonedx v0.17.0/go.mod h1:rPnQLm9teN2VN/gsSby8lHqpGRouVxvMDqxRvBh6tWA=
 github.com/Vulnetix/vdb-manifest v0.1.0 h1:YFuS82MQN+xpuLR9JVB8Cj5nhXR5nKHV6ECvTWzB5PQ=
 github.com/Vulnetix/vdb-manifest v0.1.0/go.mod h1:IjwPihORYfuAMH/tCkTBOlZ21k1tOzJFOxH/a8//FJk=
-github.com/Vulnetix/vdb-sca-match v0.8.12 h1:8P6HPiJsOvircE9D6h0yrUMlqqpSi4q0aAInMNfpWwA=
-github.com/Vulnetix/vdb-sca-match v0.8.12/go.mod h1:zMsDFA9z8tqTneEeoxZbfh8k8I2kQtZu3hX5WMWiFQ8=
+github.com/Vulnetix/vdb-sca-match v0.8.13-0.20261028022355-72102a9a5305 h1:O4lk0OBdZ2y+PAZIzM/YTvUb8Fk56pFwSx8NK+TvXRY=
+github.com/Vulnetix/vdb-sca-match v0.8.13-0.20261028022355-72102a9a5305/go.mod h1:zMsDFA9z8tqTneEeoxZbfh8k8I2kQtZu3hX5WMWiFQ8=
 github.com/agnivade/levenshtein v1.2.1 h1:EHBY3UOn1gwdy/VbFwgo4cxecRznFk7fKWN1KOX7eoM=
 github.com/agnivade/levenshtein v1.2.1/go.mod h1:QVVI16kDrtSuwcpd0p1+xMC6Z/VfhtCyDIjcwga4/DU=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=

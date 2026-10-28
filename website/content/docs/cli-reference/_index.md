@@ -352,7 +352,8 @@ vulnetix upload --file sbom.cdx.json --json
 
 ### vulnetix gha
 
-GitHub Actions artifact management. Designed for use within GitHub Actions workflows.
+GitHub and GitHub Actions: publish a workflow run's scanner reports (`upload`, `status`), and
+analyse GitHub posture (`workflows`, `actions`, `settings`, `org`, `audit`).
 
 #### gha upload
 
@@ -402,6 +403,46 @@ vulnetix gha status --uuid <UUID>
 | `--attempt` | int | `GITHUB_RUN_ATTEMPT` | Limit to one run attempt |
 | `--uuid` | string | - | Report on a single ingestion snapshot instead of a whole run |
 | `--json` | bool | `false` | Output results as JSON |
+
+#### gha workflows, actions, settings, org, audit
+
+Analyse GitHub posture with the [GitHub rules](../github-rules/), the same rules the Vulnetix
+Software Factory evaluates on GitHub App events.
+
+```bash
+vulnetix gha workflows [path]   # injection, privilege and trust flaws in workflow files
+vulnetix gha actions [path]     # the actions and images workflows run
+vulnetix gha settings           # repository protection, Actions and security settings
+vulnetix gha org                # organisation settings
+vulnetix gha audit [path]       # all of the above, as one report
+```
+
+Workflow files are read from the checkout at `path` (default: the current directory when it has
+`.github/`), or through the API when there is none. With a GitHub token (`GITHUB_TOKEN`,
+`GH_TOKEN` or `gh auth login`) the repository's settings, rulesets and environments are read, and
+every `uses:` reference is resolved. Settings both find more (impostor commits, archived actions,
+unprotected environments) and rate each workflow finding: a private repository with forking
+disabled, a read-only default token or an environment with reviewers lowers it, and a public
+repository raises it. Rules whose settings could not be read are reported as not evaluated, never
+as passes. No Vulnetix credentials are needed unless you `--upload`.
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--repo` | string | `GITHUB_REPOSITORY`, then the checkout's GitHub remote | Repository as `owner/name` |
+| `--ref` | string | default branch | Branch, tag or commit to read files at when they come from the API |
+| `--org` | string | repository owner | Organisation to check (`org`, `audit`) |
+| `--github-api-url` | string | `GITHUB_API_URL` | GitHub Enterprise Server API URL |
+| `--format` | string | `table` | `table`, `json` or `sarif` |
+| `--json` | bool | `false` | Shorthand for `--format json` |
+| `-o`, `--output` | string | stdout | Write the report to a file |
+| `--min-severity` | string | - | Drop findings below this severity |
+| `--fail-on` | string | - | Exit 1 when a finding is at or above this severity |
+| `--offline` | bool | `false` | Do not call the GitHub API |
+| `--upload` | bool | `false` | Publish the SARIF to Vulnetix as an IaC snapshot (`/v2/cli.github`) |
+| `--rule` | strings | - | Only run these rule ids |
+| `--max-action-refs` | int | `40` | Most distinct `uses:` references to resolve |
 
 ---
 
