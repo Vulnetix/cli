@@ -188,3 +188,27 @@ func imageMatch(body string) (string, []string, string) {
 
 	return "", nil, "empty selection"
 }
+
+// ExactImages returns the exact program paths the given Sigma rules name, for
+// the BPF LSM guard, which matches a file by identity and so cannot express a
+// prefix or suffix. The caller passes only rules it would block on. A path two
+// rules name goes to the first.
+func ExactImages(rules []feed.Rule) map[string]feed.Rule {
+	out := map[string]feed.Rule{}
+	for _, r := range rules {
+		if !strings.EqualFold(r.RuleType, "SIGMA") {
+			continue
+		}
+		op, values, reason := imageMatch(r.Body)
+		if reason != "" || op != "Equal" {
+			continue
+		}
+		for _, v := range values {
+			if _, taken := out[v]; !taken {
+				out[v] = r
+			}
+		}
+	}
+
+	return out
+}

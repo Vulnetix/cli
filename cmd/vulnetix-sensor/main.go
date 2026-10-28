@@ -109,7 +109,7 @@ type options struct {
 	mode, listen, upstream, egressListen, feedKey, stateDir, endpoint *string
 	tetragonExport, hostRoot, dnsListen, dnsUpstream                  *string
 	hold, inventoryEvery                                              *time.Duration
-	offline, showVersion                                              *bool
+	offline, showVersion, bpfLSM                                      *bool
 	feeds, healthPaths                                                multi
 }
 
@@ -132,6 +132,7 @@ func defineFlags(fs *flag.FlagSet) *options {
 		inventoryEvery: fs.Duration("inventory-every", 6*time.Hour,
 			"how often to report which installed packages running processes map (0 turns it off)"),
 		hostRoot:    fs.String("host-root", "/", "where the host filesystem is mounted, for hashing what a process ran"),
+		bpfLSM:      fs.Bool("bpf-lsm", false, "refuse execs of the exact paths block-mode rules name in the kernel, with a BPF LSM program (needs root and the bpf LSM; untested on a live kernel)"),
 		dnsListen:   fs.String("dns-listen", "", "UDP address the DNS guard answers on, e.g. 127.0.0.1:53; point the workload's resolver at it"),
 		dnsUpstream: fs.String("dns-upstream", "", "resolver the DNS guard forwards to (default: the first nameserver in /etc/resolv.conf)"),
 	}
@@ -227,7 +228,7 @@ func runSensor(args []string, guard bool) error {
 	if len(feeds) == 0 {
 		return errors.New("at least one --feed is required")
 	}
-	if !guard && *listen == "" && *egressListen == "" && *o.tetragonExport == "" && *o.dnsListen == "" {
+	if !guard && !*o.bpfLSM && *listen == "" && *egressListen == "" && *o.tetragonExport == "" && *o.dnsListen == "" {
 		return errors.New("set --listen with --upstream, --egress-listen, --dns-listen, --tetragon-export, or a combination")
 	}
 
@@ -277,6 +278,7 @@ func runSensor(args []string, guard bool) error {
 		cfg.EgressListen = *egressListen
 	}
 	cfg.TetragonExport, cfg.HostRoot, cfg.InventoryEvery = *o.tetragonExport, *o.hostRoot, *o.inventoryEvery
+	cfg.BPFLSM = *o.bpfLSM
 	if *o.dnsListen != "" {
 		upstreamDNS := *o.dnsUpstream
 		if upstreamDNS == "" {

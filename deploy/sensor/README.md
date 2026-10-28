@@ -63,6 +63,27 @@ at it, and a lookup of an indicator domain (or any subdomain of one) answers
 NXDOMAIN in enforce, is held in guard, and is reported in monitor. This covers
 software that ignores `HTTPS_PROXY`. Lookups it cannot parse are forwarded.
 
+### Refusing execs in the kernel with BPF LSM
+
+With `--bpf-lsm`, the sensor loads its own BPF LSM program on
+`bprm_check_security` and refuses an exec of any exact path that a block-mode
+Sigma rule names (`Image` with no modifier), from a verified feed. It matches
+the file by inode and device, so a renamed or hard-linked copy is refused too.
+Monitor reports each match without refusing; guard and enforce refuse with
+`EPERM`. A promote, demote or mode change from the console updates the kernel
+map at once. The sensor then reports `bpfLsm` on.
+
+It needs root (or `CAP_BPF` with `CAP_SYS_ADMIN`) and a kernel that runs the
+bpf LSM: `bpf` must be in `/sys/kernel/security/lsm`, which usually means
+adding it to `lsm=` on the kernel command line. Without either, the sensor
+logs why and carries on without it.
+
+Limits: a path on an overlay filesystem or a btrfs subvolume can carry a
+different device number in the kernel than `stat` reports, so it may not
+match; a file replaced on disk is a new inode, covered at the next rule
+refresh. The program has been compiled and checked as a spec, but not yet
+loaded on a live kernel by its verifier.
+
 ### Refusing execs where there is no eBPF (Fargate)
 
 `vulnetix-sensor run` starts the workload itself, under a seccomp filter that
@@ -184,6 +205,7 @@ the event still lands in the hold queue for your decision on later ones.
 --egress-listen 127.0.0.1:3128 outbound proxy (set HTTPS_PROXY to it)
 --dns-listen 127.0.0.1:53      DNS guard (UDP); point the resolver at it
 --dns-upstream 10.0.0.2:53     where it forwards (default: /etc/resolv.conf)
+--bpf-lsm                      refuse block-mode exact paths in the kernel (root, bpf LSM)
 --tetragon-export <file>       Tetragon's JSON export; check every process start
 --host-root /                  where the host filesystem is mounted
 --feed <url>                   repeatable; a published feed's base URL

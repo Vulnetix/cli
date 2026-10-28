@@ -70,3 +70,14 @@ func TestRenderRefusesWhenNothingFits(t *testing.T) {
 		t.Fatal("an empty policy would apply and block nothing; it should be an error")
 	}
 }
+
+func TestExactImagesTakesOnlyExactPaths(t *testing.T) {
+	got := ExactImages([]feed.Rule{
+		sigma("a", "block", "logsource: {category: process_creation}\ndetection: {sel: {Image: [/usr/bin/nc, /usr/bin/ncat]}, condition: sel}\n"),
+		sigma("b", "block", "logsource: {category: process_creation}\ndetection: {sel: {Image|startswith: /tmp/}, condition: sel}\n"),
+		sigma("c", "block", "logsource: {category: process_creation}\ndetection: {sel: {Image: /usr/bin/nc}, condition: sel}\n"),
+	})
+	if len(got) != 2 || got["/usr/bin/nc"].RuleUUID != "a" || got["/usr/bin/ncat"].RuleUUID != "a" {
+		t.Fatalf("got %+v", got)
+	}
+}

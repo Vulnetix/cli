@@ -11,6 +11,7 @@ require (
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/cilium/ebpf v0.20.0
 	github.com/corazawaf/coraza/v3 v3.7.0
 	github.com/glaslos/ssdeep v1.0.0
 	github.com/glaslos/tlsh v0.4.0
@@ -128,7 +129,7 @@ require (
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/net v0.55.1-0.20260608170621-8a348850ed68
 	golang.org/x/sync v0.21.0
-	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/sys v0.46.0
 	golang.org/x/text v0.38.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect

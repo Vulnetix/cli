@@ -30,6 +30,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
 	"github.com/vulnetix/cli/v3/internal/sensor/hostcheck"
 	"github.com/vulnetix/cli/v3/internal/sensor/inventory"
+	"github.com/vulnetix/cli/v3/internal/sensor/lsmguard"
 	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
 	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
 )
@@ -64,6 +65,11 @@ type Config struct {
 	// hashing what a process ran: "/" on the host, or a mount in a container.
 	HostRoot string
 
+	// BPFLSM loads the BPF LSM exec guard (internal/sensor/lsmguard), which
+	// refuses execs of the exact paths block-mode rules name, in the kernel.
+	// Needs the bpf LSM and root; off by default.
+	BPFLSM bool
+
 	// ExecGuard is a workload command the sensor starts under its seccomp exec
 	// guard (vulnetix-sensor run -- <command>), for compute with no eBPF such
 	// as Fargate. Every exec the workload makes waits for the rules; Run
@@ -89,6 +95,9 @@ type Agent struct {
 	Rules    *proxy.Rules
 	// ExitCode is the guarded workload's exit code, once Run returns.
 	ExitCode int
+
+	lsm       *lsmguard.Guard
+	feedRules []feed.Rule // the merged feed rules, for the BPF LSM's paths
 
 	mu      sync.Mutex
 	queue   []uplink.Event
@@ -143,6 +152,16 @@ func (a *Agent) Enqueue(e uplink.Event) {
 
 // Run serves until ctx ends.
 func (a *Agent) Run(ctx context.Context) error {
+	if a.cfg.BPFLSM {
+		g, err := lsmguard.Load()
+		if err != nil {
+			a.cfg.Logf("sensor: bpf lsm guard not loaded, process starts are not refused in the kernel: %v", err)
+		} else {
+			a.lsm = g
+			defer g.Close()
+			go a.runLSM(ctx)
+		}
+	}
 	loads := a.RefreshRules(ctx)
 	if err := a.register(ctx, loads); err != nil {
 		a.cfg.Logf("sensor: register failed, will retry: %v", err)
@@ -301,7 +320,9 @@ func (a *Agent) RefreshRules(ctx context.Context) []uplink.RuleLoad {
 	a.Rules.Store(set)
 	a.mu.Lock()
 	a.etag = etags
+	a.feedRules = rules
 	a.mu.Unlock()
+	a.syncLSM()
 	a.cfg.Logf("sensor: %d rules compiled of %d", len(loaded), len(results))
 
 	// The effective mode, after promotions, is what the console shows.
@@ -345,10 +366,10 @@ func (a *Agent) capabilities() map[string]bool {
 	return map[string]bool{
 		"proxy": a.cfg.Reverse != nil || a.cfg.Egress != nil,
 		"dns":   a.cfg.DNSListen != "",
-		// Kernel events through Tetragon's eBPF, read for detection. Nothing
-		// here refuses an exec in the kernel, so bpfLsm stays off.
+		// Kernel events through Tetragon's eBPF, read for detection. bpfLsm
+		// is on only when the BPF LSM guard loaded and can refuse execs.
 		"ebpf":   a.cfg.TetragonExport != "",
-		"bpfLsm": false,
+		"bpfLsm": a.lsm != nil,
 		"ptrace": false,
 		// The seccomp exec guard refuses an exec before it runs, for the
 		// workload it started and its children only.
@@ -418,6 +439,10 @@ func (a *Agent) decisionLoop(ctx context.Context) {
 		modeBefore := a.Verdicts.Mode()
 		for _, d := range ds {
 			a.Verdicts.Apply(ToDecision(d))
+		}
+		if len(ds) > 0 {
+			// A promote, demote or mode change moves what the kernel refuses.
+			a.syncLSM()
 		}
 		a.cursor = cursor
 		if a.Verdicts.Mode() != modeBefore {
