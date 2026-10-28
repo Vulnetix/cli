@@ -2480,7 +2480,7 @@
             }
           ],
           "fingerprints": {
-            "vulnetix/v1": "dda9ca2b36c500c10d37128c275826a8"
+            "vulnetix/v1": "48323b3dab376c87be37abf87c0addeb"
           },
           "properties": {
             "cwss": "CWSS:1.0/TI:C/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:H/EC:N/P:W",
@@ -2524,7 +2524,7 @@
             }
           ],
           "fingerprints": {
-            "vulnetix/v1": "fef6318c871505069f92aadd5476b3b7"
+            "vulnetix/v1": "b3207e80487b7518f1c9abdd8720c890"
           },
           "properties": {
             "security-severity": "9.5",
@@ -2563,7 +2563,7 @@
             }
           ],
           "fingerprints": {
-            "vulnetix/v1": "44d80d57aee8e807242d40fd5ef84ae5"
+            "vulnetix/v1": "5706c4cd39cf715f4658796aa41b823a"
           },
           "properties": {
             "security-severity": "9.5",
@@ -2619,7 +2619,7 @@
             }
           ],
           "fingerprints": {
-            "vulnetix/v1": "3c86388bc0baad4b438b87b9942fe847"
+            "vulnetix/v1": "40d4489f342bfc4105ac5a9440b0785a"
           },
           "properties": {
             "security-severity": "9.5",
@@ -2672,7 +2672,7 @@
             }
           ],
           "fingerprints": {
-            "vulnetix/v1": "677436249fb1bb58bce196b702c71669"
+            "vulnetix/v1": "8ea3ba8342433dac72f4262f1986ff39"
           },
           "properties": {
             "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:H",
@@ -2729,7 +2729,7 @@
             }
           ],
           "fingerprints": {
-            "vulnetix/v1": "edca83c5fb4f6113a02b04360033eb1c"
+            "vulnetix/v1": "6bc55f238769a179c09584377713acbb"
           },
           "properties": {
             "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:H",
@@ -2770,7 +2770,7 @@
             }
           ],
           "fingerprints": {
-            "vulnetix/v1": "4b4eadf0737f3b4b433f42aa1ef0ca38"
+            "vulnetix/v1": "b06331c856847cc0655fc0675307b6fa"
           },
           "properties": {
             "security-severity": "8.0",
@@ -2804,7 +2804,7 @@
             }
           ],
           "fingerprints": {
-            "vulnetix/v1": "c1c52e03c769169d044de31d9dea7308"
+            "vulnetix/v1": "d6a9af451e263cbd3420bdfc7d9ea2a6"
           },
           "properties": {
             "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:H",
@@ -2819,44 +2819,6 @@
             },
             "vulnetix/kind": "iac",
             "vulnetix/subject": ".github/workflows/ci.yml#release/id-token"
-          }
-        },
-        {
-          "ruleId": "VNX-GH-101",
-          "ruleIndex": 22,
-          "level": "error",
-          "message": {
-            "text": "acme/shared/.github/workflows/release.yml@main follows branch \"main\"; every push to it runs here."
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": ".github/workflows/ci.yml"
-                },
-                "region": {
-                  "startLine": 20,
-                  "startColumn": 11,
-                  "snippet": {
-                    "text": "uses: acme/shared/.github/workflows/release.yml@main"
-                  }
-                }
-              }
-            }
-          ],
-          "fingerprints": {
-            "vulnetix/v1": "445f6386714d9cd4e75c5fc82e2ccbff"
-          },
-          "properties": {
-            "security-severity": "8.0",
-            "severity": "high",
-            "vulnetix/confidence": "high",
-            "vulnetix/evidence": {
-              "ref": "main",
-              "uses": "acme/shared/.github/workflows/release.yml@main"
-            },
-            "vulnetix/kind": "iac",
-            "vulnetix/subject": ".github/workflows/ci.yml#release/pin/acme/shared"
           }
         },
         {
@@ -2882,7 +2844,7 @@
             }
           ],
           "fingerprints": {
-            "vulnetix/v1": "977d73b25ffac33ab53140c582cba229"
+            "vulnetix/v1": "36a15dddd140a41a17e04bc027c36255"
           },
           "properties": {
             "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:H",
@@ -2897,6 +2859,48 @@
             },
             "vulnetix/kind": "iac",
             "vulnetix/subject": ".github/workflows/ci.yml#release/secrets-inherit"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-101",
+          "ruleIndex": 22,
+          "level": "warning",
+          "message": {
+            "text": "acme/shared/.github/workflows/release.yml@main follows branch \"main\"; every push to it runs here."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 20,
+                  "startColumn": 11,
+                  "snippet": {
+                    "text": "uses: acme/shared/.github/workflows/release.yml@main"
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "ee75aa82c648319009d21d8521c81fc9"
+          },
+          "properties": {
+            "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:L/EC:N/P:W",
+            "security-severity": "5.5",
+            "severity": "medium",
+            "vulnetix/adjustments": [
+              "action belongs to the same owner as this repository"
+            ],
+            "vulnetix/confidence": "high",
+            "vulnetix/evidence": {
+              "ref": "main",
+              "uses": "acme/shared/.github/workflows/release.yml@main"
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#release/pin/acme/shared"
           }
         },
         {
@@ -2923,7 +2927,7 @@
             }
           ],
           "fingerprints": {
-            "vulnetix/v1": "fc0d048d5be65e4c32d42eec4f1df73d"
+            "vulnetix/v1": "bb65acdf8cf4b8625d9b3e18152ac9bf"
           },
           "properties": {
             "cwss": "CWSS:1.0/TI:L/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
@@ -3167,7 +3171,12 @@
       ],
       "automationDetails": {
         "id": "vulnetix-github/"
-      }
+      },
+      "versionControlProvenance": [
+        {
+          "repositoryUri": "https://github.com/acme/app"
+        }
+      ]
     }
   ]
 }

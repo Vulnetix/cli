@@ -69,8 +69,13 @@ func TestGHAAuditSARIFIsValidAndStable(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// In Actions, GITHUB_REPOSITORY and friends name the repository; pin it so
+	// the output is the same wherever the test runs.
+	for _, k := range []string{"GITHUB_REPOSITORY", "GITHUB_SHA", "GITHUB_REF", "GITHUB_REF_NAME", "GITHUB_SERVER_URL", "GITHUB_API_URL"} {
+		t.Setenv(k, "")
+	}
 	var out, errOut bytes.Buffer
-	opt := ghaTaskOptions{format: "sarif", offline: true, maxActionRefs: 40}
+	opt := ghaTaskOptions{repo: "acme/app", format: "sarif", offline: true, maxActionRefs: 40}
 	if err := runGHATask(context.Background(), &out, &errOut, ghaudit.AllTasks, dir, opt); err != nil {
 		t.Fatalf("gha audit: %v\n%s", err, errOut.String())
 	}
