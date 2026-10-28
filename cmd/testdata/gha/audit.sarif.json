@@ -1,0 +1,3173 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Vulnetix GitHub",
+          "fullName": "Vulnetix GitHub posture analysis",
+          "version": "1.0.0",
+          "organization": "Vulnetix",
+          "informationUri": "https://www.vulnetix.com",
+          "rules": [
+            {
+              "id": "VNX-GH-001",
+              "name": "Untrusted input expanded into an executed script",
+              "shortDescription": {
+                "text": "A ${{ }} expression carrying attacker-controlled text is substituted into a shell or script before it runs."
+              },
+              "fullDescription": {
+                "text": "GitHub substitutes ${{ }} expressions into run: scripts (and script inputs such as actions/github-script's script) as text, before the interpreter parses them. Text that an outsider controls — a pull request title, a branch name, a comment, a commit message — becomes code that runs with the job's token and secrets. The engine follows the value through env:, GITHUB_ENV, step outputs, job outputs and local composite actions, and only reports sources the workflow's triggers can actually populate."
+              },
+              "help": {
+                "text": "GitHub substitutes ${{ }} expressions into run: scripts (and script inputs such as actions/github-script's script) as text, before the interpreter parses them. Text that an outsider controls — a pull request title, a branch name, a comment, a commit message — becomes code that runs with the job's token and secrets. The engine follows the value through env:, GITHUB_ENV, step outputs, job outputs and local composite actions, and only reports sources the workflow's triggers can actually populate.\n\nRemediation: Pass the value through an environment variable and reference it as a shell variable (\"$TITLE\"), or as process.env in github-script, so it is data rather than code.",
+                "markdown": "GitHub substitutes ${{ }} expressions into run: scripts (and script inputs such as actions/github-script's script) as text, before the interpreter parses them. Text that an outsider controls — a pull request title, a branch name, a comment, a commit message — becomes code that runs with the job's token and secrets. The engine follows the value through env:, GITHUB_ENV, step outputs, job outputs and local composite actions, and only reports sources the workflow's triggers can actually populate.\n\n**Remediation**\n\nPass the value through an environment variable and reference it as a shell variable (\"$TITLE\"), or as process.env in github-script, so it is data rather than code.\n\n**Context used**\n\n- repo"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-001/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1059",
+                  "T1195.002"
+                ],
+                "capec": [
+                  "CAPEC-242"
+                ],
+                "cwe": [
+                  "CWE-94",
+                  "CWE-78"
+                ],
+                "cwss": "CWSS:1.0/TI:C/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:H/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "9.5",
+                "severity": "critical",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "injection",
+                  "CWE-94",
+                  "CWE-78"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-002",
+              "name": "Untrusted input written to GITHUB_ENV or GITHUB_PATH",
+              "shortDescription": {
+                "text": "Attacker-controlled text is appended to the job's environment or PATH file."
+              },
+              "fullDescription": {
+                "text": "Lines appended to $GITHUB_ENV become environment variables for every later step, and lines appended to $GITHUB_PATH prepend directories to PATH. A value containing a newline can define LD_PRELOAD, NODE_OPTIONS, BASH_ENV or a new PATH entry, giving code execution in later steps even when those steps are written safely."
+              },
+              "help": {
+                "text": "Lines appended to $GITHUB_ENV become environment variables for every later step, and lines appended to $GITHUB_PATH prepend directories to PATH. A value containing a newline can define LD_PRELOAD, NODE_OPTIONS, BASH_ENV or a new PATH entry, giving code execution in later steps even when those steps are written safely.\n\nRemediation: Do not write untrusted values to GITHUB_ENV/GITHUB_PATH. If a later step needs the value, pass it through a step output and env:, or use a random heredoc delimiter and validate the value first.",
+                "markdown": "Lines appended to $GITHUB_ENV become environment variables for every later step, and lines appended to $GITHUB_PATH prepend directories to PATH. A value containing a newline can define LD_PRELOAD, NODE_OPTIONS, BASH_ENV or a new PATH entry, giving code execution in later steps even when those steps are written safely.\n\n**Remediation**\n\nDo not write untrusted values to GITHUB_ENV/GITHUB_PATH. If a later step needs the value, pass it through a step output and env:, or use a random heredoc delimiter and validate the value first."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-002/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1574"
+                ],
+                "cwe": [
+                  "CWE-77",
+                  "CWE-427"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "injection",
+                  "CWE-77",
+                  "CWE-427"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-003",
+              "name": "Privileged workflow runs code from an untrusted pull request",
+              "shortDescription": {
+                "text": "A pull_request_target, workflow_run or comment-triggered job checks out the pull request's code and then executes it."
+              },
+              "fullDescription": {
+                "text": "pull_request_target, workflow_run and issue_comment run in the base repository's context: a write-capable GITHUB_TOKEN and every secret. Checking out the pull request head and then running a script, a build, or a local action executes code the pull request author wrote with those privileges. Build scripts, package manager hooks, test configuration and local actions all count as execution."
+              },
+              "help": {
+                "text": "pull_request_target, workflow_run and issue_comment run in the base repository's context: a write-capable GITHUB_TOKEN and every secret. Checking out the pull request head and then running a script, a build, or a local action executes code the pull request author wrote with those privileges. Build scripts, package manager hooks, test configuration and local actions all count as execution.\n\nRemediation: Split the work: run untrusted code under pull_request (no secrets, read-only token) and hand results to a privileged workflow as data via an artifact. If the privileged job must see the code, never execute it — and gate the job on an environment with required reviewers.",
+                "markdown": "pull_request_target, workflow_run and issue_comment run in the base repository's context: a write-capable GITHUB_TOKEN and every secret. Checking out the pull request head and then running a script, a build, or a local action executes code the pull request author wrote with those privileges. Build scripts, package manager hooks, test configuration and local actions all count as execution.\n\n**Remediation**\n\nSplit the work: run untrusted code under pull_request (no secrets, read-only token) and hand results to a privileged workflow as data via an artifact. If the privileged job must see the code, never execute it — and gate the job on an environment with required reviewers.\n\n**Context used**\n\n- repo\n- environments"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-003/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1195.002"
+                ],
+                "capec": [
+                  "CAPEC-437"
+                ],
+                "cwe": [
+                  "CWE-829",
+                  "CWE-94"
+                ],
+                "cwss": "CWSS:1.0/TI:C/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:H/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "9.5",
+                "severity": "critical",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "pwn-request",
+                  "supply-chain",
+                  "CWE-829",
+                  "CWE-94"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-004",
+              "name": "Checkout credentials persisted into an uploaded workspace",
+              "shortDescription": {
+                "text": "actions/checkout writes the token into .git/config and the workspace is then uploaded as an artifact."
+              },
+              "fullDescription": {
+                "text": "By default actions/checkout stores the job's GITHUB_TOKEN in .git/config so later git commands authenticate. Uploading the checkout directory as an artifact publishes that token to anyone who can download the run's artifacts — on a public repository, everyone — while the job is still running."
+              },
+              "help": {
+                "text": "By default actions/checkout stores the job's GITHUB_TOKEN in .git/config so later git commands authenticate. Uploading the checkout directory as an artifact publishes that token to anyone who can download the run's artifacts — on a public repository, everyone — while the job is still running.\n\nRemediation: Set persist-credentials: false on actions/checkout, and upload only the build output directory, never the repository root.",
+                "markdown": "By default actions/checkout stores the job's GITHUB_TOKEN in .git/config so later git commands authenticate. Uploading the checkout directory as an artifact publishes that token to anyone who can download the run's artifacts — on a public repository, everyone — while the job is still running.\n\n**Remediation**\n\nSet persist-credentials: false on actions/checkout, and upload only the build output directory, never the repository root."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-004/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-522",
+                  "CWE-200"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "credential-exposure",
+                  "CWE-522",
+                  "CWE-200"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-005",
+              "name": "Privileged workflow consumes artifacts from an untrusted run",
+              "shortDescription": {
+                "text": "A workflow_run job downloads artifacts produced by a fork-triggered run and extracts them into the workspace."
+              },
+              "fullDescription": {
+                "text": "Artifacts uploaded by a pull_request run are written by the pull request's code. A workflow_run job that downloads them into the working directory lets that code overwrite scripts, configuration or binaries the privileged job then uses."
+              },
+              "help": {
+                "text": "Artifacts uploaded by a pull_request run are written by the pull request's code. A workflow_run job that downloads them into the working directory lets that code overwrite scripts, configuration or binaries the privileged job then uses.\n\nRemediation: Download into a dedicated directory outside the workspace (e.g. ${{ runner.temp }}/artifacts), treat contents as untrusted data, and validate them before use. Never execute anything from the artifact.",
+                "markdown": "Artifacts uploaded by a pull_request run are written by the pull request's code. A workflow_run job that downloads them into the working directory lets that code overwrite scripts, configuration or binaries the privileged job then uses.\n\n**Remediation**\n\nDownload into a dedicated directory outside the workspace (e.g. ${{ runner.temp }}/artifacts), treat contents as untrusted data, and validate them before use. Never execute anything from the artifact."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-005/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1195.002"
+                ],
+                "cwe": [
+                  "CWE-494",
+                  "CWE-345"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "artifact-poisoning",
+                  "CWE-494",
+                  "CWE-345"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-006",
+              "name": "Release workflow restores a cache writable by untrusted runs",
+              "shortDescription": {
+                "text": "A workflow that publishes releases restores dependency caches that other workflows on the default branch can write."
+              },
+              "fullDescription": {
+                "text": "Caches are shared across workflows in the same branch scope. A compromised or injectable workflow on the default branch can save a poisoned cache entry that a release workflow later restores and ships inside a published artifact."
+              },
+              "help": {
+                "text": "Caches are shared across workflows in the same branch scope. A compromised or injectable workflow on the default branch can save a poisoned cache entry that a release workflow later restores and ships inside a published artifact.\n\nRemediation: Disable caching in workflows that publish releases or sign artifacts (remove cache: / actions/cache), or use a cache key namespace no other workflow writes.",
+                "markdown": "Caches are shared across workflows in the same branch scope. A compromised or injectable workflow on the default branch can save a poisoned cache entry that a release workflow later restores and ships inside a published artifact.\n\n**Remediation**\n\nDisable caching in workflows that publish releases or sign artifacts (remove cache: / actions/cache), or use a cache key namespace no other workflow writes."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-006/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1195.002"
+                ],
+                "cwe": [
+                  "CWE-349",
+                  "CWE-494"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "cache-poisoning",
+                  "supply-chain",
+                  "CWE-349",
+                  "CWE-494"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-007",
+              "name": "Workflow token permissions not declared",
+              "shortDescription": {
+                "text": "Neither the workflow nor the job declares permissions:, so the token gets the repository default."
+              },
+              "fullDescription": {
+                "text": "Without a permissions: block the GITHUB_TOKEN gets the repository or organisation default, which for many repositories is read/write on every scope. Any compromised step — a vulnerable action, an injection — can then push code, publish packages or approve pull requests."
+              },
+              "help": {
+                "text": "Without a permissions: block the GITHUB_TOKEN gets the repository or organisation default, which for many repositories is read/write on every scope. Any compromised step — a vulnerable action, an injection — can then push code, publish packages or approve pull requests.\n\nRemediation: Add `permissions: {}` (or `contents: read`) at the top of the workflow, and grant individual jobs only the scopes they need.",
+                "markdown": "Without a permissions: block the GITHUB_TOKEN gets the repository or organisation default, which for many repositories is read/write on every scope. Any compromised step — a vulnerable action, an injection — can then push code, publish packages or approve pull requests.\n\n**Remediation**\n\nAdd `permissions: {}` (or `contents: read`) at the top of the workflow, and grant individual jobs only the scopes they need.\n\n**Context used**\n\n- repo"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-007/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-250",
+                  "CWE-272"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:M/EX:L/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "least-privilege",
+                  "CWE-250",
+                  "CWE-272"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-008",
+              "name": "Excessive token permissions",
+              "shortDescription": {
+                "text": "The token is granted write-all, or write scopes at workflow level that every job inherits."
+              },
+              "fullDescription": {
+                "text": "write-all grants every scope including actions, packages, pages and id-token. Workflow-level write scopes apply to every job, including jobs that run untrusted code or third-party actions."
+              },
+              "help": {
+                "text": "write-all grants every scope including actions, packages, pages and id-token. Workflow-level write scopes apply to every job, including jobs that run untrusted code or third-party actions.\n\nRemediation: Use `permissions: {}` at the workflow level and grant each job only the specific scopes it needs.",
+                "markdown": "write-all grants every scope including actions, packages, pages and id-token. Workflow-level write scopes apply to every job, including jobs that run untrusted code or third-party actions.\n\n**Remediation**\n\nUse `permissions: {}` at the workflow level and grant each job only the specific scopes it needs."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-008/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-250",
+                  "CWE-732"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "least-privilege",
+                  "CWE-250",
+                  "CWE-732"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-009",
+              "name": "OIDC token minted outside a protected environment",
+              "shortDescription": {
+                "text": "A job with id-token: write is not bound to an environment with reviewers or a branch policy."
+              },
+              "fullDescription": {
+                "text": "id-token: write lets the job request an OIDC token that cloud providers exchange for credentials. Cloud trust policies commonly match on repository only; without an environment gate, any branch, and any code that can run in that job, can obtain cloud credentials."
+              },
+              "help": {
+                "text": "id-token: write lets the job request an OIDC token that cloud providers exchange for credentials. Cloud trust policies commonly match on repository only; without an environment gate, any branch, and any code that can run in that job, can obtain cloud credentials.\n\nRemediation: Bind the job to an environment with required reviewers or a protected-branch policy, and scope the cloud trust policy's subject to that environment (repo:owner/name:environment:prod).",
+                "markdown": "id-token: write lets the job request an OIDC token that cloud providers exchange for credentials. Cloud trust policies commonly match on repository only; without an environment gate, any branch, and any code that can run in that job, can obtain cloud credentials.\n\n**Remediation**\n\nBind the job to an environment with required reviewers or a protected-branch policy, and scope the cloud trust policy's subject to that environment (repo:owner/name:environment:prod).\n\n**Context used**\n\n- environments"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-009/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-285",
+                  "CWE-863"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "oidc",
+                  "cloud",
+                  "CWE-285",
+                  "CWE-863"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-010",
+              "name": "All secrets passed to a reusable workflow",
+              "shortDescription": {
+                "text": "secrets: inherit hands every repository, environment and organisation secret to the called workflow."
+              },
+              "fullDescription": {
+                "text": "The called workflow receives every secret the caller can see, not just the ones it uses. A reusable workflow in another repository, or one pinned to a mutable ref, becomes a way to exfiltrate all of them."
+              },
+              "help": {
+                "text": "The called workflow receives every secret the caller can see, not just the ones it uses. A reusable workflow in another repository, or one pinned to a mutable ref, becomes a way to exfiltrate all of them.\n\nRemediation: Pass only the secrets the called workflow declares under on.workflow_call.secrets, by name.",
+                "markdown": "The called workflow receives every secret the caller can see, not just the ones it uses. A reusable workflow in another repository, or one pinned to a mutable ref, becomes a way to exfiltrate all of them.\n\n**Remediation**\n\nPass only the secrets the called workflow declares under on.workflow_call.secrets, by name.\n\n**Context used**\n\n- repo"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-010/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-200",
+                  "CWE-668"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "secrets",
+                  "CWE-200",
+                  "CWE-668"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-011",
+              "name": "Secrets context exposed in bulk",
+              "shortDescription": {
+                "text": "toJSON(secrets) or a computed secrets[...] index loads every secret into the job."
+              },
+              "fullDescription": {
+                "text": "Secrets are only sent to a runner when referenced. toJSON(secrets) or a dynamic index forces every secret the workflow can see onto the runner, so a single compromised step can read all of them, and log masking is weaker for structured values."
+              },
+              "help": {
+                "text": "Secrets are only sent to a runner when referenced. toJSON(secrets) or a dynamic index forces every secret the workflow can see onto the runner, so a single compromised step can read all of them, and log masking is weaker for structured values.\n\nRemediation: Reference each secret by name, only in the step that needs it.",
+                "markdown": "Secrets are only sent to a runner when referenced. toJSON(secrets) or a dynamic index forces every secret the workflow can see onto the runner, so a single compromised step can read all of them, and log masking is weaker for structured values.\n\n**Remediation**\n\nReference each secret by name, only in the step that needs it."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-011/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-200",
+                  "CWE-532"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "secrets",
+                  "CWE-200",
+                  "CWE-532"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-012",
+              "name": "Hard-coded container registry credentials",
+              "shortDescription": {
+                "text": "A job container or service declares a literal password instead of a secret reference."
+              },
+              "fullDescription": {
+                "text": "Credentials written into the workflow file are visible to anyone who can read the repository and persist in git history."
+              },
+              "help": {
+                "text": "Credentials written into the workflow file are visible to anyone who can read the repository and persist in git history.\n\nRemediation: Store the password as an Actions secret and reference it as ${{ secrets.NAME }}. Rotate the exposed credential.",
+                "markdown": "Credentials written into the workflow file are visible to anyone who can read the repository and persist in git history.\n\n**Remediation**\n\nStore the password as an Actions secret and reference it as ${{ secrets.NAME }}. Rotate the exposed credential."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-012/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-798"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "secrets",
+                  "CWE-798"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-013",
+              "name": "Deprecated workflow commands re-enabled",
+              "shortDescription": {
+                "text": "ACTIONS_ALLOW_UNSECURE_COMMANDS re-enables ::set-env and ::add-path."
+              },
+              "fullDescription": {
+                "text": "With this variable set, any process that prints to stdout — a test, a dependency, a log line containing user text — can set environment variables or PATH for later steps by printing a workflow command."
+              },
+              "help": {
+                "text": "With this variable set, any process that prints to stdout — a test, a dependency, a log line containing user text — can set environment variables or PATH for later steps by printing a workflow command.\n\nRemediation: Remove ACTIONS_ALLOW_UNSECURE_COMMANDS and write to $GITHUB_ENV / $GITHUB_PATH instead.",
+                "markdown": "With this variable set, any process that prints to stdout — a test, a dependency, a log line containing user text — can set environment variables or PATH for later steps by printing a workflow command.\n\n**Remediation**\n\nRemove ACTIONS_ALLOW_UNSECURE_COMMANDS and write to $GITHUB_ENV / $GITHUB_PATH instead."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-013/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-77"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "injection",
+                  "CWE-77"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-014",
+              "name": "Authorisation by spoofable actor name",
+              "shortDescription": {
+                "text": "An if: trusts github.actor == '\u003cbot\u003e[bot]' in a workflow outsiders can trigger."
+              },
+              "fullDescription": {
+                "text": "github.actor is whoever caused the latest event, not who wrote the code. An attacker can open a pull request that a bot later updates (for example by asking Dependabot to rebase), making the bot the actor while the attacker's commits run with the privileges the check was meant to reserve for the bot."
+              },
+              "help": {
+                "text": "github.actor is whoever caused the latest event, not who wrote the code. An attacker can open a pull request that a bot later updates (for example by asking Dependabot to rebase), making the bot the actor while the attacker's commits run with the privileges the check was meant to reserve for the bot.\n\nRemediation: Check the pull request author (github.event.pull_request.user.login) and that the head repository is the base repository, or use the bot's own metadata action.",
+                "markdown": "github.actor is whoever caused the latest event, not who wrote the code. An attacker can open a pull request that a bot later updates (for example by asking Dependabot to rebase), making the bot the actor while the attacker's commits run with the privileges the check was meant to reserve for the bot.\n\n**Remediation**\n\nCheck the pull request author (github.event.pull_request.user.login) and that the head repository is the base repository, or use the bot's own metadata action."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-014/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-290",
+                  "CWE-863"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "authorisation",
+                  "CWE-290",
+                  "CWE-863"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-015",
+              "name": "Condition always evaluates to true",
+              "shortDescription": {
+                "text": "An if: mixes ${{ }} with surrounding text, or is a block scalar, so it is a non-empty string and always true."
+              },
+              "fullDescription": {
+                "text": "When an if: value contains text outside a single ${{ }} expression (including a trailing newline from a | block), GitHub evaluates the whole thing as a string, and any non-empty string is truthy. The guard — often an authorisation check — never blocks."
+              },
+              "help": {
+                "text": "When an if: value contains text outside a single ${{ }} expression (including a trailing newline from a | block), GitHub evaluates the whole thing as a string, and any non-empty string is truthy. The guard — often an authorisation check — never blocks.\n\nRemediation: Write the condition as a single expression, either bare (if: a \u0026\u0026 b) or entirely inside one ${{ }}.",
+                "markdown": "When an if: value contains text outside a single ${{ }} expression (including a trailing newline from a | block), GitHub evaluates the whole thing as a string, and any non-empty string is truthy. The guard — often an authorisation check — never blocks.\n\n**Remediation**\n\nWrite the condition as a single expression, either bare (if: a \u0026\u0026 b) or entirely inside one ${{ }}."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-015/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-570",
+                  "CWE-571",
+                  "CWE-697"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "logic",
+                  "CWE-570",
+                  "CWE-571",
+                  "CWE-697"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-016",
+              "name": "Self-hosted runner reachable from pull requests",
+              "shortDescription": {
+                "text": "A job triggered by pull requests runs on a self-hosted runner."
+              },
+              "fullDescription": {
+                "text": "Self-hosted runners are not ephemeral by default: code from a pull request can persist on the machine, read credentials from earlier jobs, and reach the internal network the runner sits on. On a public repository any GitHub user can trigger this."
+              },
+              "help": {
+                "text": "Self-hosted runners are not ephemeral by default: code from a pull request can persist on the machine, read credentials from earlier jobs, and reach the internal network the runner sits on. On a public repository any GitHub user can trigger this.\n\nRemediation: Run pull request workflows on GitHub-hosted runners, or on ephemeral (just-in-time) self-hosted runners in an isolated runner group that public repositories cannot use.",
+                "markdown": "Self-hosted runners are not ephemeral by default: code from a pull request can persist on the machine, read credentials from earlier jobs, and reach the internal network the runner sits on. On a public repository any GitHub user can trigger this.\n\n**Remediation**\n\nRun pull request workflows on GitHub-hosted runners, or on ephemeral (just-in-time) self-hosted runners in an isolated runner group that public repositories cannot use.\n\n**Context used**\n\n- repo\n- runner groups"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-016/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1078"
+                ],
+                "cwe": [
+                  "CWE-829",
+                  "CWE-668"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "runners",
+                  "CWE-829",
+                  "CWE-668"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-017",
+              "name": "Secret printed to the job log",
+              "shortDescription": {
+                "text": "A run: step prints a secret, relying on log masking to hide it."
+              },
+              "fullDescription": {
+                "text": "Masking only redacts exact matches. Encoded, split or transformed output (base64, JSON, a substring, a multi-line value) is printed in clear to a log readable by everyone with read access."
+              },
+              "help": {
+                "text": "Masking only redacts exact matches. Encoded, split or transformed output (base64, JSON, a substring, a multi-line value) is printed in clear to a log readable by everyone with read access.\n\nRemediation: Never print secrets. Pass them to tools through environment variables or files with restricted permissions.",
+                "markdown": "Masking only redacts exact matches. Encoded, split or transformed output (base64, JSON, a substring, a multi-line value) is printed in clear to a log readable by everyone with read access.\n\n**Remediation**\n\nNever print secrets. Pass them to tools through environment variables or files with restricted permissions."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-017/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-532"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:M/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "secrets",
+                  "CWE-532"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-018",
+              "name": "Comment-triggered workflow without an author check",
+              "shortDescription": {
+                "text": "An issue_comment workflow runs privileged steps for any commenter."
+              },
+              "fullDescription": {
+                "text": "issue_comment runs with a write token and secrets, and anyone who can comment can trigger it. A ChatOps command (/deploy, /release, /retest) without an author_association or permission check runs for every GitHub user on a public repository."
+              },
+              "help": {
+                "text": "issue_comment runs with a write token and secrets, and anyone who can comment can trigger it. A ChatOps command (/deploy, /release, /retest) without an author_association or permission check runs for every GitHub user on a public repository.\n\nRemediation: Gate the job on github.event.comment.author_association being OWNER, MEMBER or COLLABORATOR, or check the commenter's permission with the API before acting.",
+                "markdown": "issue_comment runs with a write token and secrets, and anyone who can comment can trigger it. A ChatOps command (/deploy, /release, /retest) without an author_association or permission check runs for every GitHub user on a public repository.\n\n**Remediation**\n\nGate the job on github.event.comment.author_association being OWNER, MEMBER or COLLABORATOR, or check the commenter's permission with the API before acting.\n\n**Context used**\n\n- repo"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-018/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-862",
+                  "CWE-863"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "authorisation",
+                  "CWE-862",
+                  "CWE-863"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-019",
+              "name": "Obfuscated action reference or expression",
+              "shortDescription": {
+                "text": "A uses: path or ${{ }} expression is written in a form that hides what it resolves to."
+              },
+              "fullDescription": {
+                "text": "uses: owner/repo/./@ref and github['event']['issue']['title'] resolve to the same thing as their plain forms but evade reviewers, allow-lists and simple scanners. Legitimate workflows rarely need them."
+              },
+              "help": {
+                "text": "uses: owner/repo/./@ref and github['event']['issue']['title'] resolve to the same thing as their plain forms but evade reviewers, allow-lists and simple scanners. Legitimate workflows rarely need them.\n\nRemediation: Write the reference or expression in its plain form.",
+                "markdown": "uses: owner/repo/./@ref and github['event']['issue']['title'] resolve to the same thing as their plain forms but evade reviewers, allow-lists and simple scanners. Legitimate workflows rarely need them.\n\n**Remediation**\n\nWrite the reference or expression in its plain form."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-019/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-656"
+                ],
+                "cwss": "CWSS:1.0/TI:L/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:L/DI:L/EX:L/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "obfuscation",
+                  "CWE-656"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-020",
+              "name": "Pull request head ref used as a branch or tag name without quoting",
+              "shortDescription": {
+                "text": "A shell variable holding the head branch name is passed to git or gh unquoted or without --."
+              },
+              "fullDescription": {
+                "text": "Moving an untrusted value into env: fixes script injection, but `git checkout $BRANCH` still lets a branch named --upload-pack=... or -o... inject options. Branch names can start with a dash."
+              },
+              "help": {
+                "text": "Moving an untrusted value into env: fixes script injection, but `git checkout $BRANCH` still lets a branch named --upload-pack=... or -o... inject options. Branch names can start with a dash.\n\nRemediation: Quote the variable and end option parsing: git checkout -- \"$BRANCH\" (or git switch \"refs/heads/$BRANCH\").",
+                "markdown": "Moving an untrusted value into env: fixes script injection, but `git checkout $BRANCH` still lets a branch named --upload-pack=... or -o... inject options. Branch names can start with a dash.\n\n**Remediation**\n\nQuote the variable and end option parsing: git checkout -- \"$BRANCH\" (or git switch \"refs/heads/$BRANCH\")."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-020/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-88"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:M/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "argument-injection",
+                  "CWE-88"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-021",
+              "name": "Secrets sent to an external host",
+              "shortDescription": {
+                "text": "A step sends the secrets context, the environment, or an encoded secret over the network, or sends any secret to a request-capture host or raw IP."
+              },
+              "fullDescription": {
+                "text": "Token-theft campaigns add a step that dumps every secret (or the whole environment) and posts it to a server they control, often base64-encoded to slip past log masking, then remove the workflow. Authenticated calls that pass a single secret to an API are not reported; only bulk dumps, encoded secrets, and destinations with no legitimate use are."
+              },
+              "help": {
+                "text": "Token-theft campaigns add a step that dumps every secret (or the whole environment) and posts it to a server they control, often base64-encoded to slip past log masking, then remove the workflow. Authenticated calls that pass a single secret to an API are not reported; only bulk dumps, encoded secrets, and destinations with no legitimate use are.\n\nRemediation: Remove the step and treat every secret available to the workflow as compromised: rotate them, then review who added the change.",
+                "markdown": "Token-theft campaigns add a step that dumps every secret (or the whole environment) and posts it to a server they control, often base64-encoded to slip past log masking, then remove the workflow. Authenticated calls that pass a single secret to an API are not reported; only bulk dumps, encoded secrets, and destinations with no legitimate use are.\n\n**Remediation**\n\nRemove the step and treat every secret available to the workflow as compromised: rotate them, then review who added the change."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-021/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1552.001",
+                  "T1567"
+                ],
+                "cwe": [
+                  "CWE-200",
+                  "CWE-506"
+                ],
+                "cwss": "CWSS:1.0/TI:C/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:H/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "9.5",
+                "severity": "critical",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "secrets",
+                  "exfiltration",
+                  "malicious",
+                  "CWE-200",
+                  "CWE-506"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-022",
+              "name": "Privileged job restores a cache keyed on contributor input",
+              "shortDescription": {
+                "text": "In a pull_request_target, workflow_run or comment-triggered job, a cache key or the cached content is derived from the pull request."
+              },
+              "fullDescription": {
+                "text": "A key built from the head branch or head SHA lets a contributor choose which entry the privileged job restores; restoring a cache after checking out the pull request saves the contributor's files under a key later trusted runs restore."
+              },
+              "help": {
+                "text": "A key built from the head branch or head SHA lets a contributor choose which entry the privileged job restores; restoring a cache after checking out the pull request saves the contributor's files under a key later trusted runs restore.\n\nRemediation: Key caches only on base-branch content (hashFiles of the base checkout), and do not cache in a job that checked out untrusted code.",
+                "markdown": "A key built from the head branch or head SHA lets a contributor choose which entry the privileged job restores; restoring a cache after checking out the pull request saves the contributor's files under a key later trusted runs restore.\n\n**Remediation**\n\nKey caches only on base-branch content (hashFiles of the base checkout), and do not cache in a job that checked out untrusted code."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-022/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-349",
+                  "CWE-494"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "cache-poisoning",
+                  "CWE-349",
+                  "CWE-494"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "workflows"
+              }
+            },
+            {
+              "id": "VNX-GH-101",
+              "name": "Action or reusable workflow not pinned to a commit SHA",
+              "shortDescription": {
+                "text": "uses: references a branch or tag, which the action's owner (or anyone who compromises them) can move."
+              },
+              "fullDescription": {
+                "text": "Tags and branches are mutable. When an action repository is compromised, the attacker re-points existing tags at malicious code and every workflow referencing them runs it on its next execution — as happened in widely used actions. A full 40-character SHA is the only immutable reference."
+              },
+              "help": {
+                "text": "Tags and branches are mutable. When an action repository is compromised, the attacker re-points existing tags at malicious code and every workflow referencing them runs it on its next execution — as happened in widely used actions. A full 40-character SHA is the only immutable reference.\n\nRemediation: Pin to the full commit SHA and keep the version in a trailing comment (uses: owner/repo@\u003csha\u003e # v1.2.3); let Dependabot or Renovate update both.",
+                "markdown": "Tags and branches are mutable. When an action repository is compromised, the attacker re-points existing tags at malicious code and every workflow referencing them runs it on its next execution — as happened in widely used actions. A full 40-character SHA is the only immutable reference.\n\n**Remediation**\n\nPin to the full commit SHA and keep the version in a trailing comment (uses: owner/repo@\u003csha\u003e # v1.2.3); let Dependabot or Renovate update both.\n\n**Context used**\n\n- action refs\n- actions policy\n- repo"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-101/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1195.001"
+                ],
+                "cwe": [
+                  "CWE-829",
+                  "CWE-494"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "supply-chain",
+                  "pinning",
+                  "CWE-829",
+                  "CWE-494"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "actions"
+              }
+            },
+            {
+              "id": "VNX-GH-102",
+              "name": "SHA pin does not match its version comment",
+              "shortDescription": {
+                "text": "uses: owner/repo@\u003csha\u003e # vX.Y.Z, but vX.Y.Z resolves to a different commit."
+              },
+              "fullDescription": {
+                "text": "Reviewers and update bots read the version comment, not the SHA. A SHA that does not match its comment either predates an update that only changed the comment, or was swapped deliberately to run a different commit under a trusted-looking version."
+              },
+              "help": {
+                "text": "Reviewers and update bots read the version comment, not the SHA. A SHA that does not match its comment either predates an update that only changed the comment, or was swapped deliberately to run a different commit under a trusted-looking version.\n\nRemediation: Re-pin to the commit the intended version resolves to, and update the comment and SHA together.",
+                "markdown": "Reviewers and update bots read the version comment, not the SHA. A SHA that does not match its comment either predates an update that only changed the comment, or was swapped deliberately to run a different commit under a trusted-looking version.\n\n**Remediation**\n\nRe-pin to the commit the intended version resolves to, and update the comment and SHA together.\n\n**Context used**\n\n- action refs"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-102/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-345",
+                  "CWE-451"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "supply-chain",
+                  "pinning",
+                  "CWE-345",
+                  "CWE-451"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "action_refs"
+                ],
+                "vulnetix/task": "actions"
+              }
+            },
+            {
+              "id": "VNX-GH-103",
+              "name": "Pinned commit is not in the action's repository",
+              "shortDescription": {
+                "text": "The pinned SHA exists only in a fork of the action repository."
+              },
+              "fullDescription": {
+                "text": "GitHub serves commits from any fork through the parent repository's URL. An attacker can push malicious code to a fork and propose a pin to that SHA; it looks like owner/repo@\u003csha\u003e but the commit was never part of owner/repo."
+              },
+              "help": {
+                "text": "GitHub serves commits from any fork through the parent repository's URL. An attacker can push malicious code to a fork and propose a pin to that SHA; it looks like owner/repo@\u003csha\u003e but the commit was never part of owner/repo.\n\nRemediation: Replace the SHA with one that is reachable from a branch or tag of the action repository itself.",
+                "markdown": "GitHub serves commits from any fork through the parent repository's URL. An attacker can push malicious code to a fork and propose a pin to that SHA; it looks like owner/repo@\u003csha\u003e but the commit was never part of owner/repo.\n\n**Remediation**\n\nReplace the SHA with one that is reachable from a branch or tag of the action repository itself.\n\n**Context used**\n\n- action refs"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-103/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1195.001"
+                ],
+                "cwe": [
+                  "CWE-345",
+                  "CWE-494"
+                ],
+                "cwss": "CWSS:1.0/TI:C/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:H/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "9.5",
+                "severity": "critical",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "supply-chain",
+                  "impostor-commit",
+                  "CWE-345",
+                  "CWE-494"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "action_refs"
+                ],
+                "vulnetix/task": "actions"
+              }
+            },
+            {
+              "id": "VNX-GH-104",
+              "name": "Action repository archived, missing or hijackable",
+              "shortDescription": {
+                "text": "The referenced action is archived, deleted, or its owner was renamed or removed."
+              },
+              "fullDescription": {
+                "text": "An archived action gets no security fixes. A deleted repository, or an owner that was renamed or removed, lets anyone register the old name and publish code under it (repo-jacking); unpinned references then run it."
+              },
+              "help": {
+                "text": "An archived action gets no security fixes. A deleted repository, or an owner that was renamed or removed, lets anyone register the old name and publish code under it (repo-jacking); unpinned references then run it.\n\nRemediation: Replace the action with a maintained alternative, or vendor it into this repository as a local action.",
+                "markdown": "An archived action gets no security fixes. A deleted repository, or an owner that was renamed or removed, lets anyone register the old name and publish code under it (repo-jacking); unpinned references then run it.\n\n**Remediation**\n\nReplace the action with a maintained alternative, or vendor it into this repository as a local action.\n\n**Context used**\n\n- action refs"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-104/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1195.001"
+                ],
+                "cwe": [
+                  "CWE-1104",
+                  "CWE-494"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "supply-chain",
+                  "repojacking",
+                  "CWE-1104",
+                  "CWE-494"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "action_refs"
+                ],
+                "vulnetix/task": "actions"
+              }
+            },
+            {
+              "id": "VNX-GH-105",
+              "name": "Action version has a published vulnerability",
+              "shortDescription": {
+                "text": "The referenced version of the action is affected by a known advisory."
+              },
+              "fullDescription": {
+                "text": "Actions are dependencies. A vulnerable version — command injection through its inputs, credential leakage, or a compromised release — exposes every workflow that runs it."
+              },
+              "help": {
+                "text": "Actions are dependencies. A vulnerable version — command injection through its inputs, credential leakage, or a compromised release — exposes every workflow that runs it.\n\nRemediation: Upgrade to the fixed version named in the advisory and re-pin to its SHA.",
+                "markdown": "Actions are dependencies. A vulnerable version — command injection through its inputs, credential leakage, or a compromised release — exposes every workflow that runs it.\n\n**Remediation**\n\nUpgrade to the fixed version named in the advisory and re-pin to its SHA.\n\n**Context used**\n\n- action refs"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-105/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-1395"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "supply-chain",
+                  "vulnerable-dependency",
+                  "CWE-1395"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "action_refs"
+                ],
+                "vulnetix/task": "actions"
+              }
+            },
+            {
+              "id": "VNX-GH-106",
+              "name": "Container image not pinned to a digest",
+              "shortDescription": {
+                "text": "docker:// steps, job containers and services reference an image by tag."
+              },
+              "fullDescription": {
+                "text": "Image tags are mutable. The image that runs with the job's token and workspace can change without any change to the workflow."
+              },
+              "help": {
+                "text": "Image tags are mutable. The image that runs with the job's token and workspace can change without any change to the workflow.\n\nRemediation: Reference images by digest (image@sha256:...), and let an update bot refresh it.",
+                "markdown": "Image tags are mutable. The image that runs with the job's token and workspace can change without any change to the workflow.\n\n**Remediation**\n\nReference images by digest (image@sha256:...), and let an update bot refresh it."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-106/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-829",
+                  "CWE-494"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:M/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "supply-chain",
+                  "containers",
+                  "CWE-829",
+                  "CWE-494"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "actions"
+              }
+            },
+            {
+              "id": "VNX-GH-107",
+              "name": "Action major version runs on a retired runtime",
+              "shortDescription": {
+                "text": "The action version uses a Node.js runtime or backend service GitHub has retired."
+              },
+              "fullDescription": {
+                "text": "Retired runtimes receive no security patches and are forced onto newer runtimes by the runner, which can change behaviour; retired artifact and cache backends fail outright."
+              },
+              "help": {
+                "text": "Retired runtimes receive no security patches and are forced onto newer runtimes by the runner, which can change behaviour; retired artifact and cache backends fail outright.\n\nRemediation: Upgrade to the current major version of the action.",
+                "markdown": "Retired runtimes receive no security patches and are forced onto newer runtimes by the runner, which can change behaviour; retired artifact and cache backends fail outright.\n\n**Remediation**\n\nUpgrade to the current major version of the action."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-107/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-1104"
+                ],
+                "cwss": "CWSS:1.0/TI:L/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:L/DI:L/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "maintenance",
+                  "CWE-1104"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "actions"
+              }
+            },
+            {
+              "id": "VNX-GH-108",
+              "name": "Action not permitted by the allowed-actions policy",
+              "shortDescription": {
+                "text": "The workflow references an action that the repository's allowed-actions policy does not list."
+              },
+              "fullDescription": {
+                "text": "The run will fail at start-up, or — if the policy is relaxed to make it pass — the allow-list stops meaning anything. Either way the drift should be resolved deliberately."
+              },
+              "help": {
+                "text": "The run will fail at start-up, or — if the policy is relaxed to make it pass — the allow-list stops meaning anything. Either way the drift should be resolved deliberately.\n\nRemediation: Replace the action with an allowed one, or add it (pinned) to the allow-list after review.",
+                "markdown": "The run will fail at start-up, or — if the policy is relaxed to make it pass — the allow-list stops meaning anything. Either way the drift should be resolved deliberately.\n\n**Remediation**\n\nReplace the action with an allowed one, or add it (pinned) to the allow-list after review.\n\n**Context used**\n\n- actions policy"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-108/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-284"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:L/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "policy",
+                  "CWE-284"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "actions_policy"
+                ],
+                "vulnetix/task": "actions"
+              }
+            },
+            {
+              "id": "VNX-GH-109",
+              "name": "Action owner resembles a popular publisher",
+              "shortDescription": {
+                "text": "The action's owner is one character away from a widely used publisher."
+              },
+              "fullDescription": {
+                "text": "Typosquatted owners (actoins/checkout, aws-action/...) are registered to catch mistyped references and run attacker code with the job's privileges."
+              },
+              "help": {
+                "text": "Typosquatted owners (actoins/checkout, aws-action/...) are registered to catch mistyped references and run attacker code with the job's privileges.\n\nRemediation: Check the owner's spelling; reference the intended publisher.",
+                "markdown": "Typosquatted owners (actoins/checkout, aws-action/...) are registered to catch mistyped references and run attacker code with the job's privileges.\n\n**Remediation**\n\nCheck the owner's spelling; reference the intended publisher."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-109/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "attack_technique": [
+                  "T1195.001"
+                ],
+                "cwe": [
+                  "CWE-1357"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "supply-chain",
+                  "typosquatting",
+                  "CWE-1357"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "actions"
+              }
+            },
+            {
+              "id": "VNX-GH-111",
+              "name": "Remote script piped into an interpreter",
+              "shortDescription": {
+                "text": "A run: step downloads a script and executes it without verifying it."
+              },
+              "fullDescription": {
+                "text": "curl | sh runs whatever the server returns at that moment, with the job's token and secrets. A compromised host, CDN or DNS response becomes code execution in CI."
+              },
+              "help": {
+                "text": "curl | sh runs whatever the server returns at that moment, with the job's token and secrets. A compromised host, CDN or DNS response becomes code execution in CI.\n\nRemediation: Download to a file, verify a pinned checksum or signature, then execute it — or use a pinned action or package instead.",
+                "markdown": "curl | sh runs whatever the server returns at that moment, with the job's token and secrets. A compromised host, CDN or DNS response becomes code execution in CI.\n\n**Remediation**\n\nDownload to a file, verify a pinned checksum or signature, then execute it — or use a pinned action or package instead."
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-111/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-494",
+                  "CWE-829"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "supply-chain",
+                  "CWE-494",
+                  "CWE-829"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/task": "actions"
+              }
+            },
+            {
+              "id": "VNX-GH-201",
+              "name": "Default branch is not protected",
+              "shortDescription": {
+                "text": "Neither branch protection nor a ruleset applies to the default branch."
+              },
+              "fullDescription": {
+                "text": "Anyone with write access — including a compromised token, a leaked deploy key, or a workflow with contents: write — can push directly to the default branch, rewrite its history or delete it, and the change ships without review."
+              },
+              "help": {
+                "text": "Anyone with write access — including a compromised token, a leaked deploy key, or a workflow with contents: write — can push directly to the default branch, rewrite its history or delete it, and the change ships without review.\n\nRemediation: Add a ruleset targeting the default branch that requires pull requests with at least one approval, blocks force pushes and deletions, and requires status checks.",
+                "markdown": "Anyone with write access — including a compromised token, a leaked deploy key, or a workflow with contents: write — can push directly to the default branch, rewrite its history or delete it, and the change ships without review.\n\n**Remediation**\n\nAdd a ruleset targeting the default branch that requires pull requests with at least one approval, blocks force pushes and deletions, and requires status checks.\n\n**Context used**\n\n- repo\n- branches"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-201/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-284",
+                  "CWE-862"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "scm",
+                  "branch-protection",
+                  "CWE-284",
+                  "CWE-862"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "branches"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-202",
+              "name": "Default branch merges without review",
+              "shortDescription": {
+                "text": "Protection exists but requires no approving review."
+              },
+              "fullDescription": {
+                "text": "Without a required approval a single account — or a single stolen credential — can land any change on the default branch."
+              },
+              "help": {
+                "text": "Without a required approval a single account — or a single stolen credential — can land any change on the default branch.\n\nRemediation: Require at least one approving review (two for repositories that publish releases), and require approval of the most recent push.",
+                "markdown": "Without a required approval a single account — or a single stolen credential — can land any change on the default branch.\n\n**Remediation**\n\nRequire at least one approving review (two for repositories that publish releases), and require approval of the most recent push.\n\n**Context used**\n\n- repo\n- branches"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-202/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-862"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "scm",
+                  "branch-protection",
+                  "code-review",
+                  "CWE-862"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "branches"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-203",
+              "name": "Approvals survive new commits",
+              "shortDescription": {
+                "text": "Stale reviews are not dismissed and approval of the last push is not required."
+              },
+              "fullDescription": {
+                "text": "An author can get a harmless change approved, then push different code and merge on the old approval."
+              },
+              "help": {
+                "text": "An author can get a harmless change approved, then push different code and merge on the old approval.\n\nRemediation: Enable dismiss stale approvals and require approval of the most recent reviewable push.",
+                "markdown": "An author can get a harmless change approved, then push different code and merge on the old approval.\n\n**Remediation**\n\nEnable dismiss stale approvals and require approval of the most recent reviewable push.\n\n**Context used**\n\n- repo\n- branches"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-203/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-862"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "scm",
+                  "branch-protection",
+                  "code-review",
+                  "CWE-862"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "branches"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-204",
+              "name": "Workflow changes bypass code owners",
+              "shortDescription": {
+                "text": "CODEOWNERS does not cover .github/workflows, or code owner review is not required."
+              },
+              "fullDescription": {
+                "text": "Workflows hold the keys: secrets, deployment credentials and release signing. If any approver can sign off a workflow change, a reviewer unfamiliar with CI security can approve a change that exfiltrates secrets."
+              },
+              "help": {
+                "text": "Workflows hold the keys: secrets, deployment credentials and release signing. If any approver can sign off a workflow change, a reviewer unfamiliar with CI security can approve a change that exfiltrates secrets.\n\nRemediation: Add `/.github/ @your-org/ci-owners` to CODEOWNERS and require code owner review on the default branch.",
+                "markdown": "Workflows hold the keys: secrets, deployment credentials and release signing. If any approver can sign off a workflow change, a reviewer unfamiliar with CI security can approve a change that exfiltrates secrets.\n\n**Remediation**\n\nAdd `/.github/ @your-org/ci-owners` to CODEOWNERS and require code owner review on the default branch.\n\n**Context used**\n\n- repo\n- branches\n- codeowners"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-204/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-862"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "scm",
+                  "codeowners",
+                  "ci-cd",
+                  "CWE-862"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "branches",
+                  "codeowners"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-205",
+              "name": "Force pushes or deletion allowed on the default branch",
+              "shortDescription": {
+                "text": "Protection permits force pushes or deleting the branch."
+              },
+              "fullDescription": {
+                "text": "A force push rewrites history that downstream builds, tags and audits rely on, and can remove a reviewed change after the fact."
+              },
+              "help": {
+                "text": "A force push rewrites history that downstream builds, tags and audits rely on, and can remove a reviewed change after the fact.\n\nRemediation: Block force pushes and deletions on the default branch.",
+                "markdown": "A force push rewrites history that downstream builds, tags and audits rely on, and can remove a reviewed change after the fact.\n\n**Remediation**\n\nBlock force pushes and deletions on the default branch.\n\n**Context used**\n\n- repo\n- branches"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-205/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-284"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "scm",
+                  "branch-protection",
+                  "CWE-284"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "branches"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-206",
+              "name": "Branch protection can be bypassed",
+              "shortDescription": {
+                "text": "Administrators are exempt, or a broad role or app is a ruleset bypass actor."
+              },
+              "fullDescription": {
+                "text": "An exemption is a standing path around review. Admin accounts and app installations are the highest-value credentials to steal precisely because they skip the controls."
+              },
+              "help": {
+                "text": "An exemption is a standing path around review. Admin accounts and app installations are the highest-value credentials to steal precisely because they skip the controls.\n\nRemediation: Enforce protection for administrators and limit ruleset bypass to a named break-glass team with pull-request-only bypass.",
+                "markdown": "An exemption is a standing path around review. Admin accounts and app installations are the highest-value credentials to steal precisely because they skip the controls.\n\n**Remediation**\n\nEnforce protection for administrators and limit ruleset bypass to a named break-glass team with pull-request-only bypass.\n\n**Context used**\n\n- repo\n- branches"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-206/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-284",
+                  "CWE-863"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "scm",
+                  "branch-protection",
+                  "CWE-284",
+                  "CWE-863"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "branches"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-207",
+              "name": "No required status checks",
+              "shortDescription": {
+                "text": "Pull requests can merge with failing or missing CI."
+              },
+              "fullDescription": {
+                "text": "Security checks (tests, scanners, signature verification) only protect the branch if a failing result blocks the merge."
+              },
+              "help": {
+                "text": "Security checks (tests, scanners, signature verification) only protect the branch if a failing result blocks the merge.\n\nRemediation: Require the security-relevant checks to pass before merging.",
+                "markdown": "Security checks (tests, scanners, signature verification) only protect the branch if a failing result blocks the merge.\n\n**Remediation**\n\nRequire the security-relevant checks to pass before merging.\n\n**Context used**\n\n- repo\n- branches"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-207/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-754"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:L/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "scm",
+                  "branch-protection",
+                  "CWE-754"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "branches"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-208",
+              "name": "Workflow token defaults to write",
+              "shortDescription": {
+                "text": "Workflows without a permissions: block get a read/write token."
+              },
+              "fullDescription": {
+                "text": "Every workflow that omits permissions: — including ones added later by contributors — runs with write access to contents, packages, issues and pull requests."
+              },
+              "help": {
+                "text": "Every workflow that omits permissions: — including ones added later by contributors — runs with write access to contents, packages, issues and pull requests.\n\nRemediation: Set Settings → Actions → General → Workflow permissions to \"Read repository contents and packages permissions\".",
+                "markdown": "Every workflow that omits permissions: — including ones added later by contributors — runs with write access to contents, packages, issues and pull requests.\n\n**Remediation**\n\nSet Settings → Actions → General → Workflow permissions to \"Read repository contents and packages permissions\".\n\n**Context used**\n\n- repo\n- actions policy"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-208/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-250",
+                  "CWE-276"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "least-privilege",
+                  "CWE-250",
+                  "CWE-276"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "actions_policy"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-209",
+              "name": "GitHub Actions can approve pull requests",
+              "shortDescription": {
+                "text": "Workflows may create and approve pull requests."
+              },
+              "fullDescription": {
+                "text": "A workflow token that can approve pull requests satisfies a one-approval rule on its own: one compromised workflow opens and approves its own change."
+              },
+              "help": {
+                "text": "A workflow token that can approve pull requests satisfies a one-approval rule on its own: one compromised workflow opens and approves its own change.\n\nRemediation: Disable \"Allow GitHub Actions to create and approve pull requests\".",
+                "markdown": "A workflow token that can approve pull requests satisfies a one-approval rule on its own: one compromised workflow opens and approves its own change.\n\n**Remediation**\n\nDisable \"Allow GitHub Actions to create and approve pull requests\".\n\n**Context used**\n\n- repo\n- actions policy"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-209/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-862"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "code-review",
+                  "CWE-862"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "actions_policy"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-210",
+              "name": "Fork pull request workflows run without approval",
+              "shortDescription": {
+                "text": "Outside contributors' pull requests run workflows without a maintainer approving them, or private-repo forks get secrets or write tokens."
+              },
+              "fullDescription": {
+                "text": "Approval is the human check before an outsider's code runs on your runners. Only requiring it for accounts new to GitHub lets any established account — or a bought one — run code immediately. On private repositories, sending secrets or write tokens to fork workflows hands them to every fork."
+              },
+              "help": {
+                "text": "Approval is the human check before an outsider's code runs on your runners. Only requiring it for accounts new to GitHub lets any established account — or a bought one — run code immediately. On private repositories, sending secrets or write tokens to fork workflows hands them to every fork.\n\nRemediation: Require approval for all outside collaborators; on private repositories, do not send write tokens or secrets to fork pull request workflows.",
+                "markdown": "Approval is the human check before an outsider's code runs on your runners. Only requiring it for accounts new to GitHub lets any established account — or a bought one — run code immediately. On private repositories, sending secrets or write tokens to fork workflows hands them to every fork.\n\n**Remediation**\n\nRequire approval for all outside collaborators; on private repositories, do not send write tokens or secrets to fork pull request workflows.\n\n**Context used**\n\n- repo\n- actions policy"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-210/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-862"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "forks",
+                  "CWE-862"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "actions_policy"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-211",
+              "name": "Any action may run",
+              "shortDescription": {
+                "text": "The allowed-actions policy permits every action and reusable workflow."
+              },
+              "fullDescription": {
+                "text": "With no allow-list a contributor can introduce any third-party action in a pull request, and it runs on merge with the workflow's token and secrets."
+              },
+              "help": {
+                "text": "With no allow-list a contributor can introduce any third-party action in a pull request, and it runs on merge with the workflow's token and secrets.\n\nRemediation: Allow GitHub-owned and verified-creator actions plus an explicit list, and require SHA pinning.",
+                "markdown": "With no allow-list a contributor can introduce any third-party action in a pull request, and it runs on merge with the workflow's token and secrets.\n\n**Remediation**\n\nAllow GitHub-owned and verified-creator actions plus an explicit list, and require SHA pinning.\n\n**Context used**\n\n- repo\n- actions policy"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-211/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-829"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:M/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "supply-chain",
+                  "policy",
+                  "CWE-829"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "actions_policy"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-212",
+              "name": "Secret scanning or push protection disabled",
+              "shortDescription": {
+                "text": "Committed credentials are neither blocked at push time nor alerted on."
+              },
+              "fullDescription": {
+                "text": "Push protection stops a credential before it reaches history; secret scanning finds the ones that got through. Without either, a leaked key is found first by whoever is looking."
+              },
+              "help": {
+                "text": "Push protection stops a credential before it reaches history; secret scanning finds the ones that got through. Without either, a leaked key is found first by whoever is looking.\n\nRemediation: Enable secret scanning and push protection.",
+                "markdown": "Push protection stops a credential before it reaches history; secret scanning finds the ones that got through. Without either, a leaked key is found first by whoever is looking.\n\n**Remediation**\n\nEnable secret scanning and push protection.\n\n**Context used**\n\n- repo\n- security and analysis"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-212/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-798"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "scm",
+                  "secrets",
+                  "CWE-798"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "security_and_analysis"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-213",
+              "name": "Dependabot alerts or security updates disabled",
+              "shortDescription": {
+                "text": "Vulnerable dependencies, including pinned actions, are not raised as update pull requests."
+              },
+              "fullDescription": {
+                "text": "SHA-pinned actions only stay safe if something updates them. Security updates open the fix as a pull request as soon as an advisory is published."
+              },
+              "help": {
+                "text": "SHA-pinned actions only stay safe if something updates them. Security updates open the fix as a pull request as soon as an advisory is published.\n\nRemediation: Enable Dependabot security updates, and add a github-actions ecosystem entry to dependabot.yml.",
+                "markdown": "SHA-pinned actions only stay safe if something updates them. Security updates open the fix as a pull request as soon as an advisory is published.\n\n**Remediation**\n\nEnable Dependabot security updates, and add a github-actions ecosystem entry to dependabot.yml.\n\n**Context used**\n\n- repo\n- security and analysis"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-213/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-1104"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:L/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "scm",
+                  "dependencies",
+                  "CWE-1104"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "security_and_analysis"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-214",
+              "name": "Environment secrets deployable without approval",
+              "shortDescription": {
+                "text": "An environment holds secrets but has no required reviewers and no branch policy."
+              },
+              "fullDescription": {
+                "text": "Environment secrets exist so that only gated jobs see them. An ungated environment gives its secrets to any job on any branch that names it — including a branch pushed by any writer."
+              },
+              "help": {
+                "text": "Environment secrets exist so that only gated jobs see them. An ungated environment gives its secrets to any job on any branch that names it — including a branch pushed by any writer.\n\nRemediation: Add required reviewers (with prevent self-review) or restrict the environment to protected branches.",
+                "markdown": "Environment secrets exist so that only gated jobs see them. An ungated environment gives its secrets to any job on any branch that names it — including a branch pushed by any writer.\n\n**Remediation**\n\nAdd required reviewers (with prevent self-review) or restrict the environment to protected branches.\n\n**Context used**\n\n- repo\n- environments"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-214/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-284",
+                  "CWE-862"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "environments",
+                  "secrets",
+                  "CWE-284",
+                  "CWE-862"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "environments"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-215",
+              "name": "Deploy key with write access, or unused",
+              "shortDescription": {
+                "text": "A deploy key can push to the repository."
+              },
+              "fullDescription": {
+                "text": "Deploy keys are not tied to a user, do not expire, and are typically stored on build or deployment hosts. A write key there can push to unprotected branches and tags."
+              },
+              "help": {
+                "text": "Deploy keys are not tied to a user, do not expire, and are typically stored on build or deployment hosts. A write key there can push to unprotected branches and tags.\n\nRemediation: Make the key read-only, or replace it with a GitHub App installation token scoped to the repository.",
+                "markdown": "Deploy keys are not tied to a user, do not expire, and are typically stored on build or deployment hosts. A write key there can push to unprotected branches and tags.\n\n**Remediation**\n\nMake the key read-only, or replace it with a GitHub App installation token scoped to the repository.\n\n**Context used**\n\n- deploy keys"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-215/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-732"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "scm",
+                  "credentials",
+                  "CWE-732"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "deploy_keys"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-216",
+              "name": "Webhook deliveries can be forged or intercepted",
+              "shortDescription": {
+                "text": "A repository webhook has no secret, or disables TLS verification."
+              },
+              "fullDescription": {
+                "text": "Webhooks often drive deployments. Without a signing secret anyone can forge an event; without TLS verification the payload (and anything it triggers) can be intercepted or altered."
+              },
+              "help": {
+                "text": "Webhooks often drive deployments. Without a signing secret anyone can forge an event; without TLS verification the payload (and anything it triggers) can be intercepted or altered.\n\nRemediation: Set a webhook secret and verify X-Hub-Signature-256 on receipt; enable SSL verification.",
+                "markdown": "Webhooks often drive deployments. Without a signing secret anyone can forge an event; without TLS verification the payload (and anything it triggers) can be intercepted or altered.\n\n**Remediation**\n\nSet a webhook secret and verify X-Hub-Signature-256 on receipt; enable SSL verification.\n\n**Context used**\n\n- webhooks"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-216/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-345",
+                  "CWE-295"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "scm",
+                  "webhooks",
+                  "CWE-345",
+                  "CWE-295"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "webhooks"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-217",
+              "name": "Outside collaborator with admin access",
+              "shortDescription": {
+                "text": "Someone outside the organisation can change protection, secrets and settings."
+              },
+              "fullDescription": {
+                "text": "Admin access includes disabling branch protection, reading environment configuration and adding deploy keys. Outside collaborators are not covered by the organisation's 2FA, SSO and offboarding."
+              },
+              "help": {
+                "text": "Admin access includes disabling branch protection, reading environment configuration and adding deploy keys. Outside collaborators are not covered by the organisation's 2FA, SSO and offboarding.\n\nRemediation: Reduce outside collaborators to write or lower, or bring them into the organisation.",
+                "markdown": "Admin access includes disabling branch protection, reading environment configuration and adding deploy keys. Outside collaborators are not covered by the organisation's 2FA, SSO and offboarding.\n\n**Remediation**\n\nReduce outside collaborators to write or lower, or bring them into the organisation.\n\n**Context used**\n\n- collaborators"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-217/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-269"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "scm",
+                  "access",
+                  "CWE-269"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "collaborators"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-218",
+              "name": "Signed commits not required",
+              "shortDescription": {
+                "text": "The default branch accepts unsigned commits."
+              },
+              "fullDescription": {
+                "text": "Commit author fields are free text. Without signature verification a commit can claim any author, which undermines audit trails and author-based automation."
+              },
+              "help": {
+                "text": "Commit author fields are free text. Without signature verification a commit can claim any author, which undermines audit trails and author-based automation.\n\nRemediation: Require signed commits on the default branch.",
+                "markdown": "Commit author fields are free text. Without signature verification a commit can claim any author, which undermines audit trails and author-based automation.\n\n**Remediation**\n\nRequire signed commits on the default branch.\n\n**Context used**\n\n- repo\n- branches"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-218/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-345"
+                ],
+                "cwss": "CWSS:1.0/TI:L/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:L/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "scm",
+                  "branch-protection",
+                  "provenance",
+                  "CWE-345"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "branches"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-219",
+              "name": "Repository secret used by an untrusted-trigger workflow",
+              "shortDescription": {
+                "text": "A repository-level secret (not an environment secret) is read by a workflow outsiders can trigger."
+              },
+              "fullDescription": {
+                "text": "Repository secrets are available to every job. When a pull_request_target, issue_comment or workflow_run workflow reads one, any flaw in that workflow exposes it; an environment secret would add a gate."
+              },
+              "help": {
+                "text": "Repository secrets are available to every job. When a pull_request_target, issue_comment or workflow_run workflow reads one, any flaw in that workflow exposes it; an environment secret would add a gate.\n\nRemediation: Move the secret to an environment with required reviewers, and reference it only from the job bound to that environment.",
+                "markdown": "Repository secrets are available to every job. When a pull_request_target, issue_comment or workflow_run workflow reads one, any flaw in that workflow exposes it; an environment secret would add a gate.\n\n**Remediation**\n\nMove the secret to an environment with required reviewers, and reference it only from the job bound to that environment.\n\n**Context used**\n\n- repo"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-219/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-200",
+                  "CWE-668"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "secrets",
+                  "CWE-200",
+                  "CWE-668"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-220",
+              "name": "Public repository has no private vulnerability reporting",
+              "shortDescription": {
+                "text": "Researchers have no private channel to report a vulnerability."
+              },
+              "fullDescription": {
+                "text": "Without private vulnerability reporting, a researcher's only route is often a public issue, which discloses the flaw before a fix exists."
+              },
+              "help": {
+                "text": "Without private vulnerability reporting, a researcher's only route is often a public issue, which discloses the flaw before a fix exists.\n\nRemediation: Enable private vulnerability reporting in the repository's security settings.",
+                "markdown": "Without private vulnerability reporting, a researcher's only route is often a public issue, which discloses the flaw before a fix exists.\n\n**Remediation**\n\nEnable private vulnerability reporting in the repository's security settings.\n\n**Context used**\n\n- repo\n- security and analysis"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-220/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-1059"
+                ],
+                "cwss": "CWSS:1.0/TI:L/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:L/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "scm",
+                  "disclosure",
+                  "CWE-1059"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "security_and_analysis"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-221",
+              "name": "Security policy files missing",
+              "shortDescription": {
+                "text": "SECURITY.md, CODEOWNERS or a Dependabot configuration is absent."
+              },
+              "fullDescription": {
+                "text": "SECURITY.md is the reporting route, CODEOWNERS names who must review sensitive paths, and a Dependabot configuration keeps dependencies — including pinned actions — updated. Each missing file removes one of those controls."
+              },
+              "help": {
+                "text": "SECURITY.md is the reporting route, CODEOWNERS names who must review sensitive paths, and a Dependabot configuration keeps dependencies — including pinned actions — updated. Each missing file removes one of those controls.\n\nRemediation: Add the missing files; include a github-actions entry in dependabot.yml so action pins are kept current.",
+                "markdown": "SECURITY.md is the reporting route, CODEOWNERS names who must review sensitive paths, and a Dependabot configuration keeps dependencies — including pinned actions — updated. Each missing file removes one of those controls.\n\n**Remediation**\n\nAdd the missing files; include a github-actions entry in dependabot.yml so action pins are kept current.\n\n**Context used**\n\n- repo\n- repo files"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-221/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-1059"
+                ],
+                "cwss": "CWSS:1.0/TI:L/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:L/DI:L/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "scm",
+                  "disclosure",
+                  "dependencies",
+                  "CWE-1059"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "repo",
+                  "repo_files"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-222",
+              "name": "Actions secret not rotated in a year",
+              "shortDescription": {
+                "text": "A repository secret was last updated more than 365 days ago."
+              },
+              "fullDescription": {
+                "text": "A long-lived secret has had more time to be copied — into logs, forks, laptops — and its owner may have left. Rotation bounds how long a leaked copy stays useful."
+              },
+              "help": {
+                "text": "A long-lived secret has had more time to be copied — into logs, forks, laptops — and its owner may have left. Rotation bounds how long a leaked copy stays useful.\n\nRemediation: Rotate the credential at its issuer and update the secret; prefer OIDC federation over stored cloud keys.",
+                "markdown": "A long-lived secret has had more time to be copied — into logs, forks, laptops — and its owner may have left. Rotation bounds how long a leaked copy stays useful.\n\n**Remediation**\n\nRotate the credential at its issuer and update the secret; prefer OIDC federation over stored cloud keys.\n\n**Context used**\n\n- secrets"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-222/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-324"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:L/EX:L/EC:N/P:W",
+                "precision": "medium",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "secrets",
+                  "CWE-324"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "secrets"
+                ],
+                "vulnetix/task": "settings"
+              }
+            },
+            {
+              "id": "VNX-GH-301",
+              "name": "Organisation does not require two-factor authentication",
+              "shortDescription": {
+                "text": "Members and outside collaborators can sign in with a password alone."
+              },
+              "fullDescription": {
+                "text": "Every member account is a path to every repository it can write to. Phished or reused passwords are the most common way into an organisation."
+              },
+              "help": {
+                "text": "Every member account is a path to every repository it can write to. Phished or reused passwords are the most common way into an organisation.\n\nRemediation: Require two-factor authentication for the organisation.",
+                "markdown": "Every member account is a path to every repository it can write to. Phished or reused passwords are the most common way into an organisation.\n\n**Remediation**\n\nRequire two-factor authentication for the organisation.\n\n**Context used**\n\n- org"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-301/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-308"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "scm",
+                  "identity",
+                  "CWE-308"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "org"
+                ],
+                "vulnetix/task": "org"
+              }
+            },
+            {
+              "id": "VNX-GH-302",
+              "name": "Broad default repository permission for members",
+              "shortDescription": {
+                "text": "Every member gets write or admin on every repository."
+              },
+              "fullDescription": {
+                "text": "With a write default, one compromised member account can push to, and run workflows in, every repository in the organisation."
+              },
+              "help": {
+                "text": "With a write default, one compromised member account can push to, and run workflows in, every repository in the organisation.\n\nRemediation: Set the base permission to read or none and grant write through teams.",
+                "markdown": "With a write default, one compromised member account can push to, and run workflows in, every repository in the organisation.\n\n**Remediation**\n\nSet the base permission to read or none and grant write through teams.\n\n**Context used**\n\n- org"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-302/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-276"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "scm",
+                  "access",
+                  "least-privilege",
+                  "CWE-276"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "org"
+                ],
+                "vulnetix/task": "org"
+              }
+            },
+            {
+              "id": "VNX-GH-303",
+              "name": "Members can create public repositories",
+              "shortDescription": {
+                "text": "Any member can publish a repository under the organisation's name."
+              },
+              "fullDescription": {
+                "text": "Public repositories can be created by mistake with internal code, or used to host look-alike actions that appear to be official."
+              },
+              "help": {
+                "text": "Public repositories can be created by mistake with internal code, or used to host look-alike actions that appear to be official.\n\nRemediation: Restrict public repository creation to owners.",
+                "markdown": "Public repositories can be created by mistake with internal code, or used to host look-alike actions that appear to be official.\n\n**Remediation**\n\nRestrict public repository creation to owners.\n\n**Context used**\n\n- org"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-303/",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-200"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:L/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "3.0",
+                "severity": "low",
+                "tags": [
+                  "scm",
+                  "data-exposure",
+                  "CWE-200"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "org"
+                ],
+                "vulnetix/task": "org"
+              }
+            },
+            {
+              "id": "VNX-GH-304",
+              "name": "Organisation allows any action",
+              "shortDescription": {
+                "text": "The organisation policy permits every action and reusable workflow in every repository."
+              },
+              "fullDescription": {
+                "text": "An organisation-wide allow-list is the one control that stops a new, unreviewed third-party action from running anywhere."
+              },
+              "help": {
+                "text": "An organisation-wide allow-list is the one control that stops a new, unreviewed third-party action from running anywhere.\n\nRemediation: Allow GitHub-owned, verified-creator and explicitly listed actions only.",
+                "markdown": "An organisation-wide allow-list is the one control that stops a new, unreviewed third-party action from running anywhere.\n\n**Remediation**\n\nAllow GitHub-owned, verified-creator and explicitly listed actions only.\n\n**Context used**\n\n- org"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-304/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-829"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "supply-chain",
+                  "policy",
+                  "CWE-829"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "org"
+                ],
+                "vulnetix/task": "org"
+              }
+            },
+            {
+              "id": "VNX-GH-305",
+              "name": "Organisation workflow token defaults to write",
+              "shortDescription": {
+                "text": "New repositories inherit a read/write workflow token."
+              },
+              "fullDescription": {
+                "text": "The organisation default sets the ceiling for every repository that does not override it, including every repository created from now on."
+              },
+              "help": {
+                "text": "The organisation default sets the ceiling for every repository that does not override it, including every repository created from now on.\n\nRemediation: Set the organisation's default workflow permissions to read.",
+                "markdown": "The organisation default sets the ceiling for every repository that does not override it, including every repository created from now on.\n\n**Remediation**\n\nSet the organisation's default workflow permissions to read.\n\n**Context used**\n\n- org"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-305/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-250",
+                  "CWE-276"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:L/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "least-privilege",
+                  "CWE-250",
+                  "CWE-276"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "org"
+                ],
+                "vulnetix/task": "org"
+              }
+            },
+            {
+              "id": "VNX-GH-306",
+              "name": "Organisation secret visible to every repository",
+              "shortDescription": {
+                "text": "An organisation secret has visibility all, so any repository — including public ones — can read it."
+              },
+              "fullDescription": {
+                "text": "A secret shared with all repositories is only as safe as the weakest workflow in the organisation. With visibility all, public repositories' workflows can read it too."
+              },
+              "help": {
+                "text": "A secret shared with all repositories is only as safe as the weakest workflow in the organisation. With visibility all, public repositories' workflows can read it too.\n\nRemediation: Set the secret's visibility to selected repositories, or private repositories at most.",
+                "markdown": "A secret shared with all repositories is only as safe as the weakest workflow in the organisation. With visibility all, public repositories' workflows can read it too.\n\n**Remediation**\n\nSet the secret's visibility to selected repositories, or private repositories at most.\n\n**Context used**\n\n- org"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-306/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-200",
+                  "CWE-668"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "secrets",
+                  "CWE-200",
+                  "CWE-668"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "org"
+                ],
+                "vulnetix/task": "org"
+              }
+            },
+            {
+              "id": "VNX-GH-307",
+              "name": "Self-hosted runners available to public repositories",
+              "shortDescription": {
+                "text": "A runner group with self-hosted runners allows public repositories."
+              },
+              "fullDescription": {
+                "text": "Any GitHub user can trigger pull_request workflows in a public repository. If those jobs can land on your self-hosted runners, outsiders run code inside your network."
+              },
+              "help": {
+                "text": "Any GitHub user can trigger pull_request workflows in a public repository. If those jobs can land on your self-hosted runners, outsiders run code inside your network.\n\nRemediation: Disable \"Allow public repositories\" on runner groups that contain self-hosted runners, or make those runners ephemeral and network-isolated.",
+                "markdown": "Any GitHub user can trigger pull_request workflows in a public repository. If those jobs can land on your self-hosted runners, outsiders run code inside your network.\n\n**Remediation**\n\nDisable \"Allow public repositories\" on runner groups that contain self-hosted runners, or make those runners ephemeral and network-isolated.\n\n**Context used**\n\n- runner groups"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-307/",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-668",
+                  "CWE-829"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "8.0",
+                "severity": "high",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "runners",
+                  "CWE-668",
+                  "CWE-829"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "runner_groups"
+                ],
+                "vulnetix/task": "org"
+              }
+            },
+            {
+              "id": "VNX-GH-308",
+              "name": "Organisation lets Actions approve pull requests",
+              "shortDescription": {
+                "text": "Workflows across the organisation may create and approve pull requests."
+              },
+              "fullDescription": {
+                "text": "Repositories inherit this permission; a workflow token can then satisfy one-approval rules by approving its own pull request."
+              },
+              "help": {
+                "text": "Repositories inherit this permission; a workflow token can then satisfy one-approval rules by approving its own pull request.\n\nRemediation: Disable \"Allow GitHub Actions to create and approve pull requests\" at the organisation level.",
+                "markdown": "Repositories inherit this permission; a workflow token can then satisfy one-approval rules by approving its own pull request.\n\n**Remediation**\n\nDisable \"Allow GitHub Actions to create and approve pull requests\" at the organisation level.\n\n**Context used**\n\n- org"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-308/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-862"
+                ],
+                "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "ci-cd",
+                  "github-actions",
+                  "code-review",
+                  "CWE-862"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "org"
+                ],
+                "vulnetix/task": "org"
+              }
+            },
+            {
+              "id": "VNX-GH-309",
+              "name": "Organisation webhook deliveries can be forged or intercepted",
+              "shortDescription": {
+                "text": "An organisation webhook has no secret, or disables TLS verification."
+              },
+              "fullDescription": {
+                "text": "Organisation webhooks receive events from every repository. An unsigned or unverified hook lets an attacker forge or read them."
+              },
+              "help": {
+                "text": "Organisation webhooks receive events from every repository. An unsigned or unverified hook lets an attacker forge or read them.\n\nRemediation: Set a webhook secret and enable SSL verification.",
+                "markdown": "Organisation webhooks receive events from every repository. An unsigned or unverified hook lets an attacker forge or read them.\n\n**Remediation**\n\nSet a webhook secret and enable SSL verification.\n\n**Context used**\n\n- org"
+              },
+              "helpUri": "https://docs.cli.vulnetix.com/docs/github-rules/vnx-gh-309/",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "cwe": [
+                  "CWE-345",
+                  "CWE-295"
+                ],
+                "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:M/EX:M/EC:N/P:W",
+                "precision": "high",
+                "security-severity": "5.5",
+                "severity": "medium",
+                "tags": [
+                  "scm",
+                  "webhooks",
+                  "CWE-345",
+                  "CWE-295"
+                ],
+                "vulnetix/kind": "iac",
+                "vulnetix/requires": [
+                  "org"
+                ],
+                "vulnetix/task": "org"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "VNX-GH-008",
+          "ruleIndex": 7,
+          "level": "error",
+          "message": {
+            "text": "The workflow grants write-all to all 2 jobs."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 4,
+                  "snippet": {
+                    "text": "permissions: write-all"
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "dda9ca2b36c500c10d37128c275826a8"
+          },
+          "properties": {
+            "cwss": "CWSS:1.0/TI:C/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:H/EC:N/P:W",
+            "security-severity": "9.5",
+            "severity": "critical",
+            "vulnetix/adjustments": [
+              "workflow runs on a trigger reachable by outsiders"
+            ],
+            "vulnetix/confidence": "high",
+            "vulnetix/evidence": {
+              "level": "workflow",
+              "write": [
+                "write-all"
+              ]
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#workflow/permissions"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-003",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "Job \"build\" is triggered by pull_request_target, checks out untrusted pull request code (${{ github.event.pull_request.head.sha }}), and step \"steps[1]\" then executes it with the base repository's token and secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 11,
+                  "startColumn": 9,
+                  "snippet": {
+                    "text": "- uses: actions/checkout@v4"
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "fef6318c871505069f92aadd5476b3b7"
+          },
+          "properties": {
+            "security-severity": "9.5",
+            "severity": "critical",
+            "vulnetix/confidence": "high",
+            "vulnetix/evidence": {
+              "checkoutRef": "${{ github.event.pull_request.head.sha }}",
+              "executedBy": "steps[1]",
+              "trigger": "pull_request_target"
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#build/actions/checkout/untrusted-checkout"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-001",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "${{ github.event.comment.body }} is expanded into run of step \"steps[1]\" in job \"build\"; comment and review bodies are written by any commenter."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 37,
+                  "snippet": {
+                    "text": "- run: echo \"$TITLE\" \u0026\u0026 echo \"${{ github.event.comment.body }}\""
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "44d80d57aee8e807242d40fd5ef84ae5"
+          },
+          "properties": {
+            "security-severity": "9.5",
+            "severity": "critical",
+            "vulnetix/confidence": "high",
+            "vulnetix/evidence": {
+              "actor": "anyone",
+              "expression": "${{ github.event.comment.body }}",
+              "sink": "run",
+              "source": "github.event.comment.body",
+              "triggers": [
+                "issue_comment",
+                "pull_request_target"
+              ],
+              "via": null
+            },
+            "vulnetix/fix": {
+              "description": "Move ${{ github.event.comment.body }} into env.COMMENT_BODY and reference it as ${COMMENT_BODY}.",
+              "edits": [
+                {
+                  "path": ".github/workflows/ci.yml",
+                  "startLine": 14,
+                  "endLine": 14,
+                  "replacement": "      - env:\n          COMMENT_BODY: ${{ github.event.comment.body }}\n        run: echo \"$TITLE\" \u0026\u0026 echo \"${COMMENT_BODY}\""
+                }
+              ]
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#build/steps[1]/run/github.event.comment.body"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-001",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "${{ github.head_ref }} is passed as input \"who\" to .github/actions/greet/action.yml, which expands it into a script (${{ inputs.who }}); the pull request's head branch name is chosen by its author."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 17,
+                  "startColumn": 16,
+                  "snippet": {
+                    "text": "who: ${{ github.head_ref }}"
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "3c86388bc0baad4b438b87b9942fe847"
+          },
+          "properties": {
+            "security-severity": "9.5",
+            "severity": "critical",
+            "vulnetix/confidence": "high",
+            "vulnetix/evidence": {
+              "action": ".github/actions/greet/action.yml",
+              "actionSink": ".github/actions/greet/action.yml:8",
+              "actor": "anyone",
+              "expression": "${{ github.head_ref }}",
+              "sink": "with.who",
+              "source": "github.head_ref",
+              "triggers": [
+                "issue_comment",
+                "pull_request_target"
+              ],
+              "via": [
+                "with.who",
+                ".github/actions/greet/action.yml inputs.who"
+              ]
+            },
+            "vulnetix/fix": {
+              "description": "In .github/actions/greet/action.yml, read the input through env: and reference it as a shell variable."
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#build/./.github/actions/greet/composite/who"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-001",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "${{ inputs.who }} is expanded into run of step \"steps[0]\" in job \"composite\"; action inputs carry whatever the calling workflow passes."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/actions/greet/action.yml"
+                },
+                "region": {
+                  "startLine": 8,
+                  "startColumn": 24,
+                  "snippet": {
+                    "text": "- run: echo \"hello ${{ inputs.who }}\""
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "677436249fb1bb58bce196b702c71669"
+          },
+          "properties": {
+            "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:H",
+            "security-severity": "8.0",
+            "severity": "high",
+            "vulnetix/adjustments": [
+              "source is an input; exploitability depends on what callers pass"
+            ],
+            "vulnetix/confidence": "medium",
+            "vulnetix/evidence": {
+              "actor": "caller",
+              "expression": "${{ inputs.who }}",
+              "sink": "run",
+              "source": "inputs.who",
+              "triggers": [],
+              "via": null
+            },
+            "vulnetix/fix": {
+              "description": "Move ${{ inputs.who }} into env.WHO and reference it as ${WHO}.",
+              "edits": [
+                {
+                  "path": ".github/actions/greet/action.yml",
+                  "startLine": 8,
+                  "endLine": 8,
+                  "replacement": "    - env:\n        WHO: ${{ inputs.who }}\n      run: echo \"hello ${WHO}\""
+                }
+              ]
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/actions/greet/action.yml#composite/steps[0]/run/inputs.who"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-009",
+          "ruleIndex": 8,
+          "level": "error",
+          "message": {
+            "text": "Job \"build\" can mint OIDC tokens and is not bound to any environment."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 6,
+                  "startColumn": 3,
+                  "snippet": {
+                    "text": "build:"
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "edca83c5fb4f6113a02b04360033eb1c"
+          },
+          "properties": {
+            "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:H",
+            "security-severity": "8.0",
+            "severity": "high",
+            "vulnetix/adjustments": [
+              "workflow runs on a trigger reachable by outsiders"
+            ],
+            "vulnetix/confidence": "medium",
+            "vulnetix/evidence": {
+              "environment": ""
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#build/id-token"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-018",
+          "ruleIndex": 17,
+          "level": "error",
+          "message": {
+            "text": "Job \"build\" runs on issue_comment with no check of who commented."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 6,
+                  "startColumn": 3,
+                  "snippet": {
+                    "text": "build:"
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "4b4eadf0737f3b4b433f42aa1ef0ca38"
+          },
+          "properties": {
+            "security-severity": "8.0",
+            "severity": "high",
+            "vulnetix/confidence": "medium",
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#build/comment-gate"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-009",
+          "ruleIndex": 8,
+          "level": "error",
+          "message": {
+            "text": "Job \"release\" can mint OIDC tokens and is not bound to any environment."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 19,
+                  "startColumn": 3,
+                  "snippet": {
+                    "text": "release:"
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "c1c52e03c769169d044de31d9dea7308"
+          },
+          "properties": {
+            "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:H",
+            "security-severity": "8.0",
+            "severity": "high",
+            "vulnetix/adjustments": [
+              "workflow runs on a trigger reachable by outsiders"
+            ],
+            "vulnetix/confidence": "medium",
+            "vulnetix/evidence": {
+              "environment": ""
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#release/id-token"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-101",
+          "ruleIndex": 22,
+          "level": "error",
+          "message": {
+            "text": "acme/shared/.github/workflows/release.yml@main follows branch \"main\"; every push to it runs here."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 20,
+                  "startColumn": 11,
+                  "snippet": {
+                    "text": "uses: acme/shared/.github/workflows/release.yml@main"
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "445f6386714d9cd4e75c5fc82e2ccbff"
+          },
+          "properties": {
+            "security-severity": "8.0",
+            "severity": "high",
+            "vulnetix/confidence": "high",
+            "vulnetix/evidence": {
+              "ref": "main",
+              "uses": "acme/shared/.github/workflows/release.yml@main"
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#release/pin/acme/shared"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-010",
+          "ruleIndex": 9,
+          "level": "error",
+          "message": {
+            "text": "Job \"release\" passes every secret to acme/shared/.github/workflows/release.yml@main."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 21,
+                  "snippet": {
+                    "text": "secrets: inherit"
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "977d73b25ffac33ab53140c582cba229"
+          },
+          "properties": {
+            "cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:H",
+            "security-severity": "8.0",
+            "severity": "high",
+            "vulnetix/adjustments": [
+              "called workflow is referenced by a mutable ref"
+            ],
+            "vulnetix/confidence": "high",
+            "vulnetix/evidence": {
+              "uses": "acme/shared/.github/workflows/release.yml@main"
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#release/secrets-inherit"
+          }
+        },
+        {
+          "ruleId": "VNX-GH-101",
+          "ruleIndex": 22,
+          "level": "note",
+          "message": {
+            "text": "actions/checkout@v4 is pinned to tag \"v4\", which can be re-pointed."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 11,
+                  "startColumn": 15,
+                  "snippet": {
+                    "text": "- uses: actions/checkout@v4"
+                  }
+                }
+              }
+            }
+          ],
+          "fingerprints": {
+            "vulnetix/v1": "fc0d048d5be65e4c32d42eec4f1df73d"
+          },
+          "properties": {
+            "cwss": "CWSS:1.0/TI:L/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
+            "security-severity": "3.0",
+            "severity": "low",
+            "vulnetix/adjustments": [
+              "action is published by GitHub"
+            ],
+            "vulnetix/confidence": "high",
+            "vulnetix/evidence": {
+              "ref": "v4",
+              "uses": "actions/checkout@v4"
+            },
+            "vulnetix/kind": "iac",
+            "vulnetix/subject": ".github/workflows/ci.yml#build/actions/checkout/pin/actions/checkout"
+          }
+        }
+      ],
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-102 not evaluated: facts not collected: action_refs"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-103 not evaluated: facts not collected: action_refs"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-104 not evaluated: facts not collected: action_refs"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-105 not evaluated: facts not collected: action_refs"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-108 not evaluated: facts not collected: actions_policy"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-201 not evaluated: facts not collected: repo, branches"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-202 not evaluated: facts not collected: repo, branches"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-203 not evaluated: facts not collected: repo, branches"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-204 not evaluated: facts not collected: repo, branches, codeowners"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-205 not evaluated: facts not collected: repo, branches"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-206 not evaluated: facts not collected: repo, branches"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-207 not evaluated: facts not collected: repo, branches"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-208 not evaluated: facts not collected: repo, actions_policy"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-209 not evaluated: facts not collected: repo, actions_policy"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-210 not evaluated: facts not collected: repo, actions_policy"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-211 not evaluated: facts not collected: repo, actions_policy"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-212 not evaluated: facts not collected: repo, security_and_analysis"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-213 not evaluated: facts not collected: repo, security_and_analysis"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-214 not evaluated: facts not collected: repo, environments"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-215 not evaluated: facts not collected: deploy_keys"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-216 not evaluated: facts not collected: webhooks"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-217 not evaluated: facts not collected: collaborators"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-218 not evaluated: facts not collected: repo, branches"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-219 not evaluated: facts not collected: repo"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-220 not evaluated: facts not collected: repo, security_and_analysis"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-221 not evaluated: facts not collected: repo, repo_files"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-222 not evaluated: facts not collected: secrets"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-301 not evaluated: facts not collected: org"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-302 not evaluated: facts not collected: org"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-303 not evaluated: facts not collected: org"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-304 not evaluated: facts not collected: org"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-305 not evaluated: facts not collected: org"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-306 not evaluated: facts not collected: org"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-307 not evaluated: facts not collected: runner_groups"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-308 not evaluated: facts not collected: org"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "VNX-GH-309 not evaluated: facts not collected: org"
+              }
+            }
+          ]
+        }
+      ],
+      "automationDetails": {
+        "id": "vulnetix-github/"
+      }
+    }
+  ]
+}
