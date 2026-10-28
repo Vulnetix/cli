@@ -11,8 +11,8 @@ require (
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/cilium/ebpf v0.20.0
-	github.com/corazawaf/coraza/v3 v3.7.0
+	github.com/cilium/ebpf v0.22.0
+	github.com/corazawaf/coraza/v3 v3.8.1
 	github.com/glaslos/ssdeep v1.0.0
 	github.com/glaslos/tlsh v0.4.0
 	github.com/glebarez/go-sqlite v1.23.0
@@ -31,18 +31,18 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/vulnetix/malscan-engine v0.6.1
 	github.com/zalando/go-keyring v0.2.8
-	golang.org/x/term v0.44.0
+	golang.org/x/term v0.45.0
 	gopkg.in/yaml.v3 v3.0.1
 	rsc.io/binaryregexp v0.2.0
 )
 
 require (
-	github.com/corazawaf/libinjection-go v0.3.2 // indirect
+	github.com/corazawaf/libinjection-go v0.3.3 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/docker/cli v29.7.2+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/goccy/go-yaml v1.18.0 // indirect
+	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/gotnospirit/makeplural v0.0.0-20180622080156-a5f48d94d976 // indirect
@@ -133,11 +133,11 @@ require (
 	github.com/yashtewari/glob-intersection v0.2.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.53.0 // indirect
-	golang.org/x/net v0.55.1-0.20260608170621-8a348850ed68
+	golang.org/x/crypto v0.55.0 // indirect
+	golang.org/x/net v0.58.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
-	golang.org/x/text v0.38.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
