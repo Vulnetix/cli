@@ -38,9 +38,12 @@ each new executable and reports any whose hash is an indicator in your feeds.
 This detects and reports; it does not stop the process, and the sensor reports
 `ebpf` on and `bpfLsm` off so the console says it cannot block there.
 
-The sensor does not yet use ptrace or DNS interception, and outbound calls from
-software that ignores `HTTPS_PROXY` are not checked. Those capabilities are
-reported as off.
+With `--dns-listen`, the sensor is a DNS forwarder: point the workload's resolver
+at it, and a lookup of an indicator domain (or any subdomain of one) answers
+NXDOMAIN in enforce, is held in guard, and is reported in monitor. This covers
+software that ignores `HTTPS_PROXY`. Lookups it cannot parse are forwarded.
+
+The sensor does not use ptrace, and reports it as off.
 
 ## Which packages are in use
 
@@ -83,6 +86,8 @@ published yet.
 --upstream http://127.0.0.1:8081
 --health-path /healthz         repeatable; never held
 --egress-listen 127.0.0.1:3128 outbound proxy (set HTTPS_PROXY to it)
+--dns-listen 127.0.0.1:53      DNS guard (UDP); point the resolver at it
+--dns-upstream 10.0.0.2:53     where it forwards (default: /etc/resolv.conf)
 --tetragon-export <file>       Tetragon's JSON export; check every process start
 --host-root /                  where the host filesystem is mounted
 --feed <url>                   repeatable; a published feed's base URL

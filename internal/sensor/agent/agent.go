@@ -12,11 +12,13 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/vulnetix/cli/v3/internal/sensor/decide"
+	"github.com/vulnetix/cli/v3/internal/sensor/dnsguard"
 	"github.com/vulnetix/cli/v3/internal/sensor/engine"
 	"github.com/vulnetix/cli/v3/internal/sensor/execwatch"
 	"github.com/vulnetix/cli/v3/internal/sensor/feed"
@@ -42,6 +44,11 @@ type Config struct {
 	ReverseListen string
 	Egress        *proxy.Egress
 	EgressListen  string
+
+	// DNSListen is the UDP address the DNS guard answers on, forwarding to
+	// DNSUpstream. Empty leaves DNS alone.
+	DNSListen   string
+	DNSUpstream string
 
 	// TetragonExport is Tetragon's JSON export file. When set, every process
 	// start is checked against the feeds' file-hash indicators.
@@ -143,6 +150,20 @@ func (a *Agent) Run(ctx context.Context) error {
 	}
 
 	go a.decisionLoop(ctx)
+
+	if a.cfg.DNSListen != "" {
+		pc, err := net.ListenPacket("udp", a.cfg.DNSListen)
+		if err != nil {
+			a.cfg.Logf("sensor: dns guard not started on %s: %v", a.cfg.DNSListen, err)
+		} else {
+			g := &dnsguard.Guard{Upstream: a.cfg.DNSUpstream, Rules: a.Rules.Load, Verdicts: a.Verdicts, Report: a.Enqueue}
+			go func() {
+				if err := g.Serve(ctx, pc); err != nil {
+					a.cfg.Logf("sensor: dns guard stopped: %v", err)
+				}
+			}()
+		}
+	}
 
 	if a.cfg.TetragonExport != "" {
 		w := &execwatch.Watcher{Root: a.cfg.HostRoot, Rules: a.Rules.Load, Verdicts: a.Verdicts, Report: a.Enqueue}
@@ -282,7 +303,7 @@ func (a *Agent) register(ctx context.Context, loads []uplink.RuleLoad) error {
 func (a *Agent) capabilities() map[string]bool {
 	return map[string]bool{
 		"proxy": a.cfg.Reverse != nil || a.cfg.Egress != nil,
-		"dns":   false,
+		"dns":   a.cfg.DNSListen != "",
 		// Kernel events through Tetragon's eBPF, read for detection. Nothing
 		// here refuses an exec in the kernel, so bpfLsm stays off.
 		"ebpf":   a.cfg.TetragonExport != "",

@@ -33,6 +33,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/binpkg"
 	"github.com/vulnetix/cli/v3/internal/sensor/agent"
 	"github.com/vulnetix/cli/v3/internal/sensor/decide"
+	"github.com/vulnetix/cli/v3/internal/sensor/dnsguard"
 	"github.com/vulnetix/cli/v3/internal/sensor/execwatch"
 	"github.com/vulnetix/cli/v3/internal/sensor/feed"
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
@@ -81,7 +82,7 @@ func inventoryCmd(args []string) error {
 
 type options struct {
 	mode, listen, upstream, egressListen, feedKey, stateDir, endpoint *string
-	tetragonExport, hostRoot                                          *string
+	tetragonExport, hostRoot, dnsListen, dnsUpstream                  *string
 	hold                                                              *time.Duration
 	offline, showVersion                                              *bool
 	feeds, healthPaths                                                multi
@@ -103,7 +104,9 @@ func defineFlags(fs *flag.FlagSet) *options {
 		showVersion:  fs.Bool("version", false, "print the version and exit"),
 		tetragonExport: fs.String("tetragon-export", "",
 			"Tetragon JSON export file (e.g. "+execwatch.DefaultExport+"); every process start is checked against the feeds' file hashes"),
-		hostRoot: fs.String("host-root", "/", "where the host filesystem is mounted, for hashing what a process ran"),
+		hostRoot:    fs.String("host-root", "/", "where the host filesystem is mounted, for hashing what a process ran"),
+		dnsListen:   fs.String("dns-listen", "", "UDP address the DNS guard answers on, e.g. 127.0.0.1:53; point the workload's resolver at it"),
+		dnsUpstream: fs.String("dns-upstream", "", "resolver the DNS guard forwards to (default: the first nameserver in /etc/resolv.conf)"),
 	}
 	fs.Var(&o.feeds, "feed", "published detection rule feed URL (repeatable)")
 	fs.Var(&o.healthPaths, "health-path", "path a load balancer probes; never held (repeatable)")
@@ -131,8 +134,8 @@ func run(args []string) error {
 	if len(feeds) == 0 {
 		return errors.New("at least one --feed is required")
 	}
-	if *listen == "" && *egressListen == "" && *o.tetragonExport == "" {
-		return errors.New("set --listen with --upstream, --egress-listen, --tetragon-export, or a combination")
+	if *listen == "" && *egressListen == "" && *o.tetragonExport == "" && *o.dnsListen == "" {
+		return errors.New("set --listen with --upstream, --egress-listen, --dns-listen, --tetragon-export, or a combination")
 	}
 
 	var key []byte
@@ -181,6 +184,17 @@ func run(args []string) error {
 		cfg.EgressListen = *egressListen
 	}
 	cfg.TetragonExport, cfg.HostRoot = *o.tetragonExport, *o.hostRoot
+	if *o.dnsListen != "" {
+		upstreamDNS := *o.dnsUpstream
+		if upstreamDNS == "" {
+			conf, _ := os.ReadFile("/etc/resolv.conf")
+			upstreamDNS = dnsguard.UpstreamFromResolvConf(string(conf))
+		}
+		if upstreamDNS == "" {
+			return errors.New("--dns-listen needs --dns-upstream: /etc/resolv.conf names no nameserver")
+		}
+		cfg.DNSListen, cfg.DNSUpstream = *o.dnsListen, upstreamDNS
+	}
 
 	log.Printf("vulnetix-sensor %s: %s on %s (%s), mode %s", version, sensorKey, facts.Hostname, facts.ComputeKind, *mode)
 
