@@ -1,0 +1,44 @@
+{
+  "_comment": "Container definitions for an ECS task (Fargate or EC2) with the Vulnetix sensor in front of the app. The load balancer targets the sensor on 8080; the sensor forwards to the app on 8081 and is the app's egress proxy on 3128. Credentials come from Secrets Manager via 'secrets'. Build the sensor image from deploy/sensor/Dockerfile and push it to your registry; replace the image, feed URL and key.",
+  "containerDefinitions": [
+    {
+      "name": "vulnetix-sensor",
+      "image": "<your registry>/vulnetix-sensor:<version, built from deploy/sensor/Dockerfile>",
+      "essential": true,
+      "portMappings": [{ "containerPort": 8080, "protocol": "tcp" }],
+      "command": [
+        "--mode", "guard",
+        "--listen", ":8080",
+        "--upstream", "http://127.0.0.1:8081",
+        "--health-path", "/healthz",
+        "--egress-listen", "127.0.0.1:3128",
+        "--feed", "https://vulnetix.com/feeds/<org>/<feed>",
+        "--feed-key", "<base64 Ed25519 public key>",
+        "--state-dir", "/tmp/vulnetix-sensor"
+      ],
+      "secrets": [
+        { "name": "VULNETIX_ORG_ID", "valueFrom": "arn:aws:secretsmanager:<region>:<account>:secret:vulnetix/sensor:orgId::" },
+        { "name": "VULNETIX_API_KEY", "valueFrom": "arn:aws:secretsmanager:<region>:<account>:secret:vulnetix/sensor:apiKey::" }
+      ],
+      "readonlyRootFilesystem": true,
+      "user": "65532",
+      "memoryReservation": 64,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": { "awslogs-group": "/ecs/vulnetix-sensor", "awslogs-region": "<region>", "awslogs-stream-prefix": "sensor" }
+      }
+    },
+    {
+      "name": "app",
+      "image": "<your app image>",
+      "essential": true,
+      "environment": [
+        { "name": "PORT", "value": "8081" },
+        { "name": "HTTPS_PROXY", "value": "http://127.0.0.1:3128" },
+        { "name": "HTTP_PROXY", "value": "http://127.0.0.1:3128" },
+        { "name": "NO_PROXY", "value": "169.254.169.254,169.254.170.2,localhost,127.0.0.1" }
+      ],
+      "dependsOn": [{ "containerName": "vulnetix-sensor", "condition": "START" }]
+    }
+  ]
+}

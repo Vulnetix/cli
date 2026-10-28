@@ -1,0 +1,68 @@
+# The Vulnetix sensor as a sidecar in front of an app on EKS (or any
+# Kubernetes). The Service targets the sensor's port; the sensor forwards to
+# the app on localhost and is the app's egress proxy.
+#
+#   kubectl create secret generic vulnetix-sensor \
+#     --from-literal=VULNETIX_ORG_ID=<org> --from-literal=VULNETIX_API_KEY=<hmac>
+#
+# Build the sensor image from deploy/sensor/Dockerfile and push it to your
+# registry, then replace the image, feed URL and key, and the app container.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web }
+    spec:
+      containers:
+        - name: vulnetix-sensor
+          image: <your registry>/vulnetix-sensor:<version>  # built from deploy/sensor/Dockerfile
+          args:
+            - --mode=guard
+            - --listen=:8080
+            - --upstream=http://127.0.0.1:8081
+            - --health-path=/healthz
+            - --egress-listen=127.0.0.1:3128
+            - --feed=https://vulnetix.com/feeds/<org>/<feed>
+            - --feed-key=<base64 Ed25519 public key>
+            - --state-dir=/state
+          envFrom:
+            - secretRef: { name: vulnetix-sensor }
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: sensor-state, mountPath: /state }
+        - name: app
+          image: <your app image>
+          env:
+            - { name: PORT, value: "8081" }
+            - { name: HTTPS_PROXY, value: http://127.0.0.1:3128 }
+            - { name: HTTP_PROXY, value: http://127.0.0.1:3128 }
+            - { name: NO_PROXY, value: "10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1,.svc,.cluster.local" }
+      volumes:
+        - name: sensor-state
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  selector: { app: web }
+  ports:
+    - { name: http, port: 80, targetPort: http }

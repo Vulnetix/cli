@@ -1,0 +1,55 @@
+# SSM Command document: install the Vulnetix runtime sensor on managed EC2
+# instances and EMR nodes. Create it once per account and region:
+#
+#   aws ssm create-document --name Vulnetix-InstallSensor \
+#     --document-type Command --document-format YAML \
+#     --content file://ssm-document.yaml
+#
+# then run it, or attach it to a State Manager association so new instances
+# get the sensor. The credentials come from a Secrets Manager secret the
+# instance role can read, never from a document parameter.
+schemaVersion: '2.2'
+description: Install the Vulnetix runtime sensor as a systemd service.
+parameters:
+  Version:
+    type: String
+    description: Vulnetix CLI release, for example v3.130.0.
+  FeedUrl:
+    type: String
+    description: Published detection rule feed URL from the console.
+  FeedKey:
+    type: String
+    description: Base64 Ed25519 public key the feed is signed with.
+  Mode:
+    type: String
+    default: monitor
+    allowedValues: [monitor, guard, enforce]
+  CredentialsSecret:
+    type: String
+    default: vulnetix/vdb-credentials
+    description: Secrets Manager secret holding {"orgId","secret"}.
+  Listen:
+    type: String
+    default: ''
+    description: Optional inbound proxy address, for example :8080.
+  Upstream:
+    type: String
+    default: ''
+    description: Optional workload address the inbound proxy forwards to.
+mainSteps:
+  - action: aws:runShellScript
+    name: installSensor
+    precondition:
+      StringEquals: [platformType, Linux]
+    inputs:
+      timeoutSeconds: '300'
+      runCommand:
+        - set -eu
+        - umask 077
+        - SECRET="$(aws secretsmanager get-secret-value --secret-id '{{ CredentialsSecret }}' --query SecretString --output text)"
+        - ORG="$(printf '%s' "$SECRET" | python3 -c 'import json,sys; print(json.load(sys.stdin)["orgId"])')"
+        - KEY="$(printf '%s' "$SECRET" | python3 -c 'import json,sys,hmac,hashlib; d=json.load(sys.stdin); print(hmac.new(d["secret"].encode(), d["orgId"].encode(), hashlib.sha256).hexdigest())')"
+        - printf 'VULNETIX_ORG_ID=%s\nVULNETIX_API_KEY=%s\n' "$ORG" "$KEY" > /etc/vulnetix-sensor.env
+        - curl -fsSL 'https://raw.githubusercontent.com/Vulnetix/cli/{{ Version }}/deploy/sensor/install.sh' -o /tmp/vulnetix-sensor-install.sh
+        - sh /tmp/vulnetix-sensor-install.sh '{{ Version }}' '{{ FeedUrl }}' '{{ FeedKey }}' '{{ Mode }}' '{{ Listen }}' '{{ Upstream }}'
+        - rm -f /tmp/vulnetix-sensor-install.sh

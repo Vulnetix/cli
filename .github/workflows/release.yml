@@ -118,6 +118,15 @@ jobs:
           build_target windows amd64 x86_64-windows-gnu    ".exe"
           build_target windows arm64 aarch64-windows-gnu   ".exe"
 
+          # The runtime sensor (cmd/vulnetix-sensor): Linux only, static, no
+          # CGO, so one file runs in a sidecar, a DaemonSet or a Lambda layer.
+          for arch in amd64 arm64; do
+            echo "Building vulnetix-sensor linux/${arch}..."
+            CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" \
+              go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" \
+              -o "bin/vulnetix-sensor-linux-${arch}" ./cmd/vulnetix-sensor
+          done
+
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ env.STAGE_ROLE }}

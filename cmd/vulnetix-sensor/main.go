@@ -53,27 +53,43 @@ func main() {
 	}
 }
 
+type options struct {
+	mode, listen, upstream, egressListen, feedKey, stateDir, endpoint *string
+	hold                                                              *time.Duration
+	offline, showVersion                                              *bool
+	feeds, healthPaths                                                multi
+}
+
+// defineFlags is the sensor's whole flag set, in one place so the deploy
+// files can be checked against it.
+func defineFlags(fs *flag.FlagSet) *options {
+	o := &options{
+		mode:         fs.String("mode", "monitor", "monitor, guard or enforce"),
+		hold:         fs.Duration("hold", 15*time.Minute, "how long guard mode holds a match for a person to decide"),
+		listen:       fs.String("listen", "", "address the inbound proxy listens on, e.g. :8080"),
+		upstream:     fs.String("upstream", "", "the workload the inbound proxy forwards to, e.g. http://127.0.0.1:8081"),
+		egressListen: fs.String("egress-listen", "", "address the outbound proxy listens on, e.g. 127.0.0.1:3128 (set HTTPS_PROXY to it)"),
+		feedKey:      fs.String("feed-key", os.Getenv("VULNETIX_FEED_KEY"), "base64 Ed25519 public key feeds are signed with; without it every rule reports and never blocks"),
+		stateDir:     fs.String("state-dir", "/var/lib/vulnetix-sensor", "where the sensor keeps its key"),
+		endpoint:     fs.String("endpoint", uplink.DefaultEndpoint, "Vulnetix site API"),
+		offline:      fs.Bool("offline", false, "run without reporting to Vulnetix (rules still load from the feeds)"),
+		showVersion:  fs.Bool("version", false, "print the version and exit"),
+	}
+	fs.Var(&o.feeds, "feed", "published detection rule feed URL (repeatable)")
+	fs.Var(&o.healthPaths, "health-path", "path a load balancer probes; never held (repeatable)")
+
+	return o
+}
+
 func run(args []string) error {
 	fs := flag.NewFlagSet("vulnetix-sensor", flag.ContinueOnError)
-	var (
-		mode         = fs.String("mode", "monitor", "monitor, guard or enforce")
-		hold         = fs.Duration("hold", 15*time.Minute, "how long guard mode holds a match for a person to decide")
-		listen       = fs.String("listen", "", "address the inbound proxy listens on, e.g. :8080")
-		upstream     = fs.String("upstream", "", "the workload the inbound proxy forwards to, e.g. http://127.0.0.1:8081")
-		egressListen = fs.String("egress-listen", "", "address the outbound proxy listens on, e.g. 127.0.0.1:3128 (set HTTPS_PROXY to it)")
-		feedKey      = fs.String("feed-key", os.Getenv("VULNETIX_FEED_KEY"), "base64 Ed25519 public key feeds are signed with; without it every rule reports and never blocks")
-		stateDir     = fs.String("state-dir", "/var/lib/vulnetix-sensor", "where the sensor keeps its key")
-		endpoint     = fs.String("endpoint", uplink.DefaultEndpoint, "Vulnetix site API")
-		offline      = fs.Bool("offline", false, "run without reporting to Vulnetix (rules still load from the feeds)")
-		showVersion  = fs.Bool("version", false, "print the version and exit")
-		feeds        multi
-		healthPaths  multi
-	)
-	fs.Var(&feeds, "feed", "published detection rule feed URL (repeatable)")
-	fs.Var(&healthPaths, "health-path", "path a load balancer probes; never held (repeatable)")
+	o := defineFlags(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	mode, hold, listen, upstream, egressListen := o.mode, o.hold, o.listen, o.upstream, o.egressListen
+	feedKey, stateDir, endpoint, offline, showVersion := o.feedKey, o.stateDir, o.endpoint, o.offline, o.showVersion
+	feeds, healthPaths := o.feeds, o.healthPaths
 	if *showVersion {
 		fmt.Println(version)
 
