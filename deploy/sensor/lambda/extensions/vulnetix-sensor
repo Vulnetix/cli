@@ -1,0 +1,3 @@
+#!/bin/sh
+# Lambda starts every file in /opt/extensions as an external extension.
+exec /opt/vulnetix/vulnetix-sensor lambda-extension

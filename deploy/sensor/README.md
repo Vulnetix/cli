@@ -73,10 +73,34 @@ login` writes. Every release attaches `vulnetix-sensor-linux-amd64` and
 | EMR | `install.sh` as a bootstrap action, after writing `/etc/vulnetix-sensor.env` |
 | ECS on Fargate or EC2 | `ecs-sidecar.json`: the sensor in front of the app in the same task |
 | EKS | `kubernetes-sidecar.yaml`: the sensor as a sidecar in the pod; `kubernetes-node-daemonset.yaml`: one per node beside Tetragon, for process starts |
-| Lambda | Not supported yet. A Lambda extension needs the Runtime API proxy, which this sensor does not have. |
+| Lambda | The layer `vulnetix-sensor-lambda-layer-<arch>.zip` from the release (or `lambda/build-layer.sh`), with `AWS_LAMBDA_EXEC_WRAPPER=/opt/vulnetix/wrapper`. See below. |
 
 Build the container image with `deploy/sensor/Dockerfile`; no image is
 published yet.
+
+### Lambda
+
+Lambda has no kernel hooks and no port in front of a function, so the sensor
+runs as an external extension and sits on the Runtime API. The wrapper points
+the runtime at the sensor; when the runtime asks for its next invocation, an
+API Gateway (REST or HTTP API) or function URL event is inspected as an HTTP
+request first. A blocked or held request is answered with a 403 on the
+function's behalf and the handler never runs. Every other event passes through
+untouched.
+
+Add the layer, then set on the function:
+
+| Variable | Value |
+|---|---|
+| `AWS_LAMBDA_EXEC_WRAPPER` | `/opt/vulnetix/wrapper` |
+| `VULNETIX_SENSOR_FEEDS` | comma-separated feed URLs |
+| `VULNETIX_FEED_KEY` | the feeds' public key |
+| `VULNETIX_SENSOR_MODE` | `monitor`, `guard` or `enforce` |
+| `VULNETIX_SENSOR_EGRESS` | optional port, e.g. `9010`, to route SDK calls through the egress proxy |
+| `VULNETIX_ORG_ID`, `VULNETIX_API_KEY` | credentials, from Secrets Manager through your deployment tool |
+
+In Lambda, guard holds the one invocation (it cannot wait for a person) and
+the event still lands in the hold queue for your decision on later ones.
 
 ## Flags
 

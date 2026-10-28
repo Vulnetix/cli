@@ -1,0 +1,15 @@
+#!/bin/sh
+# AWS_LAMBDA_EXEC_WRAPPER=/opt/vulnetix/wrapper
+#
+# Points the function's runtime at the sensor's Runtime API proxy, so every
+# HTTP invocation is inspected before the handler runs. With
+# VULNETIX_SENSOR_EGRESS set, outbound calls from SDKs that honour HTTPS_PROXY
+# go through the sensor's egress proxy too. The Lambda and ECS metadata
+# endpoints and loopback are never proxied.
+export AWS_LAMBDA_RUNTIME_API="127.0.0.1:${VULNETIX_SENSOR_PORT:-9009}"
+if [ -n "${VULNETIX_SENSOR_EGRESS:-}" ]; then
+  export HTTPS_PROXY="http://127.0.0.1:${VULNETIX_SENSOR_EGRESS}"
+  export HTTP_PROXY="$HTTPS_PROXY"
+  export NO_PROXY="localhost,127.0.0.1,169.254.169.254,169.254.170.2${NO_PROXY:+,$NO_PROXY}"
+fi
+exec "$@"

@@ -54,8 +54,13 @@ func (m *multi) Set(v string) error { *m = append(*m, v); return nil }
 func main() {
 	args := os.Args[1:]
 	run := run
-	if len(args) > 0 && args[0] == "inventory" {
-		run, args = inventoryCmd, args[1:]
+	if len(args) > 0 {
+		switch args[0] {
+		case "inventory":
+			run, args = inventoryCmd, args[1:]
+		case "lambda-extension":
+			run, args = lambdaExtensionCmd, args[1:]
+		}
 	}
 	if err := run(args); err != nil {
 		fmt.Fprintln(os.Stderr, "vulnetix-sensor:", err)
