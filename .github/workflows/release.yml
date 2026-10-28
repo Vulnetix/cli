@@ -282,6 +282,8 @@ jobs:
     with:
       subjects_artifact: release-subjects
       version: ${{ needs.release.outputs.version }}
+    secrets:
+      release_token: ${{ secrets.PACKAGES_TOKEN }}
 
   test-go-install:
     needs: release
@@ -618,7 +620,9 @@ jobs:
             vulnetix.cdx.json.sig vulnetix.cdx.json.pem \
             vulnetix.cdx.json.intoto.jsonl --clobber
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The token that created the release: GITHUB_TOKEN gets "release
+          # not found" here, as in slsa-provenance.yml.
+          GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
 
       - name: Publish product, release, artifacts and distributions
         run: |

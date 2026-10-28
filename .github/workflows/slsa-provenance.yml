@@ -34,6 +34,12 @@ on:
         description: 'release tag the bundle is uploaded to (e.g. v1.2.3)'
         type: string
         required: true
+    secrets:
+      # The token that created the release. The job's own GITHUB_TOKEN gets
+      # "release not found" from the release API on the self-hosted runners,
+      # so no bundle was ever attached; the creating token can see it.
+      release_token:
+        required: false
 
 # No permissions: block, deliberately, for the reason given in tea-release.yml.
 # The caller's job must grant `id-token: write` (Sigstore signs with the OIDC
@@ -144,7 +150,7 @@ jobs:
 
       - name: Upload to the release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.release_token || github.token }}
           VERSION: ${{ inputs.version }}
         run: gh release upload "$VERSION" provenance.sigstore.json --clobber --repo "$GITHUB_REPOSITORY"
 
