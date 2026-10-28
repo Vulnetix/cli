@@ -45,6 +45,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
 	"github.com/vulnetix/cli/v3/internal/sensor/inventory"
 	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
+	"github.com/vulnetix/cli/v3/internal/sensor/tetragon"
 	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
 	"github.com/vulnetix/cli/v3/pkg/auth"
 )
@@ -72,6 +73,8 @@ func main() {
 			run, args = lambdaExtensionCmd, args[1:]
 		case "run":
 			run, args = guardCmd, args[1:]
+		case "tetragon-policy":
+			run, args = tetragonPolicyCmd, args[1:]
 		}
 	}
 	err := run(args)
@@ -136,6 +139,52 @@ func defineFlags(fs *flag.FlagSet) *options {
 	fs.Var(&o.healthPaths, "health-path", "path a load balancer probes; never held (repeatable)")
 
 	return o
+}
+
+// tetragonPolicyCmd prints a Tetragon TracingPolicy that refuses, in the
+// kernel, execs the feeds' block-mode rules match, and lists on stderr the
+// rules it could not express. Nothing is applied: review it, then kubectl
+// apply it.
+//
+//	vulnetix-sensor tetragon-policy --feed <url> > vulnetix-exec-block.yaml
+func tetragonPolicyCmd(args []string) error {
+	fs := flag.NewFlagSet("vulnetix-sensor tetragon-policy", flag.ContinueOnError)
+	var feeds multi
+	fs.Var(&feeds, "feed", "repeatable; a published feed's base URL")
+	feedKey := fs.String("feed-key", defaultFeedKey(), "base64 Ed25519 public key the feeds are signed with")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if len(feeds) == 0 {
+		return errors.New("at least one --feed is required")
+	}
+	if strings.TrimSpace(*feedKey) == "" {
+		return errors.New("a feed key is required: an unverified rule never blocks")
+	}
+	key, err := feed.ParsePublicKey(*feedKey)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	var loaded []feed.Loaded
+	for _, f := range feeds {
+		l, err := (&feed.Source{BaseURL: f, PublicKey: key}).Fetch(ctx)
+		if err != nil {
+			return fmt.Errorf("%s: %w", f, err)
+		}
+		loaded = append(loaded, l)
+	}
+	out, err := tetragon.Render(loaded)
+	for _, s := range out.Skipped {
+		fmt.Fprintf(os.Stderr, "skipped %s: %s\n", s.RuleUUID, s.Reason)
+	}
+	if err != nil {
+		return err
+	}
+	_, err = os.Stdout.Write(out.YAML)
+
+	return err
 }
 
 // exitCode carries a guarded workload's exit code out of run.

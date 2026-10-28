@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -193,5 +194,33 @@ func TestCheckRunsYaraOverTheBinary(t *testing.T) {
 	}
 	if len(w.yaraHits) != 1 {
 		t.Fatal("the same binary is evaluated once and the result reused")
+	}
+}
+
+func TestKernelRefusalIsReportedAsBlocked(t *testing.T) {
+	line := []byte(`{"process_kprobe":{"process":{"pid":9,"binary":"/bin/sh","arguments":"-c /tmp/x"},"function_name":"security_bprm_creds_for_exec","policy_name":"vulnetix-exec-block","action":"KPROBE_ACTION_OVERRIDE","args":[{"linux_binprm_arg":{"path":"/tmp/x"}}]},"time":"2026-10-28T12:00:00Z"}`)
+	e, ok := ParseLine(line)
+	if !ok || e.Binary != "/tmp/x" || e.ParentBinary != "/bin/sh" || !e.KernelRefused || !e.PreExec {
+		t.Fatalf("parsed = %+v, %v", e, ok)
+	}
+	for _, other := range []string{
+		strings.Replace(string(line), "vulnetix-exec-block", "someone-elses", 1),
+		strings.Replace(string(line), "KPROBE_ACTION_OVERRIDE", "KPROBE_ACTION_POST", 1),
+	} {
+		if _, ok := ParseLine([]byte(other)); ok {
+			t.Fatalf("an event from another policy or action was read as ours: %s", other)
+		}
+	}
+
+	rule := feed.Rule{RuleTable: "countermeasure", RuleUUID: "cm-tmp", RuleType: "SIGMA", DeployMode: "block",
+		Body: "logsource: {category: process_creation}\ndetection: {sel: {Image|startswith: /tmp/}, condition: sel}\n"}
+	set, _ := engine.Compile([]feed.Rule{rule})
+	verdicts := decide.New(decide.Monitor, decide.Config{})
+	verdicts.SetRules([]decide.Rule{{Ref: decide.RuleRef{Table: "countermeasure", UUID: "cm-tmp"}, Verified: true, Mode: decide.RuleMode("block")}})
+	var got []uplink.Event
+	w := &Watcher{Root: t.TempDir(), Rules: func() *engine.Set { return set }, Verdicts: verdicts, Report: func(e uplink.Event) { got = append(got, e) }}
+	w.Check(e)
+	if len(got) != 1 || got[0].Action != string(decide.Blocked) || !strings.Contains(got[0].Detail["reason"].(string), "Tetragon") {
+		t.Fatalf("events = %+v", got)
 	}
 }

@@ -30,6 +30,7 @@ import (
 
 	"github.com/vulnetix/cli/v3/internal/sensor/decide"
 	"github.com/vulnetix/cli/v3/internal/sensor/engine"
+	"github.com/vulnetix/cli/v3/internal/sensor/tetragon"
 	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
 )
 
@@ -51,6 +52,9 @@ type Exec struct {
 	// before it runs): /proc/<pid>/exe is still the caller, so the binary is
 	// read from its path.
 	PreExec bool
+	// KernelRefused is an exec the Tetragon policy already refused. The
+	// rules are run again to name the rule, and the event says blocked.
+	KernelRefused bool
 }
 
 // ParseLine reads one Tetragon export line. ok is false for any event that is
@@ -75,8 +79,11 @@ func ParseLine(line []byte) (Exec, bool) {
 		} `json:"process_exec"`
 		Time time.Time `json:"time"`
 	}
-	if json.Unmarshal(line, &ev) != nil || ev.ProcessExec == nil || ev.ProcessExec.Process.Binary == "" {
+	if json.Unmarshal(line, &ev) != nil {
 		return Exec{}, false
+	}
+	if ev.ProcessExec == nil || ev.ProcessExec.Process.Binary == "" {
+		return parseRefusal(line)
 	}
 	p := ev.ProcessExec.Process
 	e := Exec{PID: p.PID, Binary: p.Binary, Arguments: p.Arguments, Cwd: p.Cwd, Time: ev.Time}
@@ -85,6 +92,54 @@ func ParseLine(line []byte) (Exec, bool) {
 	}
 	if parent := ev.ProcessExec.Parent; parent != nil {
 		e.ParentBinary, e.ParentArguments = parent.Binary, parent.Arguments
+	}
+
+	return e, true
+}
+
+// parseRefusal reads the event Tetragon writes when the policy from
+// `vulnetix-sensor tetragon-policy` refuses an exec. The process in it is the
+// caller, still running its old image; the program it tried to start is the
+// linux_binprm argument.
+func parseRefusal(line []byte) (Exec, bool) {
+	var ev struct {
+		ProcessKprobe *struct {
+			Process struct {
+				PID       int    `json:"pid"`
+				Binary    string `json:"binary"`
+				Arguments string `json:"arguments"`
+				Cwd       string `json:"cwd"`
+				Pod       *struct {
+					Name      string `json:"name"`
+					Namespace string `json:"namespace"`
+				} `json:"pod"`
+			} `json:"process"`
+			FunctionName string `json:"function_name"`
+			PolicyName   string `json:"policy_name"`
+			Action       string `json:"action"`
+			Args         []struct {
+				Binprm *struct {
+					Path string `json:"path"`
+				} `json:"linux_binprm_arg"`
+			} `json:"args"`
+		} `json:"process_kprobe"`
+		Time time.Time `json:"time"`
+	}
+	if json.Unmarshal(line, &ev) != nil || ev.ProcessKprobe == nil {
+		return Exec{}, false
+	}
+	k := ev.ProcessKprobe
+	if k.PolicyName != tetragon.PolicyName || k.FunctionName != tetragon.Hook || k.Action != "KPROBE_ACTION_OVERRIDE" ||
+		len(k.Args) == 0 || k.Args[0].Binprm == nil || k.Args[0].Binprm.Path == "" {
+		return Exec{}, false
+	}
+	p := k.Process
+	e := Exec{
+		PID: p.PID, Binary: k.Args[0].Binprm.Path, Cwd: p.Cwd, Time: ev.Time,
+		ParentBinary: p.Binary, ParentArguments: p.Arguments, PreExec: true, KernelRefused: true,
+	}
+	if p.Pod != nil {
+		e.Pod, e.Namespace = p.Pod.Name, p.Pod.Namespace
 	}
 
 	return e, true
@@ -217,6 +272,9 @@ func (w *Watcher) report(e Exec, rule decide.RuleRef, lane string, detail map[st
 	action := decide.Allowed
 	detail["reason"] = v.Reason
 	switch {
+	case e.KernelRefused:
+		action = decide.Blocked
+		detail["reason"] = "refused in the kernel by the Tetragon policy " + tetragon.PolicyName
 	case gate:
 		action = v.Action
 	case v.Action != decide.Allowed:

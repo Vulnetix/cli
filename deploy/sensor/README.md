@@ -40,6 +40,24 @@ each new executable and reports any whose hash is an indicator in your feeds.
 This detects and reports; it does not stop the process, and the sensor reports
 `ebpf` on and `bpfLsm` off so the console says it cannot block there.
 
+To refuse those execs in the kernel, render a Tetragon policy from your feeds
+and apply it yourself:
+
+```sh
+vulnetix-sensor tetragon-policy --feed <url> > vulnetix-exec-block.yaml
+kubectl apply -f vulnetix-exec-block.yaml
+```
+
+Only Sigma rules in block mode whose one selection tests `Image` (exact,
+`startswith` or `endswith`) can be expressed; the rest are listed on stderr
+with the reason and stay detection only. The policy overrides
+`security_bprm_creds_for_exec` with `EPERM`, which needs a kernel built with
+`CONFIG_BPF_KPROBE_OVERRIDE`. It blocks in every sensor mode and is not updated
+by the sensor, so render it again after a rule changes or is marked a false
+positive. The sensor reads Tetragon's record of each refusal and reports it as
+blocked under the rule that matched. This has not been run against a live
+Tetragon yet; read the policy before you apply it.
+
 With `--dns-listen`, the sensor is a DNS forwarder: point the workload's resolver
 at it, and a lookup of an indicator domain (or any subdomain of one) answers
 NXDOMAIN in enforce, is held in guard, and is reported in monitor. This covers
