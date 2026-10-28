@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/random"
 
 	"github.com/vulnetix/cli/v3/internal/imagesrc"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 func TestRepoFromSourceLabel(t *testing.T) {
@@ -95,5 +96,32 @@ func TestBuildImageRequestAttributesLayers(t *testing.T) {
 	}
 	if ex.LayerIndex != nil {
 		t.Fatalf("language packages have no recorded layer: %+v", ex)
+	}
+}
+
+func TestCollectContainerSources(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string) {
+		p := filepath.Join(root, rel)
+		_ = os.MkdirAll(filepath.Dir(p), 0o755)
+		_ = os.WriteFile(p, []byte(body), 0o644)
+	}
+	write("Dockerfile", "FROM node:20-alpine\nRUN apk add curl\n")
+	write("services/api/Containerfile.prod", "FROM python:3.12-slim AS base\nFROM base\n")
+	write("node_modules/pkg/Dockerfile", "FROM ignored:1\n")
+	write("docs/README.md", "FROM not-a-dockerfile\n")
+	files := collectContainerSources(root)
+	if len(files) != 2 {
+		t.Fatalf("files: %+v", files)
+	}
+	byPath := map[string]vdb.CliContainerSourceFile{}
+	for _, f := range files {
+		byPath[f.Path] = f
+	}
+	if f := byPath["Dockerfile"]; len(f.Stages) != 1 || f.Stages[0].ResolvedRef != "node:20-alpine" || len(f.Stages[0].Installs) != 1 {
+		t.Errorf("Dockerfile: %+v", f)
+	}
+	if f := byPath["services/api/Containerfile.prod"]; len(f.Stages) != 2 || f.Stages[1].FromStage != "base" || !f.Stages[1].IsFinal {
+		t.Errorf("Containerfile.prod: %+v", f)
 	}
 }

@@ -137,6 +137,9 @@ package dependencies, licenses, or other security issues.`,
 		// (Dockerfile) scan result governs the command's exit code.
 		if !explainRequested(cmd) {
 			_ = runBinaryScan(cmd)
+			// Each FROM and package install line, for container curation's
+			// migration guide. Non-fatal for the same reason.
+			postContainerSources(cmd)
 		}
 		return scanErr
 	},
