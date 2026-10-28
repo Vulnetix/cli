@@ -120,6 +120,32 @@ jobs:
           $BINARY --org-id "123e4567-e89b-12d3-a456-426614174000"
         shell: bash
 
+      # gha actions end to end against live services: GitHub resolves the uses:
+      # reference with this job's token, and Vulnetix (community access, as for
+      # a user who is not logged in) answers which action versions have a
+      # published advisory. tj-actions/changed-files v45.0.7 is affected by
+      # CVE-2025-30066 (fixed in 46.0.1), so VNX-GH-105 must report it.
+      - name: Test gha actions against GitHub and Vulnetix
+        if: runner.os == 'Linux'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ARCH=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
+          BINARY="$PWD/bin/vulnetix-linux-${ARCH}"
+          dir="$RUNNER_TEMP/gha-live"
+          mkdir -p "$dir/.github/workflows"
+          printf 'on: push\npermissions: {}\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: tj-actions/changed-files@v45.0.7\n' > "$dir/.github/workflows/ci.yml"
+          "$BINARY" gha actions "$dir" --repo "${{ github.repository }}" --format json --no-banner --no-analytics > "$RUNNER_TEMP/gha-live.json"
+          python3 - "$RUNNER_TEMP/gha-live.json" <<'PY'
+          import json, sys
+          doc = json.load(open(sys.argv[1]))
+          hits = [f for f in doc["findings"] if f["ruleId"] == "VNX-GH-105"]
+          print("VNX-GH-105:", [f["message"] for f in hits])
+          print("notes:", doc.get("notes"))
+          assert any("CVE-2025-30066" in f["message"] for f in hits), "VNX-GH-105 did not report CVE-2025-30066"
+          PY
+        shell: bash
+
       - name: Test action
         uses: ./
         with:
