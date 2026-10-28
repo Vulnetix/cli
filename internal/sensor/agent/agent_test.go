@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -30,6 +32,7 @@ type platform struct {
 	failPosts bool
 	decisions []uplink.Decision
 	files     map[string][]byte
+	inventory []byte
 }
 
 func (p *platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +65,9 @@ func (p *platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.Unmarshal(body, &in)
 		p.events = append(p.events, in.Events...)
 		_, _ = w.Write([]byte(`{"accepted":1}`))
+	case r.URL.Path == "/v1/runtime/inventory":
+		p.inventory = body
+		_, _ = w.Write([]byte(`{"stored":1}`))
 	case r.URL.Path == "/v1/runtime/decisions":
 		out, _ := json.Marshal(map[string]any{"decisions": p.decisions, "cursor": 99})
 		p.decisions = nil
@@ -174,5 +180,42 @@ func TestDecisionsApplyAndRevoke(t *testing.T) {
 	<-done
 	if a.Verdicts.Mode() != decide.Enforce {
 		t.Fatal("a mode decision was not applied")
+	}
+}
+
+func TestReportInventoryFromTheHost(t *testing.T) {
+	a, p := newAgent(t, decide.Monitor)
+	root := t.TempDir()
+	mk := func(rel, body string) {
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk("var/lib/dpkg/status", "Package: libssl3\nStatus: install ok installed\nVersion: 3.0.11-1\n\n")
+	mk("var/lib/dpkg/info/libssl3:amd64.list", "/usr/lib/x86_64-linux-gnu/libssl.so.3\n")
+	mk("proc/10/maps", "7f00-7f01 r-xp 00000000 fd:01 1 /usr/lib/x86_64-linux-gnu/libssl.so.3 (deleted)\n")
+	a.cfg.HostRoot = root
+
+	if err := a.ReportInventory(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var sent struct {
+		SensorKey string                    `json:"sensorKey"`
+		Packages  []uplink.InventoryPackage `json:"packages"`
+	}
+	if err := json.Unmarshal(p.inventory, &sent); err != nil {
+		t.Fatal(err)
+	}
+	if sent.SensorKey != "k" || len(sent.Packages) != 1 || sent.Packages[0].State != "stale-loaded" || sent.Packages[0].Ecosystem != "deb" {
+		t.Fatalf("sent = %+v", sent)
+	}
+
+	a.cfg.HostRoot = t.TempDir()
+	if err := a.ReportInventory(context.Background()); err == nil {
+		t.Fatal("a host with no readable processes is an error, not an empty report")
 	}
 }

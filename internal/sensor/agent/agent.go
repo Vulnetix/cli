@@ -11,18 +11,22 @@ package agent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/vulnetix/cli/v3/internal/binpkg"
 	"github.com/vulnetix/cli/v3/internal/sensor/decide"
 	"github.com/vulnetix/cli/v3/internal/sensor/dnsguard"
 	"github.com/vulnetix/cli/v3/internal/sensor/engine"
 	"github.com/vulnetix/cli/v3/internal/sensor/execwatch"
 	"github.com/vulnetix/cli/v3/internal/sensor/feed"
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
+	"github.com/vulnetix/cli/v3/internal/sensor/inventory"
 	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
 	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
 )
@@ -56,6 +60,10 @@ type Config struct {
 	// HostRoot is where the host's filesystem is visible to the sensor, for
 	// hashing what a process ran: "/" on the host, or a mount in a container.
 	HostRoot string
+
+	// InventoryEvery is how often the in-use package inventory is read from
+	// HostRoot/proc and reported. Zero turns it off.
+	InventoryEvery time.Duration
 
 	FeedEvery      time.Duration
 	HeartbeatEvery time.Duration
@@ -150,6 +158,10 @@ func (a *Agent) Run(ctx context.Context) error {
 	}
 
 	go a.decisionLoop(ctx)
+
+	if a.cfg.InventoryEvery > 0 && a.cfg.Uplink != nil {
+		go a.inventoryLoop(ctx)
+	}
 
 	if a.cfg.DNSListen != "" {
 		pc, err := net.ListenPacket("udp", a.cfg.DNSListen)
@@ -403,4 +415,50 @@ func ToDecision(d uplink.Decision) decide.Decision {
 	}
 
 	return out
+}
+
+// inventoryLoop reports the in-use packages now and then every
+// InventoryEvery. The ownership index is rebuilt each time, because packages
+// are installed and upgraded under a running sensor.
+func (a *Agent) inventoryLoop(ctx context.Context) {
+	tick := time.NewTicker(a.cfg.InventoryEvery)
+	defer tick.Stop()
+	for {
+		if err := a.ReportInventory(ctx); err != nil {
+			a.cfg.Logf("sensor: inventory not reported: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+		}
+	}
+}
+
+// ReportInventory reads which installed packages processes map and posts it.
+func (a *Agent) ReportInventory(ctx context.Context) error {
+	root := a.cfg.HostRoot
+	if root == "" {
+		root = "/"
+	}
+	res := inventory.Scan(root, binpkg.BuildOwnerIndex(root))
+	if res.Processes == 0 {
+		return fmt.Errorf("no processes readable under %s/proc", strings.TrimRight(root, "/"))
+	}
+	pkgs := make([]uplink.InventoryPackage, 0, len(res.Packages))
+	for _, p := range res.Packages {
+		examples := make([]string, 0, len(p.Processes))
+		for _, proc := range p.Processes {
+			if proc.Exe != "" {
+				examples = append(examples, proc.Exe)
+			}
+		}
+		pkgs = append(pkgs, uplink.InventoryPackage{
+			Name: p.Name, Version: p.Version, Ecosystem: p.Ecosystem, State: p.State,
+			Processes: len(p.Processes), Examples: examples,
+		})
+	}
+	_, err := a.cfg.Uplink.PostInventory(ctx, a.cfg.SensorKey, pkgs)
+
+	return err
 }

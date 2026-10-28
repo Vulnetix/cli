@@ -196,3 +196,30 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte, out a
 
 	return json.Unmarshal(data, out)
 }
+
+// InventoryPackage is one package running processes map.
+type InventoryPackage struct {
+	Name      string   `json:"name"`
+	Version   string   `json:"version"`
+	Ecosystem string   `json:"ecosystem"`
+	State     string   `json:"state"`
+	Processes int      `json:"processes"`
+	Examples  []string `json:"examples,omitempty"`
+}
+
+// PostInventory replaces the sensor's in-use package report.
+func (c *Client) PostInventory(ctx context.Context, sensorKey string, packages []InventoryPackage) (int, error) {
+	if packages == nil {
+		packages = []InventoryPackage{}
+	}
+	raw, err := json.Marshal(map[string]any{"sensorKey": sensorKey, "packages": packages})
+	if err != nil {
+		return 0, err
+	}
+	var out struct {
+		Stored int `json:"stored"`
+	}
+	err = c.do(ctx, http.MethodPost, "/v1/runtime/inventory", raw, &out)
+
+	return out.Stored, err
+}

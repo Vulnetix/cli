@@ -60,6 +60,10 @@ prints, as JSON, every installed package a running process has mapped:
 
 Run it as root to read every process; `unreadable` counts the ones it could not.
 
+A running sensor reports the same inventory every `--inventory-every` (default
+6h) from `--host-root`, so a finding page can say whether the vulnerable
+package is loaded, and where.
+
 ## Install
 
 The sensor takes the CLI's credentials: `VULNETIX_ORG_ID` and `VULNETIX_API_KEY`

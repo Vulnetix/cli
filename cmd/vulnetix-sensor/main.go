@@ -88,7 +88,7 @@ func inventoryCmd(args []string) error {
 type options struct {
 	mode, listen, upstream, egressListen, feedKey, stateDir, endpoint *string
 	tetragonExport, hostRoot, dnsListen, dnsUpstream                  *string
-	hold                                                              *time.Duration
+	hold, inventoryEvery                                              *time.Duration
 	offline, showVersion                                              *bool
 	feeds, healthPaths                                                multi
 }
@@ -109,6 +109,8 @@ func defineFlags(fs *flag.FlagSet) *options {
 		showVersion:  fs.Bool("version", false, "print the version and exit"),
 		tetragonExport: fs.String("tetragon-export", "",
 			"Tetragon JSON export file (e.g. "+execwatch.DefaultExport+"); every process start is checked against the feeds' file hashes"),
+		inventoryEvery: fs.Duration("inventory-every", 6*time.Hour,
+			"how often to report which installed packages running processes map (0 turns it off)"),
 		hostRoot:    fs.String("host-root", "/", "where the host filesystem is mounted, for hashing what a process ran"),
 		dnsListen:   fs.String("dns-listen", "", "UDP address the DNS guard answers on, e.g. 127.0.0.1:53; point the workload's resolver at it"),
 		dnsUpstream: fs.String("dns-upstream", "", "resolver the DNS guard forwards to (default: the first nameserver in /etc/resolv.conf)"),
@@ -188,7 +190,7 @@ func run(args []string) error {
 		cfg.Egress = &proxy.Egress{}
 		cfg.EgressListen = *egressListen
 	}
-	cfg.TetragonExport, cfg.HostRoot = *o.tetragonExport, *o.hostRoot
+	cfg.TetragonExport, cfg.HostRoot, cfg.InventoryEvery = *o.tetragonExport, *o.hostRoot, *o.inventoryEvery
 	if *o.dnsListen != "" {
 		upstreamDNS := *o.dnsUpstream
 		if upstreamDNS == "" {
