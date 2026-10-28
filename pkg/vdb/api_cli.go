@@ -1498,6 +1498,33 @@ func (c *Client) CliIAC(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFR
 func (c *Client) CliGitHub(ctx context.Context, env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
 	return cliPostWithEnvContext[CliSARIFResponse](ctx, c, "cli.github", env, req)
 }
+
+// CliGitHubActionRef is one uses: reference: owner/repo[/path] and its ref.
+type CliGitHubActionRef struct {
+	Action string `json:"action"`
+	Ref    string `json:"ref"`
+}
+
+// CliGitHubAdvisory is a published advisory for an action version.
+type CliGitHubAdvisory struct {
+	ID    string `json:"id"`
+	Range string `json:"range,omitempty"`
+}
+
+// CliGitHubAdvisoriesResponse is keyed "action@ref" as the request named
+// them; a reference with nothing to report is absent. Incomplete means at
+// least one lookup failed, so an absent key is not a clean bill of health.
+type CliGitHubAdvisoriesResponse struct {
+	Advisories map[string][]CliGitHubAdvisory `json:"advisories"`
+	Incomplete bool                           `json:"incomplete"`
+}
+
+// CliGitHubAdvisories asks /v2/cli.github.advisories for the advisories that
+// affect the action versions refs name (rule VNX-GH-105). Nothing is stored.
+func (c *Client) CliGitHubAdvisories(ctx context.Context, env CliEnv, refs []CliGitHubActionRef) (*CliResponse[CliGitHubAdvisoriesResponse], error) {
+	return cliPostWithEnvContext[CliGitHubAdvisoriesResponse](ctx, c, "cli.github.advisories", env, map[string]any{"actions": refs})
+}
+
 func (c *Client) CliContainers(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
 	return cliPostWithEnv[CliSARIFResponse](c, "cli.containers", env, req)
 }

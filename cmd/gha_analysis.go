@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -66,9 +67,11 @@ with required reviewers lowers it; a public repository raises it.`,
 		`Analyse every uses: reference: references not pinned to a commit SHA, SHA pins
 whose version comment points elsewhere, commits that exist only in a fork of the
 action (impostor commits), archived, renamed or deleted action repositories
-(repo-jacking), retired runtimes, typosquatted owners, actions outside the
-allowed-actions policy, unpinned container images and remote scripts piped into
-a shell. Resolving references needs a GitHub token.`,
+(repo-jacking), action versions with a published advisory (looked up in
+Vulnetix, the community tier when not logged in), retired runtimes,
+typosquatted owners, actions outside the allowed-actions policy, unpinned
+container images and remote scripts piped into a shell. Resolving references
+needs a GitHub token.`,
 		[]ghaudit.Task{ghaudit.TaskActions}},
 	{"settings", "Check repository settings that protect the code and CI",
 		`Read the repository's configuration through the GitHub API and check it:
@@ -234,11 +237,27 @@ func runGHATask(ctx context.Context, stdout, stderr io.Writer, tasks []ghaudit.T
 				org = ""
 			}
 			g := ghtasks.NewRESTGetter(apiURL, creds.Token)
+			// Known-vulnerable action versions (VNX-GH-105) come from Vulnetix.
+			var advisories *ghtasks.Advisories
+			if ghaTasksInclude(tasks, ghaudit.TaskActions) {
+				if lookup := ghaAdvisoryLookup(); lookup != nil {
+					advisories = &ghtasks.Advisories{Lookup: lookup}
+				} else {
+					notes = append(notes, "no Vulnetix client: action versions were not checked for published advisories (VNX-GH-105)")
+				}
+			}
+			copts := ghaudit.CollectOptions{Repo: repo, Org: org, Ref: opt.ref, Files: files, MaxActionRefs: opt.maxActionRefs}
+			if advisories != nil {
+				copts.Advisories = advisories.Func()
+			}
 			cctx, cancel := context.WithTimeout(ctx, 4*time.Minute)
 			// Local files are evaluated as they are on disk; the API supplies the
 			// settings and resolves their uses: references.
-			col, cerr := ghaudit.Collect(cctx, g, ghaudit.CollectOptions{Repo: repo, Org: org, Ref: opt.ref, Files: files, MaxActionRefs: opt.maxActionRefs})
+			col, cerr := ghaudit.Collect(cctx, g, copts)
 			cancel()
+			if advisories != nil && advisories.Failed {
+				notes = append(notes, "some advisory lookups failed: VNX-GH-105 may have missed a known-vulnerable action version")
+			}
 			if cerr != nil {
 				if errors.Is(cerr, ghtasks.ErrRateLimited) {
 					return cerr
@@ -313,6 +332,50 @@ func runGHATask(ctx context.Context, stdout, stderr io.Writer, tasks []ghaudit.T
 		return fmt.Errorf("found %d finding(s) at or above %s", countAtLeast(rep, failOn), failOn)
 	}
 	return nil
+}
+
+func ghaTasksInclude(tasks []ghaudit.Task, want ghaudit.Task) bool {
+	for _, t := range tasks {
+		if t == want {
+			return true
+		}
+	}
+	return false
+}
+
+// ghaVersionRE is a tag that names a version; only those are looked up.
+var ghaVersionRE = regexp.MustCompile(`^v?\d+\.\d+(\.\d+)?([-+][0-9A-Za-z.-]+)?$`)
+
+// ghaAdvisoryLookup returns the advisory lookup for VNX-GH-105, or nil with no
+// Vulnetix client. Without stored credentials the community tier answers.
+// Replaceable in tests.
+var ghaAdvisoryLookup = func() ghtasks.AdvisoryLookup {
+	if vdbCreds == nil {
+		_ = resolveVDBCredentials(false)
+	}
+	client := newCliClient()
+	if client == nil {
+		return nil
+	}
+	env := envForCliWithGit(nil)
+	return func(ctx context.Context, action, ref string) ([]ghaudit.ActionAdvisory, bool) {
+		if !ghaVersionRE.MatchString(ref) {
+			return nil, true // a branch, a SHA or a bare major tag names no version
+		}
+		resp, err := client.CliGitHubAdvisories(ctx, env, []vdb.CliGitHubActionRef{{Action: action, Ref: ref}})
+		if err != nil || resp == nil {
+			return nil, false
+		}
+		var out []ghaudit.ActionAdvisory
+		for _, a := range resp.Data.Advisories[action+"@"+ref] {
+			sum := ""
+			if a.Range != "" {
+				sum = "affected range " + a.Range
+			}
+			out = append(out, ghaudit.ActionAdvisory{ID: a.ID, Summary: sum})
+		}
+		return out, !resp.Data.Incomplete
+	}
 }
 
 func countAtLeast(rep *ghaudit.Report, sev ghaudit.Severity) int {

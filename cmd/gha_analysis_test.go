@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/Vulnetix/vdb-sca-match/ghaudit"
+	"github.com/vulnetix/cli/v3/internal/ghtasks"
 )
 
 const ghaTestWorkflow = "on: pull_request_target\npermissions: {}\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n" +
@@ -76,6 +77,7 @@ func TestGHAWorkflowsOfflineJSONAndFailOn(t *testing.T) {
 // audit against a fake GitHub: settings facts are collected, local files are
 // evaluated as on disk, and their references are resolved through the API.
 func TestGHAAuditCollectsFromTheAPI(t *testing.T) {
+	ghaStubAdvisories(t, nil)
 	dir := ghaTestCheckout(t)
 	routes := map[string]any{
 		"/repos/acme/app":                                      map[string]any{"full_name": "acme/app", "visibility": "public", "default_branch": "main"},
@@ -133,5 +135,100 @@ func TestGHAAuditCollectsFromTheAPI(t *testing.T) {
 	}
 	if doc.Commit != strings.Repeat("a", 40) {
 		t.Errorf("commit = %q", doc.Commit)
+	}
+}
+
+// ghaStubAdvisories replaces the Vulnetix advisory lookup for one test, so no
+// test reaches the network. A nil map answers "nothing known" for everything.
+func ghaStubAdvisories(t *testing.T, known map[string][]ghaudit.ActionAdvisory) *[]string {
+	t.Helper()
+	prev := ghaAdvisoryLookup
+	t.Cleanup(func() { ghaAdvisoryLookup = prev })
+	var asked []string
+	ghaAdvisoryLookup = func() ghtasks.AdvisoryLookup {
+		return func(_ context.Context, action, ref string) ([]ghaudit.ActionAdvisory, bool) {
+			asked = append(asked, action+"@"+ref)
+			return known[action+"@"+ref], true
+		}
+	}
+	return &asked
+}
+
+// gha actions reports an action version with a published advisory, with the
+// advisory named, the same rule the Software Factory runs on events.
+func TestGHAActionsReportsAKnownVulnerableVersion(t *testing.T) {
+	asked := ghaStubAdvisories(t, map[string][]ghaudit.ActionAdvisory{
+		"tj-actions/changed-files@v45.0.7": {{ID: "CVE-2025-30066", Summary: "affected range < 46.0.1"}},
+	})
+	dir := t.TempDir()
+	wf := "on: push\npermissions: {}\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n" +
+		"      - uses: tj-actions/changed-files@v45.0.7\n"
+	p := filepath.Join(dir, ".github", "workflows", "ci.yml")
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(wf), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sha := strings.Repeat("c", 40)
+	routes := map[string]any{
+		"/repos/acme/app":                                      map[string]any{"full_name": "acme/app", "visibility": "private", "default_branch": "main"},
+		"/repos/tj-actions/changed-files":                      map[string]any{"full_name": "tj-actions/changed-files", "default_branch": "main"},
+		"/repos/tj-actions/changed-files/git/ref/tags/v45.0.7": map[string]any{},
+		"/repos/tj-actions/changed-files/commits/v45.0.7":      map[string]any{"sha": sha},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, ok := routes[r.URL.Path]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(body)
+	}))
+	defer srv.Close()
+	t.Setenv("GITHUB_TOKEN", "t0k")
+	t.Setenv("GH_TOKEN", "")
+	var out, errOut bytes.Buffer
+	opt := ghaTaskOptions{format: "json", repo: "acme/app", apiURL: srv.URL, maxActionRefs: 40}
+	if err := runGHATask(context.Background(), &out, &errOut, []ghaudit.Task{ghaudit.TaskActions}, dir, opt); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Findings []ghaudit.Finding `json:"findings"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	var found *ghaudit.Finding
+	for i := range doc.Findings {
+		if doc.Findings[i].RuleID == "VNX-GH-105" {
+			found = &doc.Findings[i]
+		}
+	}
+	if found == nil || !strings.Contains(found.Message, "CVE-2025-30066") {
+		t.Fatalf("expected VNX-GH-105 naming the advisory, got %+v", doc.Findings)
+	}
+	if len(*asked) != 1 || (*asked)[0] != "tj-actions/changed-files@v45.0.7" {
+		t.Errorf("lookups = %v", *asked)
+	}
+}
+
+// Without a Vulnetix client the rule is reported as not checked, not passed.
+func TestGHAActionsNotesWhenAdvisoriesCannotBeChecked(t *testing.T) {
+	prev := ghaAdvisoryLookup
+	t.Cleanup(func() { ghaAdvisoryLookup = prev })
+	ghaAdvisoryLookup = func() ghtasks.AdvisoryLookup { return nil }
+	dir := ghaTestCheckout(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNotFound) }))
+	defer srv.Close()
+	t.Setenv("GITHUB_TOKEN", "t0k")
+	t.Setenv("GH_TOKEN", "")
+	var out, errOut bytes.Buffer
+	opt := ghaTaskOptions{format: "json", repo: "acme/app", apiURL: srv.URL, maxActionRefs: 40}
+	if err := runGHATask(context.Background(), &out, &errOut, []ghaudit.Task{ghaudit.TaskActions}, dir, opt); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "VNX-GH-105") || !strings.Contains(out.String(), "not checked for published advisories") {
+		t.Fatalf("expected a note that VNX-GH-105 was not checked:\n%s", out.String())
 	}
 }

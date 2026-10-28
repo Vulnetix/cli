@@ -211,6 +211,11 @@ the workflow token does not have; use a fine-grained token with read access to t
 Administration, Environments and Secrets, or let the Vulnetix GitHub App do it continuously.
 Whatever cannot be read is listed as not evaluated rather than reported as passing.
 
+Action versions are checked for published advisories (VNX-GH-105) through Vulnetix: the
+`VULNETIX_*` credentials when set, the community tier otherwise. Only a tag that names a version
+(`v4.1.1`, or the version comment beside a SHA pin) is looked up, and only an advisory whose
+affected range covers that version is reported. `--offline` skips the lookup.
+
 | Output | |
 |---|---|
 | `--format table` | findings with where, why, how settings changed the rating, and the fix |
