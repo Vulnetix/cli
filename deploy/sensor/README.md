@@ -37,6 +37,20 @@ events are not watched, and outbound calls from software that ignores
 `HTTPS_PROXY` are not checked. It reports those capabilities as off, so the
 console says so too.
 
+## Which packages are in use
+
+`vulnetix-sensor inventory` reads `/proc/*/maps` and the package databases and
+prints, as JSON, every installed package a running process has mapped:
+
+- `loaded`: a live process maps a file the package installed.
+- `stale-loaded`: a process maps a file that was replaced or deleted on disk. The
+  package on disk may be fixed while the process still runs the old code; restart it.
+- `unowned`: executable files mapped by a process that no package installed.
+- `memfdExec`: processes running code from an anonymous memory file. Fileless
+  malware does this, and so do JIT runtimes and browsers, so treat it as a lead.
+
+Run it as root to read every process; `unreadable` counts the ones it could not.
+
 ## Install
 
 The sensor takes the CLI's credentials: `VULNETIX_ORG_ID` and `VULNETIX_API_KEY`

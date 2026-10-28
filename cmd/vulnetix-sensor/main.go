@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -29,10 +30,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vulnetix/cli/v3/internal/binpkg"
 	"github.com/vulnetix/cli/v3/internal/sensor/agent"
 	"github.com/vulnetix/cli/v3/internal/sensor/decide"
 	"github.com/vulnetix/cli/v3/internal/sensor/feed"
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
+	"github.com/vulnetix/cli/v3/internal/sensor/inventory"
 	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
 	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
 	"github.com/vulnetix/cli/v3/pkg/auth"
@@ -47,10 +50,32 @@ func (m *multi) String() string     { return strings.Join(*m, ",") }
 func (m *multi) Set(v string) error { *m = append(*m, v); return nil }
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
+	args := os.Args[1:]
+	run := run
+	if len(args) > 0 && args[0] == "inventory" {
+		run, args = inventoryCmd, args[1:]
+	}
+	if err := run(args); err != nil {
 		fmt.Fprintln(os.Stderr, "vulnetix-sensor:", err)
 		os.Exit(1)
 	}
+}
+
+// inventoryCmd prints which installed packages running processes have mapped,
+// which of those need a restart, and any code running from anonymous memory.
+//
+//	vulnetix-sensor inventory [--root /]
+func inventoryCmd(args []string) error {
+	fs := flag.NewFlagSet("vulnetix-sensor inventory", flag.ContinueOnError)
+	root := fs.String("root", "/", "filesystem whose proc and package databases are read")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	res := inventory.Scan(*root, binpkg.BuildOwnerIndex(*root))
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+
+	return enc.Encode(res)
 }
 
 type options struct {
