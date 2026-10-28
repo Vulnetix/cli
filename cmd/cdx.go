@@ -31,6 +31,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/scanopts"
+	"github.com/vulnetix/cli/v3/internal/sysinv"
 )
 
 // cdxCmd is named for the format it emits. `sbom` is an alias rather than the
@@ -92,6 +93,8 @@ Examples:
   vulnetix cdx ./service -o cyclonedx-json
   vulnetix cdx --container-rootfs ./rootfs
   vulnetix cdx --container-archive ./image.tar
+  vulnetix cdx --include-system                  # the whole machine, not just this repo
+  vulnetix cdx --include-system --system-root /mnt/ebs-volume
   vulnetix cdx --no-aibom --no-cbom --output-file build/sbom.cdx.json
   vulnetix cdx --sign                            # in CI, signs as the runner
   vulnetix sbom                                  # alias for vulnetix cdx`,
@@ -120,6 +123,8 @@ type cdxRunOptions struct {
 	NoCBOM            bool
 	NoSignatures      bool
 	IncludeHome       bool
+	IncludeSystem     bool
+	SystemRoot        string
 	IncludeIgnored    bool
 	ContainerRootfs   []string
 	ContainerArchives []string
@@ -203,6 +208,8 @@ func init() {
 	cdxCmd.Flags().Bool("no-cbom", false, "Skip CBOM detection and omit cryptographic components")
 	cdxCmd.Flags().Bool("no-signatures", false, "Skip local signature, attestation and transparency-log sidecar discovery")
 	cdxCmd.Flags().Bool("include-home", false, "Also inspect user-scoped package caches for installed packages")
+	cdxCmd.Flags().Bool("include-system", false, "Inventory the whole system: OS package databases (dpkg, rpm, apk, pacman), machine-wide language installs, every account's caches and the system binary directories")
+	cdxCmd.Flags().String("system-root", "/", "Filesystem --include-system describes: a mounted volume, an unpacked image or /proc/<pid>/root instead of this machine")
 	cdxCmd.Flags().Bool("cdx-include-ignored", false, "Include files matched by .gitignore (default: gitignored paths are skipped)")
 	// Accepted for callers that reach the command through its `sbom` alias and
 	// spell the flag to match. Hidden so only one name is advertised.
@@ -421,6 +428,8 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 	noCBOM, _ := cmd.Flags().GetBool("no-cbom")
 	noSignatures, _ := cmd.Flags().GetBool("no-signatures")
 	includeHome, _ := cmd.Flags().GetBool("include-home")
+	includeSystem, _ := cmd.Flags().GetBool("include-system")
+	systemRoot, _ := cmd.Flags().GetString("system-root")
 	includeIgnored, _ := cmd.Flags().GetBool("cdx-include-ignored")
 	if aliasSpelling, _ := cmd.Flags().GetBool("sbom-include-ignored"); aliasSpelling {
 		includeIgnored = true
@@ -441,6 +450,7 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 		NoManifests: noManifests, NoFilesystem: noFilesystem, NoContainerfiles: noContainerfiles, NoCI: noCI, NoShell: noShell,
 		NoBinaryAnalysis: noBinary, NoBinaryPackages: noBinaryPackages, NoLicenses: noLicenses,
 		NoAIBOM: noAIBOM, NoCBOM: noCBOM, NoSignatures: noSignatures, IncludeHome: includeHome,
+		IncludeSystem: includeSystem, SystemRoot: systemRoot,
 		IncludeIgnored: includeIgnored, ContainerRootfs: rootfs, ContainerArchives: archives,
 		AIBOMCatalog: aibomCatalog, CBOMCatalog: cbomCatalog, NoBuiltinAIBOM: noBuiltinAIBOM, NoBuiltinCBOM: noBuiltinCBOM,
 		Sign: sign, Deployment: scanopts.DeploymentFromCommand(cmd),
@@ -527,10 +537,25 @@ func collectCDXPackages(opts cdxRunOptions) cdxInventory {
 		}
 		inv.Packages = append(inv.Packages, collectContainerDBPackages(abs, abs, filepath.Base(abs), !opts.NoSignatures)...)
 		if !opts.NoFilesystem {
-			inv.Packages = append(inv.Packages, collectInstalledPackages(cdxRunOptions{RootPath: abs, IncludeHome: false, NoSignatures: opts.NoSignatures})...)
+			inv.Packages = append(inv.Packages, collectInstalledPackages(cdxRunOptions{RootPath: abs, IncludeSystem: true, SystemRoot: abs, NoSignatures: opts.NoSignatures})...)
 		}
 		if !opts.NoBinaryAnalysis {
 			inv.merge(collectCDXBinaries(opts, abs, abs, filepath.Base(abs)))
+		}
+	}
+	// ── The whole system ─────────────────────────────────────────────────────
+	// Machine-wide language installs and every account's caches arrive through
+	// collectInstalledPackages above; this adds what the OS package manager
+	// installed and the compiled artefacts in the system binary directories.
+	if opts.IncludeSystem {
+		sysRoot := ecosystems.SystemRoot(opts.SystemRoot)
+		sysPkgs, warns := collectSystemDBPackages(sysRoot, sysRoot, "system", !opts.NoSignatures)
+		inv.Packages = append(inv.Packages, sysPkgs...)
+		inv.Warnings = append(inv.Warnings, warns...)
+		if !opts.NoBinaryAnalysis {
+			for _, dir := range ecosystems.SystemBinaryDirs(sysRoot) {
+				inv.merge(collectCDXBinariesOwned(opts, dir, sysRoot, sysRoot, "system"))
+			}
 		}
 	}
 	for _, archive := range opts.ContainerArchives {
@@ -541,7 +566,7 @@ func collectCDXPackages(opts cdxRunOptions) cdxInventory {
 		}
 		inv.Packages = append(inv.Packages, collectContainerDBPackages(dir, dir, filepath.Base(archive), !opts.NoSignatures)...)
 		if !opts.NoFilesystem {
-			inv.Packages = append(inv.Packages, collectInstalledPackages(cdxRunOptions{RootPath: dir, IncludeHome: false, NoSignatures: opts.NoSignatures})...)
+			inv.Packages = append(inv.Packages, collectInstalledPackages(cdxRunOptions{RootPath: dir, IncludeSystem: true, SystemRoot: dir, NoSignatures: opts.NoSignatures})...)
 		}
 		if !opts.NoBinaryAnalysis {
 			inv.merge(collectCDXBinaries(opts, dir, dir, filepath.Base(archive)))
@@ -660,7 +685,7 @@ func cdxEvidenceConfidence(p scan.ScopedPackage) string {
 }
 
 func collectInstalledPackages(opts cdxRunOptions) []cyclonedx.SBOMPackage {
-	targets := ecosystems.Resolve(opts.RootPath, opts.IncludeHome)
+	targets := ecosystems.Resolve(opts.RootPath, ecosystems.Scope{Home: opts.IncludeHome, System: opts.IncludeSystem, SystemRoot: opts.SystemRoot})
 	var out []cyclonedx.SBOMPackage
 	for _, t := range targets {
 		switch t.EngineSlug {
@@ -864,101 +889,51 @@ func collectNugetInstalled(dir, root string, includeSignatures bool) []cyclonedx
 }
 
 func collectContainerDBPackages(root, labelRoot, sourceLabel string, includeSignatures bool) []cyclonedx.SBOMPackage {
-	var out []cyclonedx.SBOMPackage
-	for _, p := range []string{"var/lib/dpkg/status", "lib/apk/db/installed", "var/lib/apk/db/installed"} {
-		full := filepath.Join(root, filepath.FromSlash(p))
-		data, err := os.ReadFile(full)
-		if err != nil {
-			continue
-		}
-		rel := sourceLabel + ":" + filepath.ToSlash(p)
-		if strings.Contains(p, "dpkg") {
-			out = append(out, parseDpkgStatus(data, rel, labelRoot, includeSignatures)...)
-		} else {
-			out = append(out, parseAPKInstalled(data, rel, labelRoot, includeSignatures)...)
-		}
-	}
-	matches, _ := filepath.Glob(filepath.Join(root, "var/lib/pacman/local/*/desc"))
-	for _, m := range matches {
-		if data, err := os.ReadFile(m); err == nil {
-			out = append(out, parsePacmanDesc(data, sourceLabel+":"+relTo(root, m), labelRoot, includeSignatures)...)
-		}
-	}
+	out, _ := collectSystemDBPackages(root, labelRoot, sourceLabel, includeSignatures)
 	return out
 }
 
-func parseDpkgStatus(data []byte, rel, root string, includeSignatures bool) []cyclonedx.SBOMPackage {
-	var out []cyclonedx.SBOMPackage
-	for _, block := range strings.Split(string(data), "\n\n") {
-		fields := fieldBlock(block)
-		if fields["Package"] == "" {
-			continue
-		}
+// collectSystemDBPackages turns the OS package databases under root into SBOM
+// components. The purl carries the distro release, the full distro version and
+// the source package (sysinv.Package.Purl), because that is what a distro
+// advisory is matched on; the bom-ref stays the plain purl so the binary
+// ownership edges, which name owners without distro context, still resolve.
+// The warnings name databases that exist but could not be read.
+func collectSystemDBPackages(root, labelRoot, sourceLabel string, includeSignatures bool) ([]cyclonedx.SBOMPackage, []string) {
+	res := sysinv.Collect(root)
+	out := make([]cyclonedx.SBOMPackage, 0, len(res.Packages))
+	for _, p := range res.Packages {
+		rel := sourceLabel + ":" + p.DB
 		pkg := cyclonedx.SBOMPackage{
-			Name: fields["Package"], Version: fields["Version"], Ecosystem: "deb", Scope: scan.ScopeProduction,
-			SourceFile: rel, SourceType: scan.SourceTypeContainer, Evidence: []cyclonedx.SBOMEvidence{{Method: scan.SourceTypeContainer, Locator: rel, Confidence: "high"}},
+			Name: p.Name, Version: p.Version, Ecosystem: p.Ecosystem, Scope: scan.ScopeProduction,
+			Purl:       p.Purl(res.Distro),
+			BOMRef:     cyclonedx.SBOMPurl(p.Name, p.Version, p.Ecosystem),
+			SourceFile: rel, SourceType: scan.SourceTypeContainer,
+			Evidence:   []cyclonedx.SBOMEvidence{{Method: scan.SourceTypeContainer, Locator: rel, Confidence: "high"}},
+			Properties: map[string]string{},
+		}
+		if p.License != "" {
+			pkg.Licenses = []string{p.License}
+		}
+		if r := res.Distro.Release(); r != "" {
+			pkg.Properties["vulnetix:os/distro"] = r
+		}
+		if p.SourceName != "" {
+			pkg.Properties["vulnetix:os/source-package"] = p.SourceName
+		}
+		if p.Arch != "" {
+			pkg.Properties["vulnetix:os/arch"] = p.Arch
 		}
 		if includeSignatures {
-			pkg.Signatures = discoverSignaturesForFile(root, rel)
+			pkg.Signatures = discoverSignaturesForFile(labelRoot, rel)
 		}
 		out = append(out, pkg)
 	}
-	return out
-}
-
-func parseAPKInstalled(data []byte, rel, root string, includeSignatures bool) []cyclonedx.SBOMPackage {
-	var out []cyclonedx.SBOMPackage
-	for _, block := range strings.Split(string(data), "\n\n") {
-		var name, version string
-		for _, line := range strings.Split(block, "\n") {
-			switch {
-			case strings.HasPrefix(line, "P:"):
-				name = strings.TrimSpace(strings.TrimPrefix(line, "P:"))
-			case strings.HasPrefix(line, "V:"):
-				version = strings.TrimSpace(strings.TrimPrefix(line, "V:"))
-			}
-		}
-		if name == "" {
-			continue
-		}
-		pkg := cyclonedx.SBOMPackage{
-			Name: name, Version: version, Ecosystem: "apk", Scope: scan.ScopeProduction,
-			SourceFile: rel, SourceType: scan.SourceTypeContainer, Evidence: []cyclonedx.SBOMEvidence{{Method: scan.SourceTypeContainer, Locator: rel, Confidence: "high"}},
-		}
-		if includeSignatures {
-			pkg.Signatures = discoverSignaturesForFile(root, rel)
-		}
-		out = append(out, pkg)
+	warns := make([]string, 0, len(res.Warnings))
+	for _, w := range res.Warnings {
+		warns = append(warns, sourceLabel+": package database unreadable, its packages are missing from this SBOM: "+w)
 	}
-	return out
-}
-
-func parsePacmanDesc(data []byte, rel, root string, includeSignatures bool) []cyclonedx.SBOMPackage {
-	var name, version string
-	lines := strings.Split(string(data), "\n")
-	for i, line := range lines {
-		switch line {
-		case "%NAME%":
-			if i+1 < len(lines) {
-				name = strings.TrimSpace(lines[i+1])
-			}
-		case "%VERSION%":
-			if i+1 < len(lines) {
-				version = strings.TrimSpace(lines[i+1])
-			}
-		}
-	}
-	if name == "" {
-		return nil
-	}
-	pkg := cyclonedx.SBOMPackage{
-		Name: name, Version: version, Ecosystem: "arch", Scope: scan.ScopeProduction,
-		SourceFile: rel, SourceType: scan.SourceTypeContainer, Evidence: []cyclonedx.SBOMEvidence{{Method: scan.SourceTypeContainer, Locator: rel, Confidence: "high"}},
-	}
-	if includeSignatures {
-		pkg.Signatures = discoverSignaturesForFile(root, rel)
-	}
-	return []cyclonedx.SBOMPackage{pkg}
+	return out, warns
 }
 
 // collectCDXBinaries runs the two binary passes over one tree:
@@ -974,6 +949,14 @@ func parsePacmanDesc(data []byte, rel, root string, includeSignatures bool) []cy
 // binary that arrived outside the package manager is exactly what an image
 // inventory needs to surface.
 func collectCDXBinaries(opts cdxRunOptions, root, labelRoot, sourceLabel string) cdxInventory {
+	return collectCDXBinariesOwned(opts, root, root, labelRoot, sourceLabel)
+}
+
+// collectCDXBinariesOwned analyses the compiled artefacts under root and
+// attributes them to packages using the package databases of ownerRoot. The
+// two differ for a system scan, which walks /usr/bin and /opt but must read the
+// package databases from the system root.
+func collectCDXBinariesOwned(opts cdxRunOptions, root, ownerRoot, labelRoot, sourceLabel string) cdxInventory {
 	inv := cdxInventory{}
 	result := scan.ScanContainerFilesystem(root)
 	inv.BinaryFiles = result.ELFCount
@@ -1018,10 +1001,10 @@ func collectCDXBinaries(opts cdxRunOptions, root, labelRoot, sourceLabel string)
 	}
 
 	owners := binpkg.OwnerIndex(nil)
-	if binpkg.HasFileOwnership(root) {
-		owners = binpkg.BuildOwnerIndex(root)
+	if binpkg.HasFileOwnership(ownerRoot) {
+		owners = binpkg.BuildOwnerIndex(ownerRoot)
 	}
-	tree := binpkg.ScanTree(binpkg.TreeOptions{Root: root, Owners: owners})
+	tree := binpkg.ScanTree(binpkg.TreeOptions{Root: root, OwnerRoot: ownerRoot, Owners: owners})
 	inv.Examined = tree.Examined
 	inv.Unowned = len(tree.Unowned)
 	for _, warn := range tree.Errors {
@@ -1747,22 +1730,6 @@ func splitAtLast(s, sep string) (string, string) {
 		return s, ""
 	}
 	return s[:i], s[i+len(sep):]
-}
-
-func fieldBlock(block string) map[string]string {
-	out := map[string]string{}
-	var current string
-	for _, line := range strings.Split(block, "\n") {
-		if strings.HasPrefix(line, " ") && current != "" {
-			out[current] += "\n" + strings.TrimSpace(line)
-			continue
-		}
-		if idx := strings.Index(line, ":"); idx > 0 {
-			current = line[:idx]
-			out[current] = strings.TrimSpace(line[idx+1:])
-		}
-	}
-	return out
 }
 
 func licenseValues(v any) []string {

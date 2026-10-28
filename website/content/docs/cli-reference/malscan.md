@@ -63,6 +63,8 @@ To keep fidelity high, malscan suppresses benign look-alikes: a shared **allowli
 |------|------|---------|-------------|
 | `--path` | string | `.` | Directory to scan. Defaults to the current directory and resolves to the enclosing git root; an explicit `--path` (or positional `[path]`) is used as-is. |
 | `--include-home` | bool | `false` | Also scan user-scoped/home install caches (`~/.npm`, `~/go/pkg/mod`, `~/.cargo`, `~/.m2`, …). Off by default because these caches are shared across all projects. |
+| `--include-system` | bool | `false` | Scan the whole machine instead of one checkout: machine-wide installs, the caches in every account's home, and the system binary directories (`/usr/bin`, `/usr/local/bin`, `/opt`, …). |
+| `--system-root` | string | `/` | Filesystem `--include-system` describes: a mounted volume, an unpacked image or `/proc/<pid>/root`. |
 | `-o, --output` | string | `pretty` | Terminal output format: `pretty`, `json`, or `sarif`. |
 | `--output-file` | string | - | Path to write the SARIF report. Default: `<path>/.vulnetix/malscan.sarif`. |
 | `--no-binary-analysis` | bool | `false` | Do not extract / match IOCs in binary files. |
@@ -218,6 +220,20 @@ Targets are resolved per ecosystem. Project-local install directories are always
 | Dart (pub) | `.dart_tool` | `$PUB_CACHE` or `~/.pub-cache` |
 | Elixir (hex) | `deps`, `_build` (with `mix.exs`) | `~/.hex`, `~/.mix` |
 
+`--include-system` adds the machine-wide locations below, then applies the user-scoped column to every account's home under the system root (`/home/*`, `/root`). Environment overrides such as `$GOMODCACHE` are honoured for your own account only; another account's environment cannot be seen. The system binary directories (`/usr/bin`, `/usr/sbin`, `/usr/local/bin`, `/usr/local/lib`, `/usr/libexec`, `/opt`) are scanned too, so a dropped executable's embedded C2 domain or pool address is found.
+
+| Ecosystem | System-wide (`--include-system`) |
+|-----------|----------------------------------|
+| JavaScript | `/usr/lib/node_modules`, `/usr/local/lib/node_modules`, `/usr/share/nodejs`, Homebrew `node_modules` |
+| Python | `/usr/lib/python3*/site-packages` and `dist-packages`, `/usr/lib64/python3*/site-packages`, `/usr/local/lib/python3*/…`, Homebrew and python.org framework installs |
+| Conda | `/opt/conda/pkgs`, `/opt/miniconda3/pkgs`, `/opt/anaconda3/pkgs` |
+| Go | `/usr/local/go/pkg/mod` |
+| Rust | `/usr/local/cargo/registry`, `/usr/local/cargo/git` |
+| Ruby | `/var/lib/gems/*`, `/usr/share/gems`, `/usr/lib/ruby/gems/*`, `/usr/local/lib/ruby/gems/*`, `/usr/local/bundle` |
+| PHP | `/usr/share/php`, `/usr/local/share/composer/vendor` |
+| Java | `/usr/share/java`, `/usr/share/maven-repo` |
+| .NET | `/usr/share/dotnet/sdk/NuGetFallbackFolder` |
+
 Only directories that exist on disk are scanned, and a shared `vendor/` is attributed to a single ecosystem by the manifest present at the root, so it is never scanned twice.
 
 ## Reading the output
@@ -275,6 +291,12 @@ vulnetix malscan ./my-app
 
 # Also scan the shared home caches (~/.npm, ~/go/pkg/mod, ~/.cargo, …)
 vulnetix malscan --include-home
+
+# The whole machine: system installs, every account's caches, /usr/bin, /opt
+sudo vulnetix malscan --include-system
+
+# A running container's filesystem, from the host
+sudo vulnetix malscan --include-system --system-root /proc/$(pidof myapp)/root
 
 # Emit the findings as JSON or SARIF to stdout (the file is still written)
 vulnetix malscan -o json

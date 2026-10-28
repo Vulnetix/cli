@@ -26,6 +26,8 @@ vulnetix aibom [path] [flags]
 | `--no-builtin-catalog` | bool | `false` | Do not load the embedded catalog (use only `--catalog`) |
 | `--no-env` | bool | `false` | Skip the environment-variable detection pass |
 | `--include-home` | bool | `false` | Also probe the user's home directory for tool config dirs |
+| `--include-system` | bool | `false` | Probe every account's home on the system (`/home/*`, `/root`) for tool config dirs, not just yours |
+| `--system-root` | string | `/` | Filesystem `--include-system` describes: a mounted volume, an unpacked image or `/proc/<pid>/root` |
 | `--no-source` | bool | `false` | Skip the source-code SDK / model detection pass |
 | `--no-commits` | bool | `false` | Skip the git commit-history detection pass |
 | `--commit-scan-max` | int | `2000` | Max commits (from HEAD) the commit-history pass inspects |

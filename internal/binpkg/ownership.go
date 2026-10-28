@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vulnetix/cli/v3/internal/sysinv"
 )
 
 // Owner identifies the OS package that installed a file inside a container root
@@ -12,7 +14,7 @@ import (
 type Owner struct {
 	Name      string
 	Version   string
-	Ecosystem string // deb, apk or arch
+	Ecosystem string // deb, apk, arch or rpm
 	// Source is the package-database file the attribution came from, relative to
 	// the container root.
 	Source string
@@ -43,32 +45,31 @@ func (idx OwnerIndex) Lookup(root, hostPath string) (Owner, bool) {
 
 // BuildOwnerIndex reads the file lists of every package database present under a
 // container root filesystem: dpkg (`var/lib/dpkg/info/*.list`), apk
-// (`lib/apk/db/installed` F:/R: records) and pacman
-// (`var/lib/pacman/local/*/files`).
-//
-// RPM is intentionally absent: its database is a Berkeley DB or SQLite file that
-// cannot be read without linking a native library, so rpm-based images get
-// package components (from the `sca` container pass) without per-file
-// attribution. Callers should not treat a missing owner as "unpackaged" for those
-// images — see HasFileOwnership.
+// (`lib/apk/db/installed` F:/R: records), pacman (`var/lib/pacman/local/*/files`)
+// and rpm (the Berkeley DB, NDB or SQLite database, read in pure Go by sysinv).
 func BuildOwnerIndex(root string) OwnerIndex {
 	idx := OwnerIndex{}
 	addDpkgOwners(root, idx)
 	addAPKOwners(root, idx)
 	addPacmanOwners(root, idx)
+	addRPMOwners(root, idx)
 	return idx
 }
 
 // HasFileOwnership reports whether the root filesystem carries any package
-// database whose file lists this package can read. It is false for rpm-only
-// images and for arbitrary directories, which is the signal callers need before
-// concluding a binary belongs to no package.
+// database whose file lists this package can read. It is false for arbitrary
+// directories, which is the signal callers need before concluding a binary
+// belongs to no package. An rpm database that exists but cannot be read leaves
+// the index empty for it, so a caller still learns nothing from absence there:
+// BuildOwnerIndex returning no rpm owners is not evidence of unpackaged files.
 func HasFileOwnership(root string) bool {
 	for _, probe := range []string{
 		"var/lib/dpkg/info",
 		"lib/apk/db/installed",
 		"var/lib/apk/db/installed",
 		"var/lib/pacman/local",
+		"var/lib/rpm",
+		"usr/lib/sysimage/rpm",
 	} {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(probe))); err == nil {
 			return true
@@ -179,6 +180,23 @@ func addAPKOwners(root string, idx OwnerIndex) {
 			}
 		}
 		_ = f.Close()
+	}
+}
+
+// ── rpm ─────────────────────────────────────────────────────────────────────
+
+func addRPMOwners(root string, idx OwnerIndex) {
+	res := sysinv.Collect(root)
+	for _, p := range res.Packages {
+		if p.Ecosystem != "rpm" {
+			continue
+		}
+		owner := Owner{Name: p.Name, Version: p.Version, Ecosystem: "rpm", Source: p.DB}
+		for _, f := range p.Files {
+			if path := normalizeOwnedPath(f); path != "" {
+				idx.put(path, owner)
+			}
+		}
 	}
 }
 

@@ -55,6 +55,8 @@ func resetSBOMFlags(t *testing.T) {
 		"no-cbom":              "false",
 		"no-signatures":        "false",
 		"include-home":         "false",
+		"include-system":       "false",
+		"system-root":          "/",
 		"sbom-include-ignored": "false",
 		"cdx-include-ignored":  "false",
 	}
@@ -395,6 +397,63 @@ func TestSBOMCommandInspectsContainerRootfs(t *testing.T) {
 	// Ownership only makes sense for artefacts the package database claims.
 	if got := doc.prop("com.vendor:agent", "vulnetix:binary/discovered-in"); !strings.Contains(got, "agent.jar") {
 		t.Errorf("discovered-in = %q, want the artefact path", got)
+	}
+}
+
+// TestSBOMCommandIncludeSystem covers --include-system against a mounted
+// system: distro packages named the way the distro's advisories name them,
+// machine-wide language installs, the system binary directories, and nothing
+// from the scanning machine itself.
+func TestSBOMCommandIncludeSystem(t *testing.T) {
+	resetSBOMFlags(t)
+	t.Cleanup(func() { resetSBOMFlags(t) })
+	root := t.TempDir()
+	sys := filepath.Join(root, "mnt")
+	write := func(rel, body string) {
+		full := filepath.Join(sys, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("etc/os-release", "ID=debian\nVERSION_ID=\"12\"\n")
+	write("var/lib/dpkg/status", "Package: libssl3\nStatus: install ok installed\nArchitecture: amd64\nSource: openssl\nVersion: 3.0.11-1~deb12u2\n\n"+
+		"Package: gone\nStatus: deinstall ok config-files\nVersion: 1.0\n\n")
+	write("usr/lib/node_modules/npm/package.json", `{"name":"npm","version":"10.2.4"}`)
+	writeJarWithCoordinates(t, filepath.Join(sys, "opt", "vendor", "agent.jar"), "com.vendor", "agent", "9.9.9")
+
+	project := filepath.Join(root, "project")
+	if err := os.MkdirAll(project, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(root, "system.cdx.json")
+	if _, err := executeCommand(t, rootCmd, "cdx",
+		"--path", project, "--include-system", "--system-root", sys, "--output-file", out,
+		"--no-aibom", "--no-cbom", "--no-analytics", "--no-banner",
+	); err != nil {
+		t.Fatalf("cdx --include-system: %v", err)
+	}
+
+	doc := readSBOM(t, out)
+	purls := map[string]bool{}
+	for _, c := range doc.Components {
+		purls[c.Purl] = true
+	}
+	for _, want := range []string{
+		"pkg:deb/debian/libssl3@3.0.11-1~deb12u2?arch=amd64&distro=debian-12&upstream=openssl",
+		"pkg:npm/npm@10.2.4",
+		"pkg:maven/com.vendor/agent@9.9.9",
+	} {
+		if !purls[want] {
+			t.Errorf("missing %s (have %v)", want, purls)
+		}
+	}
+	for p := range purls {
+		if strings.Contains(p, "/gone@") {
+			t.Errorf("a removed package was reported: %s", p)
+		}
 	}
 }
 

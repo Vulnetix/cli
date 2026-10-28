@@ -170,3 +170,41 @@ func TestDetectMultiSDKAttribution(t *testing.T) {
 		t.Errorf("claude occurrences = %d, want 1", claude.Occurrences)
 	}
 }
+
+func TestDetectSystemProbesEveryAccount(t *testing.T) {
+	sys := t.TempDir()
+	mustWrite(t, sys, "home/alice/.claude/settings.json", "{}")
+	project := t.TempDir()
+
+	det, err := Detect(Options{Root: project, Catalog: compiledCatalog(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if toolIDs(det)["claude-code"] {
+		t.Fatal("another account's config must need --include-system")
+	}
+
+	det, err = Detect(Options{Root: project, IncludeSystem: true, SystemRoot: sys, Catalog: compiledCatalog(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var locators []string
+	for _, tool := range det.Tools {
+		if tool.ID != "claude-code" {
+			continue
+		}
+		for _, ev := range tool.Evidence {
+			locators = append(locators, ev.Locator)
+		}
+	}
+	// The account is named by its path on the scanned system, not by "~".
+	found := false
+	for _, l := range locators {
+		if strings.HasPrefix(l, "/home/alice/.claude") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("claude-code under /home/alice not detected; evidence %v", locators)
+	}
+}

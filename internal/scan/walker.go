@@ -38,7 +38,7 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 	// over-pruned. Installed-dir discovery reads these dirs directly, not via this
 	// walker, so pruning them here loses no real packages.
 	pruneDirs := make(map[string]bool)
-	for _, t := range ecosystems.Resolve(rootPath, false) {
+	for _, t := range ecosystems.Resolve(rootPath, ecosystems.Scope{}) {
 		pruneDirs[t.Path] = true
 	}
 

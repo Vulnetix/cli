@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // Target is one resolved scan location handed to the malscan engine.
@@ -24,7 +25,10 @@ type Target struct {
 	EngineSlug string // malscan-engine feed slug: npm|pypi|go|cargo|rubygems|nuget|homebrew|generic
 	Path       string // absolute path that exists on disk
 	UserScoped bool   // true when sourced from a home/user cache (gated by --include-home)
-	Label      string // short human label for output, e.g. "node_modules" or "~/.cargo/registry"
+	// SystemScoped is true when the location came from --include-system: a
+	// machine-wide install dir, or a cache in another account's home.
+	SystemScoped bool
+	Label        string // short human label for output, e.g. "node_modules" or "~/.cargo/registry"
 }
 
 // dirSpec is one project-local directory candidate (relative to the scan root).
@@ -42,9 +46,15 @@ type ecosystem struct {
 	name        string
 	engineSlug  string
 	projectDirs []dirSpec
-	// userDirs returns absolute home/user cache paths (honoring env overrides).
-	// Called only when --include-home is set.
-	userDirs func(home string) []string
+	// userDirs returns absolute home/user cache paths. getenv answers the
+	// overrides (GOMODCACHE, CARGO_HOME, …); it is os.Getenv for the invoking
+	// user and blank for every other account, whose environment we cannot see.
+	// Called only when --include-home or --include-system is set.
+	userDirs func(home string, getenv func(string) string) []string
+	// systemDirs are machine-wide install locations, as globs relative to the
+	// system root: where the distro's own packages, `sudo pip install` and
+	// `npm install -g` put things. Called only when --include-system is set.
+	systemDirs []string
 }
 
 // table is the maintainable catalog of ecosystem locations. Add a new ecosystem
@@ -53,15 +63,21 @@ var table = []ecosystem{
 	{
 		name:       "javascript",
 		engineSlug: "npm",
+		systemDirs: []string{
+			"usr/lib/node_modules",
+			"usr/local/lib/node_modules",
+			"usr/share/nodejs",
+			"opt/homebrew/lib/node_modules",
+		},
 		projectDirs: []dirSpec{
 			{glob: "node_modules"},
 			{glob: ".yarn/cache"},
 			{glob: ".yarn/unplugged"},
 			{glob: ".pnpm-store"},
 		},
-		userDirs: func(home string) []string {
+		userDirs: func(home string, getenv func(string) string) []string {
 			var out []string
-			if c := os.Getenv("npm_config_cache"); c != "" {
+			if c := getenv("npm_config_cache"); c != "" {
 				out = append(out, c)
 			} else {
 				out = append(out, filepath.Join(home, ".npm"))
@@ -79,6 +95,16 @@ var table = []ecosystem{
 	{
 		name:       "python",
 		engineSlug: "pypi",
+		systemDirs: []string{
+			"usr/lib/python3*/site-packages",
+			"usr/lib/python3*/dist-packages",
+			"usr/lib/python3/dist-packages",
+			"usr/lib64/python3*/site-packages",
+			"usr/local/lib/python3*/site-packages",
+			"usr/local/lib/python3*/dist-packages",
+			"opt/homebrew/lib/python3*/site-packages",
+			"Library/Frameworks/Python.framework/Versions/*/lib/python3*/site-packages",
+		},
 		projectDirs: []dirSpec{
 			{glob: ".venv"},
 			{glob: "venv"},
@@ -86,7 +112,7 @@ var table = []ecosystem{
 			{glob: ".tox"},
 			{glob: "__pypackages__"},
 		},
-		userDirs: func(home string) []string {
+		userDirs: func(home string, getenv func(string) string) []string {
 			out := []string{
 				filepath.Join(home, ".cache", "pip"),
 				filepath.Join(home, ".local", "pipx"),
@@ -104,11 +130,16 @@ var table = []ecosystem{
 	{
 		name:       "conda",
 		engineSlug: "pypi",
+		systemDirs: []string{
+			"opt/conda/pkgs",
+			"opt/miniconda3/pkgs",
+			"opt/anaconda3/pkgs",
+		},
 		projectDirs: []dirSpec{
 			{glob: "envs", requireManifest: []string{"environment.yml", "environment.yaml"}},
 			{glob: ".conda", requireManifest: []string{"environment.yml", "environment.yaml"}},
 		},
-		userDirs: func(home string) []string {
+		userDirs: func(home string, getenv func(string) string) []string {
 			var out []string
 			for _, d := range []string{"miniconda3", "anaconda3", ".conda"} {
 				p := filepath.Join(home, d, "pkgs")
@@ -122,14 +153,17 @@ var table = []ecosystem{
 	{
 		name:       "go",
 		engineSlug: "go",
+		systemDirs: []string{
+			"usr/local/go/pkg/mod",
+		},
 		projectDirs: []dirSpec{
 			{glob: "vendor", requireManifest: []string{"go.mod"}},
 		},
-		userDirs: func(home string) []string {
-			if mc := os.Getenv("GOMODCACHE"); mc != "" {
+		userDirs: func(home string, getenv func(string) string) []string {
+			if mc := getenv("GOMODCACHE"); mc != "" {
 				return []string{mc}
 			}
-			if gp := os.Getenv("GOPATH"); gp != "" {
+			if gp := getenv("GOPATH"); gp != "" {
 				return []string{filepath.Join(gp, "pkg", "mod")}
 			}
 			return []string{filepath.Join(home, "go", "pkg", "mod")}
@@ -138,12 +172,16 @@ var table = []ecosystem{
 	{
 		name:       "rust",
 		engineSlug: "cargo",
+		systemDirs: []string{
+			"usr/local/cargo/registry",
+			"usr/local/cargo/git",
+		},
 		projectDirs: []dirSpec{
 			{glob: "vendor", requireManifest: []string{"Cargo.toml"}},
 			{glob: "target", requireManifest: []string{"Cargo.toml"}},
 		},
-		userDirs: func(home string) []string {
-			base := os.Getenv("CARGO_HOME")
+		userDirs: func(home string, getenv func(string) string) []string {
+			base := getenv("CARGO_HOME")
 			if base == "" {
 				base = filepath.Join(home, ".cargo")
 			}
@@ -156,12 +194,20 @@ var table = []ecosystem{
 	{
 		name:       "ruby",
 		engineSlug: "rubygems",
+		systemDirs: []string{
+			"var/lib/gems/*",
+			"usr/share/gems",
+			"usr/lib/ruby/gems/*",
+			"usr/lib64/ruby/gems/*",
+			"usr/local/lib/ruby/gems/*",
+			"usr/local/bundle",
+		},
 		projectDirs: []dirSpec{
 			{glob: "vendor/bundle"},
 			{glob: ".bundle"},
 		},
-		userDirs: func(home string) []string {
-			if gh := os.Getenv("GEM_HOME"); gh != "" {
+		userDirs: func(home string, getenv func(string) string) []string {
+			if gh := getenv("GEM_HOME"); gh != "" {
 				return []string{gh}
 			}
 			return []string{filepath.Join(home, ".gem")}
@@ -170,10 +216,14 @@ var table = []ecosystem{
 	{
 		name:       "php",
 		engineSlug: "generic",
+		systemDirs: []string{
+			"usr/share/php",
+			"usr/local/share/composer/vendor",
+		},
 		projectDirs: []dirSpec{
 			{glob: "vendor", requireManifest: []string{"composer.json"}},
 		},
-		userDirs: func(home string) []string {
+		userDirs: func(home string, getenv func(string) string) []string {
 			return []string{
 				filepath.Join(home, ".composer"),
 				filepath.Join(home, ".config", "composer"),
@@ -183,11 +233,15 @@ var table = []ecosystem{
 	{
 		name:       "java",
 		engineSlug: "generic",
+		systemDirs: []string{
+			"usr/share/java",
+			"usr/share/maven-repo",
+		},
 		projectDirs: []dirSpec{
 			{glob: "target", requireManifest: []string{"pom.xml"}},
 			{glob: "build", requireManifest: []string{"build.gradle", "build.gradle.kts"}},
 		},
-		userDirs: func(home string) []string {
+		userDirs: func(home string, getenv func(string) string) []string {
 			return []string{
 				filepath.Join(home, ".m2", "repository"),
 				filepath.Join(home, ".gradle", "caches"),
@@ -197,11 +251,14 @@ var table = []ecosystem{
 	{
 		name:       "dotnet",
 		engineSlug: "nuget",
+		systemDirs: []string{
+			"usr/share/dotnet/sdk/NuGetFallbackFolder",
+		},
 		projectDirs: []dirSpec{
 			{glob: "packages", requireManifest: []string{"*.sln", "*.csproj", "packages.config"}},
 		},
-		userDirs: func(home string) []string {
-			if p := os.Getenv("NUGET_PACKAGES"); p != "" {
+		userDirs: func(home string, getenv func(string) string) []string {
+			if p := getenv("NUGET_PACKAGES"); p != "" {
 				return []string{p}
 			}
 			return []string{filepath.Join(home, ".nuget", "packages")}
@@ -213,8 +270,8 @@ var table = []ecosystem{
 		projectDirs: []dirSpec{
 			{glob: ".dart_tool"},
 		},
-		userDirs: func(home string) []string {
-			if p := os.Getenv("PUB_CACHE"); p != "" {
+		userDirs: func(home string, getenv func(string) string) []string {
+			if p := getenv("PUB_CACHE"); p != "" {
 				return []string{p}
 			}
 			return []string{filepath.Join(home, ".pub-cache")}
@@ -227,7 +284,7 @@ var table = []ecosystem{
 			{glob: "deps", requireManifest: []string{"mix.exs"}},
 			{glob: "_build", requireManifest: []string{"mix.exs"}},
 		},
-		userDirs: func(home string) []string {
+		userDirs: func(home string, getenv func(string) string) []string {
 			return []string{
 				filepath.Join(home, ".hex"),
 				filepath.Join(home, ".mix"),
@@ -236,12 +293,27 @@ var table = []ecosystem{
 	},
 }
 
+// Scope says which locations beyond the project a resolution covers.
+type Scope struct {
+	// Home adds the invoking user's caches (~/.npm, ~/go/pkg/mod, …).
+	Home bool
+	// System adds machine-wide install dirs under SystemRoot and the caches in
+	// every account's home there, so the answer is the whole host rather than
+	// one person's checkout.
+	System bool
+	// SystemRoot is the filesystem --include-system describes. Blank means "/";
+	// a mounted volume, an unpacked image or /proc/<pid>/root describes that
+	// system instead of the one the CLI is running on.
+	SystemRoot string
+}
+
 // Resolve returns every dependency install/cache location that exists for the
 // given scan root. Project-local dirs are always considered; user-scoped/home
-// caches are added only when includeHome is true. Results are de-duplicated by
-// absolute path (first ecosystem to claim a path wins), so a shared "vendor"
-// directory is never scanned twice.
-func Resolve(root string, includeHome bool) []Target {
+// caches are added for scope.Home, and machine-wide dirs plus every account's
+// caches for scope.System. Results are de-duplicated by absolute path (first
+// ecosystem to claim a path wins), so a shared "vendor" directory is never
+// scanned twice.
+func Resolve(root string, scope Scope) []Target {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		absRoot = root
@@ -280,12 +352,17 @@ func Resolve(root string, includeHome bool) []Target {
 		}
 	}
 
-	if includeHome && home != "" {
+	sysRoot := SystemRoot(scope.SystemRoot)
+	// The invoking user's home belongs to the system being described only when
+	// that system is the live one; a mounted image has its own accounts.
+	liveHome := home != "" && sysRoot == string(filepath.Separator)
+
+	if (scope.Home || (scope.System && liveHome)) && home != "" {
 		for _, eco := range table {
 			if eco.userDirs == nil {
 				continue
 			}
-			for _, d := range eco.userDirs(home) {
+			for _, d := range eco.userDirs(home, os.Getenv) {
 				add(Target{
 					Ecosystem:  eco.name,
 					EngineSlug: eco.engineSlug,
@@ -297,7 +374,126 @@ func Resolve(root string, includeHome bool) []Target {
 		}
 	}
 
+	if scope.System {
+		for _, eco := range table {
+			for _, glob := range eco.systemDirs {
+				matches, _ := filepath.Glob(filepath.Join(sysRoot, filepath.FromSlash(glob)))
+				for _, m := range matches {
+					add(Target{
+						Ecosystem:    eco.name,
+						EngineSlug:   eco.engineSlug,
+						Path:         m,
+						SystemScoped: true,
+						Label:        systemLabel(sysRoot, m),
+					})
+				}
+			}
+		}
+		noEnv := func(string) string { return "" }
+		for _, h := range SystemHomes(sysRoot) {
+			for _, eco := range table {
+				if eco.userDirs == nil {
+					continue
+				}
+				for _, d := range eco.userDirs(h, noEnv) {
+					add(Target{
+						Ecosystem:    eco.name,
+						EngineSlug:   eco.engineSlug,
+						Path:         d,
+						UserScoped:   true,
+						SystemScoped: true,
+						Label:        systemLabel(sysRoot, d),
+					})
+				}
+			}
+		}
+	}
+
 	return out
+}
+
+// SystemRoot normalises a --system-root value: blank is the live root.
+func SystemRoot(root string) string {
+	if root == "" {
+		return string(filepath.Separator)
+	}
+	if abs, err := filepath.Abs(root); err == nil {
+		return abs
+	}
+	return root
+}
+
+// SystemHomes lists the account home directories under a system root: every
+// directory in /home (and /Users on macOS images), plus /root. Service
+// accounts with homes elsewhere (/var/lib/jenkins) are reached through the
+// system dirs or not at all; reading /etc/passwd would trust a file the
+// scanned system controls to point the walk anywhere.
+func SystemHomes(sysRoot string) []string {
+	var out []string
+	for _, parent := range []string{"home", "Users"} {
+		entries, err := os.ReadDir(filepath.Join(sysRoot, parent))
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.IsDir() && e.Name() != "Shared" && !strings.HasPrefix(e.Name(), ".") {
+				out = append(out, filepath.Join(sysRoot, parent, e.Name()))
+			}
+		}
+	}
+	if isDir(filepath.Join(sysRoot, "root")) {
+		out = append(out, filepath.Join(sysRoot, "root"))
+	}
+	return out
+}
+
+// SystemBinaryDirs are the directories a whole-system scan inspects for
+// compiled artefacts. It is not the whole root: /proc, /sys and /dev are not
+// files, and /usr/lib alone holds tens of thousands of shared objects that the
+// OS package database already accounts for. Symlinked dirs (/bin -> usr/bin on
+// merged-/usr distros) are returned once, resolved inside the system root.
+func SystemBinaryDirs(sysRoot string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, d := range []string{"usr/bin", "usr/sbin", "usr/local/bin", "usr/local/sbin", "bin", "sbin", "usr/libexec", "usr/local/lib", "opt"} {
+		p := resolveInRoot(sysRoot, filepath.Join(sysRoot, filepath.FromSlash(d)))
+		if p == "" || !isDir(p) || seen[p] {
+			continue
+		}
+		seen[p] = true
+		out = append(out, p)
+	}
+	return out
+}
+
+// resolveInRoot follows a symlinked directory the way the scanned system would:
+// a relative target from its parent, an absolute one from the system root.
+// filepath.EvalSymlinks would resolve an image's "/bin -> /usr/bin" on the host,
+// and /proc/<pid>/root itself to the host's "/". It returns "" for a target
+// that leaves the root or a chain that does not end.
+func resolveInRoot(sysRoot, p string) string {
+	for i := 0; i < 8; i++ {
+		info, err := os.Lstat(p)
+		if err != nil {
+			return ""
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			return p
+		}
+		target, err := os.Readlink(p)
+		if err != nil {
+			return ""
+		}
+		if filepath.IsAbs(target) {
+			p = filepath.Join(sysRoot, target)
+		} else {
+			p = filepath.Join(filepath.Dir(p), target)
+		}
+		if rel, err := filepath.Rel(sysRoot, p); err != nil || startsWithDotDot(rel) {
+			return ""
+		}
+	}
+	return ""
 }
 
 // ScanSkipDirs is the directory-prune set the malscan engine should use for a
@@ -340,6 +536,16 @@ func relLabel(root, path string) string {
 func homeLabel(home, path string) string {
 	if rel, err := filepath.Rel(home, path); err == nil && !startsWithDotDot(rel) {
 		return filepath.Join("~", rel)
+	}
+	return path
+}
+
+// systemLabel renders a path under the system root as the absolute path it has
+// on that system: /usr/lib/python3/dist-packages, even when the image is
+// mounted at /mnt/img.
+func systemLabel(sysRoot, path string) string {
+	if rel, err := filepath.Rel(sysRoot, path); err == nil && !startsWithDotDot(rel) {
+		return "/" + filepath.ToSlash(rel)
 	}
 	return path
 }

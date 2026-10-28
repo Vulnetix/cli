@@ -507,6 +507,8 @@ vulnetix aibom [path] [flags]
 | `--no-builtin-catalog` | `false` | Use only `--catalog`, not the embedded catalog |
 | `--no-env` | `false` | Skip the environment-variable detection pass |
 | `--include-home` | `false` | Also probe the home directory for tool config dirs |
+| `--include-system` | `false` | Probe every account's home on the system, not just yours |
+| `--system-root` | `/` | Filesystem `--include-system` describes (a mounted volume, an unpacked image, `/proc/<pid>/root`) |
 | `--no-source` | `false` | Skip the source-code SDK / model detection pass |
 
 > Detection is catalog-driven (42+ tools, AI SDKs, model-name extraction). The environment pass records variable **names** only — never their values.
@@ -757,6 +759,8 @@ vulnetix malscan [path] [flags]
 |------|---------|-------------|
 | `--path` | `.` | Directory to scan (positional `[path]` overrides; defaults to the git root) |
 | `--include-home` | `false` | Also scan user-scoped/home caches (`~/.npm`, `~/go/pkg/mod`, `~/.cargo`, …) |
+| `--include-system` | `false` | Scan the whole system: machine-wide installs, every account's caches, and the system binary directories |
+| `--system-root` | `/` | Filesystem `--include-system` describes (a mounted volume, an unpacked image, `/proc/<pid>/root`) |
 | `-o, --output` | `pretty` | Terminal output format: `pretty`, `json`, `sarif` |
 | `--output-file` | - | SARIF output path (default `.vulnetix/malscan.sarif`) |
 | `--no-ioc-feeds` | `false` | Skip the STIX network fetch; run `detect` + `badhash` only (offline) |

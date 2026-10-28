@@ -37,8 +37,12 @@ type Options struct {
 	Ignore      []string
 	ScanEnv     bool
 	IncludeHome bool
-	ScanSource  bool
-	ScanCommits bool
+	// IncludeSystem probes every account's home under SystemRoot ("/" when
+	// blank) rather than only the invoking user's.
+	IncludeSystem bool
+	SystemRoot    string
+	ScanSource    bool
+	ScanCommits   bool
 	// ScanIaC scans Kubernetes manifests, docker-compose files and
 	// Dockerfiles for the AI infrastructure they would produce.
 	ScanIaC bool
@@ -99,8 +103,8 @@ func Detect(opts Options) (cdx.AIDetections, error) {
 		}
 		c.detectEnv(env)
 	}
-	if opts.IncludeHome {
-		c.detectHome()
+	if opts.IncludeHome || opts.IncludeSystem {
+		c.detectHomes(opts.IncludeHome, opts.IncludeSystem, opts.SystemRoot)
 	}
 	if opts.ScanSource {
 		c.detectSource(input)

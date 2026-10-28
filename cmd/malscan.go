@@ -68,7 +68,12 @@ Four detector families run over each ecosystem's install/cache locations:
 Scan targets are resolved per ecosystem (npm node_modules, python site-packages,
 go vendor, rust/cargo, ruby, php, java, dotnet, dart, elixir). User-scoped/home
 caches (~/.npm, ~/go/pkg/mod, ~/.cargo, ~/.m2, …) are scanned only with
---include-home.
+--include-home. --include-system scans the whole machine instead of one
+checkout: machine-wide installs (/usr/lib/python3*/site-packages,
+/usr/lib/node_modules, system gems, /usr/share/java, …), the caches in every
+account's home, and the system binary directories (/usr/bin, /usr/local/bin,
+/opt, …). --system-root points it at a mounted volume, an unpacked image or
+/proc/<pid>/root instead of the running system.
 
 Evidence is SARIF, always written to .vulnetix/malscan.sarif (override with
 --output-file) and uploaded to Vulnetix when authenticated. The terminal output
@@ -90,6 +95,8 @@ Examples:
   vulnetix malscan                       # pretty findings; writes .vulnetix/malscan.sarif
   vulnetix malscan ./app -o json         # detections as JSON
   vulnetix malscan --include-home        # also scan ~/.npm, ~/go/pkg/mod, …
+  vulnetix malscan --include-system      # the whole machine: system installs, every home, /usr/bin, /opt
+  vulnetix malscan --include-system --system-root /proc/1234/root   # a running container's filesystem
   vulnetix malscan -o sarif              # print SARIF to stdout (still saved + uploaded)
   vulnetix malscan --no-ioc-feeds        # skip the STIX network fetch (detect/badhash only)
   vulnetix malscan --fetch-definitions   # refresh local threat-intel definitions, then exit
@@ -108,6 +115,8 @@ Examples:
 func init() {
 	malscanCmd.Flags().String("path", ".", "Directory to scan (defaults to CWD; resolves to the git root)")
 	malscanCmd.Flags().Bool("include-home", false, "Also scan user-scoped/home install caches (~/.npm, ~/go/pkg/mod, ~/.cargo, …)")
+	malscanCmd.Flags().Bool("include-system", false, "Scan the whole system: machine-wide installs, every account's caches and the system binary directories")
+	malscanCmd.Flags().String("system-root", "/", "Filesystem --include-system describes: a mounted volume, an unpacked image or /proc/<pid>/root")
 	malscanCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty (alias: table), json, sarif")
 	malscanCmd.Flags().String("output-file", "", "Path to write the SARIF report (default: <path>/.vulnetix/malscan.sarif)")
 	malscanCmd.Flags().Bool("no-binary-analysis", false, "Do not extract/match IOCs in binary files")
@@ -125,6 +134,8 @@ func init() {
 type malscanOptions struct {
 	Root           string
 	IncludeHome    bool
+	IncludeSystem  bool
+	SystemRoot     string
 	BinaryAnalysis bool
 	Depth          int
 	MaxFileSize    int64
@@ -195,9 +206,10 @@ type malscanResult struct {
 
 	// What was looked at, for the terminal report: a scan that looked at nothing
 	// must not read as clean.
-	Checked      []malscanChecked
-	FeedsEnabled bool
-	IncludeHome  bool
+	Checked       []malscanChecked
+	FeedsEnabled  bool
+	IncludeHome   bool
+	IncludeSystem bool
 }
 
 // malscanChecked is one install directory and how much of it was inspected.
@@ -231,6 +243,8 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 	}
 	outputFile, _ := cmd.Flags().GetString("output-file")
 	includeHome, _ := cmd.Flags().GetBool("include-home")
+	includeSystem, _ := cmd.Flags().GetBool("include-system")
+	systemRoot, _ := cmd.Flags().GetString("system-root")
 	noBinary, _ := cmd.Flags().GetBool("no-binary-analysis")
 	depth, _ := cmd.Flags().GetInt("scan-depth")
 	maxFileSize, _ := cmd.Flags().GetInt64("max-file-size")
@@ -269,6 +283,8 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 	res, err := runMalscanEngine(malscanOptions{
 		Root:           rootPath,
 		IncludeHome:    includeHome,
+		IncludeSystem:  includeSystem,
+		SystemRoot:     systemRoot,
 		BinaryAnalysis: !noBinary,
 		Depth:          depth,
 		MaxFileSize:    maxFileSize,
@@ -450,9 +466,12 @@ func runMalscanEngine(opts malscanOptions) (*malscanResult, error) {
 		// capability overrides resolve from the caller's catalog dir.
 		_ = os.Setenv("MALSCAN_CONFIG_DIR", opts.ConfigDir)
 	}
-	res := &malscanResult{Host: malscanHost(), FeedsEnabled: opts.IOCFeeds, IncludeHome: opts.IncludeHome}
+	res := &malscanResult{Host: malscanHost(), FeedsEnabled: opts.IOCFeeds, IncludeHome: opts.IncludeHome, IncludeSystem: opts.IncludeSystem}
 	reportMalscanProgress(opts, "Discovering dependency install targets")
-	res.Targets = ecosystems.Resolve(opts.Root, opts.IncludeHome)
+	res.Targets = ecosystems.Resolve(opts.Root, ecosystems.Scope{Home: opts.IncludeHome, System: opts.IncludeSystem, SystemRoot: opts.SystemRoot})
+	if opts.IncludeSystem {
+		res.Targets = append(res.Targets, systemBinaryTargets(opts.SystemRoot, res.Targets)...)
+	}
 	if len(res.Targets) == 0 {
 		reportMalscanProgress(opts, "No dependency install targets found")
 	}
@@ -685,6 +704,33 @@ func reconcileMalscanMemory(rootPath string, gitCtx *gitctx.GitContext, res *mal
 	} else if vexPath != "" && !silent {
 		fmt.Fprintf(os.Stderr, "  VEX: %s\n", vexPath)
 	}
+}
+
+// systemBinaryTargets are the system binary directories as malscan targets: the
+// IOC pass reads the strings compiled into every executable there, which is
+// where a dropped implant's C2 domain or a miner's pool address shows up. A
+// directory already claimed by an ecosystem target is not scanned twice.
+func systemBinaryTargets(systemRoot string, existing []ecosystems.Target) []ecosystems.Target {
+	sysRoot := ecosystems.SystemRoot(systemRoot)
+	claimed := map[string]bool{}
+	for _, t := range existing {
+		claimed[t.Path] = true
+	}
+	var out []ecosystems.Target
+	for _, dir := range ecosystems.SystemBinaryDirs(sysRoot) {
+		if claimed[dir] {
+			continue
+		}
+		label := dir
+		if rel, err := filepath.Rel(sysRoot, dir); err == nil {
+			label = "/" + filepath.ToSlash(rel)
+		}
+		out = append(out, ecosystems.Target{
+			Ecosystem: "system", EngineSlug: "generic", Path: dir,
+			SystemScoped: true, Label: label,
+		})
+	}
+	return out
 }
 
 // gateMalscanOptions are the engine options of the malscan pass the scan/sca

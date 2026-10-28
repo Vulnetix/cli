@@ -13,9 +13,11 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/glaslos/ssdeep v1.0.0
 	github.com/glaslos/tlsh v0.4.0
+	github.com/glebarez/go-sqlite v1.23.0
 	github.com/go-git/go-git/v5 v5.19.2-0.20260526111251-2a76234afbd5
 	github.com/google/go-github/v66 v66.0.0
 	github.com/google/uuid v1.6.0
+	github.com/knqyf263/go-rpmdb v0.1.1
 	github.com/muesli/termenv v0.16.0
 	github.com/open-policy-agent/opa v1.18.2
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
@@ -32,9 +34,17 @@ require (
 
 require (
 	github.com/danieljoos/wincred v1.2.3 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/gowebpki/jcs v1.0.1 // indirect
+	github.com/ncruces/go-strftime v1.0.0 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
+	modernc.org/libc v1.74.1 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.11.0 // indirect
+	modernc.org/sqlite v1.55.0 // indirect
 )
 
 require (

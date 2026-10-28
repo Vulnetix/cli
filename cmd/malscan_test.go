@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vulnetix/cli/v3/internal/ecosystems"
 )
 
 // fixtureRoot builds a malware test tree in a temp dir. It is created at runtime
@@ -208,5 +210,22 @@ func TestMalscanReportAttributesPackages(t *testing.T) {
 	m := malscanReportFrom(res)
 	if len(m.Targets) != len(res.Checked) || len(m.Findings) != len(res.Findings) {
 		t.Errorf("mapping lost rows: %+v", m)
+	}
+}
+
+func TestSystemBinaryTargetsSkipClaimedDirs(t *testing.T) {
+	sys := t.TempDir()
+	for _, d := range []string{"usr/bin", "opt/agent"} {
+		if err := os.MkdirAll(filepath.Join(sys, filepath.FromSlash(d)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	claimed := []ecosystems.Target{{Path: filepath.Join(sys, "opt")}}
+	got := systemBinaryTargets(sys, claimed)
+	if len(got) != 1 {
+		t.Fatalf("want only usr/bin, got %+v", got)
+	}
+	if got[0].Label != "/usr/bin" || got[0].EngineSlug != "generic" || !got[0].SystemScoped {
+		t.Fatalf("unexpected target %+v", got[0])
 	}
 }

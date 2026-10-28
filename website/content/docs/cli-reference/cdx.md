@@ -56,6 +56,8 @@ vulnetix cdx [path] [flags]
 | `--no-cbom` | bool | `false` | Omit CBOM detection/components |
 | `--no-signatures` | bool | `false` | Skip signature, attestation and transparency-log sidecar discovery |
 | `--include-home` | bool | `false` | Include user-scoped package caches |
+| `--include-system` | bool | `false` | Inventory the whole system: OS package databases (dpkg, rpm, apk, pacman), machine-wide language installs, every account's caches and the system binary directories. Distro packages carry `distro=`, `arch=`, `epoch=` and `upstream=` (source package) qualifiers, which is what a distro security advisory is matched on |
+| `--system-root` | string | `/` | Filesystem `--include-system` describes: a mounted volume, an unpacked image or `/proc/<pid>/root` |
 | `--cdx-include-ignored` | bool | `false` | Include files matched by `.gitignore` (`--sbom-include-ignored` is accepted too) |
 | `--container-rootfs` | stringArray | - | Container rootfs directory to inspect |
 | `--container-archive` | stringArray | - | Docker/OCI/rootfs tar archive to inspect |

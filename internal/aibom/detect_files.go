@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	cdx "github.com/Vulnetix/vdb-cyclonedx"
+	"github.com/vulnetix/cli/v3/internal/ecosystems"
 	"github.com/vulnetix/cli/v3/internal/sast"
 )
 
@@ -105,11 +106,31 @@ func (c *collector) runConfigExtractors(paths []string) {
 // detectHome probes the user's home directory for each tool's config directory
 // (e.g. ~/.claude, ~/.cursor). Only the literal prefix of a config/skills glob
 // is checked, and only its existence is recorded — never its contents.
-func (c *collector) detectHome() {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
+func (c *collector) detectHomes(own, system bool, systemRoot string) {
+	home, _ := os.UserHomeDir()
+	if own && home != "" {
+		c.detectHome(home, "~/")
+	}
+	if !system {
 		return
 	}
+	sysRoot := ecosystems.SystemRoot(systemRoot)
+	for _, h := range ecosystems.SystemHomes(sysRoot) {
+		if own && h == home {
+			continue
+		}
+		label := h
+		if rel, err := filepath.Rel(sysRoot, h); err == nil {
+			label = "/" + filepath.ToSlash(rel)
+		}
+		c.detectHome(h, label+"/")
+	}
+}
+
+// detectHome probes one home directory for the config and skills dirs the
+// catalog's tools create. locatorPrefix is how the home is named in evidence:
+// "~/" for the invoking user, the account's path for anyone else's.
+func (c *collector) detectHome(home, locatorPrefix string) {
 	for i := range c.cat.Tools {
 		t := &c.cat.Tools[i]
 		seen := map[string]bool{}
@@ -128,7 +149,7 @@ func (c *collector) detectHome() {
 				h.counts[rule.Category]++
 				if len(h.evidence) < maxEvidenceCollect {
 					h.evidence = append(h.evidence, cdx.AIEvidence{
-						Method: "home", Category: rule.Category, Locator: "~/" + prefix,
+						Method: "home", Category: rule.Category, Locator: locatorPrefix + prefix,
 					})
 				}
 			}

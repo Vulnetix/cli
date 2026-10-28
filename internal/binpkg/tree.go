@@ -31,6 +31,10 @@ type TreeOptions struct {
 	// it with BuildOwnerIndex for a container root filesystem; leave nil
 	// otherwise.
 	Owners OwnerIndex
+	// OwnerRoot is the root filesystem Owners was built from, when the walk
+	// covers only part of it (a system scan walks /usr/bin, not "/"). Blank
+	// means Root.
+	OwnerRoot string
 }
 
 // Artifact is one compiled file that yielded package metadata or an ownership
@@ -66,6 +70,12 @@ func ScanTree(opts TreeOptions) TreeResult {
 	root, err := filepath.Abs(opts.Root)
 	if err != nil {
 		root = opts.Root
+	}
+	ownerRoot := root
+	if opts.OwnerRoot != "" {
+		if abs, err := filepath.Abs(opts.OwnerRoot); err == nil {
+			ownerRoot = abs
+		}
 	}
 	maxSize := opts.MaxFileSize
 	if maxSize <= 0 {
@@ -146,7 +156,7 @@ func ScanTree(opts TreeOptions) TreeResult {
 
 		var owner *Owner
 		if hasOwners {
-			if o, ok := opts.Owners.Lookup(root, path); ok {
+			if o, ok := opts.Owners.Lookup(ownerRoot, path); ok {
 				owner = &o
 			}
 		}

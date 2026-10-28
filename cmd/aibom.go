@@ -78,6 +78,8 @@ func init() {
 	aibomCmd.Flags().Bool("no-builtin-catalog", false, "Do not load the embedded catalog (use only --catalog)")
 	aibomCmd.Flags().Bool("no-env", false, "Skip the environment-variable detection pass")
 	aibomCmd.Flags().Bool("include-home", false, "Also probe the user's home directory for tool config dirs")
+	aibomCmd.Flags().Bool("include-system", false, "Probe every account's home on the system for AI tool config dirs, not just yours")
+	aibomCmd.Flags().String("system-root", "/", "Filesystem --include-system describes: a mounted volume, an unpacked image or /proc/<pid>/root")
 	aibomCmd.Flags().Bool("no-source", false, "Skip the source-code SDK / model detection pass")
 	aibomCmd.Flags().Bool("no-commits", false, "Skip the git commit-history detection pass")
 	aibomCmd.Flags().Bool("no-iac", false, "Skip the IaC (Kubernetes/compose/Dockerfile) infrastructure detection pass")
@@ -101,6 +103,8 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	noBuiltin, _ := cmd.Flags().GetBool("no-builtin-catalog")
 	noEnv, _ := cmd.Flags().GetBool("no-env")
 	includeHome, _ := cmd.Flags().GetBool("include-home")
+	includeSystem, _ := cmd.Flags().GetBool("include-system")
+	systemRoot, _ := cmd.Flags().GetString("system-root")
 	noSource, _ := cmd.Flags().GetBool("no-source")
 	noCommits, _ := cmd.Flags().GetBool("no-commits")
 	noIaC, _ := cmd.Flags().GetBool("no-iac")
@@ -130,6 +134,8 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 		NoBuiltinCatalog: noBuiltin,
 		Passes:           aibomPasses{Env: !noEnv, Source: !noSource, Commits: !noCommits, Iac: !noIaC},
 		IncludeHome:      includeHome,
+		IncludeSystem:    includeSystem,
+		SystemRoot:       systemRoot,
 		CommitMax:        commitMax,
 		RespectGitignore: !includeIgnored,
 		SpecVersion:      specVersion,
@@ -334,6 +340,8 @@ type AIBOMPassOptions struct {
 	// callers must be explicit.
 	Passes           aibomPasses
 	IncludeHome      bool
+	IncludeSystem    bool
+	SystemRoot       string
 	CommitMax        int
 	RespectGitignore bool
 	// SpecVersion defaults to 1.7.
@@ -384,6 +392,8 @@ func runAIBOMPass(opts AIBOMPassOptions) (*AIBOMPassResult, error) {
 		Ignore:           opts.Ignore,
 		ScanEnv:          opts.Passes.Env,
 		IncludeHome:      opts.IncludeHome,
+		IncludeSystem:    opts.IncludeSystem,
+		SystemRoot:       opts.SystemRoot,
 		ScanSource:       opts.Passes.Source,
 		ScanCommits:      opts.Passes.Commits,
 		ScanIaC:          opts.Passes.Iac,

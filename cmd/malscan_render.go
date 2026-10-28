@@ -17,7 +17,7 @@ func malscanReportFrom(res *malscanResult) report.MalscanReport {
 	m := report.MalscanReport{
 		Indicators:   res.IndicatorCount,
 		FeedsEnabled: res.FeedsEnabled,
-		IncludeHome:  res.IncludeHome,
+		IncludeHome:  res.IncludeHome || res.IncludeSystem,
 		Warnings:     res.Warnings,
 	}
 	// The feeds name ecosystems by package manager (npm, pypi, go); findings carry
