@@ -51,6 +51,26 @@ The inventory is a forensic record, not a verdict:
 
 > **Credentials are optional.** When no credentials are configured the [community fallback](https://www.vulnetix.com/features/community) is used automatically.
 
+## Dockerfile structure for container curation
+
+When you are authenticated, the command also reads every Dockerfile and
+Containerfile under the path (`Dockerfile`, `Containerfile`, `Dockerfile.*`,
+`*.dockerfile`; `node_modules`, `vendor` and `.git` are skipped) and records,
+for the **Container curation** page:
+
+- each stage's `FROM` as written and with `ARG` defaults applied, its `AS`
+  alias, `--platform`, and which stage is the final one. A `FROM` that depends
+  on an `ARG` with no default is recorded as unresolved, never guessed; a stage
+  built from an earlier stage records that stage's name;
+- each package-manager install line in the stage's `RUN` instructions (`apk
+  add`, `apt-get install`, `dnf`/`yum`/`microdnf install`, `pacman -S`,
+  `zypper install`) with its line number and any pinned versions.
+
+The migration guide uses these to name the line to change and the `RUN` line
+a package came from. Pair it with [`vulnetix image`](../image/), which records
+the built image itself. A failure to record is reported and does not change
+the exit code.
+
 ## Usage
 
 ```bash

@@ -450,6 +450,7 @@
         "disable-memory",
         "ignore",
         "include-home",
+        "include-system",
         "no-analytics",
         "no-banner",
         "no-builtin-catalog",
@@ -465,6 +466,7 @@
         "path",
         "silent",
         "spec-version",
+        "system-root",
         "verbose"
       ]
     },
@@ -851,6 +853,7 @@
         "exclude",
         "ignore",
         "include-home",
+        "include-system",
         "lifecycle",
         "namespace",
         "no-aibom",
@@ -878,6 +881,7 @@
         "sign",
         "silent",
         "spec-version",
+        "system-root",
         "tag",
         "verbose"
       ]
@@ -1794,6 +1798,24 @@
         "verbose"
       ]
     },
+    "image": {
+      "short": "Inventory a container image for container curation",
+      "flags": [
+        "disable-memory",
+        "max-size-mb",
+        "no-analytics",
+        "no-banner",
+        "no-language-packages",
+        "no-progress",
+        "no-upload",
+        "org-id",
+        "output",
+        "platform",
+        "silent",
+        "source",
+        "verbose"
+      ]
+    },
     "jail": {
       "short": "Gate this pipeline against the organisation's jail policy",
       "flags": [
@@ -2082,6 +2104,7 @@
         "feeds",
         "fetch-definitions",
         "include-home",
+        "include-system",
         "max-file-size",
         "no-analytics",
         "no-banner",
@@ -2095,6 +2118,7 @@
         "path",
         "scan-depth",
         "silent",
+        "system-root",
         "verbose"
       ]
     },
@@ -7952,6 +7976,7 @@
         "gha",
         "iac",
         "ignore",
+        "image",
         "jail",
         "license",
         "lsp",
