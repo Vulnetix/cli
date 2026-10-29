@@ -28,6 +28,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/url"
 	"os"
 	"os/signal"
@@ -45,6 +46,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
 	"github.com/vulnetix/cli/v3/internal/sensor/inventory"
 	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
+	"github.com/vulnetix/cli/v3/internal/sensor/siem"
 	"github.com/vulnetix/cli/v3/internal/sensor/tetragon"
 	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
 	"github.com/vulnetix/cli/v3/pkg/auth"
@@ -108,9 +110,10 @@ func inventoryCmd(args []string) error {
 type options struct {
 	mode, listen, upstream, egressListen, feedKey, stateDir, endpoint *string
 	tetragonExport, hostRoot, dnsListen, dnsUpstream                  *string
+	siemToken, siemURL                                                *string
 	hold, inventoryEvery                                              *time.Duration
 	offline, showVersion, bpfLSM                                      *bool
-	feeds, healthPaths                                                multi
+	feeds, healthPaths, forward                                       multi
 }
 
 // defineFlags is the sensor's whole flag set, in one place so the deploy
@@ -135,9 +138,13 @@ func defineFlags(fs *flag.FlagSet) *options {
 		bpfLSM:      fs.Bool("bpf-lsm", false, "refuse execs of the exact paths block-mode rules name in the kernel, with a BPF LSM program (needs root and the bpf LSM; untested on a live kernel)"),
 		dnsListen:   fs.String("dns-listen", "", "UDP address the DNS guard answers on, e.g. 127.0.0.1:53; point the workload's resolver at it"),
 		dnsUpstream: fs.String("dns-upstream", "", "resolver the DNS guard forwards to (default: the first nameserver in /etc/resolv.conf)"),
+		// The token's default is read after parsing, so -h never prints it.
+		siemToken: fs.String("siem-token", "", "Guardian ingest token (gdn_...) from the console Sources page, for --forward siem (default: VULNETIX_SIEM_TOKEN)"),
+		siemURL:   fs.String("siem-url", "", "Guardian events route for --forward siem (default: VULNETIX_SIEM_URL, else "+siem.DefaultURL+")"),
 	}
 	fs.Var(&o.feeds, "feed", "published detection rule feed URL (repeatable)")
 	fs.Var(&o.healthPaths, "health-path", "path a load balancer probes; never held (repeatable)")
+	fs.Var(&o.forward, "forward", "also send decisions elsewhere; \"siem\" sends every DNS and egress decision to Guardian (repeatable)")
 
 	return o
 }
@@ -231,6 +238,10 @@ func runSensor(args []string, guard bool) error {
 	if !guard && !*o.bpfLSM && *listen == "" && *egressListen == "" && *o.tetragonExport == "" && *o.dnsListen == "" {
 		return errors.New("set --listen with --upstream, --egress-listen, --dns-listen, --tetragon-export, or a combination")
 	}
+	forwarder, err := siemForwarder(o)
+	if err != nil {
+		return err
+	}
 
 	var key []byte
 	if strings.TrimSpace(*feedKey) != "" {
@@ -292,6 +303,11 @@ func runSensor(args []string, guard bool) error {
 	}
 
 	cfg.ExecGuard = command
+	if forwarder != nil {
+		forwarder.Host = facts.Hostname
+		cfg.SIEM = forwarder
+		log.Printf("sensor: forwarding DNS and egress decisions to %s", forwarder.URL)
+	}
 
 	log.Printf("vulnetix-sensor %s: %s on %s (%s), mode %s", version, sensorKey, facts.Hostname, facts.ComputeKind, *mode)
 
@@ -304,6 +320,60 @@ func runSensor(args []string, guard bool) error {
 	}
 
 	return nil
+}
+
+// siemForwarder reads --forward, and returns the Guardian forwarder when it
+// names siem, nil when nothing is forwarded.
+func siemForwarder(o *options) (*siem.Forwarder, error) {
+	want := false
+	for _, v := range o.forward {
+		for _, part := range strings.Split(v, ",") {
+			switch strings.ToLower(strings.TrimSpace(part)) {
+			case "siem":
+				want = true
+			case "":
+			default:
+				return nil, fmt.Errorf("--forward %q: the only destination is siem", part)
+			}
+		}
+	}
+	if !want {
+		return nil, nil
+	}
+	if *o.dnsListen == "" && *o.egressListen == "" {
+		return nil, errors.New("--forward siem sends DNS and egress decisions: set --dns-listen, --egress-listen or both")
+	}
+	token := strings.TrimSpace(*o.siemToken)
+	if token == "" {
+		token = strings.TrimSpace(os.Getenv("VULNETIX_SIEM_TOKEN"))
+	}
+	if token == "" {
+		return nil, errors.New("--forward siem needs a Guardian ingest token: create an Events API token on the console Sources page and pass it with --siem-token or VULNETIX_SIEM_TOKEN")
+	}
+	endpoint := strings.TrimSpace(*o.siemURL)
+	if endpoint == "" {
+		endpoint = strings.TrimSpace(os.Getenv("VULNETIX_SIEM_URL"))
+	}
+	if endpoint == "" {
+		endpoint = siem.DefaultURL
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil || u.Host == "" || (u.Scheme != "https" && !(u.Scheme == "http" && isLoopback(u.Hostname()))) {
+		return nil, fmt.Errorf("--siem-url must be an https URL such as %s", siem.DefaultURL)
+	}
+
+	return &siem.Forwarder{URL: endpoint, Token: token}, nil
+}
+
+// isLoopback allows plain http to a local test server only, so the token is
+// never sent in the clear over a network.
+func isLoopback(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+
+	return ip != nil && ip.IsLoopback()
 }
 
 // pinnedFeedKey is the Vulnetix feed signing public key, set at release build

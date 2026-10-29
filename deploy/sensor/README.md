@@ -115,6 +115,48 @@ Limits:
 
 The sensor does not use ptrace, and reports it as off.
 
+## Forwarding decisions to Guardian
+
+With `--forward siem`, the sensor also sends every DNS lookup the DNS guard
+answers and every connection the egress proxy carries or refuses to Guardian,
+the Vulnetix SIEM, matched or not. The Runtime page still gets only the
+matches; Guardian gets the whole stream, so a detection can look at the clean
+traffic around a hit.
+
+```sh
+VULNETIX_SIEM_TOKEN=gdn_... vulnetix-sensor --mode guard --feed <url> \
+  --dns-listen 127.0.0.1:53 --egress-listen 127.0.0.1:3128 --forward siem
+```
+
+Create the token on the console's Sources page as an Events API ingest token.
+It belongs to your organisation, and Guardian files every row under it; a row
+never names a tenant. The sensor refuses to start with `--forward siem` and no
+token, or with neither `--dns-listen` nor `--egress-listen`.
+
+| Setting | Flag | Environment | Default |
+|---|---|---|---|
+| Ingest token | `--siem-token` | `VULNETIX_SIEM_TOKEN` | none; required |
+| Events route | `--siem-url` | `VULNETIX_SIEM_URL` | `https://ingest.vulnetix.com/v1/ingest/events` |
+
+Prefer the environment variable for the token: a flag shows in `ps`.
+
+Each lookup is a `dns_events` row (`qname`, `qtype`, `rcode`, `answers`,
+`src_ip`) and each connection a `net_events` row (`src_ip`, `src_port`,
+`dst_host`, `dst_ip`, `dst_port`, `proto` tcp, `bytes` in both directions,
+`direction` egress), with `host` set to the machine name. `action` is `allow`
+or `block`; a hold refuses while it lasts, so it is `block`, and `raw.decision`
+keeps the sensor's own word (`allowed`, `held`, `blocked`) with the reason.
+`policy` is `<rule table>:<rule uuid>` when a rule matched. A refused
+connection is sent at once; one the proxy carried is sent when it closes, so a
+long-lived tunnel appears when it ends.
+
+Forwarding never slows a decision. Rows wait in memory (at most 20,000; the
+oldest are dropped past that and counted) and go in one request every 10
+seconds, or as soon as 1,000 are waiting. A request that fails or takes more
+than 10 seconds is dropped, not retried, and the failure is logged at most
+once a minute with the running drop count. What is left when the sensor stops
+is sent once more on the way out.
+
 ## Which packages are in use
 
 `vulnetix-sensor inventory` reads `/proc/*/maps` and the package databases and
@@ -213,6 +255,9 @@ the event still lands in the hold queue for your decision on later ones.
 --state-dir /var/lib/vulnetix-sensor
 --endpoint https://www.vulnetix.com/api/site
 --offline                      load rules, report nothing
+--forward siem                 copy every DNS and egress decision to Guardian
+--siem-token gdn_...           Guardian ingest token (default: VULNETIX_SIEM_TOKEN)
+--siem-url <url>               Guardian events route (default: VULNETIX_SIEM_URL, else ingest.vulnetix.com)
 ```
 
 API: vdb-site `docs/runtime-sensor-api.md`.

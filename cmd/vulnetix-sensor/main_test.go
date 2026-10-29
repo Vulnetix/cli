@@ -105,3 +105,51 @@ func TestDefaultFeedKeyPrefersTheEnvironment(t *testing.T) {
 		t.Fatal("an environment key overrides the pinned one, for rotation")
 	}
 }
+
+func TestForwardSIEMNeedsAToken(t *testing.T) {
+	t.Setenv("VULNETIX_SIEM_TOKEN", "")
+	err := run([]string{"--feed", "https://x/f", "--dns-listen", "127.0.0.1:0", "--offline", "--state-dir", t.TempDir(), "--forward", "siem"})
+	if err == nil || !strings.Contains(err.Error(), "--siem-token") || !strings.Contains(err.Error(), "VULNETIX_SIEM_TOKEN") {
+		t.Fatalf("err = %v, want it to name --siem-token and VULNETIX_SIEM_TOKEN", err)
+	}
+}
+
+func TestSIEMForwarderFlags(t *testing.T) {
+	parse := func(args ...string) *options {
+		fs := flag.NewFlagSet("probe", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		o := defineFlags(fs)
+		if err := fs.Parse(args); err != nil {
+			t.Fatal(err)
+		}
+
+		return o
+	}
+	t.Setenv("VULNETIX_SIEM_TOKEN", "")
+	t.Setenv("VULNETIX_SIEM_URL", "")
+
+	if f, err := siemForwarder(parse("--egress-listen", ":3128")); f != nil || err != nil {
+		t.Fatalf("no --forward forwards nothing: %v %v", f, err)
+	}
+	if _, err := siemForwarder(parse("--forward", "splunk", "--egress-listen", ":3128")); err == nil || !strings.Contains(err.Error(), "siem") {
+		t.Fatalf("an unknown destination is refused: %v", err)
+	}
+	if _, err := siemForwarder(parse("--forward", "siem", "--siem-token", "gdn_x", "--tetragon-export", "x")); err == nil || !strings.Contains(err.Error(), "--dns-listen") {
+		t.Fatalf("nothing to forward without DNS or egress: %v", err)
+	}
+	if _, err := siemForwarder(parse("--forward", "siem", "--siem-token", "gdn_x", "--dns-listen", ":53", "--siem-url", "http://guardian.example/v1/ingest/events")); err == nil {
+		t.Fatal("the token is never sent over plain http off the machine")
+	}
+
+	f, err := siemForwarder(parse("--forward", "siem", "--siem-token", "gdn_flag", "--dns-listen", ":53"))
+	if err != nil || f.Token != "gdn_flag" || f.URL != "https://ingest.vulnetix.com/v1/ingest/events" {
+		t.Fatalf("flag token = %+v %v", f, err)
+	}
+
+	t.Setenv("VULNETIX_SIEM_TOKEN", "gdn_env")
+	t.Setenv("VULNETIX_SIEM_URL", "http://127.0.0.1:8787/v1/ingest/events")
+	f, err = siemForwarder(parse("--forward", "siem", "--egress-listen", ":3128"))
+	if err != nil || f.Token != "gdn_env" || f.URL != "http://127.0.0.1:8787/v1/ingest/events" {
+		t.Fatalf("environment = %+v %v", f, err)
+	}
+}

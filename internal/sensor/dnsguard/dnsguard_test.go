@@ -108,7 +108,7 @@ func TestMonitorReportsAndAnswers(t *testing.T) {
 
 func TestGarbageIsForwardedNotRefused(t *testing.T) {
 	g, events := guard(t, decide.Enforce)
-	if reply, refused := g.check([]byte{1, 2, 3}); refused || reply != nil {
+	if reply, refused, _ := g.check([]byte{1, 2, 3}); refused || reply != nil {
 		t.Fatal("an unparseable packet is forwarded")
 	}
 	if len(*events) != 0 {

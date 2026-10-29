@@ -32,6 +32,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/sensor/inventory"
 	"github.com/vulnetix/cli/v3/internal/sensor/lsmguard"
 	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
+	"github.com/vulnetix/cli/v3/internal/sensor/siem"
 	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
 )
 
@@ -79,6 +80,10 @@ type Config struct {
 	// InventoryEvery is how often the in-use package inventory is read from
 	// HostRoot/proc and reported. Zero turns it off.
 	InventoryEvery time.Duration
+
+	// SIEM, when set, gets a copy of every DNS and egress decision, matched
+	// or not, for Guardian (--forward siem). Nil forwards nothing.
+	SIEM *siem.Forwarder
 
 	FeedEvery      time.Duration
 	HeartbeatEvery time.Duration
@@ -134,6 +139,9 @@ func New(cfg Config) *Agent {
 	}
 	if cfg.Egress != nil {
 		cfg.Egress.Rules, cfg.Egress.Verdicts, cfg.Egress.Report = a.Rules, a.Verdicts, a.Enqueue
+		if cfg.SIEM != nil {
+			cfg.Egress.Observe = cfg.SIEM.Egress
+		}
 	}
 
 	return a
@@ -189,6 +197,20 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	go a.decisionLoop(ctx)
 
+	// The forwarder outlives ctx by its last flush, so shutdown stops it
+	// after the listeners and waits for that flush.
+	siemDone := make(chan struct{})
+	siemCtx, stopSIEM := context.WithCancel(context.Background())
+	defer stopSIEM()
+	if a.cfg.SIEM != nil {
+		go func() {
+			defer close(siemDone)
+			a.cfg.SIEM.Run(siemCtx)
+		}()
+	} else {
+		close(siemDone)
+	}
+
 	if a.cfg.InventoryEvery > 0 && a.cfg.Uplink != nil {
 		go a.inventoryLoop(ctx)
 	}
@@ -199,6 +221,9 @@ func (a *Agent) Run(ctx context.Context) error {
 			a.cfg.Logf("sensor: dns guard not started on %s: %v", a.cfg.DNSListen, err)
 		} else {
 			g := &dnsguard.Guard{Upstream: a.cfg.DNSUpstream, Rules: a.Rules.Load, Verdicts: a.Verdicts, Report: a.Enqueue}
+			if a.cfg.SIEM != nil {
+				g.Observe = a.cfg.SIEM.DNS
+			}
 			go func() {
 				if err := g.Serve(ctx, pc); err != nil {
 					a.cfg.Logf("sensor: dns guard stopped: %v", err)
@@ -233,6 +258,8 @@ func (a *Agent) Run(ctx context.Context) error {
 			_ = s.Shutdown(sctx)
 		}
 		a.Flush(sctx)
+		stopSIEM()
+		<-siemDone
 
 		return nil
 	}
