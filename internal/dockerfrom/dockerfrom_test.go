@@ -95,3 +95,16 @@ func TestScratchAndComments(t *testing.T) {
 		t.Fatal("a file with no FROM has no stages")
 	}
 }
+
+func TestASourceFileNamedLikeADockerfileDeclaresNothing(t *testing.T) {
+	goSource := "package containercuration\n\n// DockerfileInput is what a migration's Dockerfile is rendered from.\ntype DockerfileInput struct {\n\tFrom    string\n}\n"
+	if got := Parse(strings.NewReader(goSource)); got != nil {
+		t.Fatalf("dockerfile.go is not a Dockerfile: %+v", got)
+	}
+	if got := Parse(strings.NewReader("ENV A=1\nFROM alpine:3.20\n")); got != nil {
+		t.Fatalf("only ARG may precede FROM: %+v", got)
+	}
+	if got := Parse(strings.NewReader("# syntax=docker/dockerfile:1\nARG V=3.20\nFROM alpine:${V}\n")); len(got) != 1 || got[0].ResolvedRef != "alpine:3.20" {
+		t.Fatalf("a directive and ARG before FROM is a Dockerfile: %+v", got)
+	}
+}

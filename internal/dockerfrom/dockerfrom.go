@@ -60,6 +60,13 @@ func Parse(r io.Reader) []Stage {
 	stageArgs := map[string]string{}
 	names := map[string]bool{}
 	for _, in := range ins {
+		// ARG is the only instruction a Dockerfile may have before its first
+		// FROM. Anything else means the file only has a Dockerfile's name
+		// (dockerfile.go, whose struct field "From string" would otherwise
+		// read as FROM string), so it declares no image.
+		if len(stages) == 0 && in.keyword != "ARG" && in.keyword != "FROM" {
+			return nil
+		}
 		switch in.keyword {
 		case "ARG":
 			name, def, hasDef := strings.Cut(strings.TrimSpace(in.args), "=")
