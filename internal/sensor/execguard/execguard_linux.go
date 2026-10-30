@@ -271,7 +271,11 @@ func serve(listener int, decide Decider, rootPID int) {
 			return
 		}
 		resp := seccompNotifResp{ID: n.ID, Flags: unix.SECCOMP_USER_NOTIF_FLAG_CONTINUE}
-		if first && int(n.PID) == rootPID {
+		// n.PID is the thread that called exec, not its process. The child
+		// locks its goroutine to an OS thread before installing the filter,
+		// and that thread need not be the group leader, so compare the
+		// thread's group with the workload's pid.
+		if first && threadGroup(int(n.PID)) == rootPID {
 			first = false
 		} else {
 			pathArg, argvArg := n.Data.Args[0], n.Data.Args[1]
@@ -293,6 +297,24 @@ func serve(listener int, decide Decider, rootPID int) {
 		}
 		_, _, _ = unix.Syscall(unix.SYS_IOCTL, uintptr(listener), unix.SECCOMP_IOCTL_NOTIF_SEND, uintptr(unsafe.Pointer(&resp)))
 	}
+}
+
+// threadGroup returns the process (thread group) a thread belongs to, or the
+// thread id itself when /proc no longer has it.
+func threadGroup(tid int) int {
+	status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", tid))
+	if err != nil {
+		return tid
+	}
+	for _, line := range strings.Split(string(status), "\n") {
+		if v, ok := strings.CutPrefix(line, "Tgid:"); ok {
+			if tgid, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+				return tgid
+			}
+		}
+	}
+
+	return tid
 }
 
 func idValid(listener int, id uint64) bool {
