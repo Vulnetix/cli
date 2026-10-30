@@ -43,8 +43,24 @@ func TestDetectReturnsOneEntryPerClient(t *testing.T) {
 	}
 }
 
+// clearProviderEnv blanks every variable Detect reads from the environment, so
+// a base URL or key exported in the developer's own shell cannot change the
+// verdict under test.
+func clearProviderEnv(t *testing.T) {
+	t.Helper()
+	for _, p := range Providers() {
+		if p.APIKeyEnv != "" {
+			t.Setenv(p.APIKeyEnv, "")
+		}
+		for _, k := range p.BaseURLEnv {
+			t.Setenv(k, "")
+		}
+	}
+}
+
 func TestDetectShellState(t *testing.T) {
 	root := t.TempDir()
+	clearProviderEnv(t)
 	t.Setenv("OPENAI_API_KEY", "sk-test")
 	t.Setenv("OPENAI_BASE_URL", GatewayURL(DefaultGatewayURL, "openai", testOrg))
 
@@ -74,6 +90,7 @@ func TestDetectShellState(t *testing.T) {
 
 func TestDetectShellMixedWiring(t *testing.T) {
 	root := t.TempDir()
+	clearProviderEnv(t)
 	t.Setenv("OPENAI_BASE_URL", GatewayURL(DefaultGatewayURL, "openai", testOrg))
 	t.Setenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
 
@@ -215,13 +232,15 @@ func TestReadContinueYAML(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 
+	// The owned entry comes second: readContinue must prefer it over the first
+	// entry that merely sets a base URL.
 	body := `models:
-  - name: Vulnetix AI Firewall (openai)
-    apiBase: https://guardrails.vulnetix.com/openai/org/v1
-    model: gpt-4o
   - name: Local Ollama
     apiBase: http://localhost:11434
     model: llama3
+  - name: Vulnetix AI Firewall (openai)
+    apiBase: https://guardrails.vulnetix.com/openai/org/v1
+    model: gpt-4o
 `
 	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
 		t.Fatal(err)
@@ -310,15 +329,18 @@ func findDetected(got []Detected, id string) (Detected, bool) {
 
 func TestDetectManualClients(t *testing.T) {
 	root := t.TempDir()
+	// Their config directories make both clients installed, so the verdict does
+	// not depend on whether this machine happens to have them.
+	for _, dir := range []string{".cursor", ".windsurf"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
 	got := Detect(Options{Home: root, Root: root}, GatewayHostOrFatal(t))
 	for _, id := range []string{"cursor", "windsurf"} {
 		d, ok := findDetected(got, id)
 		if !ok {
 			t.Fatalf("expected %s entry", id)
-		}
-		if d.State == StateAbsent {
-			t.Logf("%s is absent in this environment; manual clients may not be installed", id)
-			continue
 		}
 		if d.State != StateManual {
 			t.Errorf("%s state = %q, want %q", id, d.State, StateManual)
@@ -335,8 +357,9 @@ func TestDetectInstalled(t *testing.T) {
 
 	got := Detect(Options{Home: root, Root: root}, GatewayHostOrFatal(t))
 	claude, _ := findDetected(got, "claude-code")
-	if claude.State == StateAbsent {
-		t.Error("claude-code should be detected as installed when its directory exists")
+	// Installed, but with no settings.json there is no base URL to classify.
+	if claude.State != StateNotWired {
+		t.Errorf("claude-code state = %q, want %q", claude.State, StateNotWired)
 	}
 }
 
