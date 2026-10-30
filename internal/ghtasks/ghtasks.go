@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,24 +35,78 @@ type RESTGetter struct {
 	Client  *http.Client
 	// Calls counts requests, for the report.
 	Calls int
+	// MaxWait caps the total time Get spends waiting out rate limits for one
+	// request. A limit that resets later than that fails at once with
+	// ErrRateLimited instead of stalling the run.
+	MaxWait time.Duration
+	// RetryBase is the first backoff when GitHub refuses for quota without
+	// saying when to come back; it doubles on each retry.
+	RetryBase time.Duration
 }
+
+const (
+	defaultMaxWait   = 90 * time.Second
+	defaultRetryBase = time.Second
+	maxRateRetries   = 5
+)
 
 // NewRESTGetter returns a getter for baseURL ("" for github.com).
 func NewRESTGetter(baseURL, token string) *RESTGetter {
 	if baseURL == "" {
 		baseURL = DefaultAPIURL
 	}
-	return &RESTGetter{BaseURL: strings.TrimRight(baseURL, "/"), Token: token, Client: &http.Client{Timeout: 30 * time.Second}}
+	return &RESTGetter{
+		BaseURL:   strings.TrimRight(baseURL, "/"),
+		Token:     token,
+		Client:    &http.Client{Timeout: 30 * time.Second},
+		MaxWait:   defaultMaxWait,
+		RetryBase: defaultRetryBase,
+	}
 }
 
 // ErrRateLimited is returned when GitHub refuses for quota.
 var ErrRateLimited = errors.New("GitHub API rate limit exhausted")
 
-// Get implements ghaudit.Getter.
+// Get implements ghaudit.Getter. A refusal for quota (403 or 429 with no
+// requests remaining, or with Retry-After) is retried after the wait GitHub
+// asks for, Retry-After first and then X-RateLimit-Reset, or after an
+// exponential backoff when it names none, as long as the waits fit in
+// MaxWait. Past that it returns ErrRateLimited.
 func (g *RESTGetter) Get(ctx context.Context, path string, out any) (int, error) {
+	var waited time.Duration
+	backoff := g.RetryBase
+	if backoff <= 0 {
+		backoff = defaultRetryBase
+	}
+	for attempt := 0; ; attempt++ {
+		status, wait, err := g.get(ctx, path, out)
+		if !errors.Is(err, ErrRateLimited) {
+			return status, err
+		}
+		if wait <= 0 {
+			wait = backoff
+			backoff *= 2
+		}
+		if attempt >= maxRateRetries || waited+wait > g.MaxWait {
+			return status, err
+		}
+		t := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return status, err
+		case <-t.C:
+		}
+		waited += wait
+	}
+}
+
+// get makes one request. On a refusal for quota it returns ErrRateLimited
+// and how long GitHub asked the caller to wait (0 when it did not say).
+func (g *RESTGetter) get(ctx context.Context, path string, out any) (int, time.Duration, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.BaseURL+path, nil)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
@@ -61,22 +116,44 @@ func (g *RESTGetter) Get(ctx context.Context, path string, out any) (int, error)
 	g.Calls++
 	resp, err := g.Client.Do(req)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
-		if (resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests) && resp.Header.Get("X-RateLimit-Remaining") == "0" {
-			return resp.StatusCode, ErrRateLimited
+		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+			retryAfter := resp.Header.Get("Retry-After")
+			if resp.Header.Get("X-RateLimit-Remaining") == "0" || retryAfter != "" {
+				return resp.StatusCode, rateLimitWait(resp.Header, time.Now()), ErrRateLimited
+			}
 		}
-		return resp.StatusCode, fmt.Errorf("GET %s: HTTP %d", path, resp.StatusCode)
+		return resp.StatusCode, 0, fmt.Errorf("GET %s: HTTP %d", path, resp.StatusCode)
 	}
 	if out != nil && resp.StatusCode != http.StatusNoContent {
 		if err := json.NewDecoder(io.LimitReader(resp.Body, 32<<20)).Decode(out); err != nil {
-			return resp.StatusCode, err
+			return resp.StatusCode, 0, err
 		}
 	}
-	return resp.StatusCode, nil
+	return resp.StatusCode, 0, nil
+}
+
+// rateLimitWait reads how long GitHub wants a client to wait: Retry-After in
+// seconds, else until X-RateLimit-Reset (epoch seconds) plus a second of
+// slack. It returns 0 when neither header says.
+func rateLimitWait(h http.Header, now time.Time) time.Duration {
+	if s, err := strconv.Atoi(strings.TrimSpace(h.Get("Retry-After"))); err == nil && s >= 0 {
+		if s == 0 {
+			return time.Millisecond
+		}
+		return time.Duration(s) * time.Second
+	}
+	if r, err := strconv.ParseInt(strings.TrimSpace(h.Get("X-RateLimit-Reset")), 10, 64); err == nil {
+		if d := time.Unix(r, 0).Sub(now) + time.Second; d > 0 {
+			return d
+		}
+		return time.Second
+	}
+	return 0
 }
 
 // LoadLocal reads the files the engine evaluates from a checkout: workflows,
