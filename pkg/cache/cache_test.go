@@ -171,9 +171,19 @@ func TestCacheVersionDir(t *testing.T) {
 	}
 }
 
-func TestCleanOldCachesRemovesOtherVersions(t *testing.T) {
+// isolateHome points os.UserHomeDir at a temp dir on every platform: HOME on
+// Unix, USERPROFILE on Windows. Redirecting only HOME would let CleanOldCaches
+// delete a Windows developer's real cache.
+func isolateHome(t *testing.T) string {
+	t.Helper()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	return home
+}
+
+func TestCleanOldCachesRemovesOtherVersions(t *testing.T) {
+	home := isolateHome(t)
 
 	baseDir := filepath.Join(home, ".vulnetix", "cache", "vdb")
 	for _, name := range []string{"v1.7", "v1.8", "v1.9"} {
@@ -209,8 +219,7 @@ func TestCleanOldCachesRemovesOtherVersions(t *testing.T) {
 }
 
 func TestCleanOldCachesAbsentBaseDir(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
+	isolateHome(t)
 
 	removed, err := CleanOldCaches("1.8.5")
 	if err != nil {
@@ -222,8 +231,7 @@ func TestCleanOldCachesAbsentBaseDir(t *testing.T) {
 }
 
 func TestNewDiskCacheDirLayout(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
+	home := isolateHome(t)
 
 	c, err := NewDiskCache("1.8.5")
 	if err != nil {
