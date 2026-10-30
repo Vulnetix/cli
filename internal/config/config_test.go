@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseTags(t *testing.T) {
@@ -617,13 +618,18 @@ func TestPrintConfiguration(t *testing.T) {
 	}
 
 	old := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
 	os.Stdout = w
+	// Restore stdout even if PrintConfiguration panics, or every later test's
+	// output goes into a closed pipe.
+	t.Cleanup(func() { os.Stdout = old })
 	cfg.PrintConfiguration()
-	w.Close()
+	require.NoError(t, w.Close())
 	os.Stdout = old
 
-	out, _ := io.ReadAll(r)
+	out, err := io.ReadAll(r)
+	require.NoError(t, err)
 	got := string(out)
 
 	assert.Contains(t, got, "Configuration Summary")
