@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -56,9 +55,6 @@ func DetectInstallMethod(version, commit string) InstallMethod {
 // executablePath returns the current executable path. Overridable in tests.
 var executablePath = os.Executable
 
-// goosOverride mirrors runtime.GOOS and is overridable in tests.
-var goosOverride = runtime.GOOS
-
 // goInstallRunner performs the "go install" self-update. Overridable in tests.
 var goInstallRunner = defaultUpdateViaGoInstall
 
@@ -104,7 +100,7 @@ func updatePrebuilt() error {
 
 	downloadURL := FindAsset(release)
 	if downloadURL == "" {
-		return fmt.Errorf("no release asset found for %s/%s", goosOverride, runtime.GOARCH)
+		return fmt.Errorf("no release asset found for %s/%s", goos, goarch)
 	}
 
 	fmt.Printf("Downloading %s...\n", release.TagName)
@@ -152,7 +148,7 @@ func updatePrebuilt() error {
 	}
 
 	// On Windows, rename current binary first (can't overwrite running exe)
-	if goosOverride == "windows" {
+	if goos == "windows" {
 		oldPath := exe + ".old"
 		os.Remove(oldPath) // ignore error
 		if err := os.Rename(exe, oldPath); err != nil {

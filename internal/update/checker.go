@@ -60,9 +60,6 @@ func CheckLatest() (*Release, error) {
 
 // FindAsset returns the download URL for the current OS/arch from the release assets.
 func FindAsset(release *Release) string {
-	goos := goos
-	goarch := goarch
-
 	suffix := ""
 	if goos == "windows" {
 		suffix = ".exe"
