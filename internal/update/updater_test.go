@@ -25,6 +25,24 @@ func mustWriteExe(t *testing.T, path string) {
 	require.NoError(t, os.WriteFile(path, []byte("stub"), 0755))
 }
 
+// realTempDir returns t.TempDir() with symlinks resolved. DetectInstallMethod
+// resolves the executable's path, so on macOS, where the temp dir sits under the
+// /var -> /private/var symlink, an unresolved dir would never match.
+func realTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	return dir
+}
+
+// setHome points os.UserHomeDir at dir on every platform: it reads HOME on Unix
+// and USERPROFILE on Windows.
+func setHome(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", dir)
+	t.Setenv("USERPROFILE", dir)
+}
+
 func TestDetectInstallMethod_SourceBuildDev(t *testing.T) {
 	assert.Equal(t, MethodSourceBuild, DetectInstallMethod("1.2.3-dev", "abc1234"))
 }
@@ -34,12 +52,12 @@ func TestDetectInstallMethod_SourceBuildUnknownCommit(t *testing.T) {
 }
 
 func TestDetectInstallMethod_GoInstallGOBIN(t *testing.T) {
-	dir := t.TempDir()
+	dir := realTempDir(t)
 	exe := filepath.Join(dir, "vulnetix")
 	mustWriteExe(t, exe)
 	t.Setenv("GOBIN", dir)
 	t.Setenv("GOPATH", "")
-	t.Setenv("HOME", t.TempDir())
+	setHome(t, realTempDir(t))
 	cleanup := stubExecutable(exe, nil)
 	defer cleanup()
 
@@ -47,12 +65,12 @@ func TestDetectInstallMethod_GoInstallGOBIN(t *testing.T) {
 }
 
 func TestDetectInstallMethod_GoInstallGOPATHBin(t *testing.T) {
-	gopath := t.TempDir()
+	gopath := realTempDir(t)
 	exe := filepath.Join(gopath, "bin", "vulnetix")
 	mustWriteExe(t, exe)
 	t.Setenv("GOBIN", "")
 	t.Setenv("GOPATH", gopath)
-	t.Setenv("HOME", t.TempDir())
+	setHome(t, realTempDir(t))
 	cleanup := stubExecutable(exe, nil)
 	defer cleanup()
 
@@ -60,12 +78,12 @@ func TestDetectInstallMethod_GoInstallGOPATHBin(t *testing.T) {
 }
 
 func TestDetectInstallMethod_GoInstallDefaultHome(t *testing.T) {
-	home := t.TempDir()
+	home := realTempDir(t)
 	exe := filepath.Join(home, "go", "bin", "vulnetix")
 	mustWriteExe(t, exe)
 	t.Setenv("GOBIN", "")
 	t.Setenv("GOPATH", "")
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	cleanup := stubExecutable(exe, nil)
 	defer cleanup()
 
@@ -73,13 +91,13 @@ func TestDetectInstallMethod_GoInstallDefaultHome(t *testing.T) {
 }
 
 func TestDetectInstallMethod_PrebuiltFallback(t *testing.T) {
-	home := t.TempDir()
-	dir := t.TempDir()
+	home := realTempDir(t)
+	dir := realTempDir(t)
 	exe := filepath.Join(dir, "vulnetix")
 	mustWriteExe(t, exe)
 	t.Setenv("GOBIN", "")
 	t.Setenv("GOPATH", "")
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	cleanup := stubExecutable(exe, nil)
 	defer cleanup()
 
@@ -89,7 +107,7 @@ func TestDetectInstallMethod_PrebuiltFallback(t *testing.T) {
 func TestDetectInstallMethod_PrebuiltExecutableError(t *testing.T) {
 	t.Setenv("GOBIN", "")
 	t.Setenv("GOPATH", "")
-	t.Setenv("HOME", t.TempDir())
+	setHome(t, realTempDir(t))
 	cleanup := stubExecutable("", errors.New("no exe"))
 	defer cleanup()
 
@@ -103,12 +121,12 @@ func TestUpdate_SourceBuild(t *testing.T) {
 }
 
 func TestUpdate_GoInstall(t *testing.T) {
-	dir := t.TempDir()
+	dir := realTempDir(t)
 	exe := filepath.Join(dir, "vulnetix")
 	mustWriteExe(t, exe)
 	t.Setenv("GOBIN", dir)
 	t.Setenv("GOPATH", "")
-	t.Setenv("HOME", t.TempDir())
+	setHome(t, realTempDir(t))
 	cleanup := stubExecutable(exe, nil)
 	defer cleanup()
 
@@ -144,10 +162,6 @@ func TestUpdatePrebuilt_Success(t *testing.T) {
 	cleanup := stubExecutable(exe, nil)
 	defer cleanup()
 
-	origOS := goosOverride
-	goosOverride = "linux"
-	defer func() { goosOverride = origOS }()
-
 	origGoos, origGoarch := goos, goarch
 	goos, goarch = "linux", "amd64"
 	defer func() { goos, goarch = origGoos, origGoarch }()
@@ -179,6 +193,7 @@ func TestUpdatePrebuilt_Success(t *testing.T) {
 	matches, err := filepath.Glob(filepath.Join(exeDir, "vulnetix-update-*"))
 	require.NoError(t, err)
 	assert.Empty(t, matches)
+	assert.NoFileExists(t, exe+".old", "only Windows moves the old binary aside")
 }
 
 func TestUpdatePrebuilt_WindowsRename(t *testing.T) {
@@ -188,10 +203,6 @@ func TestUpdatePrebuilt_WindowsRename(t *testing.T) {
 
 	cleanup := stubExecutable(exe, nil)
 	defer cleanup()
-
-	origOS := goosOverride
-	goosOverride = "windows"
-	defer func() { goosOverride = origOS }()
 
 	origGoos, origGoarch := goos, goarch
 	goos, goarch = "windows", "amd64"
@@ -219,4 +230,10 @@ func TestUpdatePrebuilt_WindowsRename(t *testing.T) {
 	data, err := os.ReadFile(exe)
 	require.NoError(t, err)
 	assert.Equal(t, "new binary", string(data))
+
+	// The running binary must have been moved aside before the replace, since
+	// Windows cannot overwrite an executable in use.
+	old, err := os.ReadFile(exe + ".old")
+	require.NoError(t, err, "the old binary was not moved aside")
+	assert.Equal(t, "old", string(old))
 }
