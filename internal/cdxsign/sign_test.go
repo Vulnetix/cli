@@ -363,11 +363,13 @@ func newFulcioStub(t *testing.T) *httptest.Server {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]any{
+		if err := json.NewEncoder(w).Encode(map[string]any{
 			"signedCertificateEmbeddedSct": map[string]any{
 				"chain": map[string]any{"certificates": chain},
 			},
-		})
+		}); err != nil {
+			t.Errorf("fulcio stub: write response: %v", err)
+		}
 	}))
 	t.Cleanup(srv.Close)
 	return srv
@@ -400,9 +402,11 @@ func newRekorStub(t *testing.T, firstIndex int64) *httptest.Server {
 		index := firstIndex + entries.Add(1) - 1
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]struct {
+		if err := json.NewEncoder(w).Encode(map[string]struct {
 			LogIndex int64 `json:"logIndex"`
-		}{testRekorUUID: {LogIndex: index}})
+		}{testRekorUUID: {LogIndex: index}}); err != nil {
+			t.Errorf("rekor stub: write response: %v", err)
+		}
 	}))
 	t.Cleanup(srv.Close)
 	return srv
