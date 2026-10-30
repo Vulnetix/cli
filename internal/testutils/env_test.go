@@ -10,7 +10,12 @@ func TestSetEnvRestores(t *testing.T) {
 	const unsetKey = "TESTUTILS_SETENV_UNSET"
 
 	t.Setenv(keepKey, "original")
+	// t.Setenv registers the restore of the real original; the Unsetenv makes
+	// the variable genuinely unset, not merely empty, for SetEnv to observe.
 	t.Setenv(unsetKey, "")
+	if err := os.Unsetenv(unsetKey); err != nil {
+		t.Fatalf("Unsetenv(%s): %v", unsetKey, err)
+	}
 
 	restore := SetEnv(t, map[string]string{
 		keepKey:  "changed",
@@ -38,11 +43,13 @@ func TestClearEnvRestores(t *testing.T) {
 	const keepKey = "TESTUTILS_CLEARENV_KEEP"
 	const emptyKey = "TESTUTILS_CLEARENV_EMPTY"
 
-	os.Setenv(keepKey, "original")
-	os.Unsetenv(emptyKey)
-	t.Cleanup(func() {
-		os.Unsetenv(keepKey)
-	})
+	// t.Setenv restores whatever these held before the test, so the test
+	// never clobbers a value that existed outside it.
+	t.Setenv(keepKey, "original")
+	t.Setenv(emptyKey, "")
+	if err := os.Unsetenv(emptyKey); err != nil {
+		t.Fatalf("Unsetenv(%s): %v", emptyKey, err)
+	}
 
 	restore := ClearEnv(t, []string{keepKey, emptyKey})
 
