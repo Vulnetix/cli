@@ -421,15 +421,22 @@ func getRefType(refName, tag string) string {
 // that owns the repository is the one running the scan, and CycloneDX asks for
 // it as metadata.manufacturer.
 func OwnerFromGitURL(gitURL string) string {
-	if gitURL == "" {
+	// A trailing slash would otherwise make the repository the owner.
+	trimmed := strings.TrimRight(gitURL, "/")
+	if trimmed == "" {
 		return ""
 	}
-	// Simple extraction for common Git URL formats
-	parts := strings.Split(gitURL, "/")
-	if len(parts) >= 2 {
-		return parts[len(parts)-2]
+	parts := strings.Split(trimmed, "/")
+	if len(parts) < 2 {
+		return ""
 	}
-	return ""
+	owner := parts[len(parts)-2]
+	// scp-style remotes (git@github.com:owner/repo.git) put the host and the
+	// owner in one segment, separated by a colon.
+	if i := strings.LastIndex(owner, ":"); i >= 0 {
+		owner = owner[i+1:]
+	}
+	return owner
 }
 
 func determineBitbucketEvent() string {

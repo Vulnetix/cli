@@ -561,9 +561,11 @@ func TestOwnerFromGitURL(t *testing.T) {
 	}{
 		{name: "empty", gitURL: "", expected: ""},
 		{name: "https github", gitURL: "https://github.com/octocat/Spoon-Knife.git", expected: "octocat"},
-		{name: "ssh github", gitURL: "git@github.com:octocat/Spoon-Knife.git", expected: "git@github.com:octocat"},
+		{name: "ssh github", gitURL: "git@github.com:octocat/Spoon-Knife.git", expected: "octocat"},
 		{name: "single slash", gitURL: "owner/repo", expected: "owner"},
-		{name: "trailing slash", gitURL: "https://github.com/org/repo/", expected: "repo"},
+		{name: "trailing slash", gitURL: "https://github.com/org/repo/", expected: "org"},
+		{name: "ssh url with port", gitURL: "ssh://git@github.com:22/org/repo.git", expected: "org"},
+		{name: "scp style without owner", gitURL: "git@github.com:repo.git", expected: ""},
 		{name: "only one segment", gitURL: "repo", expected: ""},
 	}
 
