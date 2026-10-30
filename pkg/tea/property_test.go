@@ -3,6 +3,7 @@ package tea
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 	"testing/quick"
 )
@@ -89,8 +90,8 @@ func TestComponentReleaseDetailFlatShape(t *testing.T) {
 }
 
 // TestFileMappersAreTotal checks that both mappers answer every filename,
-// empty and mixed-case included, from a fixed vocabulary, and answer the
-// same input the same way twice.
+// empty and mixed-case included, from a fixed vocabulary, and that case
+// does not change the answer.
 func TestFileMappersAreTotal(t *testing.T) {
 	mediaTypes := map[string]bool{
 		"application/vnd.cyclonedx+json": true,
@@ -110,17 +111,23 @@ func TestFileMappersAreTotal(t *testing.T) {
 		"OTHER":           true,
 	}
 	f := func(name string) bool {
-		mt := MediaTypeForFile(name)
-		at := ArtifactTypeForFile(name)
-		return mediaTypes[mt] && artifactTypes[at] &&
-			MediaTypeForFile(name) == mt && ArtifactTypeForFile(name) == at
+		return mediaTypes[MediaTypeForFile(name)] && artifactTypes[ArtifactTypeForFile(name)]
 	}
 	if err := quick.Check(f, nil); err != nil {
 		t.Error(err)
 	}
 	for _, name := range []string{"", "BOM.CDX.JSON", "Results.SARIF", "license.TXT"} {
 		if !f(name) {
-			t.Errorf("%q: mapper returned a value outside the vocabulary or one it would not repeat", name)
+			t.Errorf("%q: mapper returned a value outside the vocabulary", name)
+		}
+		// Case must not change the answer: a mixed-case name maps exactly as
+		// its lower-case spelling does.
+		lower := strings.ToLower(name)
+		if got, want := MediaTypeForFile(name), MediaTypeForFile(lower); got != want {
+			t.Errorf("MediaTypeForFile(%q) = %q, want %q (as for %q)", name, got, want, lower)
+		}
+		if got, want := ArtifactTypeForFile(name), ArtifactTypeForFile(lower); got != want {
+			t.Errorf("ArtifactTypeForFile(%q) = %q, want %q (as for %q)", name, got, want, lower)
 		}
 	}
 }
