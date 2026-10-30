@@ -57,7 +57,7 @@ func TestDetect(t *testing.T) {
 
 // TestDetectUnwrapsDSSE covers the shape `cosign attest` and `syft attest`
 // produce: an in-toto Statement base64'd inside a DSSE envelope. Sniffing the
-// top level of one of these finds neither discriminator field, so without
+// top level of one of these finds neither bomFormat nor spdxVersion, so without
 // unwrapping every signed container SBOM would be unreadable.
 func TestDetectUnwrapsDSSE(t *testing.T) {
 	inner, err := os.ReadFile(filepath.Join("testdata", "buildkit.intoto.json"))
