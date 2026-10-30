@@ -116,6 +116,47 @@ func TestGetWorkflowRunContext(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+// ciEnvKeys is every variable DetectPlatform and the load*CIContext functions
+// read. The suite itself runs on GitHub Actions, where GITHUB_ACTIONS and
+// GITHUB_RUN_ID are set and win detection, so each case starts from a blank
+// slate rather than inheriting the runner's environment.
+var ciEnvKeys = []string{
+	"AGENT_OS", "AGENT_OSARCHITECTURE", "AZURE_HTTP_USER_AGENT", "BITBUCKET_ACCESS_TOKEN",
+	"BITBUCKET_BRANCH", "BITBUCKET_BUILD_NUMBER", "BITBUCKET_CLONE_DIR", "BITBUCKET_COMMIT",
+	"BITBUCKET_PIPELINE_UUID", "BITBUCKET_PR_DESTINATION_BRANCH", "BITBUCKET_PR_ID",
+	"BITBUCKET_REPO_FULL_NAME", "BITBUCKET_REPO_OWNER", "BITBUCKET_STEP_RUNNER_TYPE",
+	"BITBUCKET_STEP_UUID", "BITBUCKET_TAG", "BUILD_BUILDID", "BUILD_BUILDNUMBER",
+	"BUILD_ID", "BUILD_NUMBER", "BUILD_REASON", "BUILD_REPOSITORY_NAME",
+	"BUILD_SOURCEBRANCHNAME", "BUILD_SOURCESDIRECTORY", "BUILD_SOURCEVERSION",
+	"CHANGE_BRANCH", "CHANGE_ID", "CHANGE_TARGET", "CI_API_V4_URL", "CI_COMMIT_REF_NAME",
+	"CI_COMMIT_SHA", "CI_COMMIT_TAG", "CI_JOB_ID", "CI_JOB_TOKEN",
+	"CI_MERGE_REQUEST_SOURCE_BRANCH_NAME", "CI_MERGE_REQUEST_TARGET_BRANCH_NAME",
+	"CI_PIPELINE_ID", "CI_PIPELINE_IID", "CI_PIPELINE_SOURCE", "CI_PROJECT_DIR",
+	"CI_PROJECT_NAMESPACE", "CI_PROJECT_PATH", "CI_RUNNER_EXECUTABLE_ARCH",
+	"CI_RUNNER_TAGS", "CI_SERVER_URL", "CI_SERVER_VERSION", "container", "DOCKER_CONTAINER",
+	"DOCKER_VERSION", "GIT_BRANCH", "GIT_COMMIT", "GIT_URL", "GITHUB_ACTION_REF",
+	"GITHUB_ACTIONS", "GITHUB_API_URL", "GITHUB_BASE_REF", "GITHUB_EVENT_NAME",
+	"GITHUB_HEAD_REF", "GITHUB_JOB", "GITHUB_REF_NAME", "GITHUB_REF_TYPE",
+	"GITHUB_REPOSITORY", "GITHUB_REPOSITORY_OWNER", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER",
+	"GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_TOKEN", "GITHUB_WORKSPACE", "GITLAB_CI",
+	"HOSTNAME", "JENKINS_API_TOKEN", "JENKINS_URL", "JENKINS_VERSION",
+	"JOB_COMPLETION_INDEX", "JOB_NAME", "KUBERNETES_PORT", "KUBERNETES_SERVICE_HOST",
+	"KUBERNETES_SERVICE_PORT", "NODE_LABELS", "POD_NAME", "PODMAN_SYSTEMD_UNIT",
+	"PODMAN_VERSION", "REPO_NAME", "REPO_OWNER", "RUNNER_ARCH", "RUNNER_OS",
+	"SYSTEM_ACCESSTOKEN", "SYSTEM_JOBID", "SYSTEM_PULLREQUEST_SOURCEBRANCH",
+	"SYSTEM_PULLREQUEST_TARGETBRANCH", "SYSTEM_TEAMFOUNDATIONCOLLECTIONURI",
+	"SYSTEM_TEAMPROJECT", "TARGETPLATFORM", "TF_BUILD", "WORKSPACE",
+}
+
+// clearCIEnv blanks every CI variable for the duration of the test. getEnv
+// treats an empty value the same as an unset one.
+func clearCIEnv(t *testing.T) {
+	t.Helper()
+	for _, k := range ciEnvKeys {
+		t.Setenv(k, "")
+	}
+}
+
 func TestDetectPlatform(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -169,19 +210,29 @@ func TestDetectPlatform(t *testing.T) {
 			env:      map[string]string{"DOCKER_CONTAINER": "yes"},
 			expected: PlatformDocker,
 		},
-		// The bare default (no CI markers at all) is PlatformCLI. It cannot be
-		// asserted here because this test runs in a container, /.dockerenv
-		// exists, and the Docker check wins. loadCLICIContext is tested directly.
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			clearCIEnv(t)
 			for k, v := range tt.env {
 				t.Setenv(k, v)
 			}
 			assert.Equal(t, tt.expected, DetectPlatform())
 		})
 	}
+
+	// With no CI markers the answer is CLI, unless the host is a Docker
+	// container, where the /.dockerenv file check wins. Either way it is
+	// deterministic for the host the test runs on.
+	t.Run("no CI markers", func(t *testing.T) {
+		clearCIEnv(t)
+		want := PlatformCLI
+		if fileExists("/.dockerenv") {
+			want = PlatformDocker
+		}
+		assert.Equal(t, want, DetectPlatform())
+	})
 }
 
 func TestLoadCIContext(t *testing.T) {
@@ -481,6 +532,7 @@ func TestLoadCIContext(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			clearCIEnv(t)
 			for k, v := range tt.env {
 				t.Setenv(k, v)
 			}
