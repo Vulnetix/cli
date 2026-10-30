@@ -96,13 +96,23 @@ func TestVaultEntriesRefusesErrorPayload(t *testing.T) {
 }
 
 func TestVaultEntriesRejectsRedirect(t *testing.T) {
-	var client VaultClient
-	handling := func(w http.ResponseWriter, r *http.Request) {
+	// The redirect target answers with a valid payload, so following the hop
+	// would succeed: only a client that refuses redirects returns an error.
+	client, calls := newVaultServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/elsewhere" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"entries":[{"id":"e1"}]}`))
+			return
+		}
 		http.Redirect(w, r, "/elsewhere", http.StatusFound)
-	}
-	client, _ = newVaultServer(t, handling)
+	})
 	if _, err := client.Entries(context.Background()); err == nil {
 		t.Fatal("a redirect carrying a credential must be an error, not a hop")
+	}
+	for _, c := range *calls {
+		if c == "GET /elsewhere" {
+			t.Errorf("the redirect was followed: calls = %v", *calls)
+		}
 	}
 }
 
