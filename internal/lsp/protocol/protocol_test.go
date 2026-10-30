@@ -3,6 +3,7 @@ package protocol
 import (
 	"encoding/json"
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -176,14 +177,31 @@ func TestMarshalUnmarshalRoundTrips(t *testing.T) {
 		Trace:            "off",
 	}
 
+	// keys is the exact top-level key set of each fully populated value. The
+	// round trip alone cannot catch a tag typo (the same struct reads back
+	// whatever name it wrote), so this is what pins the wire names.
 	tests := []struct {
 		name  string
 		shape any
+		keys  []string
 	}{
-		{name: "Diagnostic", shape: diag},
-		{name: "Finding", shape: finding},
-		{name: "ScanWorkspaceResult", shape: scan},
-		{name: "InitializeParams", shape: initParams},
+		{name: "Diagnostic", shape: diag, keys: []string{
+			"range", "severity", "code", "codeDescription", "source", "message",
+			"tags", "relatedInformation", "data",
+		}},
+		{name: "Finding", shape: finding, keys: []string{
+			"id", "tool", "ruleId", "ruleName", "title", "message", "severity",
+			"level", "location", "relatedLocations", "package", "vuln", "status",
+			"vex", "suppression", "helpUri", "fixAvailable", "snippet",
+		}},
+		{name: "ScanWorkspaceResult", shape: scan, keys: []string{
+			"protocolVersion", "scanId", "durationMs", "counts", "artifacts",
+			"gate", "degradations",
+		}},
+		{name: "InitializeParams", shape: initParams, keys: []string{
+			"processId", "rootUri", "clientInfo", "initializationOptions",
+			"capabilities", "workspaceFolders", "trace",
+		}},
 	}
 
 	for _, tt := range tests {
@@ -191,6 +209,21 @@ func TestMarshalUnmarshalRoundTrips(t *testing.T) {
 			b, err := json.Marshal(tt.shape)
 			if err != nil {
 				t.Fatalf("marshal %T: %v", tt.shape, err)
+			}
+
+			var obj map[string]json.RawMessage
+			if err := json.Unmarshal(b, &obj); err != nil {
+				t.Fatalf("unmarshal %T into map: %v", tt.shape, err)
+			}
+			gotKeys := make([]string, 0, len(obj))
+			for k := range obj {
+				gotKeys = append(gotKeys, k)
+			}
+			sort.Strings(gotKeys)
+			wantKeys := append([]string(nil), tt.keys...)
+			sort.Strings(wantKeys)
+			if !reflect.DeepEqual(gotKeys, wantKeys) {
+				t.Errorf("%T wire keys:\n got: %v\nwant: %v", tt.shape, gotKeys, wantKeys)
 			}
 
 			// A fresh value of the same dynamic type is the unmarshal target, so
