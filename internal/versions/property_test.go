@@ -51,7 +51,7 @@ func (g genState) pick(opts ...string) string {
 }
 
 func (g genState) segmentCount() int {
-	// Between 1 and 3+size numeric segments (capped to keep cases readable).
+	// Between 1 and 2+size segments; size is capped at 6 in newGenState.
 	return 1 + g.r.Intn(2+g.size)
 }
 
@@ -120,7 +120,9 @@ func (g genState) version() string {
 	}
 	s := strings.Join(parts, ".")
 
-	if g.bool() {
+	// Parse strips a v prefix only ahead of a number, so "v*.1" is not a
+	// version; prefix only when the first segment is numeric.
+	if g.bool() && !hasWildcardPrefix(s) {
 		s = g.pick("", "v", "V") + s
 	}
 
@@ -154,6 +156,10 @@ func (g genState) version() string {
 
 	// PEP 440 cases are too specialized; keep the generator in SemVer land.
 	return s
+}
+
+func hasWildcardPrefix(s string) bool {
+	return strings.HasPrefix(s, "x") || strings.HasPrefix(s, "X") || strings.HasPrefix(s, "*")
 }
 
 // rangeString generates strings that might be range expressions; most are valid
@@ -197,8 +203,25 @@ func (g genState) junk() string {
 }
 
 func (g genState) rune() rune {
-	const pool = "<>≥≤≠=!.xX*@#$%^&"
-	return rune(pool[g.r.Intn(len(pool))])
+	// Index runes, not bytes: ≥, ≤ and ≠ are multi-byte, and a byte index
+	// would only ever yield fragments of them.
+	pool := []rune("<>≥≤≠=!.xX*@#$%^&")
+	return pool[g.r.Intn(len(pool))]
+}
+
+// Every property below skips inputs that fail to parse, so the generator must
+// actually produce parseable versions or those properties pass vacuously.
+func TestGeneratedVersionsParse(t *testing.T) {
+	f := func(vs versionString) bool {
+		if vs.err != nil {
+			t.Logf("generated %q does not parse: %v", vs.s, vs.err)
+			return false
+		}
+		return true
+	}
+	if err := quick.Check(f, &quick.Config{MaxCount: 2000}); err != nil {
+		t.Errorf("generator produced an unparseable version: %v", err)
+	}
 }
 
 func TestCompareAntisymmetric(t *testing.T) {
@@ -250,7 +273,8 @@ func TestParseNoPanic(t *testing.T) {
 		t.Errorf("Parse panicked on generated string: %v", err)
 	}
 
-	// Explicitly exercise the tricky shapes listed in the task body.
+	// Shapes that have tripped version parsers: advisory prose, Unicode
+	// comparison operators, many segments, and a component past uint64.
 	for _, s := range []string{
 		"", "unspecified", "8.x before 8.5.3", "≥ 1.0.0", "≤ 1.0.0", "≠ 1.0.0",
 		"1.2.3.4.5.6.7.8.9.10.11.12-rc.1.2.3.4+build.1.2.3",
@@ -357,12 +381,12 @@ func TestParseRangeExactContainsVersion(t *testing.T) {
 		expr := "= " + renderVersion(vs.v)
 		rs, err := ParseRange(expr)
 		if err != nil {
-			return true // generator may still produce unrenderable versions; skip
-		}
-		if !rs.Contains(vs.v, PseudoBaseEqual) {
+			// renderVersion output is always a valid version, so "= X" must
+			// parse; skipping here would let the property pass vacuously.
+			t.Logf("ParseRange(%q): %v", expr, err)
 			return false
 		}
-		return true
+		return rs.Contains(vs.v, PseudoBaseEqual)
 	}
 	if err := quick.Check(f, &quick.Config{MaxCount: 500}); err != nil {
 		t.Errorf("Exact range did not contain its own version: %v", err)
