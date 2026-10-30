@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 )
@@ -251,8 +250,8 @@ func TestSortChangesOrder(t *testing.T) {
 	}
 }
 
-func TestExportErrorBranches(t *testing.T) {
-	// A provider slug with an association is exported; empty action is skipped.
+func TestExportSkipsProvidersWithoutAction(t *testing.T) {
+	// A provider with an action is exported; one with an empty action is not.
 	server := ServerState{
 		Providers:   map[string]string{"openai": "deny", "groq": ""},
 		HasKey:      map[string]bool{},
@@ -332,5 +331,3 @@ func TestPlanAnyProviderModel(t *testing.T) {
 		t.Fatalf("expected one anyProvider update, got %+v", changes)
 	}
 }
-
-var _ = sort.Strings

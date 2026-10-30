@@ -297,7 +297,7 @@ func TestYAMLHelpersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "- name: test") && !strings.Contains(out, "- model: gpt-4o") {
+	if !strings.Contains(out, "name: test") || !strings.Contains(out, "model: gpt-4o") {
 		t.Errorf("yaml list merge failed:\n%s", out)
 	}
 
@@ -337,5 +337,11 @@ func TestMapHelpers(t *testing.T) {
 	if got, _ := mapGet(root, "k1"); got != nil {
 		t.Errorf("k1 should be deleted, got %v", got)
 	}
-	renderYAMLDoc(doc)
+	rendered, err := renderYAMLDoc(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(rendered, "k1") {
+		t.Errorf("deleted key still rendered:\n%s", rendered)
+	}
 }
