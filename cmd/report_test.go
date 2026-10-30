@@ -54,11 +54,18 @@ func noAPICalls(t *testing.T) {
 // resetFlagSet restores the given command's mutable flags to their defaults.
 // Cobra flag values live on the command object, so a test that sets a flag would
 // otherwise leave it set for every test that runs after it.
-func resetFlagSet(t *testing.T, cmd *cobra.Command, defaults map[string]string) {
+//
+// A flag the command does not register fails the test, so a renamed flag cannot
+// quietly stop being reset; skipMissing relaxes that for a flag family shared by
+// commands that do not all register every member.
+func resetFlagSet(t *testing.T, cmd *cobra.Command, defaults map[string]string, skipMissing bool) {
 	t.Helper()
 	for flag, value := range defaults {
 		if cmd.Flags().Lookup(flag) == nil {
-			continue // not every command registers every family flag
+			if skipMissing {
+				continue
+			}
+			t.Fatalf("%s has no --%s flag to reset", cmd.Name(), flag)
 		}
 		if err := cmd.Flags().Set(flag, value); err != nil {
 			t.Fatalf("resetting %s --%s: %v", cmd.Name(), flag, err)
@@ -77,7 +84,7 @@ var reportFlagDefaults = map[string]string{
 
 func resetReportFlags(t *testing.T) {
 	t.Helper()
-	resetFlagSet(t, reportCmd, reportFlagDefaults)
+	resetFlagSet(t, reportCmd, reportFlagDefaults, false)
 }
 
 // TestReportRendersStoredFindings is the core of the new owner: replaying results

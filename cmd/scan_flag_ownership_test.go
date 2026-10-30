@@ -29,7 +29,7 @@ func resetScanFamilyFlags(t *testing.T, name string) {
 	if err != nil {
 		t.Fatalf("finding %s: %v", name, err)
 	}
-	resetFlagSet(t, cmd, scanFamilyFlagDefaults)
+	resetFlagSet(t, cmd, scanFamilyFlagDefaults, true)
 }
 
 func dryRunFixture(t *testing.T) string {
