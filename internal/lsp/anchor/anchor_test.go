@@ -256,8 +256,11 @@ func TestFindLockfileResolvers(t *testing.T) {
 	yarnLock := `# yarn lockfile v1
 
 # lodash@ appears in this comment, must be skipped
+underscore@^1.13.0:
+  lodash@ appears indented under another entry, must be skipped
+  version "1.13.6"
+
 lodash@^4.17.0, lodash@^4.17.20:
-  lodash@ appears indented, must be skipped
   version "4.17.21"
 `
 
@@ -318,7 +321,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 	}{
 		{"composer.json require block", composerJSON, "composer.json", "guzzlehttp/guzzle", 3, ConfidenceExact},
 		{"composer.lock name field", composerLock, "composer.lock", "guzzlehttp/guzzle", 4, ConfidenceExact},
-		{"yarn.lock header", yarnLock, "yarn.lock", "lodash", 4, ConfidenceExact},
+		{"yarn.lock header", yarnLock, "yarn.lock", "lodash", 8, ConfidenceExact},
 		{"pnpm-lock v5 slash key", pnpmLockV5, "pnpm-lock.yaml", "lodash", 5, ConfidenceExact},
 		{"pnpm-lock v6 bare key", pnpmLockV6, "pnpm-lock.yaml", "lodash", 5, ConfidenceExact},
 		{"go.sum checksum", goSum, "go.sum", "golang.org/x/text", 1, ConfidenceExact},
@@ -419,7 +422,7 @@ func TestFindGradleForms(t *testing.T) {
 	}{
 		{"compact coordinate", compact, "build.gradle", "com.google.guava:guava", 2, ConfidenceExact},
 		{"map form", mapForm, "build.gradle", "com.google.guava:guava", 2, ConfidenceToken},
-		{"artifact without group", noColon, "build.gradle", "guava", 2, ConfidenceExact},
+		{"bare artifact matches its quoted name as a compact coordinate", noColon, "build.gradle", "guava", 2, ConfidenceExact},
 	}
 
 	for _, tc := range cases {
