@@ -4,12 +4,24 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 // setEnv sets GitHub Actions variables for one test and restores them after.
+//
+// It first blanks every GITHUB_* and RUNNER_* variable the process inherited, so a
+// test run inside a real Actions job (where GITHUB_HEAD_REF holds the PR branch)
+// sees only what the test sets. Collect reads these with os.Getenv, so an empty
+// value is the same as unset.
 func setEnv(t *testing.T, kv map[string]string) {
 	t.Helper()
+	for _, e := range os.Environ() {
+		k, _, _ := strings.Cut(e, "=")
+		if strings.HasPrefix(k, "GITHUB_") || strings.HasPrefix(k, "RUNNER_") {
+			t.Setenv(k, "")
+		}
+	}
 	for k, v := range kv {
 		t.Setenv(k, v)
 	}
