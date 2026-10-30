@@ -240,13 +240,26 @@ func TestSigningWithAnAmbientIdentityWritesEverySidecar(t *testing.T) {
 	}
 
 	// The sidecars are ordinary artifacts, so they must be readable by whoever
-	// consumes them, not only by the uid that wrote them.
-	info, err := os.Stat(path + ".sig")
-	if err != nil {
-		t.Fatalf("stat signature sidecar: %v", err)
+	// consumes them, not only by the uid that wrote them. The process umask
+	// still applies on top of the requested mode, so the expectation is what a
+	// 0644 request yields on this host rather than a literal 0644, which would
+	// fail for anyone running the suite under umask 077.
+	probe := filepath.Join(dir, "mode-probe")
+	if err := os.WriteFile(probe, nil, 0o644); err != nil {
+		t.Fatalf("write mode probe: %v", err)
 	}
-	if got := info.Mode().Perm(); got != 0o644 {
-		t.Fatalf("%s mode = %o, want 644", path+".sig", got)
+	probeInfo, err := os.Stat(probe)
+	if err != nil {
+		t.Fatalf("stat mode probe: %v", err)
+	}
+	for _, sidecar := range []string{".sig", ".pem", ".intoto.jsonl"} {
+		info, err := os.Stat(path + sidecar)
+		if err != nil {
+			t.Fatalf("stat %s sidecar: %v", sidecar, err)
+		}
+		if got, want := info.Mode().Perm(), probeInfo.Mode().Perm(); got != want {
+			t.Fatalf("%s mode = %o, want %o (0644 under this umask)", path+sidecar, got, want)
+		}
 	}
 }
 
