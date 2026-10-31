@@ -56,6 +56,10 @@ For transitive dependencies, the CLI walks the manifest and lockfile graph to re
 | Go, Cargo, PyPI (`requirements.txt`, `pyproject.toml`), RubyGems, Composer, Maven (`pom.xml`) | In-place manifest edits for direct dependencies, then a package-manager re-resolve. |
 | Other ecosystems | Command guidance and manual remediation fallback where in-place editing is not yet reliable. |
 
+The package manager is the one that wrote the lock: `package-lock.json` and `npm-shrinkwrap.json` mean npm, `yarn.lock` yarn (Berry when the lock or `packageManager` says so), `pnpm-lock.yaml` pnpm, and `bun.lock` or `bun.lockb` bun. When it is not on `PATH`, another installed resolver for the ecosystem is used, and with none the fix is marked manual rather than run.
+
+**Workspaces.** In a JavaScript monorepo the lock is at the workspace root. A fix found in the root's lock installs at the root, and a member `package.json` with no lock of its own inherits the root's package manager instead of defaulting to npm (which would write a second, competing lockfile). A direct dependency is usually declared by a member, not the root, so a direct bump edits every member manifest that declares the package; a transitive pin goes into the root `package.json`, where npm, pnpm, yarn and bun read overrides.
+
 ### How an override lands in the manifest
 
 When a transitive package has to be pinned, the CLI writes the pin into the manifest section its package manager reads. What is written depends on the ecosystem:

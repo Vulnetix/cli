@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	manifest "github.com/Vulnetix/vdb-manifest"
+	"github.com/vulnetix/cli/v3/internal/scan"
 )
 
 func Apply(root string, plans []FixCandidate) error {
@@ -51,9 +52,41 @@ func applyOne(root string, p FixCandidate) error {
 	original := string(data)
 	next, changed := editManifest(original, p)
 	if !changed {
+		if editWorkspaceMembers(root, p, p.PackageName, p.TargetVer) > 0 {
+			return nil
+		}
 		return fmt.Errorf("could not locate %s in %s for autofix edit", p.PackageName, p.SourceFile)
 	}
 	return os.WriteFile(path, []byte(next), 0o644)
+}
+
+// editWorkspaceMembers applies a version edit to the workspace members that
+// declare the package, when the manifest a finding maps to is a JavaScript
+// workspace root. A monorepo's findings come from its one lockfile, at the
+// root, but a dependency is declared by the member that uses it; the root
+// package.json often declares nothing. The install still runs at the root,
+// which is where npm, yarn, pnpm and bun re-resolve every member. Returns the
+// number of members edited.
+func editWorkspaceMembers(root string, p FixCandidate, name, target string) int {
+	if filepath.Base(p.SourceFile) != "package.json" {
+		return 0
+	}
+	wsRoot := filepath.Dir(filepath.Join(root, p.SourceFile))
+	edited := 0
+	for _, member := range scan.NpmWorkspaceMemberManifests(wsRoot) {
+		data, err := os.ReadFile(member)
+		if err != nil {
+			continue
+		}
+		next, changed := manifest.EditManifestText("package.json", string(data), name, target)
+		if !changed {
+			continue
+		}
+		if os.WriteFile(member, []byte(next), 0o644) == nil {
+			edited++
+		}
+	}
+	return edited
 }
 
 // applyParentUpgrade rewrites a direct parent dependency's declared range to the
@@ -79,6 +112,7 @@ func applyParentUpgrade(root string, p FixCandidate) error {
 		TargetVer:   p.ParentTarget,
 	})
 	if !changed {
+		editWorkspaceMembers(root, p, p.ParentName, p.ParentTarget)
 		return nil
 	}
 	return os.WriteFile(path, []byte(next), 0o644)

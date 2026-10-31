@@ -233,20 +233,31 @@ func requiresInstalledManager(ecosystem string) bool {
 	}
 }
 
+// npmManagerForLock names the package manager that writes an npm-family lockfile.
+func npmManagerForLock(base string) string {
+	switch base {
+	case "package-lock.json", "npm-shrinkwrap.json":
+		return "npm"
+	case "yarn.lock":
+		return "yarn"
+	case "pnpm-lock.yaml":
+		return "pnpm"
+	case "bun.lock", "bun.lockb":
+		return "bun"
+	}
+	return ""
+}
+
 func packageManagersByDir(files []scan.DetectedFile) map[string]string {
 	out := map[string]string{}
 	for _, f := range files {
 		dir := filepath.Dir(filepath.Clean(f.RelPath))
 		base := filepath.Base(f.RelPath)
+		if pm := npmManagerForLock(base); pm != "" {
+			out[dir] = pm
+			continue
+		}
 		switch base {
-		case "package-lock.json":
-			out[dir] = "npm"
-		case "yarn.lock":
-			out[dir] = "yarn"
-		case "pnpm-lock.yaml":
-			out[dir] = "pnpm"
-		case "bun.lockb":
-			out[dir] = "bun"
 		case "uv.lock":
 			out[dir] = "uv"
 		case "poetry.lock":
@@ -255,6 +266,21 @@ func packageManagersByDir(files []scan.DetectedFile) map[string]string {
 			out[dir] = "pdm"
 		case "Pipfile.lock":
 			out[dir] = "pipenv"
+		}
+	}
+	// A workspace member has no lockfile of its own: it is installed by the
+	// root's package manager, which a bare default of npm would contradict
+	// (npm install in a bun monorepo writes a second, competing lockfile).
+	for _, f := range files {
+		if filepath.Base(f.RelPath) != "package.json" || f.Path == "" {
+			continue
+		}
+		dir := filepath.Dir(filepath.Clean(f.RelPath))
+		if out[dir] != "" {
+			continue
+		}
+		if ws, ok := scan.FindNpmWorkspace(filepath.Dir(f.Path)); ok && ws.LockPath != "" {
+			out[dir] = npmManagerForLock(filepath.Base(ws.LockPath))
 		}
 	}
 	return out
