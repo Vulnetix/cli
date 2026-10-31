@@ -361,8 +361,15 @@ func renderPublish(tools []*Tool, runsOn string, opt Options) string {
 	b.WriteString("      - name: Install Vulnetix CLI\n")
 	// No --version: install.sh resolves the latest release, so this workflow
 	// does not go stale and never needs a version bump commit.
+	//
+	// Downloaded to a file, never piped: a run step without `shell:` is
+	// `bash -e` with no pipefail, so `curl | sh` on a 5xx ran an empty script,
+	// the step passed, and the next one failed with "vulnetix: command not
+	// found". --retry-all-errors retries the 5xx.
 	b.WriteString("        run: |\n")
-	b.WriteString("          curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir \"$HOME/.local/bin\"\n")
+	b.WriteString("          curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \\\n")
+	b.WriteString("            -o \"$RUNNER_TEMP/vulnetix-install.sh\" https://cli.vulnetix.com/install.sh\n")
+	b.WriteString("          sh \"$RUNNER_TEMP/vulnetix-install.sh\" --install-dir \"$HOME/.local/bin\"\n")
 	b.WriteString("          echo \"$HOME/.local/bin\" >> \"$GITHUB_PATH\"\n")
 	b.WriteString("      - name: Publish scanner reports\n")
 	b.WriteString("        env:\n")

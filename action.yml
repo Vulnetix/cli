@@ -87,7 +87,11 @@ runs:
           esac
         fi
 
-        curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- "${args[@]}"
+        # Downloaded to a file with retries, so a transient 5xx from
+        # cli.vulnetix.com is retried instead of failing the caller's job.
+        curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+          -o "$RUNNER_TEMP/vulnetix-install.sh" https://cli.vulnetix.com/install.sh
+        sh "$RUNNER_TEMP/vulnetix-install.sh" "${args[@]}"
 
         echo "$HOME/bin" >> "$GITHUB_PATH"
 

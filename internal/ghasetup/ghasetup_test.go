@@ -120,6 +120,14 @@ func TestRenderInstallsTheCliUnpinned(t *testing.T) {
 	if regexp.MustCompile(`v3\.\d+\.\d+`).MatchString(out) {
 		t.Error("rendered workflow contains a hardcoded CLI version")
 	}
+	// A run step without `shell:` has no pipefail, so a piped install passes
+	// on a failed download and the CLI is simply missing at the next step.
+	if regexp.MustCompile(`install\.sh\s*\|`).MatchString(out) {
+		t.Error("the CLI installer must be downloaded to a file, not piped into sh")
+	}
+	if !strings.Contains(out, "--retry-all-errors") {
+		t.Error("the CLI installer download must retry a 5xx")
+	}
 }
 
 // A scanner that FOUND something exits non-zero — govulncheck 3, terrascan 3,
