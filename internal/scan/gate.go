@@ -75,9 +75,12 @@ func ApplyBuildOrLockGate(eco, manifestType, manifestPath, relPath string, confi
 	if spec.workspaceRoot != nil {
 		if ws, ok := spec.workspaceRoot(filepath.Dir(manifestPath)); ok && ws.LockPath != "" {
 			if within(scanRootOf(manifestPath, relPath), ws.LockPath) {
-				// A workspace member: the root's lock is in this scan and holds the
-				// member's installed versions, exactly as a sibling lock would.
-				return dropUnpinned(pkgs), false, nil
+				// A workspace member: the root's lock is in this scan and holds
+				// every package the member declares, at its installed version and
+				// marked direct. Keeping the member's exact pins as well listed each
+				// one twice (under the member and under the lock), and autofix
+				// planned it twice.
+				return nil, false, nil
 			}
 			err := fmt.Errorf("%s is a member of the workspace at %s, whose lockfile %s is outside the scanned path: scan the workspace root (--path %s) to resolve it",
 				relPath, ws.RootDir, filepath.Base(ws.LockPath), ws.RootDir)

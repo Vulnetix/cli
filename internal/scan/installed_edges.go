@@ -56,12 +56,15 @@ func PopulateInstalledEdges(groups []ManifestGroup, rootPath string) {
 // from each package's own package.json "dependencies" field.
 // Falls back to PopulateNpmLockEdges if node_modules/ does not exist.
 func populateNpmInstalledEdges(g *DepGraph, projectDir string) {
+	// bun.lock records every edge, member dependencies included. bun 1.4
+	// installs a workspace in isolated mode: a member's dependencies live under
+	// its own node_modules, so the root node_modules alone gave no path from
+	// express to body-parser, and autofix had no parent to upgrade.
+	_ = g.PopulateBunLockEdges(filepath.Join(projectDir, "bun.lock"))
 	nodeModDir := filepath.Join(projectDir, "node_modules")
 	if info, err := os.Stat(nodeModDir); err != nil || !info.IsDir() {
 		// Fallback: read the edges the lockfile records.
-		if err := g.PopulateNpmLockEdges(filepath.Join(projectDir, "package-lock.json")); err != nil {
-			_ = g.PopulateBunLockEdges(filepath.Join(projectDir, "bun.lock"))
-		}
+		_ = g.PopulateNpmLockEdges(filepath.Join(projectDir, "package-lock.json"))
 		return
 	}
 	installed, err := readNpmInstalledPackages(nodeModDir)

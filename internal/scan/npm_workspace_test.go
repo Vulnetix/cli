@@ -345,3 +345,30 @@ func TestPopulateBunLockEdges(t *testing.T) {
 		t.Error("want an error for a missing lock")
 	}
 }
+
+// bun 1.4 installs a workspace in isolated mode: a member's dependencies live
+// under its own node_modules, not the root's. With node_modules present the edge
+// reader walked only the root, found no path to express's children, and
+// autofix had no parent to upgrade. bun.lock's edges are read regardless.
+func TestBunLockEdgesAreReadWhenNodeModulesExists(t *testing.T) {
+	dir := t.TempDir()
+	writeFiles(t, dir, map[string]string{
+		"node_modules/.bun/.keep": "",
+		"bun.lock": `{"lockfileVersion": 1,
+  "workspaces": {"": {}, "packages/app": {"name": "app", "dependencies": {"express": "4.17.1"}}},
+  "packages": {
+    "express": ["express@4.17.1", "", {"dependencies": {"body-parser": "1.19.0"}}, "sha512-A"],
+    "body-parser": ["body-parser@1.19.0", "", {}, "sha512-B"],
+    "app": ["app@workspace:packages/app"],
+  }}`,
+	})
+	groups := []ManifestGroup{{Dir: ".", Ecosystem: "npm", Graph: &DepGraph{DirectDeps: map[string]ScopedPackage{}, AllDeps: map[string]ScopedPackage{}}}}
+	PopulateInstalledEdges(groups, dir)
+	g := groups[0].Graph
+	if len(g.Edges["express"]) != 1 || g.Edges["express"][0] != "body-parser" {
+		t.Fatalf("express edges = %v, want body-parser from bun.lock", g.Edges["express"])
+	}
+	if len(g.Edges["app"]) != 1 || g.Edges["app"][0] != "express" {
+		t.Errorf("workspace member edges = %v, want express", g.Edges["app"])
+	}
+}

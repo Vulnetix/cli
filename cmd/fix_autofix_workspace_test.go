@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	autofix "github.com/vulnetix/cli/v3/internal/fix"
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
 
@@ -53,5 +54,57 @@ func TestPackageManagersByDir_EveryLockAndWorkspaceMembers(t *testing.T) {
 				t.Errorf("member: %q, want the root's %q", got["packages/app"], want)
 			}
 		})
+	}
+}
+
+// A fix left for the user was suggested as "npm install <name>" in every
+// project; in a bun, pnpm or yarn project that writes a second lockfile.
+func TestNpmCommandForManager_ManualSuggestionUsesTheProjectManager(t *testing.T) {
+	manual := autofix.FixCandidate{PackageName: "cookie", Ecosystem: "npm", Command: "npm install cookie"}
+	for pm, want := range map[string]string{
+		"bun":  "bun add cookie",
+		"pnpm": "pnpm add cookie",
+		"yarn": "yarn add cookie",
+		"npm":  "npm install cookie",
+	} {
+		if got := npmCommandForManager(manual, pm, false); got != want {
+			t.Errorf("%s: %q, want %q", pm, got, want)
+		}
+	}
+	pinned := autofix.FixCandidate{PackageName: "x", Ecosystem: "npm", Command: "npm install x@1.2.3"}
+	if got := npmCommandForManager(pinned, "bun", false); got != "bun add x@1.2.3" {
+		t.Errorf("pinned manual: %q", got)
+	}
+}
+
+// In a workspace whose root does not declare the parent, "bun add
+// express@4.22.3" at the root made express a new root dependency, though the
+// member that declares it had already been bumped. The command is a re-resolve.
+func TestRewriteParentUpgradeInAWorkspaceDoesNotAddToTheRoot(t *testing.T) {
+	root := t.TempDir()
+	member := filepath.Join(root, "packages", "app")
+	if err := os.MkdirAll(member, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for p, body := range map[string]string{
+		filepath.Join(root, "package.json"):   `{"workspaces": ["packages/*"], "dependencies": {"dotenv": "^16"}}`,
+		filepath.Join(root, "bun.lock"):       "{}",
+		filepath.Join(member, "package.json"): `{"dependencies": {"express": "4.17.1"}}`,
+	} {
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !memberDeclaresParent(filepath.Join(root, "package.json"), "express") {
+		t.Fatal("express is declared by a member, not the root")
+	}
+	if memberDeclaresParent(filepath.Join(root, "package.json"), "dotenv") {
+		t.Error("the root declares dotenv itself: add/up at the root is right")
+	}
+	if memberDeclaresParent(filepath.Join(member, "package.json"), "express") {
+		t.Error("a member is not a workspace root")
+	}
+	if got := npmInstallCommand("bun"); got != "bun install" {
+		t.Errorf("npmInstallCommand(bun) = %q", got)
 	}
 }

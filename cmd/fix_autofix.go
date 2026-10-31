@@ -158,6 +158,12 @@ func rewriteAutofixCommandsForPackageManagers(plans []autofix.FixCandidate, file
 	}
 
 	pmByDir := packageManagersByDir(files)
+	absByRel := map[string]string{}
+	for _, f := range files {
+		if f.Path != "" {
+			absByRel[filepath.Clean(f.RelPath)] = f.Path
+		}
+	}
 	yarnModernByDir := yarnModernByDir(files)
 	out := append([]autofix.FixCandidate(nil), plans...)
 	for i := range out {
@@ -184,6 +190,12 @@ func rewriteAutofixCommandsForPackageManagers(plans []autofix.FixCandidate, file
 		switch eco {
 		case "npm":
 			out[i].Command = npmCommandForManager(out[i], pm, yarnModernByDir[dir])
+			if out[i].Method == autofix.MethodParentUpgrade && memberDeclaresParent(absByRel[filepath.Clean(out[i].SourceFile)], out[i].ParentName) {
+				// The parent is declared by a workspace member, whose manifest the
+				// edit bumps; "add <parent>@<version>" at the root would also make
+				// it a new dependency of the root. Re-resolving is all that is left.
+				out[i].Command = npmInstallCommand(pm)
+			}
 		case "pypi":
 			out[i].Command = pythonCommandForManager(out[i], pm)
 		}
@@ -231,6 +243,55 @@ func requiresInstalledManager(ecosystem string) bool {
 	default:
 		return false
 	}
+}
+
+// npmInstallCommand is the plain re-resolve command for an npm-family manager.
+func npmInstallCommand(pm string) string {
+	switch pm {
+	case "yarn", "pnpm", "bun":
+		return pm + " install"
+	default:
+		return "npm install"
+	}
+}
+
+// memberDeclaresParent reports whether manifestPath is a JavaScript workspace
+// root that does not declare parent itself while one of its members does.
+func memberDeclaresParent(manifestPath, parent string) bool {
+	if manifestPath == "" || parent == "" || filepath.Base(manifestPath) != "package.json" {
+		return false
+	}
+	if packageJSONDeclares(manifestPath, parent) {
+		return false
+	}
+	for _, m := range scan.NpmWorkspaceMemberManifests(filepath.Dir(manifestPath)) {
+		if packageJSONDeclares(m, parent) {
+			return true
+		}
+	}
+	return false
+}
+
+// packageJSONDeclares reports whether a package.json lists name in any of its
+// dependency maps.
+func packageJSONDeclares(path, name string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var pj map[string]json.RawMessage
+	if json.Unmarshal(data, &pj) != nil {
+		return false
+	}
+	for _, key := range []string{"dependencies", "devDependencies", "optionalDependencies", "peerDependencies"} {
+		var deps map[string]string
+		if raw, ok := pj[key]; ok && json.Unmarshal(raw, &deps) == nil {
+			if _, ok := deps[name]; ok {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // npmManagerForLock names the package manager that writes an npm-family lockfile.
@@ -390,6 +451,15 @@ func npmCommandForManager(p autofix.FixCandidate, pm string, modernYarn bool) st
 			return "npm install " + name + "@" + target
 		}
 	default:
+		// No method: a fix left for the user. Its suggestion was written as
+		// "npm install <name>[@<version>]"; in a bun, pnpm or yarn project that
+		// command writes a second lockfile, so say it in the project's manager.
+		if rest, ok := strings.CutPrefix(p.Command, "npm install "); ok && rest != "" {
+			switch pm {
+			case "yarn", "pnpm", "bun":
+				return pm + " add " + rest
+			}
+		}
 		return p.Command
 	}
 }

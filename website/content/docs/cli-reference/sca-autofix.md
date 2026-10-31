@@ -58,7 +58,13 @@ For transitive dependencies, the CLI walks the manifest and lockfile graph to re
 
 The package manager is the one that wrote the lock: `package-lock.json` and `npm-shrinkwrap.json` mean npm, `yarn.lock` yarn (Berry when the lock or `packageManager` says so), `pnpm-lock.yaml` pnpm, and `bun.lock` or `bun.lockb` bun. When it is not on `PATH`, another installed resolver for the ecosystem is used, and with none the fix is marked manual rather than run.
 
-**Workspaces.** In a JavaScript monorepo the lock is at the workspace root. A fix found in the root's lock installs at the root, and a member `package.json` with no lock of its own inherits the root's package manager instead of defaulting to npm (which would write a second, competing lockfile). A direct dependency is usually declared by a member, not the root, so a direct bump edits every member manifest that declares the package; a transitive pin goes into the root `package.json`, where npm, pnpm, yarn and bun read overrides.
+**Workspaces.** In a JavaScript monorepo the lock is at the workspace root. A fix found in the root's lock installs at the root, and a member `package.json` with no lock of its own inherits the root's package manager instead of defaulting to npm (which would write a second, competing lockfile). A direct dependency is usually declared by a member, not the root, so a direct bump or a parent upgrade edits every member manifest that declares the package, and the root then only re-resolves (`bun install`): running `bun add express@4.22.3` at the root would also make `express` a new root dependency. A transitive pin goes into the root `package.json`, where npm, pnpm, yarn and bun read overrides. The dependency edges come from `bun.lock` even when `node_modules/` exists, because Bun installs a workspace in isolated mode and a member's dependencies are not under the root's `node_modules/`.
+
+**One version per parent.** When several vulnerable children share a parent, each can need a different parent version (for `express` 4.17.1: 4.22.0 for `send`, 4.21.2 for `path-to-regexp`, 4.22.3 for `qs`). The installs run in turn, so every parent upgrade of one parent in one manifest is raised to the highest of them, and to a direct bump of the parent when there is one; a lower one would undo a higher one. The plan says when a target was raised.
+
+**The major-version cap covers the parent.** `--max-major-bump` applies to every version a plan installs. A parent upgrade the server recommends that crosses the cap (`express` 4 to 5 to clear a `debug` advisory) is not applied; the plan falls back to a parent update or an override, or is left manual with the reason (`the fix needs express 5.1.0, a new major version from 4.17.1, and the major-version cap is 0`).
+
+A fix left manual is suggested in the project's own package manager (`bun add cookie`, not `npm install cookie`).
 
 ### How an override lands in the manifest
 

@@ -227,8 +227,27 @@ func BuildPlans(vulns []scan.EnrichedVuln, packages []scan.ScopedPackage, groups
 		// Prefer the server-resolved cross-ecosystem parent-upgrade when present
 		// (replaces the old direct npm-registry probe); otherwise resolve a
 		// deterministic parent-update / override locally.
-		if !applyTransitiveRecommendation(fc, ins.TransitiveFix) {
+		before := *fc
+		overCap := ""
+		applied := applyTransitiveRecommendation(fc, ins.TransitiveFix)
+		if applied {
+			if overCap = parentUpgradeOverCap(*fc, groups, opts.MaxMajorBump); overCap != "" {
+				// The server picks the parent version that admits the safe child
+				// without knowing the cap; express 4 -> 5 to clear a debug advisory
+				// is a major upgrade the user did not allow. Resolve locally instead.
+				*fc = before
+				applied = false
+			}
+		}
+		if !applied {
 			resolveTransitive(fc, groups)
+			if overCap != "" {
+				if fc.Skipped {
+					fc.SkipReason = overCap
+				} else if fc.Reason == "" {
+					fc.Reason = overCap
+				}
+			}
 		}
 		if fc.Command == "" {
 			fc.Command = commandFor(*fc, fc.TargetVer)
@@ -277,6 +296,10 @@ func applyTransitiveRecommendation(fc *FixCandidate, rec *vdb.CliTransitiveFix) 
 		fc.TargetVer = rec.ChildTarget
 	}
 	fc.Skipped = false
+	// The child's own skip reason ("target 2.4.0 is a new major version")
+	// explained why the child could not be bumped directly; the parent upgrade
+	// answers it, so it no longer describes this plan.
+	fc.SkipReason = ""
 	if rec.Reason != "" {
 		fc.Reason = rec.Reason
 	}
@@ -296,11 +319,25 @@ func parentReconcileKey(ecosystem, name, sourceFile string) string {
 // transitive parent-upgrade that only raised it just enough to admit the safe
 // child would undershoot — and, applied together, the two edits conflict. Taking
 // the higher version makes the parent end safe AND still admit the safe child.
+//
+// Several children of one parent each get their own parent-upgrade (express to
+// 4.22.0 for send, 4.21.2 for path-to-regexp, 4.22.3 for qs). Their installs run
+// in turn and the last wins, so all of them are raised to the highest: a lower
+// one would undo a higher one and leave a child vulnerable.
 func reconcileParentUpgrades(out []FixCandidate) {
 	directTargets := map[string]string{}
 	for _, c := range out {
 		if c.Method == MethodDirectBump && !c.Skipped && c.TargetVer != "" {
 			directTargets[parentReconcileKey(c.Ecosystem, c.PackageName, c.SourceFile)] = c.TargetVer
+		}
+	}
+	for _, c := range out {
+		if c.Method != MethodParentUpgrade || c.Skipped || c.ParentName == "" || c.ParentTarget == "" {
+			continue
+		}
+		k := parentReconcileKey(c.Ecosystem, c.ParentName, c.SourceFile)
+		if cur, ok := directTargets[k]; !ok || !greaterOrEqual(cur, c.ParentTarget) {
+			directTargets[k] = c.ParentTarget
 		}
 	}
 	for i := range out {
@@ -309,10 +346,57 @@ func reconcileParentUpgrades(out []FixCandidate) {
 		}
 		dt, ok := directTargets[parentReconcileKey(out[i].Ecosystem, out[i].ParentName, out[i].SourceFile)]
 		if ok && dt != "" && (out[i].ParentTarget == "" || greaterOrEqual(dt, out[i].ParentTarget)) {
+			if out[i].ParentTarget != "" && dt != out[i].ParentTarget {
+				out[i].Reason = strings.TrimSpace(out[i].Reason + fmt.Sprintf(
+					"; raised to %s %s, the version every fix of %s in this manifest installs", out[i].ParentName, dt, out[i].ParentName))
+				out[i].Reason = strings.TrimPrefix(out[i].Reason, "; ")
+			}
 			out[i].ParentTarget = dt
 			out[i].Command = commandFor(out[i], out[i].TargetVer)
 		}
 	}
+}
+
+// parentUpgradeOverCap returns why a parent-upgrade crosses the major-version
+// cap, or "" when it does not (or the parent's current version is unknown). The
+// cap applies to every version the plan installs, the parent's included.
+func parentUpgradeOverCap(fc FixCandidate, groups []scan.ManifestGroup, maxMajorBump int) string {
+	if maxMajorBump < 0 || fc.Method != MethodParentUpgrade || fc.ParentName == "" || fc.ParentTarget == "" {
+		return ""
+	}
+	current := parentCurrentVersion(fc, groups)
+	if current == "" {
+		return ""
+	}
+	curMajor, okCur := majorOf(current)
+	tgtMajor, okTgt := majorOf(fc.ParentTarget)
+	if !okCur || !okTgt || int(tgtMajor-curMajor) <= maxMajorBump {
+		return ""
+	}
+	if maxMajorBump == 0 {
+		return fmt.Sprintf("the fix needs %s %s, a new major version from %s, and the major-version cap is 0", fc.ParentName, fc.ParentTarget, current)
+	}
+	return fmt.Sprintf("the fix needs %s %s, more than %d major version(s) from %s", fc.ParentName, fc.ParentTarget, maxMajorBump, current)
+}
+
+// parentCurrentVersion is the version of a direct parent in the manifest group
+// the candidate edits.
+func parentCurrentVersion(fc FixCandidate, groups []scan.ManifestGroup) string {
+	want := filepath.Clean(fc.SourceFile)
+	for _, g := range groups {
+		if g.Graph == nil {
+			continue
+		}
+		for _, f := range g.Files {
+			if filepath.Clean(f) != want {
+				continue
+			}
+			if p, ok := g.Graph.AllDeps[fc.ParentName]; ok && p.Version != "" {
+				return p.Version
+			}
+		}
+	}
+	return ""
 }
 
 func GroupBatches(root string, plans []FixCandidate) []FixBatch {
