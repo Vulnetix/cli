@@ -1,0 +1,10 @@
+{
+    "name": "pnpm-workspace-test",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Test monorepo for pnpm workspaces: one lockfile at the root, none beside each member",
+    
+    "dependencies": {
+        "dotenv": "^16.4.5"
+    }
+}

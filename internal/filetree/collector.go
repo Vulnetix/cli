@@ -28,7 +28,7 @@ const nodeModulesMaxDepth = 2
 
 // lockfileAssociations maps manifest filenames to their potential lockfiles.
 var lockfileAssociations = map[string][]string{
-	"package.json":     {"package-lock.json", "yarn.lock", "pnpm-lock.yaml"},
+	"package.json":     {"package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock"},
 	"go.mod":           {"go.sum"},
 	"Cargo.toml":       {"Cargo.lock"},
 	"requirements.txt": {"Pipfile.lock", "poetry.lock", "uv.lock", "pylock.toml"},

@@ -1,6 +1,9 @@
 package anchor
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // The cases below mirror the "anchors" block of the extension fixture at
 // vulnetix-vscode/test/fixtures/vulnetix-fixture-app/.vulnetix/expected.json,
@@ -503,5 +506,19 @@ func TestFindPomGroupMismatch(t *testing.T) {
 	}
 	if got.Confidence != ConfidenceToken {
 		t.Errorf("confidence = %q, want %q", got.Confidence, ConfidenceToken)
+	}
+}
+
+func TestFindBunLock(t *testing.T) {
+	text := "{\n  \"lockfileVersion\": 1,\n  \"packages\": {\n    \"alias\": [\"real-pkg@2.0.0\", \"\", {}, \"sha512-A\"],\n\n    \"app/@s/x\": [\"@s/x@1.0.0\", \"\", {}, \"sha512-B\"],\n  }\n}\n"
+	lines := strings.Split(text, "\n")
+	if r, ok := findBunLock(lines, "@s/x"); !ok || r.Line != 6 {
+		t.Errorf("@s/x: got %+v ok=%v, want line 6", r, ok)
+	}
+	if r, ok := findBunLock(lines, "real-pkg"); !ok || r.Line != 4 {
+		t.Errorf("an alias is anchored by its real name: got %+v ok=%v", r, ok)
+	}
+	if _, ok := findBunLock(lines, "alias"); ok {
+		t.Error("the install key is not the package")
 	}
 }

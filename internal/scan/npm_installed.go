@@ -10,7 +10,11 @@ import (
 	"strings"
 )
 
-var npmLockfileNames = []string{"package-lock.json", "yarn.lock", "pnpm-lock.yaml"}
+// npmLockfileNames are the npm-family lockfiles this scanner reads, in the order
+// a directory holding several is attributed (npm-shrinkwrap.json is npm's
+// publishable lock and takes the same parser). bun.lockb is absent on purpose:
+// it is binary and unread, so it must not count as a lock that will be scanned.
+var npmLockfileNames = []string{"package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock"}
 
 type npmInstalledPackage struct {
 	Name         string
@@ -39,7 +43,7 @@ func NpmLockfilePresent(packageJSONPath string) bool {
 // of these, a package.json only carries version ranges, which cannot be scanned
 // for vulnerabilities at exact versions.
 func npmBuildOrLockHint(relPath string) string {
-	return fmt.Sprintf("%s has no lockfile: build the app (run npm/yarn/pnpm install) or generate a lock file (package-lock.json, yarn.lock, or pnpm-lock.yaml), then re-run the scan", relPath)
+	return fmt.Sprintf("%s has no lockfile: build the app (run npm/yarn/pnpm/bun install) or generate a lock file (package-lock.json, yarn.lock, pnpm-lock.yaml, or bun.lock), then re-run the scan", relPath)
 }
 
 // ResolveNpmPackageJSONFromNodeModules replaces package.json version ranges with

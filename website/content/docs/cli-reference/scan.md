@@ -599,8 +599,24 @@ The scanner recognizes these package manager manifest and lock files:
 | `npm-shrinkwrap.json` | npm | Yes |
 | `yarn.lock` | npm | Yes |
 | `pnpm-lock.yaml` | npm | Yes |
+| `bun.lock` | npm | Yes |
+| `bun.lockb` | npm | Detected, not read |
 
-When `package.json` is present without `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml`, SCA resolves from the installed `node_modules/` tree. The scan fails before the VDB lookup if `node_modules/` is missing or if any direct dependency declared in `package.json` is not installed. When the install tree is present, Vulnetix reads each installed package's `package.json`, uses the actual installed versions in the `/v2/cli.sca` request, and adds installed undeclared packages as transitive dependencies where it can connect them through package manifest dependency fields.
+What each lock file contributes:
+
+- **`package-lock.json` / `npm-shrinkwrap.json`** (lockfile v1, v2 and v3): every installed copy, including a second version nested under its dependent (`node_modules/a/node_modules/debug`), named by its last path segment. In v2 and v3 an `npm:` alias is reported as the real package (its `name` field); v1 records only the alias spec, which is not a version, so the entry is skipped. The dependency edges are read from the lock when `node_modules/` is absent.
+- **`yarn.lock`** (Classic v1 and Berry v2+): an `npm:` alias is reported as the package it resolves to, and a `patch:` entry keeps the name of the package it patches.
+- **`pnpm-lock.yaml`** (lockfile v5 `/name/1.0.0`, v6 to v8 `/name@1.0.0(peer)`, v9 `name@1.0.0` plus `snapshots`): the peer suffix is dropped, so one release is one package. Before v9 the scope is the lock's own `dev`/`optional` flag; v9 dropped those flags, so a package reached only through a dev dependency is derived by walking the snapshots from each importer.
+- **`bun.lock`** (Bun 1.2 and later, the default text lock; JSON with trailing commas): a package not hoisted to the root is keyed under the package that pulled it in, and a dependency resolves to the nearest copy up that chain, as Node resolves a `require`. The scope is the strongest path that reaches a package, so a package used by both a production and a dev dependency is production. The dependency edges are read from the lock.
+- **`bun.lockb`** is the binary lock of Bun before 1.2. It cannot be read without Bun, so it is listed as not supported and never counts as a lock: run `bun install --save-text-lockfile` to write `bun.lock`.
+
+Entries that are not registry releases are never queried: workspace members (`workspace:`), local paths (`file:`, `link:`, `portal:`), and git or tarball sources, from `package.json` and every lock. A `workspace:*` dependency used to pass as a pinned version and was looked up as a registry package named after the member.
+
+**Workspaces.** npm, yarn, pnpm and bun install a whole monorepo from one lock at the workspace root and write nothing beside a member's `package.json`. A member is resolved from the root's lock when the nearest ancestor that declares it (`package.json` `workspaces`, as an array or Yarn's `{"packages": [...]}`; `lerna.json` `packages`; `pnpm-workspace.yaml` `packages`, where `!` excludes) holds one of the lock files above. `*` matches one path segment and `**` any number. A member a negated glob excludes, or a directory under a root that does not list it, is not that root's member. Every dependency a workspace declares in a lock that records its workspaces (package-lock v2+, Berry, pnpm importers, `bun.lock`) is reported as direct, so the members' dependencies are not mistaken for transitive ones. When you scan a member on its own and the root's lock is outside `--path`, the note names the root to scan instead of asking for a lock file.
+
+With `--sca-autofix` (or `vulnetix fix`) in a workspace, a fix found in the root's lock installs at the root with the root's package manager, a member inherits that manager rather than defaulting to npm, and a direct bump edits the member manifests that declare the dependency, not the root.
+
+When `package.json` is present without a lock file beside it or at a workspace root that covers it, SCA resolves from the installed `node_modules/` tree. If `node_modules/` is missing, or any direct dependency declared in `package.json` is not installed, that manifest is skipped with a note and the rest of the scan continues. When the install tree is present, Vulnetix reads each installed package's `package.json`, uses the actual installed versions in the `/v2/cli.sca` request, and adds installed undeclared packages as transitive dependencies where it can connect them through package manifest dependency fields.
 
 ### Python
 

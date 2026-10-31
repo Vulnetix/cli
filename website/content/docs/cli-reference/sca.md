@@ -16,7 +16,9 @@ Dependency discovery includes package manifests and lock files plus package-mana
 
 > **Credentials are optional.** When no credentials are configured the [community fallback](https://www.vulnetix.com/features/community) is used automatically.
 
-For npm projects, lock files remain the preferred source of truth. If a `package.json` has no sibling `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml`, `vulnetix sca` resolves from installed `node_modules/` instead: it verifies every direct dependency is installed, uses the installed versions for `/v2/cli.sca`, and reads package manifests in `node_modules/` to build a best-effort transitive tree. If `node_modules/` is absent or incomplete, the command exits before querying the VDB.
+For JavaScript projects, lock files remain the preferred source of truth: `package-lock.json` (and `npm-shrinkwrap.json`), `yarn.lock` (Classic and Berry), `pnpm-lock.yaml` (lockfile v5 through v9) and `bun.lock`. In a monorepo the lock lives at the workspace root, so a member's `package.json` is resolved from the root's lock: the root is the nearest ancestor whose `package.json` `workspaces`, `lerna.json` `packages` or `pnpm-workspace.yaml` `packages` globs include the member. Every dependency a workspace declares is reported as direct. See [JavaScript / TypeScript](../scan/#javascript--typescript) for the details.
+
+If a `package.json` has no lock beside it and no workspace root's lock covers it, `vulnetix sca` resolves from installed `node_modules/` instead: it verifies every direct dependency is installed, uses the installed versions for `/v2/cli.sca`, and reads package manifests in `node_modules/` to build a best-effort transitive tree. If `node_modules/` is absent or incomplete, the manifest is skipped with a note saying how to make it scannable, and the rest of the scan continues.
 
 ## Usage
 

@@ -1,0 +1,9 @@
+{
+    "name": "fixed-point",
+    "version": "0.1.0",
+    "main": "index.js",
+    "dependencies": {
+        "chalk": "^5.3.0",
+        "lodash": "^4.17.21"
+    }
+}

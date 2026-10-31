@@ -81,6 +81,8 @@ func Find(text, manifestType, name string) (Result, bool) {
 		return findYarnLock(lines, name)
 	case "pnpm-lock.yaml":
 		return findPnpmLock(lines, name)
+	case "bun.lock":
+		return findBunLock(lines, name)
 	case "requirements.txt", "requirements.in":
 		return findRequirements(lines, name)
 	case "pyproject.toml", "Pipfile", "pylock.toml":
@@ -251,6 +253,19 @@ func findYarnLock(lines []string, name string) (Result, bool) {
 func findPnpmLock(lines []string, name string) (Result, bool) {
 	quoted := regexp.QuoteMeta(name)
 	re := regexp.MustCompile(`^\s+'?/?` + quoted + `@`)
+	for i, line := range lines {
+		if re.MatchString(line) {
+			return Result{Line: i + 1, Confidence: ConfidenceExact, Snippet: name}, true
+		}
+	}
+	return Result{}, false
+}
+
+// findBunLock anchors a bun.lock "packages" entry, whose array starts with the
+// package's own ident: `"key": ["name@1.2.3", ...`. Matching the ident rather
+// than the key finds an aliased or nested install by its real name.
+func findBunLock(lines []string, name string) (Result, bool) {
+	re := regexp.MustCompile(`^\s+"[^"]+":\s*\["` + regexp.QuoteMeta(name) + `@`)
 	for i, line := range lines {
 		if re.MatchString(line) {
 			return Result{Line: i + 1, Confidence: ConfidenceExact, Snippet: name}, true

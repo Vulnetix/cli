@@ -1,8 +1,10 @@
 package scan
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // gateSpec describes the build-or-lock gate for one ecosystem. A manifest that
@@ -16,6 +18,10 @@ type gateSpec struct {
 	// lockPresent reports whether a sibling lock exists in the manifest's dir, in
 	// which case the lock is scanned and the gate is a no-op.
 	lockPresent func(manifestDir string) bool
+	// workspaceRoot finds the monorepo root that installs this manifest from its
+	// own lock (JavaScript workspaces), when there is no sibling lock. nil for an
+	// ecosystem without workspaces of that kind.
+	workspaceRoot func(manifestDir string) (NpmWorkspace, bool)
 	// fullyPinned reports whether the parsed packages are already pinned enough to
 	// scan without resolving (exact versions / checksums). nil means "never
 	// pre-satisfied" — used for caret-by-default manifests whose bare specs would
@@ -31,8 +37,9 @@ type gateSpec struct {
 // gateRegistry is keyed by the detector ecosystem slug (ManifestInfo.Ecosystem).
 var gateRegistry = map[string]gateSpec{
 	"npm": {
-		gated:       func(t string) bool { return t == "package.json" },
-		lockPresent: func(dir string) bool { return anySiblingExists(dir, npmLockfileNames) },
+		gated:         func(t string) bool { return t == "package.json" },
+		lockPresent:   func(dir string) bool { return anySiblingExists(dir, npmLockfileNames) },
+		workspaceRoot: FindNpmWorkspace,
 		// package.json deps are ranges; always resolve when there is no lockfile.
 		fullyPinned: nil,
 		resolve: func(manifestPath, relPath string, declared []ScopedPackage, _ bool) ([]ScopedPackage, error) {
@@ -65,6 +72,21 @@ func ApplyBuildOrLockGate(eco, manifestType, manifestPath, relPath string, confi
 		// it were one, and thor 1.2 was reported vulnerable while the lock pins 1.5.0.
 		return dropUnpinned(pkgs), false, nil
 	}
+	if spec.workspaceRoot != nil {
+		if ws, ok := spec.workspaceRoot(filepath.Dir(manifestPath)); ok && ws.LockPath != "" {
+			if within(scanRootOf(manifestPath, relPath), ws.LockPath) {
+				// A workspace member: the root's lock is in this scan and holds the
+				// member's installed versions, exactly as a sibling lock would.
+				return dropUnpinned(pkgs), false, nil
+			}
+			err := fmt.Errorf("%s is a member of the workspace at %s, whose lockfile %s is outside the scanned path: scan the workspace root (--path %s) to resolve it",
+				relPath, ws.RootDir, filepath.Base(ws.LockPath), ws.RootDir)
+			if confident {
+				return nil, false, err
+			}
+			return nil, true, err
+		}
+	}
 	out, rerr := spec.resolve(manifestPath, relPath, pkgs, confident)
 	if rerr != nil {
 		if confident {
@@ -91,6 +113,26 @@ func allVersionsPinned(pkgs []ScopedPackage) bool {
 		return false
 	}
 	return true
+}
+
+// scanRootOf recovers the scan root from a manifest's absolute path and its
+// root-relative path. "" when relPath is not a suffix of manifestPath.
+func scanRootOf(manifestPath, relPath string) string {
+	abs := filepath.Clean(manifestPath)
+	rel := filepath.Clean(relPath)
+	if rel == "." || !strings.HasSuffix(abs, string(filepath.Separator)+rel) {
+		return ""
+	}
+	return strings.TrimSuffix(abs, string(filepath.Separator)+rel)
+}
+
+// within reports whether path lies inside root.
+func within(root, path string) bool {
+	if root == "" {
+		return false
+	}
+	rel, err := filepath.Rel(root, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // anySiblingExists reports whether any of names exists as a regular file in dir.

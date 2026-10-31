@@ -1,0 +1,10 @@
+{
+    "name": "npm-workspace-test",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Test monorepo for npm workspaces: one lockfile at the root, none beside each member",
+    "workspaces": ["packages/*", "tools/*"],
+    "dependencies": {
+        "dotenv": "^16.4.5"
+    }
+}

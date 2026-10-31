@@ -356,7 +356,7 @@ var egressConfigExtensions = map[string]bool{
 }
 
 var egressManifestFiles = map[string]bool{
-	"package-lock.json": true, "yarn.lock": true, "pnpm-lock.yaml": true,
+	"package-lock.json": true, "yarn.lock": true, "pnpm-lock.yaml": true, "bun.lock": true,
 	"npm-shrinkwrap.json": true, "composer.lock": true, "gemfile.lock": true,
 	"poetry.lock": true, "pipfile.lock": true, "cargo.lock": true,
 	"go.sum": true, "go.mod": true, "requirements.txt": true, "pyproject.toml": true,

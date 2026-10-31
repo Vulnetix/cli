@@ -78,6 +78,7 @@ type repoMarker struct {
 }
 
 var capabilityRepoMarkers = []repoMarker{
+	{"bun_lock", []string{"bun.lock", "bun.lockb"}},
 	{"cargo_toml", []string{"Cargo.toml"}},
 	{"compose", []string{"compose.yml", "compose.yaml"}},
 	{"composer", []string{"composer.json"}},
@@ -124,6 +125,7 @@ var packageManagerPriority = []struct {
 }{
 	{"go_mod", "go"},
 	{"cargo_toml", "cargo"},
+	{"bun_lock", "bun"},
 	{"pnpm_lock", "pnpm"},
 	{"yarn_lock", "yarn"},
 	{"package_lock", "npm"},

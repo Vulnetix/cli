@@ -1,0 +1,10 @@
+{
+    "name": "app",
+    "version": "0.1.0",
+    "main": "index.js",
+    "dependencies": {
+        "express": "^4.21.0",
+        "axios": "^1.7.7",
+        "fixed-point": "workspace:*"
+    }
+}

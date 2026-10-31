@@ -496,6 +496,13 @@ func BuildGenericDepGraph(directPkgs, lockPkgs []ScopedPackage) *DepGraph {
 		g.AllDeps[p.Name] = p
 	}
 	for _, p := range lockPkgs {
+		// A lock that records its importers (package-lock v2+, pnpm, Berry, bun)
+		// marks what each workspace declares. In a monorepo the root package.json
+		// declares little or nothing and the members declare the rest, so without
+		// this every member's dependency read as transitive.
+		if _, declared := g.DirectDeps[p.Name]; p.IsDirect && !declared {
+			g.DirectDeps[p.Name] = p
+		}
 		if _, exists := g.AllDeps[p.Name]; !exists {
 			g.AllDeps[p.Name] = p
 		}
@@ -517,6 +524,13 @@ func BuildNpmDepGraph(pkgJsonPkgs, lockPkgs []ScopedPackage) *DepGraph {
 		g.AllDeps[p.Name] = p
 	}
 	for _, p := range lockPkgs {
+		// A lock that records its importers (package-lock v2+, pnpm, Berry, bun)
+		// marks what each workspace declares. In a monorepo the root package.json
+		// declares little or nothing and the members declare the rest, so without
+		// this every member's dependency read as transitive.
+		if _, declared := g.DirectDeps[p.Name]; p.IsDirect && !declared {
+			g.DirectDeps[p.Name] = p
+		}
 		if _, exists := g.AllDeps[p.Name]; !exists {
 			g.AllDeps[p.Name] = p
 		}
@@ -609,7 +623,7 @@ func BuildManifestGroups(filePackages map[string][]ScopedPackage, fileEcosystems
 				switch base {
 				case "package.json":
 					directPkgs = pkgs
-				case "package-lock.json", "yarn.lock", "pnpm-lock.yaml":
+				case "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock":
 					lockPkgs = pkgs
 				}
 			}

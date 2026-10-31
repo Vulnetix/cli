@@ -58,9 +58,10 @@ func PopulateInstalledEdges(groups []ManifestGroup, rootPath string) {
 func populateNpmInstalledEdges(g *DepGraph, projectDir string) {
 	nodeModDir := filepath.Join(projectDir, "node_modules")
 	if info, err := os.Stat(nodeModDir); err != nil || !info.IsDir() {
-		// Fallback: try package-lock.json edge parsing with absolute path.
-		lockPath := filepath.Join(projectDir, "package-lock.json")
-		_ = g.PopulateNpmLockEdges(lockPath)
+		// Fallback: read the edges the lockfile records.
+		if err := g.PopulateNpmLockEdges(filepath.Join(projectDir, "package-lock.json")); err != nil {
+			_ = g.PopulateBunLockEdges(filepath.Join(projectDir, "bun.lock"))
+		}
 		return
 	}
 	installed, err := readNpmInstalledPackages(nodeModDir)

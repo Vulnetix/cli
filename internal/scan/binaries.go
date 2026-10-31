@@ -53,6 +53,7 @@ var lockfileBinary = map[string]string{
 	"package-lock.json": "npm",
 	"yarn.lock":         "yarn",
 	"pnpm-lock.yaml":    "pnpm",
+	"bun.lock":          "bun",
 	"bun.lockb":         "bun",
 	"Gemfile.lock":      "bundle",
 	"Cargo.lock":        "cargo",

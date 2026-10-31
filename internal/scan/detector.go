@@ -64,6 +64,9 @@ var ManifestFiles = map[string]ManifestInfo{
 	"package.json":        {Type: "package.json", Ecosystem: "npm", Language: "javascript", IsLock: false},
 	"yarn.lock":           {Type: "yarn.lock", Ecosystem: "npm", Language: "javascript", IsLock: true},
 	"pnpm-lock.yaml":      {Type: "pnpm-lock.yaml", Ecosystem: "npm", Language: "javascript", IsLock: true},
+	"bun.lock":            {Type: "bun.lock", Ecosystem: "npm", Language: "javascript", IsLock: true},
+	// bun.lockb is binary (Bun before 1.2) and is not read: `bun install --save-text-lockfile` writes bun.lock.
+	"bun.lockb": {Type: "bun.lockb", Ecosystem: "npm", Language: "javascript", IsLock: true},
 	// ── Python ────────────────────────────────────────────────────────────
 	"pyproject.toml":   {Type: "pyproject.toml", Ecosystem: "pypi", Language: "python", IsLock: false},
 	"requirements.txt": {Type: "requirements.txt", Ecosystem: "pypi", Language: "python", IsLock: false},
@@ -299,6 +302,7 @@ var SupportedManifestTypes = map[string]bool{
 	"package-lock.json": true,
 	"yarn.lock":         true,
 	"pnpm-lock.yaml":    true,
+	"bun.lock":          true,
 	// Python
 	"pyproject.toml":   true,
 	"requirements.txt": true,
