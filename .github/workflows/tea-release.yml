@@ -77,8 +77,11 @@ jobs:
           # once, with no way to roll back short of a CLI release.
           CLI_VERSION: ${{ inputs.cli_version }}
         run: |
-          curl -fsSL https://cli.vulnetix.com/install.sh \
-            | sh -s -- --install-dir "$HOME/.local/bin" --version "$CLI_VERSION"
+          # Download to a file, never `curl | sh`: a failed download would
+          # otherwise run an empty script and pass the step.
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+            -o "$RUNNER_TEMP/vulnetix-install.sh" https://cli.vulnetix.com/install.sh
+          sh "$RUNNER_TEMP/vulnetix-install.sh" --install-dir "$HOME/.local/bin" --version "$CLI_VERSION"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       # continue-on-error because `pattern` with no match is an error, and a
