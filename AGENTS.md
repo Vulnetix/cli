@@ -88,6 +88,17 @@ Every scanner's terminal output is drawn by `internal/report`: `Build` turns fin
 - **A secret's value is never printed**, in any view, at any verbosity, in `--explain` or in annotations (`TestSecretValuesAreNeverPrinted`).
 - **Golden files** in `internal/report/testdata` pin every view at 110, 80 and 50 columns, plain and ASCII; regenerate with `go test ./internal/report -update` and read the diff.
 
+### JavaScript Lockfiles And Workspaces
+
+The npm-family lock parsers live in `vdb-sca-match/parse` (`npmlock.go`, `yarnlock.go`, `pnpmlock.go`, `bunlock.go`) and are tested against real locks from npm, yarn, pnpm and bun in `parse/testdata/workspaces` and `internal/scan/testdata/workspaces`. Every one must read the lock that tool's current release writes: the pnpm parser knew only `/name@ver` keys and read zero packages from every v9 lock (Vulnetix/cli#177), and `bun.lock` was not read at all.
+
+- **A monorepo has one lock, at the workspace root.** `FindNpmWorkspace` (`internal/scan/npm_workspace.go`) finds the nearest ancestor whose `package.json` `workspaces`, `lerna.json` `packages` or `pnpm-workspace.yaml` `packages` globs include a member. The build-or-lock gate treats that root's lock as the member's when it is inside the scan, and names the root to scan when it is not. A lock further up that does not list the member belongs to another project and never counts.
+- **A workspace member is never a registry package.** `workspace:`, `file:`, `link:` and `portal:` specs are dropped by the `package.json` parser (`workspace:*` passed as pinned and was queried under the member's name), and every lock parser skips workspace, link, git and tarball entries.
+- **A dependency a workspace declares is direct.** Each lock that records its workspaces marks them `IsDirect`, and `BuildNpmDepGraph` counts them, because a monorepo root usually declares almost nothing.
+- **`bun.lockb` is detected and never read.** It is binary; it is absent from `npmLockfileNames` so it cannot make a manifest drop its ranges in favour of a lock nobody parses.
+- **Autofix follows the root.** A member inherits the root lock's package manager (`packageManagersByDir`), and a direct bump that the root `package.json` does not declare edits the member manifests that do (`editWorkspaceMembers`).
+- **Hold the progress row around a prompt.** `pipeline.Suspend` stops the spinner redrawing; without it the 120 ms redraw erased "Choose manifest to fix" and `fix` looked hung.
+
 ### `cdx` Writes SBOMs, `bom` Reads Them
 
 Two nouns, deliberately. `cdx` (alias `sbom`) generates a CycloneDX document from

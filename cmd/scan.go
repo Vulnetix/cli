@@ -1304,7 +1304,11 @@ func runLocalScan(
 
 	if scaAutofix {
 		batch := autofix.BuildPlans(enrichedVulns, allPackages, manifestGroups, scaInsights, scaAutofixOpts)
+		// The prompt is read from stdin while the scan's progress row is live;
+		// without holding it, the spinner erased the question and fix looked hung.
+		resumeProgress := pipeline.Suspend(rep)
 		chosenManifest, chooseErr := chooseAutofixManifest(batch.Plans, scaAutofixOpts.Manifest, scaAutofixOpts.Yes, scaAutofixOpts.PathExplicit)
+		resumeProgress()
 		if chooseErr != nil {
 			return chooseErr
 		}

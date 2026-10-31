@@ -43,6 +43,11 @@ vulnetix fix [path] [flags]
 | `-o, --output` | stringArray | - | Output target: `json-cyclonedx`, `json-sarif`, or a file path |
 | `--results-only` | bool | `false` | Only output when findings exist |
 
+When more than one manifest has fixes and neither `--manifest` nor `--yes` is
+given, `fix` asks which to fix (`0` for all). The scan's progress row is held
+while it asks, so the question stays on screen. In a non-interactive shell it
+does not ask: it stops and says to pass `--manifest` or `--yes`.
+
 The scan-family spellings (`--sca-autofix`, `--sca-autofix-strategy`,
 `--sca-autofix-manifest`, `--sca-autofix-max-major-bump`) are still accepted so a
 pipeline can pass them verbatim; they are hidden from `--help` so each knob has one

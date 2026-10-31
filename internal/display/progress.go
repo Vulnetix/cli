@@ -24,6 +24,9 @@ type Progress struct {
 	total    int
 	finished bool
 	tick     int
+	// suspended counts open Suspend calls. While it is non-zero the spinner
+	// does not redraw, so a prompt written to the terminal stays visible.
+	suspended int
 
 	stop  chan struct{}
 	donec chan struct{}
@@ -167,6 +170,35 @@ func (p *Progress) finish(mark func(*Terminal) string, stage string) {
 	p.renderWithMark(mark)
 }
 
+// Suspend clears the live progress row and stops it redrawing until the
+// returned function is called, which redraws it. Use it around anything that
+// asks the user a question: the spinner rewrites the current line every 120 ms
+// ("\r\033[2K"), which erased a prompt left on that line and made a waiting
+// read look like a hang (Vulnetix/cli#177). Calls nest; resuming twice is a no-op.
+func (p *Progress) Suspend() (resume func()) {
+	if p == nil || !p.enabled || !p.interactive {
+		return func() {}
+	}
+	p.mu.Lock()
+	p.suspended++
+	p.mu.Unlock()
+	p.writeMu.Lock()
+	fmt.Fprint(os.Stderr, "\r\033[2K")
+	p.writeMu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			p.mu.Lock()
+			p.suspended--
+			redraw := p.suspended == 0 && !p.finished
+			p.mu.Unlock()
+			if redraw {
+				p.render(false)
+			}
+		})
+	}
+}
+
 func (p *Progress) animate() {
 	ticker := time.NewTicker(120 * time.Millisecond)
 	defer ticker.Stop()
@@ -177,11 +209,14 @@ func (p *Progress) animate() {
 			p.mu.Lock()
 			p.tick++
 			done := p.finished
+			held := p.suspended > 0
 			p.mu.Unlock()
 			if done {
 				return
 			}
-			p.render(false)
+			if !held {
+				p.render(false)
+			}
 		case <-p.stop:
 			return
 		}
@@ -245,7 +280,7 @@ func (w progressWriter) Write(b []byte) (int, error) {
 	if err != nil {
 		return n, err
 	}
-	if !p.isFinished() {
+	if !p.isFinished() && !p.isSuspended() {
 		if len(b) == 0 || b[len(b)-1] != '\n' {
 			fmt.Fprintln(w.writer)
 		}
@@ -258,6 +293,12 @@ func (p *Progress) isFinished() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.finished
+}
+
+func (p *Progress) isSuspended() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.suspended > 0
 }
 
 func (p *Progress) currentLine() string {

@@ -194,3 +194,18 @@ func (r *WriterReporter) Fail(stage string) {
 }
 
 func (r *WriterReporter) Writer() io.Writer { return r.w }
+
+// Suspender is implemented by a reporter that draws a live progress row.
+type Suspender interface {
+	Suspend() (resume func())
+}
+
+// Suspend holds a reporter's live progress row, when it draws one, so a prompt
+// written to the terminal stays visible; it returns the function that redraws
+// it. Any other reporter is unaffected.
+func Suspend(r Reporter) (resume func()) {
+	if s, ok := r.(Suspender); ok {
+		return s.Suspend()
+	}
+	return func() {}
+}

@@ -92,3 +92,7 @@ func (r *TerminalReporter) Writer() io.Writer { return r.out }
 // need it directly. Kept narrow on purpose: everything reachable through
 // Reporter should go through Reporter.
 func (r *TerminalReporter) Progress() *display.Progress { return r.progress }
+
+// Suspend clears the progress row and holds it until the returned function is
+// called. Wrap any prompt in it, or the spinner erases the question.
+func (r *TerminalReporter) Suspend() (resume func()) { return r.progress.Suspend() }
