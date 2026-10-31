@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestClassifyGitCommand(t *testing.T) {
@@ -150,6 +151,7 @@ func quote(s string) string {
 
 // A staged AWS key is the case the guard exists for.
 func TestChangeGuard_BlocksAStagedCredential(t *testing.T) {
+	liftChangeGuardBudget(t)
 	root := gitRepo(t)
 	write(t, root, "deploy.sh", "#!/bin/sh\nexport AWS_ACCESS_KEY_ID=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "deploy.sh")
@@ -175,6 +177,7 @@ func TestChangeGuard_BlocksAStagedCredential(t *testing.T) {
 
 // The ordinary commit. Silence is the whole point.
 func TestChangeGuard_SilentOnACleanCommit(t *testing.T) {
+	liftChangeGuardBudget(t)
 	root := gitRepo(t)
 	write(t, root, "main.go", "package main\n\nfunc main() {}\n")
 	gitIn(t, root, "add", "main.go")
@@ -190,6 +193,7 @@ func TestChangeGuard_SilentOnACleanCommit(t *testing.T) {
 // A secret already in the repository is not something this commit is doing, and
 // re-reporting it on every commit is how a guard gets switched off.
 func TestChangeGuard_IgnoresAnUnstagedPreexistingSecret(t *testing.T) {
+	liftChangeGuardBudget(t)
 	root := gitRepo(t)
 	write(t, root, "old.sh", "AWS_ACCESS_KEY_ID=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "old.sh")
@@ -210,6 +214,7 @@ func TestChangeGuard_IgnoresAnUnstagedPreexistingSecret(t *testing.T) {
 // `git commit -a` records tracked modifications that were never staged, so a
 // guard reading only the index would clear a change it had not looked at.
 func TestChangeGuard_ReadsTheWorkingTreeForCommitAll(t *testing.T) {
+	liftChangeGuardBudget(t)
 	root := gitRepo(t)
 	write(t, root, "app.py", "print('hi')\n")
 	gitIn(t, root, "add", "app.py")
@@ -233,6 +238,7 @@ func TestChangeGuard_ReadsTheWorkingTreeForCommitAll(t *testing.T) {
 // Absence of an answer is not a verdict: the guard must never turn its own
 // inability to look into a refusal.
 func TestChangeGuard_SilentWhenItCannotLook(t *testing.T) {
+	liftChangeGuardBudget(t)
 	cases := []struct {
 		name string
 		root func(t *testing.T) string
@@ -258,6 +264,7 @@ func TestChangeGuard_SilentWhenItCannotLook(t *testing.T) {
 // A repository that demotes the signal gets a report instead of a refusal, and
 // one that drops it entirely gets nothing.
 func TestChangeGuard_HonoursThePolicy(t *testing.T) {
+	liftChangeGuardBudget(t)
 	root := gitRepo(t)
 	write(t, root, "deploy.sh", "AWS_ACCESS_KEY_ID=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "deploy.sh")
@@ -287,6 +294,7 @@ func TestChangeGuard_HonoursThePolicy(t *testing.T) {
 // The guard owns stdout only when it has something to say, and a block has to
 // encode as a deny both hosts understand.
 func TestChangeGuard_EncodesAsADeny(t *testing.T) {
+	liftChangeGuardBudget(t)
 	root := gitRepo(t)
 	write(t, root, "deploy.sh", "AWS_ACCESS_KEY_ID=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "deploy.sh")
@@ -305,4 +313,16 @@ func TestChangeGuard_EncodesAsADeny(t *testing.T) {
 	if strings.Contains(s, `"permissionDecision":"allow"`) {
 		t.Errorf("never emit allow — Codex fails the hook on it:\n%s", s)
 	}
+}
+
+// liftChangeGuardBudget takes the clock out of a change-guard test. The guard
+// answers nothing once its 8-second budget expires, which is correct on a
+// commit and wrong in a test of what it answers: compiling the secret rules on a
+// machine running the whole suite took longer than that, and the deny test
+// failed with an empty decision while passing on its own.
+func liftChangeGuardBudget(t *testing.T) {
+	t.Helper()
+	old := changeGuardBudget
+	changeGuardBudget = 2 * time.Minute
+	t.Cleanup(func() { changeGuardBudget = old })
 }

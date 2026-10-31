@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -20,6 +19,7 @@ import (
 // A rename whose new content adds a secret. `--diff-filter=ACM` excludes R, so
 // `git mv a.sh b.sh` plus a credential on the end went unread.
 func TestChangeGuard_ReadsARenamedFile(t *testing.T) {
+	liftChangeGuardBudget(t)
 	root := gitRepo(t)
 	write(t, root, "a.sh", "echo hi\n# 1\n# 2\n# 3\n# 4\n")
 	gitIn(t, root, "add", "a.sh")
@@ -39,11 +39,7 @@ func TestChangeGuard_ReadsARenamedFile(t *testing.T) {
 // Over the file cap with the secret in the part that was not read: the guard
 // must say it stopped, not imply a clean bill.
 func TestChangeGuard_SaysSoWhenItStopsAtTheCap(t *testing.T) {
-	// The cap is under test, not the clock: on a slow runner the default budget expires first and
-	// the guard, correctly, gives no verdict.
-	old := changeGuardBudget
-	changeGuardBudget = 2 * time.Minute
-	t.Cleanup(func() { changeGuardBudget = old })
+	liftChangeGuardBudget(t)
 
 	root := gitRepo(t)
 	for i := 0; i < changeGuardMaxFiles; i++ {
@@ -66,6 +62,7 @@ func TestChangeGuard_SaysSoWhenItStopsAtTheCap(t *testing.T) {
 // relative; joining them onto the subdirectory produced a file that did not
 // exist, and the modified file the commit was about to record went unread.
 func TestChangeGuard_CommitAllFromASubdirectory(t *testing.T) {
+	liftChangeGuardBudget(t)
 	root := gitRepo(t)
 	write(t, root, "pkg/sub/app.py", "v1\n")
 	gitIn(t, root, "add", "-A")
@@ -82,6 +79,7 @@ func TestChangeGuard_CommitAllFromASubdirectory(t *testing.T) {
 
 // `git -C dir commit` from an unrelated cwd operates on dir.
 func TestChangeGuard_HonoursDashC(t *testing.T) {
+	liftChangeGuardBudget(t)
 	root := gitRepo(t)
 	write(t, root, "s.sh", "KEY=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "-A")
