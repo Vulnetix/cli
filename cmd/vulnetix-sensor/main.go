@@ -2,7 +2,7 @@
 //
 // It sits in a workload's path, applies the organisation's virtual patches
 // and countermeasures from its published detection rule feeds, and reports to
-// the console's Runtime page, where a person decides about anything it holds.
+// the console's Sensors page, where a person decides about anything it holds.
 //
 // A separate binary from vulnetix so the CLI does not carry the rule engines,
 // and so a sidecar or Lambda layer carries only this.

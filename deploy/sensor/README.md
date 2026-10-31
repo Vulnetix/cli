@@ -2,7 +2,7 @@
 
 `vulnetix-sensor` runs in your workload and applies your organisation's virtual
 patches and countermeasures from its published detection rule feeds. It reports
-every match to the console's Runtime page (`/resolve/runtime`), where you
+every match to the console's Sensors page (`/resolve/sensor`), where you
 decide about anything it holds.
 
 ## Modes
@@ -119,7 +119,7 @@ The sensor does not use ptrace, and reports it as off.
 
 With `--forward siem`, the sensor also sends every DNS lookup the DNS guard
 answers and every connection the egress proxy carries or refuses to Guardian,
-the Vulnetix SIEM, matched or not. The Runtime page still gets only the
+the Vulnetix SIEM, matched or not. The Sensors page still gets only the
 matches; Guardian gets the whole stream, so a detection can look at the clean
 traffic around a hit.
 

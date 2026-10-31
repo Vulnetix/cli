@@ -9,7 +9,7 @@
 // Forwarding must never slow a decision. DNS and Egress only append to a
 // bounded buffer under a mutex; the HTTP work happens in Run. When the buffer
 // is full the oldest rows are dropped and counted, and a batch the server
-// refuses or cannot be reached for is dropped too: the console's Runtime page
+// refuses or cannot be reached for is dropped too: the console's Sensors page
 // stays the record of what matched, and Guardian is a copy.
 package siem
 
