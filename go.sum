@@ -270,6 +270,8 @@ github.com/rogpeppe/go-internal v1.15.0/go.mod h1:DrUVZyrJU+txYW5/1kwtXQSMFio52Z
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 h1:KRzFb2m7YtdldCEkzs6KqmJw4nqEVZGK7IN2kJkjTuQ=
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.2/go.mod h1:JXeL+ps8p7/KNMjDQk3TCwPpBy0wYklyWTfbkIzdIFU=
+github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 h1:1EYB5IzjZawrrnELUi78f9fPu57HuXjmddZPjrls/28=
+github.com/santhosh-tekuri/jsonschema/v6 v6.0.3/go.mod h1:JXeL+ps8p7/KNMjDQk3TCwPpBy0wYklyWTfbkIzdIFU=
 github.com/segmentio/asm v1.2.1 h1:DTNbBqs57ioxAD4PrArqftgypG4/qNpXoJx8TVXxPR0=
 github.com/segmentio/asm v1.2.1/go.mod h1:BqMnlJP91P8d+4ibuonYZw9mfnzI9HfxselHZr5aAcs=
 github.com/sergi/go-diff v1.4.0 h1:n/SP9D5ad1fORl+llWyN+D6qoUETXNZARKjyY2/KVCw=
@@ -312,6 +314,10 @@ github.com/valyala/fastjson v1.6.10 h1:/yjJg8jaVQdYR3arGxPE2X5z89xrlhS0eGXdv+ADT
 github.com/valyala/fastjson v1.6.10/go.mod h1:e6FubmQouUNP73jtMLmcbxS6ydWIpOfhz34TSfO3JaE=
 github.com/vektah/gqlparser/v2 v2.5.34 h1:MEea5P0qhdcqfBL45ghKE+qr9laidVHTMHjav5h7ckk=
 github.com/vektah/gqlparser/v2 v2.5.34/go.mod h1:mFdHLGCio7OGX1fby9ZjTW6FN+qxgmbnBcRIeeScE5s=
+github.com/vulnetix/config-schemas v1.0.0 h1:CBnte/KdNQxdI6Twzp8TM2PRgMNihwmd1f98HBN3SpE=
+github.com/vulnetix/config-schemas v1.0.0/go.mod h1:CFeTS7PPHbql3MrkV9lYhE0+ukiMtBpdWLqL+yNLc0Q=
+github.com/vulnetix/config-schemas v1.0.1 h1:7eguwCXU78oAP52oxoeiCtIErzzBGXTRIdmTPAGdkM0=
+github.com/vulnetix/config-schemas v1.0.1/go.mod h1:45LM6e+C+8mEc7BLe925VL7ZXzs43m2q+P8ROycvBuU=
 github.com/vulnetix/malscan-engine v0.6.1 h1:ND2q5bu21p8DKIJbnyzZC9xqNN9GfmReTxqnJC4sAmc=
 github.com/vulnetix/malscan-engine v0.6.1/go.mod h1:gqHbbwWvHHS2mRmhSlAEB0g/U8SIMy77zO3gOrF/vbw=
 github.com/xanzy/ssh-agent v0.3.3 h1:+/15pJfg/RsTxqYcX6fHqOXZwwMP+2VyYWJeWM2qQFM=
