@@ -4,6 +4,11 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    # Match the package firewall's 3-day cooldown: younger releases are
+    # refused (425 Too Early), so their PRs cannot be built through it.
+    # Security updates are not delayed by this.
+    cooldown:
+      default-days: 3
 
   - package-ecosystem: github-actions
     directory: "/"
