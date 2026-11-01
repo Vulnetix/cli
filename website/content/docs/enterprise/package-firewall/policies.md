@@ -32,7 +32,23 @@ Each toggle blocks a package version when the condition is true:
 
 ## Cooldown
 
-**Cooldown (days)** blocks any version published within the last *N* days — a quarantine against compromised or accidentally-published releases. A request for a too-new version returns `425 Too Early` with a `Retry-After` header. Cooldown applies wherever the registry exposes a publish time (npm, PyPI, Cargo, pub.dev, NuGet, Composer, Conda, Helm, Chef, Hex); it is skipped where it does not (Maven, CRAN, Conan, Julia, Go, and the OS/container ecosystems).
+**Cooldown (days)** blocks any version published within the last *N* days — a quarantine against compromised or accidentally-published releases. A request for a too-new version returns `425 Too Early` with a `Retry-After` header. Cooldown applies wherever the registry exposes a publish time (Go, through the module proxy's `.info` time, plus npm, PyPI, Cargo, pub.dev, NuGet, Composer, Conda, Helm, Chef, Hex); it is skipped where it does not (Maven, CRAN, Conan, Julia, and the OS/container ecosystems). An allow entry for a package waives its cooldown.
+
+## Namespace allow entries
+
+An allow entry whose package name ends in `/*` or `:*` covers every package under that prefix, every version. Use it for code your organization publishes itself, so a release you cut an hour ago is not held by the cooldown or another policy block.
+
+| Ecosystem | Example entry | Covers | Does not cover |
+|---|---|---|---|
+| Go | `github.com/acme/*` | `github.com/acme/tool`, `github.com/acme/tool/v2` | `github.com/acme-evil/tool` |
+| npm | `@acme/*` | `@acme/widget` | `@acme-evil/widget` |
+| Maven | `com.acme:*` | `com.acme:core` | `com.acme.evil:core` |
+
+- The prefix ends at a `/` or `:`, so a look-alike namespace never matches.
+- A Go namespace needs a host and an owner: `github.com/*` is refused.
+- An entry for the package itself wins over a namespace entry, and a longer namespace wins over a shorter one.
+- Namespace entries are allow-only. The console refuses one on the deny list, because deny entries match exact names.
+- Like any allow entry, a namespace entry never waives an exact-version malware match, a known-bad artifact hash or a malware scan verdict.
 
 ## Upstream mirrors
 
