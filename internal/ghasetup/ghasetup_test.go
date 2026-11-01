@@ -205,7 +205,7 @@ func TestRenderUploadsAreShortLivedAndNonFatal(t *testing.T) {
 	if n := strings.Count(out, "retention-days: 1\n"); n != uploads {
 		t.Errorf("%d of %d uploads have retention-days: 1", n, uploads)
 	}
-	if n := strings.Count(out, "uses: actions/upload-artifact@v6\n        continue-on-error: true\n"); n != uploads {
+	if n := strings.Count(out, "uses: actions/upload-artifact@v7\n        continue-on-error: true\n"); n != uploads {
 		t.Errorf("%d of %d uploads are continue-on-error", n, uploads)
 	}
 }

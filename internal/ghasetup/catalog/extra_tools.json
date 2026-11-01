@@ -50,7 +50,7 @@
       "steps": [
         {
           "name": "Set up uv",
-          "uses": "astral-sh/setup-uv@v6"
+          "uses": "astral-sh/setup-uv@v7"
         },
         {
           "name": "Run Bandit",
@@ -76,7 +76,7 @@
       "steps": [
         {
           "name": "Set up uv",
-          "uses": "astral-sh/setup-uv@v6"
+          "uses": "astral-sh/setup-uv@v7"
         },
         {
           "name": "Run Flawfinder",
@@ -106,7 +106,7 @@
       "steps": [
         {
           "name": "Set up uv",
-          "uses": "astral-sh/setup-uv@v6"
+          "uses": "astral-sh/setup-uv@v7"
         },
         {
           "name": "Run Ruff security rules",
@@ -132,7 +132,7 @@
       "steps": [
         {
           "name": "Set up uv",
-          "uses": "astral-sh/setup-uv@v6"
+          "uses": "astral-sh/setup-uv@v7"
         },
         {
           "name": "Run njsscan",
@@ -421,7 +421,7 @@
       "steps": [
         {
           "name": "Set up uv",
-          "uses": "astral-sh/setup-uv@v6"
+          "uses": "astral-sh/setup-uv@v7"
         },
         {
           "name": "Run ScanCode Toolkit",
@@ -490,7 +490,7 @@
       "steps": [
         {
           "name": "Set up uv",
-          "uses": "astral-sh/setup-uv@v6"
+          "uses": "astral-sh/setup-uv@v7"
         },
         {
           "name": "Run cfn-lint",
@@ -643,7 +643,7 @@
       "steps": [
         {
           "name": "Set up uv",
-          "uses": "astral-sh/setup-uv@v6"
+          "uses": "astral-sh/setup-uv@v7"
         },
         {
           "name": "Generate Python CycloneDX SBOM",
@@ -842,7 +842,7 @@
       "steps": [
         {
           "name": "Set up uv",
-          "uses": "astral-sh/setup-uv@v6"
+          "uses": "astral-sh/setup-uv@v7"
         },
         {
           "name": "Run detect-secrets",
@@ -1037,7 +1037,7 @@
       "steps": [
         {
           "name": "Set up uv",
-          "uses": "astral-sh/setup-uv@v6"
+          "uses": "astral-sh/setup-uv@v7"
         },
         {
           "name": "Run mobsfscan",

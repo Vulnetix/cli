@@ -225,7 +225,7 @@ func renderJob(t *Tool, runsOn string) string {
 	// The publish job runs if: always() and publishes whatever did upload, the
 	// failed step still carries its annotation, and the quota itself is
 	// alarmed on in github-runner-aws.
-	fmt.Fprintf(&b, "      - uses: actions/upload-artifact@v6\n")
+	fmt.Fprintf(&b, "      - uses: actions/upload-artifact@v7\n")
 	b.WriteString("        continue-on-error: true\n")
 	b.WriteString("        with:\n")
 	fmt.Fprintf(&b, "          name: %s\n", t.Artifact)
