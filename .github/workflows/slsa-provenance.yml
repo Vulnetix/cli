@@ -154,7 +154,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: gh release upload "$VERSION" provenance.sigstore.json --clobber --repo "$GITHUB_REPOSITORY"
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: slsa-provenance
           path: provenance.sigstore.json

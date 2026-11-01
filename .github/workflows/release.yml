@@ -225,7 +225,7 @@ jobs:
 
       # The subject list for the provenance job: the same bytes as the release
       # asset, so the signed statement names exactly what a user downloads.
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: release-subjects
           path: bin/checksums.txt
