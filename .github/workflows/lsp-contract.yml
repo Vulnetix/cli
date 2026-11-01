@@ -45,7 +45,7 @@ jobs:
     # self-hosted runner being up.
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # The E2E fixture is a private submodule that these tests do not use.
           submodules: false

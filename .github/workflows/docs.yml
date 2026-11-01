@@ -24,7 +24,7 @@ jobs:
   build:
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # No submodules. testdata/vulnetix-fixture-app is a private repository
           # and GITHUB_TOKEN is scoped to this one, so the clone fails with

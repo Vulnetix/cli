@@ -69,7 +69,7 @@ jobs:
             artifact: .vulnetix/analyze.report.json
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # `vulnetix analyze` walks git history. The default depth-1 checkout
           # has none of it, so every contributor, activity, ownership and
@@ -117,7 +117,7 @@ jobs:
       VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Install Vulnetix CLI
         run: |

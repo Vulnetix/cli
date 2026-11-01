@@ -64,7 +64,7 @@ jobs:
       VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
       GITHUB_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # `--auto-version` shells out to `git describe`; a shallow checkout
           # carries no tags and `git describe` fails.

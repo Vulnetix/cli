@@ -20,7 +20,7 @@ jobs:
     name: Bearer (SAST)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Bearer
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -51,7 +51,7 @@ jobs:
     name: cdxgen (multi-ecosystem SBOM)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node.js
         continue-on-error: true
         uses: actions/setup-node@v4
@@ -83,7 +83,7 @@ jobs:
     name: Checkov (IaC)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -113,7 +113,7 @@ jobs:
     name: Conftest (Rego policy)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Conftest
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -151,7 +151,7 @@ jobs:
     name: Cppcheck (C/C++ SAST)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Cppcheck
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -204,7 +204,7 @@ jobs:
     name: CycloneDX Go SBOM
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
         uses: actions/setup-go@v6
@@ -244,7 +244,7 @@ jobs:
     name: detect-secrets (secrets)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -358,7 +358,7 @@ jobs:
     name: Dockle (container image)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
         uses: actions/setup-go@v6
@@ -404,7 +404,7 @@ jobs:
     name: Flawfinder (C/C++ SAST)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -447,7 +447,7 @@ jobs:
     name: GitHub SBOM (SPDX)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Export the dependency graph
         continue-on-error: true
         env:
@@ -479,7 +479,7 @@ jobs:
     name: Gitleaks (Secrets)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Gitleaks
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -505,7 +505,7 @@ jobs:
     name: golangci-lint (Go lint)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
         uses: actions/setup-go@v6
@@ -545,7 +545,7 @@ jobs:
     name: gosec (Go SAST)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
         uses: actions/setup-go@v6
@@ -585,7 +585,7 @@ jobs:
     name: govulncheck (Go SCA)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
         uses: actions/setup-go@v6
@@ -630,7 +630,7 @@ jobs:
     name: Grype (SCA)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Grype
         id: grype
         continue-on-error: true
@@ -657,7 +657,7 @@ jobs:
     name: Grype image (OCI)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build the image
         id: build
         continue-on-error: true
@@ -709,7 +709,7 @@ jobs:
     name: Hadolint (Dockerfile)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Hadolint
         continue-on-error: true
         uses: hadolint/hadolint-action@v3.5.0
@@ -731,7 +731,7 @@ jobs:
     name: KICS (IaC)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run KICS
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -752,7 +752,7 @@ jobs:
     name: njsscan (Node SAST)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -790,7 +790,7 @@ jobs:
     name: Nosey Parker (secrets)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Nosey Parker
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -824,7 +824,7 @@ jobs:
     name: OpenGrep (SAST)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run OpenGrep
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -858,7 +858,7 @@ jobs:
     name: OSV-Scanner (SCA)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run OSV-Scanner
         continue-on-error: true
         uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
@@ -880,7 +880,7 @@ jobs:
     name: Regula (IaC policy)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Regula
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -913,7 +913,7 @@ jobs:
     name: ScanCode Toolkit (license SBOM)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -971,7 +971,7 @@ jobs:
     name: Semgrep (SAST)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -1001,7 +1001,7 @@ jobs:
     name: ShellCheck (shell lint)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run ShellCheck
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -1124,7 +1124,7 @@ jobs:
     name: Stylelint (CSS lint)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node.js
         continue-on-error: true
         uses: actions/setup-node@v4
@@ -1161,7 +1161,7 @@ jobs:
     name: Syft (CycloneDX SBOM)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Generate CycloneDX SBOM
         continue-on-error: true
         uses: anchore/sbom-action@v0.24.0
@@ -1183,7 +1183,7 @@ jobs:
     name: Syft image (CycloneDX SBOM)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build the image
         id: build
         continue-on-error: true
@@ -1232,7 +1232,7 @@ jobs:
     name: Terrascan (Terraform)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Terrascan
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -1268,7 +1268,7 @@ jobs:
     name: TFLint (Terraform)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run TFLint
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -1304,7 +1304,7 @@ jobs:
     name: tfsec (Terraform)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run tfsec
         continue-on-error: true
         uses: aquasecurity/tfsec-sarif-action@v0.1.4
@@ -1323,7 +1323,7 @@ jobs:
     name: Trivy config (IaC/Dockerfile)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Trivy config
         continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
@@ -1345,7 +1345,7 @@ jobs:
     name: Trivy (filesystem CDX + SARIF)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Trivy filesystem (CycloneDX)
         continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
@@ -1377,7 +1377,7 @@ jobs:
     name: Trivy image (OCI)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build the image
         id: build
         continue-on-error: true
@@ -1427,7 +1427,7 @@ jobs:
     name: TruffleHog (secrets)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run TruffleHog
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -1555,7 +1555,7 @@ jobs:
     name: zizmor (GitHub Actions SAST)
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -1605,7 +1605,7 @@ jobs:
       VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
       VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install Vulnetix CLI
         run: |
           # Download to a file, never `curl | sh`: a failed download would
