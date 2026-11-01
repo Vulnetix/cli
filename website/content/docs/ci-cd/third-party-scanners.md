@@ -2746,7 +2746,7 @@ The job it adds:
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          if ! find . -maxdepth 4 -type f \( -name package-lock.json -o -name go.mod -o -name requirements.txt -o -name pyproject.toml -o -name pom.xml -o -name build.gradle -o -name Cargo.lock -o -name composer.lock -o -name Gemfile.lock -o -name '*.csproj' \) -print | head -n 1 | grep -q .; then
+          if ! find . -maxdepth 4 -type f \( -name package-lock.json -o -name yarn.lock -o -name go.mod -o -name requirements.txt -o -name pyproject.toml -o -name pom.xml -o -name build.gradle -o -name Cargo.lock -o -name composer.lock -o -name Gemfile.lock -o -name '*.csproj' \) -print | head -n 1 | grep -q .; then
             echo '::notice::no supported package manifest found; skipping cdxgen'
             exit 0
           fi
@@ -3704,7 +3704,7 @@ The job it adds:
           fi
           corepack enable
           yarn install --immutable || yarn install --frozen-lockfile || true
-          yarn dlx -q @cyclonedx/yarn-plugin-cyclonedx --omit dev --output-format JSON --output-file yarn-cyclonedx.cdx.json || true
+          yarn dlx -q @cyclonedx/yarn-plugin-cyclonedx --production --output-format JSON --output-file yarn-cyclonedx.cdx.json || true
           if ! jq -e '.bomFormat == "CycloneDX"' yarn-cyclonedx.cdx.json >/dev/null 2>&1; then
             echo '::warning::cyclonedx yarn produced no valid CycloneDX JSON; dropping the artifact'
             rm -f yarn-cyclonedx.cdx.json
@@ -4222,7 +4222,9 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install Vulnetix CLI
         run: |
-          curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir "$HOME/.local/bin"
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+            -o "$RUNNER_TEMP/vulnetix-install.sh" https://cli.vulnetix.com/install.sh
+          sh "$RUNNER_TEMP/vulnetix-install.sh" --install-dir "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Publish scanner reports
         env:

@@ -401,7 +401,7 @@
         },
         {
           "name": "Run cdxgen",
-          "run": "if ! find . -maxdepth 4 -type f \\( -name package-lock.json -o -name go.mod -o -name requirements.txt -o -name pyproject.toml -o -name pom.xml -o -name build.gradle -o -name Cargo.lock -o -name composer.lock -o -name Gemfile.lock -o -name '*.csproj' \\) -print | head -n 1 | grep -q .; then\n  echo '::notice::no supported package manifest found; skipping cdxgen'\n  exit 0\nfi\nnpx --yes @cyclonedx/cdxgen -o cdxgen.cdx.json . || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' cdxgen.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cdxgen produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f cdxgen.cdx.json\nfi"
+          "run": "if ! find . -maxdepth 4 -type f \\( -name package-lock.json -o -name yarn.lock -o -name go.mod -o -name requirements.txt -o -name pyproject.toml -o -name pom.xml -o -name build.gradle -o -name Cargo.lock -o -name composer.lock -o -name Gemfile.lock -o -name '*.csproj' \\) -print | head -n 1 | grep -q .; then\n  echo '::notice::no supported package manifest found; skipping cdxgen'\n  exit 0\nfi\nnpx --yes @cyclonedx/cdxgen -o cdxgen.cdx.json . || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' cdxgen.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cdxgen produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f cdxgen.cdx.json\nfi"
         }
       ],
       "detect": {
@@ -621,7 +621,7 @@
         },
         {
           "name": "Generate Yarn CycloneDX SBOM",
-          "run": "if [ ! -f yarn.lock ]; then\n  echo '::notice::no yarn.lock found; skipping CycloneDX Yarn'\n  exit 0\nfi\ncorepack enable\nyarn install --immutable || yarn install --frozen-lockfile || true\nyarn dlx -q @cyclonedx/yarn-plugin-cyclonedx --omit dev --output-format JSON --output-file yarn-cyclonedx.cdx.json || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' yarn-cyclonedx.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cyclonedx yarn produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f yarn-cyclonedx.cdx.json\nfi"
+          "run": "if [ ! -f yarn.lock ]; then\n  echo '::notice::no yarn.lock found; skipping CycloneDX Yarn'\n  exit 0\nfi\ncorepack enable\nyarn install --immutable || yarn install --frozen-lockfile || true\nyarn dlx -q @cyclonedx/yarn-plugin-cyclonedx --production --output-format JSON --output-file yarn-cyclonedx.cdx.json || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' yarn-cyclonedx.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cyclonedx yarn produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f yarn-cyclonedx.cdx.json\nfi"
         }
       ],
       "detect": {
