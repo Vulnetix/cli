@@ -50,7 +50,7 @@ jobs:
           # The E2E fixture is a private submodule that these tests do not use.
           submodules: false
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 

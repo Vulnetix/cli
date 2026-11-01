@@ -207,7 +207,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Generate Go CycloneDX SBOM
@@ -361,7 +361,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Run Dockle
@@ -508,7 +508,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Run golangci-lint
@@ -548,7 +548,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Run gosec
@@ -588,7 +588,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Run govulncheck
