@@ -34,7 +34,7 @@
       "steps": [
         {
           "name": "Set up Go",
-          "uses": "actions/setup-go@v6",
+          "uses": "actions/setup-go@v7",
           "with": {
             "go-version": "stable"
           }
@@ -114,7 +114,7 @@
       "steps": [
         {
           "name": "Generate CycloneDX SBOM",
-          "uses": "anchore/sbom-action@v0.24.0",
+          "uses": "anchore/sbom-action@v0.24.3",
           "with": {
             "path": ".",
             "format": "cyclonedx-json",

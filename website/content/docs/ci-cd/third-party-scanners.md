@@ -162,7 +162,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Conftest
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -218,7 +218,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run ZAP baseline
         continue-on-error: true
         env:
@@ -340,7 +340,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -402,7 +402,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -446,7 +446,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run KICS
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -481,7 +481,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run KubeLinter
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -527,7 +527,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Kubescape
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -571,7 +571,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Regula
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -618,12 +618,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
+          package-manager-cache: false
       - name: Run Snyk IaC
         continue-on-error: true
         env:
@@ -668,7 +669,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Terrascan
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -718,7 +719,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run TFLint
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -768,7 +769,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run tfsec
         continue-on-error: true
         uses: aquasecurity/tfsec-sarif-action@v0.1.4
@@ -805,7 +806,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Trivy config
         continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
@@ -841,7 +842,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -913,7 +914,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Clippy
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -956,12 +957,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node.js
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
+          package-manager-cache: false
       - name: Run ESLint
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -1012,10 +1014,10 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Run golangci-lint
@@ -1066,7 +1068,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Ruby
         continue-on-error: true
         uses: ruby/setup-ruby@v1
@@ -1208,7 +1210,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -1264,7 +1266,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run ShellCheck
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -1401,12 +1403,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node.js
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
+          package-manager-cache: false
       - name: Run Stylelint
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -1452,7 +1455,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run SwiftLint
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -1498,7 +1501,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -1548,10 +1551,10 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Run Dockle
@@ -1612,7 +1615,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build the image
         id: build
         continue-on-error: true
@@ -1678,7 +1681,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Hadolint
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -1734,12 +1737,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
+          package-manager-cache: false
       - name: Build the image
         id: build
         continue-on-error: true
@@ -1808,7 +1812,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build the image
         id: build
         continue-on-error: true
@@ -1830,7 +1834,7 @@ The job it adds:
           echo "image=$image" >> "$GITHUB_OUTPUT"
       - name: Generate image SBOM
         continue-on-error: true
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.3
         with:
           format: cyclonedx-json
           image: '${{ steps.build.outputs.image }}'
@@ -1875,7 +1879,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build the image
         id: build
         continue-on-error: true
@@ -1939,10 +1943,10 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Run Nuclei
@@ -1994,7 +1998,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -2046,7 +2050,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Bearer
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -2091,7 +2095,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Ruby
         continue-on-error: true
         uses: ruby/setup-ruby@v1
@@ -2138,7 +2142,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Cppcheck
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -2205,7 +2209,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Java
         continue-on-error: true
         uses: actions/setup-java@v4
@@ -2261,7 +2265,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -2318,10 +2322,10 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Run gosec
@@ -2372,7 +2376,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -2424,7 +2428,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run OpenGrep
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -2472,7 +2476,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run PMD
         continue-on-error: true
         uses: pmd/pmd-github-action@v2
@@ -2507,7 +2511,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Detect PHP setup capability
         id: php-setup
         continue-on-error: true
@@ -2581,7 +2585,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -2629,12 +2633,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
+          package-manager-cache: false
       - name: Run Snyk Code
         continue-on-error: true
         env:
@@ -2680,7 +2685,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -2736,12 +2741,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node.js
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
+          package-manager-cache: false
       - name: Run cdxgen
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -2782,7 +2788,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up .NET
         continue-on-error: true
         uses: actions/setup-dotnet@v4
@@ -2834,10 +2840,10 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Generate Go CycloneDX SBOM
@@ -2888,7 +2894,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Java
         continue-on-error: true
         uses: actions/setup-java@v4
@@ -2942,12 +2948,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node.js
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
+          package-manager-cache: false
       - name: Generate npm CycloneDX SBOM
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -2989,7 +2996,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Detect PHP setup capability
         id: php-setup
         continue-on-error: true
@@ -3054,7 +3061,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -3117,7 +3124,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Ruby
         continue-on-error: true
         uses: ruby/setup-ruby@v1
@@ -3164,7 +3171,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Generate Rust CycloneDX SBOM
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -3206,7 +3213,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Export the dependency graph
         continue-on-error: true
         env:
@@ -3252,10 +3259,10 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Run govulncheck
@@ -3311,7 +3318,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Grype
         id: grype
         continue-on-error: true
@@ -3352,12 +3359,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node.js
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
+          package-manager-cache: false
       - name: Run npm audit
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -3400,7 +3408,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run OSV-Scanner
         continue-on-error: true
         uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
@@ -3436,7 +3444,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Java
         continue-on-error: true
         uses: actions/setup-java@v4
@@ -3506,12 +3514,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node.js
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
+          package-manager-cache: false
       - name: Run Retire.js
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -3552,12 +3561,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
+          package-manager-cache: false
       - name: Run Snyk Open Source
         continue-on-error: true
         env:
@@ -3602,10 +3612,10 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Generate CycloneDX SBOM
         continue-on-error: true
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.3
         with:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json
@@ -3642,7 +3652,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Trivy filesystem (CycloneDX)
         continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
@@ -3688,12 +3698,13 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node.js
         continue-on-error: true
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
+          package-manager-cache: false
       - name: Generate Yarn CycloneDX SBOM
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -3736,7 +3747,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -3864,7 +3875,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Gitleaks
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -3904,7 +3915,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run Nosey Parker
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -3952,7 +3963,7 @@ The job it adds:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run TruffleHog
         continue-on-error: true
         shell: bash --noprofile --norc {0}
@@ -4106,10 +4117,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Go
         continue-on-error: true
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: Run gosec
@@ -4147,7 +4158,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up uv
         continue-on-error: true
         uses: astral-sh/setup-uv@v7
@@ -4178,7 +4189,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Trivy filesystem (CycloneDX)
         continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
@@ -4219,7 +4230,7 @@ jobs:
       VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
       VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install Vulnetix CLI
         run: |
           curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \

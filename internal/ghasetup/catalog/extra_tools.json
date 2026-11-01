@@ -17,7 +17,7 @@
       "steps": [
         {
           "name": "Set up Go",
-          "uses": "actions/setup-go@v6",
+          "uses": "actions/setup-go@v7",
           "with": {
             "go-version": "stable"
           }
@@ -243,7 +243,7 @@
       "steps": [
         {
           "name": "Set up Go",
-          "uses": "actions/setup-go@v6",
+          "uses": "actions/setup-go@v7",
           "with": {
             "go-version": "stable"
           }
@@ -276,9 +276,10 @@
       "steps": [
         {
           "name": "Set up Node.js",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "lts/*"
+            "node-version": "lts/*",
+            "package-manager-cache": false
           }
         },
         {
@@ -305,9 +306,10 @@
       "steps": [
         {
           "name": "Set up Node.js",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "lts/*"
+            "node-version": "lts/*",
+            "package-manager-cache": false
           }
         },
         {
@@ -336,9 +338,10 @@
       "steps": [
         {
           "name": "Set up Node.js",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "lts/*"
+            "node-version": "lts/*",
+            "package-manager-cache": false
           }
         },
         {
@@ -365,9 +368,10 @@
       "steps": [
         {
           "name": "Set up Node.js",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "lts/*"
+            "node-version": "lts/*",
+            "package-manager-cache": false
           }
         },
         {
@@ -394,9 +398,10 @@
       "steps": [
         {
           "name": "Set up Node.js",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "lts/*"
+            "node-version": "lts/*",
+            "package-manager-cache": false
           }
         },
         {
@@ -519,7 +524,7 @@
       "steps": [
         {
           "name": "Set up Go",
-          "uses": "actions/setup-go@v6",
+          "uses": "actions/setup-go@v7",
           "with": {
             "go-version": "stable"
           }
@@ -553,7 +558,7 @@
       "steps": [
         {
           "name": "Set up Go",
-          "uses": "actions/setup-go@v6",
+          "uses": "actions/setup-go@v7",
           "with": {
             "go-version": "stable"
           }
@@ -585,9 +590,10 @@
       "steps": [
         {
           "name": "Set up Node.js",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "lts/*"
+            "node-version": "lts/*",
+            "package-manager-cache": false
           }
         },
         {
@@ -614,9 +620,10 @@
       "steps": [
         {
           "name": "Set up Node.js",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "lts/*"
+            "node-version": "lts/*",
+            "package-manager-cache": false
           }
         },
         {
@@ -671,7 +678,7 @@
       "steps": [
         {
           "name": "Set up Go",
-          "uses": "actions/setup-go@v6",
+          "uses": "actions/setup-go@v7",
           "with": {
             "go-version": "stable"
           }
@@ -1263,7 +1270,7 @@
         },
         {
           "name": "Generate image SBOM",
-          "uses": "anchore/sbom-action@v0.24.0",
+          "uses": "anchore/sbom-action@v0.24.3",
           "with": {
             "image": "${{ steps.build.outputs.image }}",
             "format": "cyclonedx-json",
@@ -1372,9 +1379,10 @@
       "steps": [
         {
           "name": "Set up Node",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "22"
+            "node-version": "22",
+            "package-manager-cache": false
           }
         },
         {
@@ -1402,9 +1410,10 @@
       "steps": [
         {
           "name": "Set up Node",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "22"
+            "node-version": "22",
+            "package-manager-cache": false
           }
         },
         {
@@ -1432,9 +1441,10 @@
       "steps": [
         {
           "name": "Set up Node",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "22"
+            "node-version": "22",
+            "package-manager-cache": false
           }
         },
         {
@@ -1462,9 +1472,10 @@
       "steps": [
         {
           "name": "Set up Node",
-          "uses": "actions/setup-node@v4",
+          "uses": "actions/setup-node@v7",
           "with": {
-            "node-version": "22"
+            "node-version": "22",
+            "package-manager-cache": false
           }
         },
         {

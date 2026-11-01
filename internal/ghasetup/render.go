@@ -209,7 +209,7 @@ func renderJob(t *Tool, runsOn string) string {
 	}
 	fmt.Fprintf(&b, "    timeout-minutes: %d\n", timeout)
 	b.WriteString("    steps:\n")
-	b.WriteString("      - uses: actions/checkout@v5\n")
+	b.WriteString("      - uses: actions/checkout@v7\n")
 
 	for _, s := range t.Steps {
 		b.WriteString(renderStep(s))
@@ -357,7 +357,7 @@ func renderPublish(tools []*Tool, runsOn string, opt Options) string {
 	fmt.Fprintf(&b, "      VULNETIX_ORG_ID: %s\n", orgID)
 	b.WriteString("      VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}\n")
 	b.WriteString("    steps:\n")
-	b.WriteString("      - uses: actions/checkout@v5\n")
+	b.WriteString("      - uses: actions/checkout@v7\n")
 	b.WriteString("      - name: Install Vulnetix CLI\n")
 	// No --version: install.sh resolves the latest release, so this workflow
 	// does not go stale and never needs a version bump commit.
