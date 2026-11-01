@@ -4,26 +4,20 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
-// TestJailVEXKeepsAffectedStatusWithAFixVersion is the reason writeJailVEX
-// asserts the justification instead of trusting the server.
+// TestJailVEXKeepsAffectedStatusWithAFixVersion pins the jail document to its
+// verdict: affected, past policy, and a fix exists.
 //
-// triage.GenerateOpenVEX contains this, and it is correct for the triage path
-// it was written for:
-//
-//	if f.FixedVer != "" && f.Justification == "" {
-//	    stmt["justification"] = "vulnerable_code_not_present"
-//	    stmt["status"] = "not_affected"
-//	}
-//
-// A jail statement is the precise inverse: affected, past policy, AND a fix
-// exists. Without a justification the emitted document would tell every
-// downstream consumer that the repository is NOT affected by the very
-// vulnerabilities that failed its build.
+// triage.GenerateOpenVEX once rewrote an affected statement that had a fix
+// version and no justification to not_affected, which would have told every
+// downstream consumer the repository is not affected by the vulnerabilities
+// that failed its build. The fix version now goes into action_statement and
+// the jail's reason into status_notes.
 func TestJailVEXKeepsAffectedStatusWithAFixVersion(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "jail.vex.json")
@@ -73,9 +67,10 @@ func TestJailVEXKeepsAffectedStatusWithAFixVersion(t *testing.T) {
 			Vulnerability struct {
 				Name string `json:"name"`
 			} `json:"vulnerability"`
-			Status        string `json:"status"`
-			Justification string `json:"justification"`
-			FixedVersion  string `json:"fixed_version"`
+			Status          string `json:"status"`
+			Justification   string `json:"justification"`
+			ActionStatement string `json:"action_statement"`
+			StatusNotes     string `json:"status_notes"`
 		} `json:"statements"`
 	}
 	if err := json.Unmarshal(body, &doc); err != nil {
@@ -85,16 +80,22 @@ func TestJailVEXKeepsAffectedStatusWithAFixVersion(t *testing.T) {
 		t.Fatalf("statements = %d, want 2", len(doc.Statements))
 	}
 
+	fixedIn := map[string]string{"CVE-2024-0001": "1.3.0", "CVE-2024-0002": "2.30.1"}
 	for _, s := range doc.Statements {
 		if s.Status != "affected" {
-			t.Fatalf("%s status = %q, want affected — the document asserts the opposite of the verdict that produced it",
+			t.Fatalf("%s status = %q, want affected: the document asserts the opposite of the verdict that produced it",
 				s.Vulnerability.Name, s.Status)
 		}
-		if s.Justification == "" {
-			t.Fatalf("%s has an empty justification", s.Vulnerability.Name)
+		// OpenVEX justifications belong to not_affected only, so the jail's
+		// reason travels in status_notes.
+		if s.Justification != "" {
+			t.Fatalf("%s carries justification %q on an affected statement", s.Vulnerability.Name, s.Justification)
 		}
-		if s.FixedVersion == "" {
-			t.Fatalf("%s lost its fixed_version", s.Vulnerability.Name)
+		if !strings.Contains(s.StatusNotes, "justification: ") {
+			t.Fatalf("%s lost its reason; status_notes = %q", s.Vulnerability.Name, s.StatusNotes)
+		}
+		if !strings.Contains(s.ActionStatement, fixedIn[s.Vulnerability.Name]) {
+			t.Fatalf("%s action_statement %q does not name the fix %s", s.Vulnerability.Name, s.ActionStatement, fixedIn[s.Vulnerability.Name])
 		}
 	}
 }

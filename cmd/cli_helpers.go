@@ -41,7 +41,8 @@ func envForCliWithGit(git *gitctx.GitContext) vdb.CliEnv {
 		BuildDate:  buildDate,
 		Deployment: deploymentEnv(),
 	}
-	if sys := gitctx.CollectSystemInfo(); sys != nil {
+	sys := gitctx.CollectSystemInfo()
+	if sys != nil {
 		env.OS = sys.OS
 		env.Arch = sys.Arch
 		env.Platform = sys.OS
@@ -66,6 +67,7 @@ func envForCliWithGit(git *gitctx.GitContext) vdb.CliEnv {
 	if env.CI == nil {
 		env.CI = ciContextForCli()
 	}
+	env.Identity = cliIdentity(git, sys, env.CI)
 	return env
 }
 

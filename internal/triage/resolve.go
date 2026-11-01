@@ -15,8 +15,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/memory"
 )
+
+// decisionActor is who a decision written under vulnetixDir is attributed to:
+// the git config email of the project the .vulnetix directory belongs to,
+// else user@host. A claim, recorded so a reviewer can see who said so.
+func decisionActor(vulnetixDir string) string {
+	dir := ""
+	if vulnetixDir != "" {
+		dir = filepath.Dir(vulnetixDir)
+	}
+	return gitctx.LocalActor(dir)
+}
 
 // ---------------------------------------------------------------------------
 // Status mapping
@@ -351,6 +363,7 @@ func RecordResolutionInMemory(vulnetixDir string, a Alert, opt ResolutionOption,
 		Choice: opt.Label,
 		Reason: rationale,
 		Date:   now,
+		Actor:  decisionActor(vulnetixDir),
 	}
 
 	rec.History = append(rec.History, memory.HistoryEntry{
@@ -473,10 +486,10 @@ func WriteVEXForResolution(vulnetixDir string, a Alert, opt ResolutionOption, ra
 		data, err = GenerateCDXVEX([]*TriageFinding{finding}, "")
 		ext = ".cdx.json"
 	case "json":
-		data, err = GenerateOpenVEX([]*TriageFinding{finding}, OpenVEXOptions{})
+		data, err = GenerateOpenVEX([]*TriageFinding{finding}, OpenVEXOptions{Author: decisionActor(vulnetixDir)})
 		ext = ".vex.json"
 	default: // openvex
-		data, err = GenerateOpenVEX([]*TriageFinding{finding}, OpenVEXOptions{})
+		data, err = GenerateOpenVEX([]*TriageFinding{finding}, OpenVEXOptions{Author: decisionActor(vulnetixDir)})
 		ext = ".openvex.json"
 	}
 	if err != nil {

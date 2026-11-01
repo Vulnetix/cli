@@ -4,10 +4,12 @@ package triage
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v3/internal/vex"
 )
 
 // ---------------------------------------------------------------------------
@@ -18,76 +20,52 @@ import (
 type OpenVEXOptions struct {
 	// ID is the document identifier. If empty, a URN is generated.
 	ID string
-	// Author is the document author.
+	// Author is the document author. Defaults to DefaultOpenVEXAuthor.
 	Author string
 	// Tooling identifies the tool that generated the document.
 	Tooling string
 }
 
+// DefaultOpenVEXAuthor is the author of a document whose caller named none.
+const DefaultOpenVEXAuthor = "Vulnetix CLI"
+
 // GenerateOpenVEX produces an OpenVEX 0.2.0 document from triage findings.
+//
+// The output keeps to the 0.2.0 schema, because consumers (and the Vulnetix
+// server) read the documents this CLI writes:
+//   - an affected statement says what to do in action_statement; there is no
+//     `action` object in the spec;
+//   - a justification is written only on not_affected and only from the
+//     OpenVEX vocabulary; any other reason goes to status_notes;
+//   - a product is identified by its versioned purl in @id, with no
+//     `versions` or `supplier` members, which the product schema lacks;
+//   - fixed stays fixed: a fixed version never turns a statement into
+//     not_affected;
+//   - a statement is stamped with when the decision was made, when that is
+//     known, rather than when the file was rendered.
+//
+// The CLI has no severity field to put in a statement, so severity is not
+// written: impact_statement is the reason a not_affected holds.
 func GenerateOpenVEX(findings []*TriageFinding, opts OpenVEXOptions) ([]byte, error) {
+	generated := time.Now().UTC()
 	docID := opts.ID
 	if docID == "" {
-		docID = fmt.Sprintf("urn:openvex:cli:%s", time.Now().UTC().Format("20060102T150405Z"))
+		docID = fmt.Sprintf("urn:openvex:cli:%s", generated.Format("20060102T150405Z"))
 	}
 	if opts.Author == "" {
-		opts.Author = "Vulnetix"
+		opts.Author = DefaultOpenVEXAuthor
 	}
 	if opts.Tooling == "" {
 		opts.Tooling = "vulnetix-cli"
 	}
-
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := generated.Format(time.RFC3339)
 
 	stmts := make([]map[string]any, 0, len(findings))
 	for _, f := range findings {
-		stmt := map[string]any{
-			"vulnerability": map[string]string{
-				"name": f.CVEID,
-			},
-			"status":    f.Status,
-			"timestamp": now,
+		if f == nil {
+			continue
 		}
-
-		if f.Justification != "" {
-			stmt["justification"] = f.Justification
-		}
-
-		if f.ActionResponse != "" {
-			stmt["action"] = map[string]string{
-				"status":    f.ActionResponse,
-				"timestamp": now,
-			}
-		}
-
-		if f.Severity != "" {
-			stmt["impact_statement"] = fmt.Sprintf("Severity: %s", f.Severity)
-		}
-
-		if f.FixedVer != "" {
-			stmt["fixed_version"] = f.FixedVer
-			if f.Justification == "" {
-				stmt["justification"] = "vulnerable_code_not_present"
-				stmt["status"] = "not_affected"
-			}
-		}
-
-		if f.Package != "" {
-			stmt["products"] = []map[string]any{
-				{
-					"@id":      fmt.Sprintf("pkg:%s/%s", f.Ecosystem, f.Package),
-					"supplier": f.Package,
-					"versions": []map[string]string{
-						{"version": f.InstalledVer},
-					},
-					"subcomponents": []map[string]string{
-						{"@id": fmt.Sprintf("pkg:%s/%s@%s", f.Ecosystem, f.Package, f.InstalledVer)},
-					},
-				},
-			}
-		}
-
-		stmts = append(stmts, stmt)
+		stmts = append(stmts, openVEXStatement(f, now))
 	}
 
 	doc := map[string]any{
@@ -101,6 +79,112 @@ func GenerateOpenVEX(findings []*TriageFinding, opts OpenVEXOptions) ([]byte, er
 	}
 
 	return json.MarshalIndent(doc, "", "  ")
+}
+
+// openVEXStatement renders one finding as an OpenVEX 0.2.0 statement.
+func openVEXStatement(f *TriageFinding, generated string) map[string]any {
+	status := f.Status
+	stmt := map[string]any{
+		"vulnerability": map[string]string{"name": f.CVEID},
+		"status":        status,
+		"timestamp":     statementTimestamp(f, generated),
+	}
+
+	var notes []string
+	reason := strings.TrimSpace(f.ActionResponse)
+	justification := strings.TrimSpace(f.Justification)
+	standard := vex.Justifications[justification]
+
+	switch status {
+	case "not_affected":
+		if standard {
+			stmt["justification"] = justification
+		} else if justification != "" {
+			// A reason outside the vocabulary is still the reason; it is the
+			// impact statement when nothing better was written.
+			if reason == "" {
+				reason = justification
+			} else {
+				notes = append(notes, "justification: "+justification)
+			}
+		}
+		if reason != "" {
+			stmt["impact_statement"] = reason
+		}
+	case "affected":
+		action := reason
+		if action == "" && f.FixedVer != "" {
+			action = fmt.Sprintf("Upgrade %s to %s or later.", productName(f), f.FixedVer)
+		}
+		if action == "" {
+			action = "No fix is recorded. Track the advisory for a fixed release."
+		}
+		stmt["action_statement"] = action
+		if f.FixedVer != "" && reason != "" {
+			notes = append(notes, "fixed in "+f.FixedVer)
+		}
+		if justification != "" {
+			notes = append(notes, "justification: "+justification)
+		}
+	default: // fixed, under_investigation
+		if reason != "" {
+			notes = append(notes, reason)
+		}
+		if justification != "" {
+			notes = append(notes, "justification: "+justification)
+		}
+		if status == "fixed" && f.FixedVer != "" {
+			notes = append(notes, "fixed in "+f.FixedVer)
+		}
+	}
+	if len(notes) > 0 {
+		stmt["status_notes"] = strings.Join(notes, "; ")
+	}
+
+	if id := productID(f); id != "" {
+		stmt["products"] = []map[string]any{{"@id": id}}
+	}
+	return stmt
+}
+
+// statementTimestamp is when the decision behind a statement was made: the
+// memory decision's date, else DecidedAt, else the generation time.
+func statementTimestamp(f *TriageFinding, generated string) string {
+	if f.Decision != nil {
+		if t, err := time.Parse(time.RFC3339, f.Decision.Date); err == nil {
+			return t.UTC().Format(time.RFC3339)
+		}
+	}
+	if !f.DecidedAt.IsZero() {
+		return f.DecidedAt.UTC().Format(time.RFC3339)
+	}
+	return generated
+}
+
+// productID is the statement's product: a purl carrying the installed
+// version, so the statement names the exact release it was made about.
+func productID(f *TriageFinding) string {
+	if f.Package == "" {
+		return ""
+	}
+	if p := cdx.BuildLocalPurl(f.Package, f.InstalledVer, f.Ecosystem); p != "" {
+		return p
+	}
+	if f.Ecosystem == "" {
+		return f.Package
+	}
+	id := fmt.Sprintf("pkg:%s/%s", strings.ToLower(f.Ecosystem), f.Package)
+	if f.InstalledVer != "" {
+		id += "@" + f.InstalledVer
+	}
+	return id
+}
+
+func productName(f *TriageFinding) string {
+	if f.Package != "" {
+		return f.Package
+	}
+	return "the package"
 }
 
 // ---------------------------------------------------------------------------

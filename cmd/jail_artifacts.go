@@ -31,13 +31,12 @@ const jailFallbackJustification = "component_present_and_in_scope"
 
 // writeJailVEX renders the VEX statements and returns the path written.
 //
-// Every statement is forced to carry a justification, and that assertion is the
-// point of this function rather than a nicety. triage.GenerateOpenVEX rewrites a
-// statement that has a fixed_version and an empty justification to
-// status "not_affected" — the precise inverse of what a jail asserts, which is
-// "affected, past policy, and a fix exists". A document claiming the opposite of
-// the verdict that produced it is worse than no document, so the CLI does not
-// trust the server to have filled the field in; it checks.
+// Every statement carries the jail's reason. triage.GenerateOpenVEX writes it to
+// status_notes, since OpenVEX justifications belong to not_affected only, and
+// keeps the status affected, which is what a jail asserts: "affected, past
+// policy, and a fix exists". The writer once rewrote an unjustified statement
+// with a fix version to not_affected; TestOpenVEXDoesNotInvertAffected pins
+// that it no longer does.
 func writeJailVEX(resp *vdb.CliJailResponse, path, format string) (string, error) {
 	if resp == nil || resp.Vex == nil || len(resp.Vex.Statements) == 0 {
 		return "", nil

@@ -6,6 +6,7 @@ package triage
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/vulnetix/cli/v3/internal/memory"
 )
@@ -124,10 +125,13 @@ type TriageFinding struct {
 	ThreatModel    *ThreatModel
 	CWSS           *CWSSData
 	Decision       *memory.Decision
-	History        []memory.HistoryEntry
-	Source         string // "vulnetix" | "github"
-	ExploitCount   int
-	InKEV          bool
+	// DecidedAt is when the decision was made, for a finding whose decision is
+	// not a memory Decision (a recorded control, say). Zero means unknown.
+	DecidedAt    time.Time
+	History      []memory.HistoryEntry
+	Source       string // "vulnetix" | "github"
+	ExploitCount int
+	InKEV        bool
 }
 
 // ThreatModel holds MITRE ATT&CK-derived threat modelling data.

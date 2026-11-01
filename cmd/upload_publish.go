@@ -23,6 +23,7 @@ import (
 	"github.com/Vulnetix/vdb-sca-match/sarif"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/upload"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 // uploadPublishable reports whether a detected format has a typed endpoint.
@@ -31,7 +32,55 @@ func uploadPublishable(format string) bool {
 	case "sarif", "cyclonedx", "spdx":
 		return true
 	}
-	return false
+	return uploadIsVEX(format)
+}
+
+// uploadIsVEX reports whether a detected format goes to /v2/cli.vex-ingest.
+func uploadIsVEX(format string) bool {
+	return format == "openvex" || format == "csaf_vex"
+}
+
+// publishVEX sends an OpenVEX or CSAF document to /v2/cli.vex-ingest, where
+// its statements become suppression rules. For `upload` the document is the
+// whole point of the call, so a refusal is an error rather than a warning.
+func (s *ghaSubmitter) publishVEX(res ghaFileResult, path string, data []byte) ghaFileResult {
+	reqs, notes := buildVEXIngestRequests(vexIngestInput{
+		Origin: vdb.VexOriginUpload,
+		Docs:   []vexRawDocument{{Path: path, Data: data}},
+		Git:    cwdGitContext(cliGitDir()),
+	})
+	if len(reqs) == 0 {
+		res.Status = "error"
+		res.Error = strings.Join(notes, "; ")
+		if res.Error == "" {
+			res.Error = "not a VEX document"
+		}
+		return res
+	}
+	res.Category = "vex"
+	if s.dryRun {
+		res.Status = "uploaded"
+		res.Reason = "dry run; nothing was sent"
+		return res
+	}
+	resp, err := s.client.CliVexIngest(s.ctx, s.env, reqs[0])
+	if err != nil {
+		res.Status, res.Error = "error", err.Error()
+		return res
+	}
+	for _, d := range resp.Data.Documents {
+		if d.Error != "" {
+			res.Status, res.Error = "error", d.Error
+			return res
+		}
+		res.Findings += d.Statements
+		res.Suppressed += d.Applied
+		if d.ArtifactUuid != "" || d.OpenVexUuid != "" {
+			res.Persisted = true
+		}
+	}
+	res.Status = "uploaded"
+	return res
 }
 
 // unsupportedFormatError explains why a file cannot be published and, where the
@@ -43,7 +92,7 @@ func unsupportedFormatError(path, format string) error {
 	base := filepath.Base(path)
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s is not a format Vulnetix ingests (detected %q).\n", base, format)
-	b.WriteString("Vulnetix accepts SARIF, CycloneDX and SPDX.")
+	b.WriteString("Vulnetix accepts SARIF, CycloneDX, SPDX, OpenVEX and CSAF VEX.")
 	if hint := sarifExportHint(base); hint != "" {
 		b.WriteString("\n" + hint)
 	}
@@ -165,6 +214,13 @@ func publishLocalFile(s *ghaSubmitter, path string) (ghaFileResult, error) {
 	format := upload.DetectFormat(path, data)
 	if !uploadPublishable(format) {
 		return ghaFileResult{}, unsupportedFormatError(path, format)
+	}
+	if uploadIsVEX(format) {
+		res := s.publishVEX(ghaFileResult{Name: filepath.Base(path), File: filepath.Base(path), Format: format}, path, data)
+		if res.Status == "error" {
+			return res, fmt.Errorf("%s: %s", filepath.Base(path), res.Error)
+		}
+		return res, nil
 	}
 
 	// Refuse Vulnetix's own reports before sending anything.

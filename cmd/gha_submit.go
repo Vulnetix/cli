@@ -411,7 +411,18 @@ func (s *ghaSubmitter) publishCycloneDX(res ghaFileResult, artifactName string, 
 		s.warnf("  %s/%s: %d component(s) carry no purl and were skipped", artifactName, res.File, skipped)
 	}
 
+	// cli.sca takes purls only, so the document's vulnerabilities[].analysis
+	// blocks (the tool's not_affected and won't-fix decisions) would be lost.
+	// The document goes to cli.vex-ingest as well, where they become rules.
+	hasAnalysis := cdxHasAnalysis(data)
+
 	if len(packages) == 0 {
+		if hasAnalysis && !s.dryRun && s.ingestCDXAnalysis(artifactName, res.File, data, "") {
+			res.Status = "uploaded"
+			res.Category = "vex"
+			res.Reason = "no components with a package URL; VEX analysis sent"
+			return res
+		}
 		res.Status = "skipped"
 		res.Reason = "no components with a package URL"
 		return res
@@ -422,7 +433,7 @@ func (s *ghaSubmitter) publishCycloneDX(res ghaFileResult, artifactName string, 
 		return res
 	}
 
-	return s.postSCA(res, packages, &vdb.CliToolAttribution{
+	res = s.postSCA(res, packages, &vdb.CliToolAttribution{
 		ToolName:     toolName,
 		ToolVersion:  meta.ToolVersion,
 		Vendor:       meta.ToolVendor,
@@ -432,6 +443,64 @@ func (s *ghaSubmitter) publishCycloneDX(res ghaFileResult, artifactName string, 
 		Format:       "cyclonedx",
 		AnalysisKey:  s.analysisKey(toolName),
 	})
+	if hasAnalysis && res.Status != "error" {
+		s.ingestCDXAnalysis(artifactName, res.File, data, res.SnapshotUuid)
+	}
+	return res
+}
+
+// cdxHasAnalysis reports whether any vulnerability in a CycloneDX document
+// carries a non-empty analysis block, which is what makes an entry a VEX
+// assertion rather than a finding.
+func cdxHasAnalysis(data []byte) bool {
+	var doc struct {
+		Vulnerabilities []struct {
+			Analysis map[string]json.RawMessage `json:"analysis"`
+		} `json:"vulnerabilities"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return false
+	}
+	for _, v := range doc.Vulnerabilities {
+		if len(v.Analysis) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// ingestCDXAnalysis sends a third-party CycloneDX document to cli.vex-ingest.
+// Best effort: a failure is a warning and never changes the file's result.
+func (s *ghaSubmitter) ingestCDXAnalysis(artifactName, fileName string, data []byte, snapshotUuid string) bool {
+	reqs, notes := buildVEXIngestRequests(vexIngestInput{
+		Origin:       vdb.VexOriginBOMAnalysis,
+		Docs:         []vexRawDocument{{Path: fileName, Data: data}},
+		SnapshotUuid: snapshotUuid,
+	})
+	for _, n := range notes {
+		s.warnf("  %s/%s: VEX analysis not sent: %s", artifactName, fileName, n)
+	}
+	if len(reqs) == 0 {
+		return false
+	}
+	ctx := s.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	resp, err := s.client.CliVexIngest(ctx, s.env, reqs[0])
+	if err != nil {
+		s.warnf("  %s/%s: VEX analysis not sent: %v", artifactName, fileName, err)
+		return false
+	}
+	for _, d := range resp.Data.Documents {
+		if d.Error != "" {
+			s.warnf("  %s/%s: VEX analysis not ingested: %s", artifactName, fileName, d.Error)
+			return false
+		}
+		s.logf("  %s/%s -> VEX analysis: %d statement(s), %d rule(s) created, %d waiting for review",
+			artifactName, fileName, d.Statements, len(d.Created), len(d.Pending))
+	}
+	return true
 }
 
 // publishSPDX does the same for an SPDX document, reading purls out of each

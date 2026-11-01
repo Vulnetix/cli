@@ -979,6 +979,8 @@ func runLocalScan(
 	// Reset per run so a second invocation in the same process cannot attach its
 	// binaries to the previous scan's snapshot.
 	lastContainerSnapshotUuid = ""
+	lastSCAScannerRunUuid = ""
+	resetLocalSuppressions()
 
 	// sarifSnapshotUuids maps category → snapshotUuid for SARIF kinds, used to
 	// call cli.finalize for each SARIF-only snapshot.
@@ -1688,6 +1690,7 @@ func runLocalScan(
 			if kept, hits := sast.ApplyNosec(sastReport.Findings, rootPath); len(hits) > 0 {
 				sastReport.Findings = kept
 				nosecHits = hits
+				recordNosecHits(mem, gitCtx, hits)
 				sastReport.Degradations = append(sastReport.Degradations,
 					fmt.Sprintf("%d finding(s) suppressed by nosec comments", len(hits)))
 			}
@@ -2081,6 +2084,31 @@ func runLocalScan(
 		}
 		if !resultsOnly {
 			reportVEXPass(vexPass)
+		}
+	}
+
+	// ── VEX to Vulnetix ───────────────────────────────────────────────────
+	// The --vex-file documents and the VEX this run's reconciliation wrote are
+	// sent to the server, which turns their statements into suppression rules.
+	// After the SCA round trip so the documents can name this run's snapshot.
+	// Best effort: ingestVEX only warns, and sends nothing unauthenticated.
+	if !explaining {
+		vexWarn := io.Writer(os.Stderr)
+		if resultsOnly {
+			vexWarn = io.Discard
+		}
+		if vexPass != nil && len(vexPass.Raw) > 0 {
+			ingestVEX(ctx, vexIngestInput{
+				Origin: vdb.VexOriginScanVexFile, Docs: vexPass.Raw, Git: gitCtx,
+				ScannerRunUuid: lastSCAScannerRunUuid, SnapshotUuid: scaSnapshotUuid, Warn: vexWarn,
+			})
+		}
+		// The reconciliation documents are not tied to one snapshot: one file
+		// covers sast, secrets, iac and container findings together.
+		if len(vexPaths) > 0 {
+			ingestVEX(ctx, vexIngestInput{
+				Origin: vdb.VexOriginReconcile, Docs: readVEXFiles(vexPaths), Git: gitCtx, Warn: vexWarn,
+			})
 		}
 	}
 
@@ -3575,7 +3603,7 @@ func printScanSummaryFooter(totalPkgs, totalVulns int, enrichedVulns []scan.Enri
 	// line matters: "0 vulnerabilities" on its own reads as "nothing was found",
 	// when what happened is that somebody asserted the findings do not apply.
 	if vexSuppressed > 0 {
-		summary += fmt.Sprintf(" (%d suppressed by VEX)", vexSuppressed)
+		summary += fmt.Sprintf(" (%d hidden as VEX not affected)", vexSuppressed)
 	}
 	fmt.Fprintln(os.Stdout, display.Bold(t, summary))
 	if anyReachabilityAssessed(enrichedVulns) {

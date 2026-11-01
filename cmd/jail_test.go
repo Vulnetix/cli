@@ -36,6 +36,12 @@ func newJailMockServer(t *testing.T, respond func(*testing.T) any) *jailMockServ
 	t.Helper()
 	m := &jailMockServer{}
 	m.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The VEX a jail writes is sent on afterwards when the CLI is
+		// authenticated; it is not the request these tests inspect.
+		if r.URL.Path == "/v2/cli.vex-ingest" {
+			_, _ = w.Write([]byte(`{"meta":{},"data":{"documents":[]}}`))
+			return
+		}
 		m.LastPath = r.URL.Path
 
 		body, _ := io.ReadAll(r.Body)

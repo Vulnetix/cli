@@ -38,6 +38,10 @@ type TriageOptions struct {
 	// InitialSeverity sets the starting severity filter (empty means no filter).
 	// Valid values: "low", "medium", "high", "critical".
 	InitialSeverity string
+	// OnVEXWritten is told the path of every VEX document a resolution wrote.
+	// It runs inside the TUI, so it must not print; the caller acts on the
+	// paths once the TUI has exited.
+	OnVEXWritten func(path string)
 }
 
 // TriageModel is the bubbletea model for the triage TUI.
@@ -103,8 +107,11 @@ func (m *TriageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// When the modal finishes, refresh the alert's displayed state.
-		if done, ok := msg.(ResolveCompleteMsg); ok && done.Err == nil {
-			m.applyResolvedStatus(done.AlertNumber, done.VEXStatus)
+		if done, ok := msg.(ResolveCompleteMsg); ok {
+			if done.Err == nil {
+				m.applyResolvedStatus(done.AlertNumber, done.VEXStatus)
+			}
+			m.notifyVEX(done.VexFile)
 		}
 
 		return m, cmd
@@ -162,8 +169,16 @@ func (m *TriageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err == nil {
 			m.applyResolvedStatus(msg.AlertNumber, msg.VEXStatus)
 		}
+		m.notifyVEX(msg.VexFile)
 	}
 	return m, nil
+}
+
+// notifyVEX passes a written VEX path to the caller's hook.
+func (m *TriageModel) notifyVEX(path string) {
+	if path != "" && m.opts.OnVEXWritten != nil {
+		m.opts.OnVEXWritten(path)
+	}
 }
 
 // applyResolvedStatus updates the State field of the matching alert in the list

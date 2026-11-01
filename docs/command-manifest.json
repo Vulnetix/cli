@@ -7896,6 +7896,7 @@
         "out",
         "output",
         "silent",
+        "upload",
         "verbose",
         "vex"
       ]

@@ -318,7 +318,7 @@ func runGitHubTriage(cmd *cobra.Command, args []string) error {
 					triageSeverity, strings.Join(scan.ValidSeverityThresholds, ", "))
 			}
 		}
-		return tui.RunTriage(enriched, tui.TriageOptions{
+		return runTriageTUI(enriched, tui.TriageOptions{
 			GHClient:        ghClient,
 			Repo:            repo,
 			VulnetixDir:     triageMemoryDir,
@@ -506,7 +506,7 @@ func runVulnetixTriage(cmd *cobra.Command, args []string) error {
 	if isInteractive && triageVEXStatus == "" && triageFormat != "json" && triageFormat != "text" {
 		enriched := findingsToEnrichedAlerts(findings)
 		sortAlertsBySeverity(enriched)
-		return tui.RunTriage(enriched, tui.TriageOptions{
+		return runTriageTUI(enriched, tui.TriageOptions{
 			VulnetixDir: memDir,
 			VexFormat:   triageVEXFormat,
 		})
@@ -574,7 +574,57 @@ func runVulnetixTriage(cmd *cobra.Command, args []string) error {
 		fmt.Fprint(out, string(outputBytes))
 	}
 
+	// Triage already asked Vulnetix about every finding, so the decisions go
+	// back as VEX. The JSON summary is not a VEX document and is not sent.
+	if triageVEXFormat != "json" && len(findings) > 0 {
+		name := triageVEXOutput
+		if name == "" {
+			name = "triage.openvex.json"
+			if triageVEXFormat == "cdx" || triageVEXFormat == "cyclonedx" {
+				name = "triage.cdx.json"
+			}
+		}
+		ensureVDBCredentials()
+		ingestVEX(context.Background(), vexIngestInput{
+			Origin: vdb.VexOriginTriage,
+			Docs:   []vexRawDocument{{Path: name, Data: outputBytes}},
+			Git:    cwdGitContext(cliGitDir()),
+		})
+	}
+
 	return nil
+}
+
+// runTriageTUI runs the triage TUI and, once it exits, sends every VEX
+// document its resolutions wrote. Sending waits for the exit because the TUI
+// owns the terminal while it runs.
+func runTriageTUI(alerts []triage.EnrichedAlert, opts tui.TriageOptions) error {
+	var (
+		mu    sync.Mutex
+		paths []string
+		seen  = map[string]bool{}
+	)
+	opts.OnVEXWritten = func(path string) {
+		mu.Lock()
+		defer mu.Unlock()
+		if !seen[path] {
+			seen[path] = true
+			paths = append(paths, path)
+		}
+	}
+	err := tui.RunTriage(alerts, opts)
+	mu.Lock()
+	written := append([]string(nil), paths...)
+	mu.Unlock()
+	if len(written) > 0 {
+		ensureVDBCredentials()
+		ingestVEX(context.Background(), vexIngestInput{
+			Origin: vdb.VexOriginTriage,
+			Docs:   readVEXFiles(written),
+			Git:    cwdGitContext(cliGitDir()),
+		})
+	}
+	return err
 }
 
 // updateMemoryFromFinding persists a TriageFinding into the memory store.

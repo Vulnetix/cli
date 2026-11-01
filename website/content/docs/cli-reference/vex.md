@@ -78,6 +78,7 @@ vulnetix vex apply --vex ./vex/ --bom sbom.cdx.json --fail-on-effective 0
 | `--bom` | - | **Required.** The SBOM to apply statements to |
 | `--out` | - | Write the annotated CycloneDX document here |
 | `--fail-on-effective` | `-1` | Exit `1` above this many surviving vulnerabilities (`-1` disables) |
+| `--upload` | `false` | Send the VEX documents to Vulnetix, which turns their false positive and won't fix statements into [suppression rules](#sent-to-vulnetix) |
 | `-o, --output` | `pretty` | `pretty`, `json` |
 
 `--bom` goes through the same loader as [`bom import`](../bom/), so an SPDX or
@@ -200,19 +201,62 @@ Every gate therefore honours VEX by construction — filtering per gate would
 leave one that could be forgotten, and the forgotten one fails a build over a
 finding the vendor already excluded.
 
-The summary line names the suppressed count, because `0 vulnerabilities` on its
+The summary line names the hidden count, because `0 vulnerabilities` on its
 own reads as *"nothing was found"* when what happened is that somebody asserted
-the findings do not apply:
+the findings do not apply. The label says "VEX not affected" (or "VEX fixed"),
+never "suppressed by rule", because a statement is the publisher's assertion,
+not an ignore rule anyone here wrote:
 
 ```
-VEX: 12 statement(s) from 1 document(s) — 12 suppressed, 0 effective
-  CVE-2021-23337       not_affected (vendor.openvex.json)
+VEX: 12 statement(s) from 1 document(s), 12 hidden as VEX not affected, 0 effective
+  CVE-2021-23337       VEX not affected (vendor.openvex.json)
   …
 
-  1 packages | 0 vulnerabilities (12 suppressed by VEX)
+  1 packages | 0 vulnerabilities | 12 hidden as VEX not affected
 ```
 
 A malformed VEX document fails the scan rather than silently widening the gate.
+
+## Sent to Vulnetix
+
+When a command already talks to Vulnetix in that run, the VEX it read or wrote
+is sent as-is to `/v2/cli.vex-ingest`, so the platform sees the same
+statements the CLI applied:
+
+| Read | Written |
+|------|---------|
+| `--vex-file` on a scan | `triage` resolutions |
+| `bom enrich --vex` | `vex reconcile` |
+| `vex apply --upload` | `defend` controls VEX |
+| `upload` of an OpenVEX or CSAF file | `jail` verdict VEX |
+
+The CLI does not classify statements; the server does. A statement that says
+the finding is a false positive (CycloneDX `false_positive`, OpenVEX or CSAF
+`component_not_present`) or that it will not be fixed (CycloneDX
+`will_not_fix` or `can_not_fix`, CSAF `no_fix_planned`) becomes a suppression
+rule for that vulnerability and package, scoped to the repository it came from.
+A won't fix that OpenVEX can only say in its `action_statement` prose waits for
+someone to approve it on the suppression policies page. Every other status is
+recorded as evidence on the finding and changes no rule.
+
+A finding a `--vex-file` statement hid in local output is labelled "VEX not
+affected" and is not reported as a rule application. Findings an ignore rule or
+a nosec comment hid are reported to `cli.finalize`, so the platform records
+which rule suppressed each one.
+
+An unauthenticated run sends nothing, and a failed send prints a warning; it
+never fails the scan.
+
+### Who ran it
+
+Each `/v2/cli.*` request carries what the CLI can tell about the person or job
+running it: git `user.name` and `user.email`, the HEAD commit author, the OS
+account and host, the GitHub Actions actor and, in a workflow with
+`permissions: id-token: write`, a GitHub Actions OIDC token for audience
+`vulnetix` in the `X-Vulnetix-GHA-OIDC` header. The server checks the token and
+the key, and records every form on the rule, with the strongest one it could
+verify as the actor. Nothing here is a login; the token never appears in a body
+or a log.
 
 ## Files this CLI writes
 

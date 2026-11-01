@@ -301,6 +301,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		// caller's goroutine — so the Phase B reads in buildReq stay race-free.
 		if job.primary && snapshot == nil && resp.Data.IngestionSnapshot != nil {
 			snapshot = resp.Data.IngestionSnapshot
+			lastSCAScannerRunUuid = snapshot.ScannerRunUuid
 		}
 		persistedFindings = append(persistedFindings, resp.Data.Findings...)
 	}
@@ -1473,6 +1474,10 @@ func buildCliEnv(gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo) vdb.CliE
 	if env.CI == nil {
 		env.CI = ciContextForCli()
 	}
+	if sysInfo == nil {
+		sysInfo = gitctx.CollectSystemInfo()
+	}
+	env.Identity = cliIdentity(gitCtx, sysInfo, env.CI)
 	return env
 }
 
@@ -1767,6 +1772,7 @@ func reportScanFinalization(snapshotUuid string, breaches []GateBreach, controlF
 		BreakBuild:            len(breaches) > 0,
 		Gates:                 gates,
 		ControlFlags:          controlFlags,
+		LocalSuppressions:     localSuppressionsForFinalize(),
 	})
 	if err != nil {
 		if verbose {

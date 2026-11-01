@@ -6,14 +6,19 @@ import (
 )
 
 func TestUploadPublishableFormats(t *testing.T) {
-	for _, f := range []string{"sarif", "cyclonedx", "spdx"} {
+	// openvex and csaf_vex go to /v2/cli.vex-ingest; they once went to the
+	// /v2/cli.upload blob endpoint, which answered 503.
+	for _, f := range []string{"sarif", "cyclonedx", "spdx", "openvex", "csaf_vex"} {
 		if !uploadPublishable(f) {
 			t.Errorf("%s has a typed endpoint and must be publishable", f)
 		}
 	}
-	// These used to be accepted and posted to /v2/cli.upload, which answers
-	// 503 in production. Accepting them again would restore a silent no-op.
-	for _, f := range []string{"openvex", "csaf_vex", "json", "xml", "unknown", ""} {
+	for _, f := range []string{"openvex", "csaf_vex"} {
+		if !uploadIsVEX(f) {
+			t.Errorf("%s must route to cli.vex-ingest", f)
+		}
+	}
+	for _, f := range []string{"json", "xml", "unknown", ""} {
 		if uploadPublishable(f) {
 			t.Errorf("%s has no typed endpoint and must not be publishable", f)
 		}
@@ -28,10 +33,10 @@ func TestUnsupportedFormatErrorIsActionable(t *testing.T) {
 		file     string
 		wantSubs []string
 	}{
-		{"sonarqube-issues.json", []string{"sonarqube-issues.json", "SARIF, CycloneDX and SPDX", "sonar.sarifReportPaths"}},
+		{"sonarqube-issues.json", []string{"sonarqube-issues.json", "SARIF, CycloneDX, SPDX, OpenVEX and CSAF VEX", "sonar.sarifReportPaths"}},
 		{"snyk-report.json", []string{"--sarif-file-output"}},
 		{"trivy-out.json", []string{"--format sarif"}},
-		{"shodan-vulns.json", []string{"SARIF, CycloneDX and SPDX"}},
+		{"shodan-vulns.json", []string{"SARIF, CycloneDX, SPDX, OpenVEX and CSAF VEX"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.file, func(t *testing.T) {

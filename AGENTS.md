@@ -235,6 +235,32 @@ gate honours VEX by construction; filtering per gate would leave one that could
 be forgotten, and the forgotten one fails a build over a finding the vendor
 already excluded.
 
+**The server turns VEX into suppression rules; the CLI only sends it.**
+`ingestVEX` (`cmd/vex_ingest.go`) posts the exact bytes to `/v2/cli.vex-ingest`
+with an `origin` (`scan_vex_file`, `bom_enrich`, `upload`, `bom_analysis`,
+`triage`, `reconcile`, `defend`, `jail`). Do not classify statements here.
+Only a command that already talks to the API in that run sends, an
+unauthenticated run sends nothing, and a failed send is a warning, never a
+failed scan. A finding a `--vex-file` statement hid is labelled "VEX not
+affected" and is not a rule application.
+
+**Every finding an ignore rule or a nosec comment hides is reported.**
+`recordLocalSuppression` (`cmd/suppress_report.go`) collects them from the
+`filterSuppressed*` functions and the nosec pass, and `cli.finalize` carries
+them as `localSuppressions`. A new filter must record what it hides.
+
+**Identity is evidence, not a login.** `CliEnv.identity` carries git config,
+the HEAD author, the OS account and the GitHub Actions actor, and the client
+sends a GitHub Actions OIDC token (audience `vulnetix`) as `X-Vulnetix-GHA-OIDC`
+on `/v2/cli.*` (`internal/ghactx/oidc.go`). The server ranks them. Never put a
+token in the body or a log. `memory.Decision.Actor` is `gitctx.LocalActor`.
+
+**`GenerateOpenVEX` writes OpenVEX 0.2.0.** `action_statement` for affected,
+justifications only on not_affected and only from the vocabulary (anything
+else goes to `status_notes`), a versioned purl as the product `@id`, the
+decision time as the statement timestamp, and `fixed` stays `fixed`.
+`TestGenerateOpenVEXPassesVexValidate` runs `vex validate` over the output.
+
 ### Attestation Verification: Do The Work, Then Be Exact About It
 
 `internal/cdxsign` signs; `internal/attest` verifies. Two rules pull against

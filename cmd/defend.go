@@ -21,6 +21,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/scanopts"
 	"github.com/vulnetix/cli/v3/internal/triage"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 // defendCmd is what to do about a finding that has no fix. Virtual patches block
@@ -69,12 +70,31 @@ statement.`,
 		}
 		activeSurface = surface
 		get := func(n string) string { v, _ := cmd.Flags().GetString(n); return strings.TrimSpace(v) }
-		return runDefend(cmd.Context(), defendOptions{
+		o := defendOptions{
 			Root: get("path"), ID: strings.TrimSpace(args[0]),
 			For: get("for"), OutDir: get("output-dir"),
 			Record: get("record"), Until: get("until"), Mode: get("mode"), Lane: get("lane"),
 			Package: get("package"), Now: time.Now(),
-		}, surface, defences.DefaultSource(), !isUnauthenticatedScan(), os.Stdout, os.Stderr)
+		}
+		if err := runDefend(cmd.Context(), o, surface, defences.DefaultSource(), !isUnauthenticatedScan(), os.Stdout, os.Stderr); err != nil {
+			return err
+		}
+		// The defence lookup already asked Vulnetix in this run, so the
+		// regenerated controls VEX goes there too. Its statements are affected
+		// with an action, never not_affected: the server records them, and
+		// classification is its call.
+		if o.Record != "" {
+			root := o.Root
+			if root == "" {
+				root = "."
+			}
+			ingestVEX(cmd.Context(), vexIngestInput{
+				Origin: vdb.VexOriginDefend,
+				Docs:   readVEXFiles([]string{filepath.Join(root, ".vulnetix", "vex-compensating-controls.json")}),
+				Git:    cwdGitContext(root),
+			})
+		}
+		return nil
 	},
 }
 
@@ -458,7 +478,7 @@ func writeControlsVEX(root string, set defences.ControlSet, now time.Time) (stri
 		}
 		findings = append(findings, &triage.TriageFinding{
 			CVEID: c.VulnID, Package: c.Package, Ecosystem: c.Ecosystem, InstalledVer: c.Version,
-			Status: "affected",
+			Status: "affected", DecidedAt: c.RecordedAt,
 			ActionResponse: fmt.Sprintf("compensating-control: %s %s until %s",
 				strings.TrimSpace(c.Where), modeSuffix(c), c.Until.Format("2006-01-02")),
 		})

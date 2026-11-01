@@ -199,6 +199,13 @@ func runJailPipeline(ctx context.Context, opts JailRunOptions) (*JailRunResult, 
 		}
 		if path != "" {
 			result.Artefacts = append(result.Artefacts, path)
+			// This run already talked to Vulnetix for the verdict, so the
+			// document it wrote goes back tied to this repository and commit.
+			ingestVEX(ctx, vexIngestInput{
+				Origin: vdb.VexOriginJail,
+				Docs:   readVEXFiles([]string{path}),
+				Git:    jailGitContext(opts.RootPath),
+			})
 		}
 	}
 	if opts.WriteSarif {

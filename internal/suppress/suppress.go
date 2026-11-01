@@ -37,7 +37,17 @@ type Rule struct {
 	Branch             string
 	ExpiresAt          int64
 	IsActive           bool
+	// Source is where the rule was loaded from: SourceMemory or SourceRemote.
+	// Reported back to the server with every finding the rule hid.
+	Source string
 }
+
+// Rule sources, in the wire vocabulary of CliLocalSuppression.Source.
+const (
+	SourceMemory = "memory"
+	SourceRemote = "remote"
+	SourceNosec  = "nosec"
+)
 
 // Finding is the subset of any scanner result the matcher inspects.
 type Finding struct {
@@ -186,9 +196,19 @@ func FromMemory(recs []memory.SuppressionRecord) []Rule {
 			Branch:             s.Branch,
 			ExpiresAt:          s.ExpiresAt,
 			IsActive:           s.IsActive,
+			Source:             memorySource(s.Origin),
 		})
 	}
 	return out
+}
+
+// memorySource is the source of a memory.yaml rule: a rule folded in from an
+// inline nosec directive stays a nosec rule, everything else is memory.
+func memorySource(origin string) string {
+	if strings.EqualFold(origin, "nosec") {
+		return SourceNosec
+	}
+	return SourceMemory
 }
 
 // RepoFullName derives "owner/repo" from the first parseable git remote URL.

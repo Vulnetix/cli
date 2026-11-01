@@ -13,6 +13,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/vex"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -84,6 +85,9 @@ type VEXPassResult struct {
 	Skipped []string
 	// Problems are validation problems found in the supplied documents.
 	Problems map[string][]vex.Problem
+	// Raw holds the exact bytes of every document read, so a caller can send
+	// them to Vulnetix unchanged (see ingestVEX).
+	Raw []vexRawDocument
 }
 
 // runVEXPass reads VEX documents and applies them to a BOM.
@@ -105,6 +109,11 @@ func runVEXPass(opts VEXPassOptions) (*VEXPassResult, error) {
 	for _, d := range docs {
 		if problems := d.Validate(); len(problems) > 0 {
 			res.Problems[d.Path] = problems
+		}
+		if d.Path != "" {
+			if data, rerr := os.ReadFile(d.Path); rerr == nil {
+				res.Raw = append(res.Raw, vexRawDocument{Path: d.Path, Data: data})
+			}
 		}
 	}
 
@@ -166,18 +175,44 @@ func reportVEXPass(pass *VEXPassResult) {
 	if r == nil || pass.Statements == 0 {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "\nVEX: %d statement(s) from %d document(s) — %d suppressed, %d effective\n",
+	// "VEX not affected", never "suppressed by rule": a statement is the
+	// publisher's assertion about this product, not an ignore rule anyone here
+	// wrote, and it is not reported to the server as a rule application.
+	fmt.Fprintf(os.Stderr, "\nVEX: %d statement(s) from %d document(s), %d hidden as VEX not affected, %d effective\n",
 		pass.Statements, pass.Documents, r.Suppressed, r.Effective)
 	for _, a := range r.Applied {
 		if !a.Suppressed {
 			continue
 		}
-		fmt.Fprintf(os.Stderr, "  %-20s %s (%s)\n", a.VulnID, a.Status, sourceName(a.Source))
+		fmt.Fprintf(os.Stderr, "  %-20s %s (%s)\n", a.VulnID, vexHiddenLabel(a.Status), sourceName(a.Source))
 	}
 	if r.Unmatched > 0 {
 		fmt.Fprintf(os.Stderr,
 			"  note: %d statement(s) matched no finding — check they describe this product\n", r.Unmatched)
 	}
+}
+
+// vexIngestFormat names a document's format in the /v2/cli.vex-ingest
+// vocabulary, or "" when it is not a VEX format the server reads. Here, in the
+// owner file, so format detection stays in one place (vex_ownership_test.go).
+func vexIngestFormat(data []byte) string {
+	switch vex.Detect(data) {
+	case vex.FormatOpenVEX:
+		return "openvex"
+	case vex.FormatCycloneDX:
+		return "cyclonedx"
+	case vex.FormatCSAF:
+		return "csaf"
+	}
+	return ""
+}
+
+// vexHiddenLabel is how a finding a VEX statement closed is named in output.
+func vexHiddenLabel(status vex.Status) string {
+	if status == vex.StatusFixed {
+		return "VEX fixed"
+	}
+	return "VEX not affected"
 }
 
 // ── apply ───────────────────────────────────────────────────────────────────
@@ -271,6 +306,19 @@ func runVEXApply(cmd *cobra.Command, args []string) error {
 		renderVEXApply(pass, outPath)
 	}
 
+	if upload, _ := cmd.Flags().GetBool("upload"); upload {
+		ensureVDBCredentials()
+		if !vexIngestAllowed() {
+			fmt.Fprintln(os.Stderr, "  VEX not sent: --upload needs an authenticated CLI (run 'vulnetix auth login')")
+		} else {
+			ingestVEX(cmd.Context(), vexIngestInput{
+				Origin: vdb.VexOriginScanVexFile,
+				Docs:   pass.Raw,
+				Git:    cwdGitContext(cliGitDir()),
+			})
+		}
+	}
+
 	// A negative threshold means the gate is off; zero is a real, and useful,
 	// threshold — "no vulnerability may survive VEX".
 	if failOnEffective >= 0 && pass.Result.Effective > failOnEffective {
@@ -298,7 +346,7 @@ func renderVEXApply(pass *VEXPassResult, outPath string) {
 		{Header: "Meaning"},
 	}, [][]string{
 		{"Total", fmt.Sprintf("%d", r.Total), "every entry in the document"},
-		{"Suppressed", fmt.Sprintf("%d", r.Suppressed), "closed by a not_affected or fixed statement"},
+		{"VEX not affected", fmt.Sprintf("%d", r.Suppressed), "closed by a not_affected or fixed statement"},
 		{"Annotated", fmt.Sprintf("%d", r.Annotated), "statement attached, still live"},
 		{"Effective", fmt.Sprintf("%d", r.Effective), "what remains to act on"},
 	}))
@@ -309,7 +357,7 @@ func renderVEXApply(pass *VEXPassResult, outPath string) {
 		for _, a := range r.Applied {
 			verdict := "annotated"
 			if a.Suppressed {
-				verdict = "suppressed"
+				verdict = vexHiddenLabel(a.Status)
 			}
 			rows = append(rows, []string{
 				a.VulnID, string(a.Status), verdict, string(a.Basis), sourceName(a.Source),
@@ -618,6 +666,8 @@ func init() {
 	vexApplyCmd.Flags().String("out", "", "Write the annotated CycloneDX document to this path")
 	vexApplyCmd.Flags().Int("fail-on-effective", -1,
 		"Exit non-zero when more than this many vulnerabilities survive VEX (-1 disables)")
+	vexApplyCmd.Flags().Bool("upload", false,
+		"Send the VEX documents to Vulnetix, which turns their false positive and won't fix statements into suppression rules")
 
 	vexLsCmd.Flags().String("status", "",
 		"Only list statements with this status: not_affected, affected, fixed, under_investigation")

@@ -410,6 +410,7 @@ func (c *Client) addAuthHeader(req *http.Request) error {
 		}
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
+	setIdentityHeaders(req)
 	return nil
 }
 

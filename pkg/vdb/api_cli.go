@@ -62,6 +62,29 @@ type CliEnv struct {
 	// dependency, where a component is at inconsistent versions. Absent when the
 	// run supplied none — an unlabelled scan must not claim a cluster.
 	Deployment *CliDeploymentContext `json:"deployment,omitempty"`
+	// Identity is best-effort evidence of who ran the CLI. The CLI verifies
+	// none of it; the server ranks it below the key's principal and the GitHub
+	// Actions OIDC token (header X-Vulnetix-GHA-OIDC). It never carries a
+	// token or a secret.
+	Identity *CliIdentity `json:"identity,omitempty"`
+}
+
+// CliIdentity is the claimed identity evidence on a request. Mirrors
+// vdb-api/internal/handler/v2_cli_common.go. Every field is optional and
+// self-reported.
+type CliIdentity struct {
+	GitConfigName     string `json:"gitConfigName,omitempty"`
+	GitConfigEmail    string `json:"gitConfigEmail,omitempty"`
+	HeadAuthorName    string `json:"headAuthorName,omitempty"`
+	HeadAuthorEmail   string `json:"headAuthorEmail,omitempty"`
+	OSUser            string `json:"osUser,omitempty"`
+	Hostname          string `json:"hostname,omitempty"`
+	CIProvider        string `json:"ciProvider,omitempty"`
+	CIActor           string `json:"ciActor,omitempty"`
+	CITriggeringActor string `json:"ciTriggeringActor,omitempty"`
+	CIRepository      string `json:"ciRepository,omitempty"`
+	CIRunID           string `json:"ciRunId,omitempty"`
+	CISha             string `json:"ciSha,omitempty"`
 }
 
 // CliDeploymentContext is the deployment label set carried on a submission.
@@ -414,6 +437,8 @@ type CliIngestionSnapshot struct {
 	Uuid      string `json:"uuid"`
 	URL       string `json:"url"`
 	CreatedAt int64  `json:"createdAt"`
+	// ScannerRunUuid is read when the server sends it; current servers do not.
+	ScannerRunUuid string `json:"scannerRunUuid,omitempty"`
 }
 
 // CliFindingResult mirrors the persisted Finding for reachability correlation.
@@ -476,6 +501,26 @@ type CliFinalizeRequest struct {
 	BreakBuild            bool             `json:"breakBuild"`             // true when a gate breached
 	Gates                 []CliGateResult  `json:"gates"`                  // per-gate breach detail (empty when clean)
 	ControlFlags          []CliControlFlag `json:"controlFlags,omitempty"` // every control flag in effect (incl. non-breaching)
+	// LocalSuppressions are the findings this run's ignore rules hid before
+	// upload, so the server can record which rule hid which snapshot finding.
+	LocalSuppressions []CliLocalSuppression `json:"localSuppressions,omitempty"`
+}
+
+// CliLocalSuppression is one finding a suppression rule hid locally. RuleUUID
+// is empty for a rule that exists only in memory.yaml; the server skips those.
+// A VEX not_affected or fixed statement from --vex-file is not a rule and is
+// never sent here.
+type CliLocalSuppression struct {
+	RuleUUID  string `json:"ruleUuid,omitempty"`
+	Source    string `json:"source"` // memory | remote | nosec
+	Category  string `json:"category,omitempty"`
+	FindingID string `json:"findingId,omitempty"`
+	RuleID    string `json:"ruleId,omitempty"`
+	Purl      string `json:"purl,omitempty"`
+	FilePath  string `json:"filePath,omitempty"`
+	Line      int    `json:"line,omitempty"`
+	Type      string `json:"type,omitempty"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 // CliGateResult is one gate's decision — mirrors cmd.GateBreach.
@@ -1130,6 +1175,13 @@ func (c *Client) CliScan(env CliEnv, req CliScanRequest) (*CliResponse[CliSCARes
 // IngestionSnapshot.uuid returned from /v2/cli.sca.
 func (c *Client) CliSCAReachability(env CliEnv, req CliSCAReachabilityRequest) (*CliResponse[CliSCAReachabilityResponse], error) {
 	return cliPostWithEnv[CliSCAReachabilityResponse](c, "cli.sca-reachability", env, req)
+}
+
+// CliVexIngest is POST /v2/cli.vex-ingest. It sends VEX documents the CLI read or
+// wrote; the server stores each one and turns its statements into suppression
+// rules. Classification is the server's, so the CLI sends the bytes unchanged.
+func (c *Client) CliVexIngest(ctx context.Context, env CliEnv, req CliVexIngestRequest) (*CliResponse[CliVexIngestResponse], error) {
+	return cliPostWithEnvContext[CliVexIngestResponse](ctx, c, "cli.vex-ingest", env, req)
 }
 
 // CliFinalize — POST /v2/cli.finalize. The final leg: report the scan's policy

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
+	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/memory"
@@ -112,6 +113,7 @@ func fetchRemoteSuppressionRules(client *vdb.Client, git *gitctx.GitContext, req
 			Branch:             s.BranchName,
 			ExpiresAt:          s.ExpiresAt,
 			IsActive:           s.IsActive,
+			Source:             suppress.SourceRemote,
 		})
 	}
 	return rules
@@ -134,7 +136,11 @@ func filterSuppressedVulns(vulns []scan.EnrichedVuln, set *suppress.Set) ([]scan
 	kept := vulns[:0]
 	dropped := 0
 	for _, v := range vulns {
-		if set.Suppresses(suppress.Finding{Category: "sca", FindingID: v.CveID, FilePath: v.SourceFile}) {
+		if r, ok := set.Match(suppress.Finding{Category: "sca", FindingID: v.CveID, FilePath: v.SourceFile}); ok {
+			recordLocalSuppression(r, vdb.CliLocalSuppression{
+				Category: "sca", FindingID: v.CveID, FilePath: v.SourceFile,
+				Purl: cdx.BuildLocalPurl(v.PackageName, v.PackageVer, v.Ecosystem),
+			})
 			dropped++
 			continue
 		}
@@ -158,7 +164,11 @@ func filterSuppressedLicenseFindings(findings []license.Finding, set *suppress.S
 			FindingID: f.Package.LicenseSpdxID,
 			FilePath:  f.Package.SourceFile,
 		}
-		if set.Suppresses(m) {
+		if r, ok := set.Match(m); ok {
+			recordLocalSuppression(r, vdb.CliLocalSuppression{
+				Category: "license", RuleID: f.ID, FindingID: f.Package.LicenseSpdxID, FilePath: f.Package.SourceFile,
+				Purl: cdx.BuildLocalPurl(f.Package.PackageName, f.Package.PackageVersion, f.Package.Ecosystem),
+			})
 			dropped++
 			continue
 		}
@@ -176,7 +186,10 @@ func filterSuppressedMalscanFindings(findings []malscanFinding, set *suppress.Se
 	kept := findings[:0]
 	dropped := 0
 	for _, f := range findings {
-		if set.Suppresses(suppress.Finding{Category: "malware", RuleID: f.RuleID, FilePath: f.File}) {
+		if r, ok := set.Match(suppress.Finding{Category: "malware", RuleID: f.RuleID, FilePath: f.File}); ok {
+			recordLocalSuppression(r, vdb.CliLocalSuppression{
+				Category: "malware", RuleID: f.RuleID, FilePath: f.File, Line: f.StartLine,
+			})
 			dropped++
 			continue
 		}
@@ -203,7 +216,10 @@ func filterSuppressedFindings(findings []sast.Finding, set *suppress.Set) ([]sas
 			RuleID:   f.RuleID,
 			FilePath: f.ArtifactURI,
 		}
-		if set.Suppresses(match) {
+		if r, ok := set.Match(match); ok {
+			recordLocalSuppression(r, vdb.CliLocalSuppression{
+				Category: match.Category, RuleID: f.RuleID, FilePath: f.ArtifactURI, Line: f.StartLine,
+			})
 			dropped++
 			continue
 		}
@@ -273,7 +289,8 @@ func componentSuppression(set *suppress.Set, category string, values []string, e
 	// A component with no evidence can only be matched by its value.
 	if len(ev) == 0 {
 		for _, v := range nonEmpty {
-			if set.Suppresses(suppress.Finding{Category: category, Value: v}) {
+			if r, ok := set.Match(suppress.Finding{Category: category, Value: v}); ok {
+				recordLocalSuppression(r, vdb.CliLocalSuppression{Category: category, FindingID: v})
 				return nil, true
 			}
 		}
@@ -292,8 +309,10 @@ func componentSuppression(set *suppress.Set, category string, values []string, e
 			// An unanchored rule covers the component wherever it appears; there
 			// is nothing left to keep.
 			if r.FilePath == "" {
+				recordLocalSuppression(r, vdb.CliLocalSuppression{Category: category, FindingID: v})
 				return nil, true
 			}
+			recordLocalSuppression(r, vdb.CliLocalSuppression{Category: category, FindingID: v, FilePath: s.path, Line: s.line})
 			covered = true
 			break
 		}

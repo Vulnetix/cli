@@ -7,22 +7,17 @@ import (
 	"github.com/vulnetix/cli/v3/internal/triage"
 )
 
-// TestOpenVEXInversionIsReal proves the justification fallback in writeJailVEX
-// is load-bearing rather than defensive decoration.
+// TestOpenVEXDoesNotInvertAffected feeds triage.GenerateOpenVEX the shape a
+// jail statement has (affected, carrying a fix version, no justification) and
+// asserts it stays affected.
 //
-// It feeds triage.GenerateOpenVEX the exact shape writeJailVEX protects against
-// — affected, carrying a fix version, with no justification — and asserts the
-// writer really does rewrite it to not_affected (internal/triage/vex.go). That
-// rewrite is correct for the interactive triage path it was written for, and
-// catastrophic for a jail: a jail statement means "affected, past policy, AND a
-// fix exists", so an unjustified one would publish a document telling every
-// downstream consumer the repository is NOT affected by the very
-// vulnerabilities that failed its build.
-//
-// If this test ever starts skipping because GenerateOpenVEX changed, the
-// fallback in writeJailVEX can be revisited. Until then it is the only thing
-// standing between a jail verdict and a document asserting its opposite.
-func TestOpenVEXInversionIsReal(t *testing.T) {
+// The writer used to rewrite exactly this to not_affected with
+// vulnerable_code_not_present, and writeJailVEX forced a justification onto
+// every statement to dodge it. A jail document asserting that the repository
+// is not affected by the vulnerabilities that failed its build would be worse
+// than no document, so the non-inversion is pinned here rather than left to
+// the fallback.
+func TestOpenVEXDoesNotInvertAffected(t *testing.T) {
 	body, err := triage.GenerateOpenVEX([]*triage.TriageFinding{{
 		CVEID:        "CVE-2024-0001",
 		Package:      "left-pad",
@@ -30,7 +25,6 @@ func TestOpenVEXInversionIsReal(t *testing.T) {
 		InstalledVer: "1.0.0",
 		FixedVer:     "1.3.0",
 		Status:       "affected",
-		// Justification deliberately empty — this is the shape under test.
 	}}, triage.OpenVEXOptions{ID: "urn:test:inversion"})
 	if err != nil {
 		t.Fatalf("GenerateOpenVEX: %v", err)
@@ -38,8 +32,9 @@ func TestOpenVEXInversionIsReal(t *testing.T) {
 
 	var doc struct {
 		Statements []struct {
-			Status        string `json:"status"`
-			Justification string `json:"justification"`
+			Status          string `json:"status"`
+			Justification   string `json:"justification"`
+			ActionStatement string `json:"action_statement"`
 		} `json:"statements"`
 	}
 	if err := json.Unmarshal(body, &doc); err != nil {
@@ -48,14 +43,14 @@ func TestOpenVEXInversionIsReal(t *testing.T) {
 	if len(doc.Statements) != 1 {
 		t.Fatalf("statements = %d, want 1", len(doc.Statements))
 	}
-
-	if doc.Statements[0].Status != "not_affected" {
-		t.Skipf("GenerateOpenVEX no longer inverts an unjustified statement (status %q); "+
-			"the justification fallback in writeJailVEX may now be unnecessary",
-			doc.Statements[0].Status)
+	s := doc.Statements[0]
+	if s.Status != "affected" {
+		t.Fatalf("status = %q, want affected", s.Status)
 	}
-	if doc.Statements[0].Justification != "vulnerable_code_not_present" {
-		t.Fatalf("justification = %q, want vulnerable_code_not_present",
-			doc.Statements[0].Justification)
+	if s.Justification != "" {
+		t.Fatalf("justification = %q on an affected statement", s.Justification)
+	}
+	if s.ActionStatement == "" {
+		t.Fatal("affected statement has no action_statement")
 	}
 }

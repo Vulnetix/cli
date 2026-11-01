@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/versions"
@@ -480,18 +481,23 @@ func decisionFromFailure(f *TriageFinding) *memory.Decision {
 		return nil
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
+	// The provider chose the default, but it was chosen on this machine for
+	// whoever ran triage, so that is who the decision is attributed to.
+	actor := gitctx.LocalActor("")
 	switch f.Status {
 	case "not_affected":
 		return &memory.Decision{
 			Choice: "not-affected",
 			Reason: fmt.Sprintf("determined %s by vulnetix provider", f.Justification),
 			Date:   now,
+			Actor:  actor,
 		}
 	case "fixed":
 		return &memory.Decision{
 			Choice: "fix-applied",
 			Reason: "fix applied",
 			Date:   now,
+			Actor:  actor,
 		}
 	case "affected":
 		switch f.ActionResponse {
@@ -500,12 +506,14 @@ func decisionFromFailure(f *TriageFinding) *memory.Decision {
 				Choice: "risk-accepted",
 				Reason: "no fix available, risk accepted by default",
 				Date:   now,
+				Actor:  actor,
 			}
 		case "will_fix":
 			return &memory.Decision{
 				Choice: "deferred",
 				Reason: "fix available will apply later",
 				Date:   now,
+				Actor:  actor,
 			}
 		}
 		return nil

@@ -16,6 +16,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -144,6 +145,15 @@ func runBOMEnrich(cmd *cobra.Command, args []string) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	// The vulnerability pass already talks to Vulnetix, so the applied VEX goes
+	// there too. --no-vulns keeps the command offline, so it sends nothing.
+	if res.VEX != nil && len(res.VEX.Raw) > 0 && !noVulns {
+		ensureVDBCredentials()
+		ingestVEX(cmdContextFor(cmd), vexIngestInput{
+			Origin: vdb.VexOriginBOMEnrich, Docs: res.VEX.Raw, Git: cwdGitContext(cliGitDir()),
+		})
 	}
 
 	ctx := display.FromCommand(cmd)

@@ -78,7 +78,7 @@ func renderHeader(r Report, c Counts, s *Style) string {
 		}
 		b.WriteString(line + "\n")
 		if r.Meta.VEXSuppressed > 0 {
-			b.WriteString(s.Dim(fmt.Sprintf("   %d suppressed by VEX", r.Meta.VEXSuppressed)) + "\n")
+			b.WriteString(s.Dim(fmt.Sprintf("   %d hidden as VEX not affected", r.Meta.VEXSuppressed)) + "\n")
 		}
 		return b.String()
 	}
@@ -122,7 +122,7 @@ func renderHeader(r Report, c Counts, s *Style) string {
 		meta = append(meta, elapsed)
 	}
 	if r.Meta.VEXSuppressed > 0 {
-		meta = append(meta, fmt.Sprintf("%d suppressed by VEX", r.Meta.VEXSuppressed))
+		meta = append(meta, fmt.Sprintf("%d hidden as VEX not affected", r.Meta.VEXSuppressed))
 	}
 	if len(meta) > 0 && s.Width >= tierCompact {
 		b.WriteString(s.Dim("   "+strings.Join(meta, " "+s.G.Sep+" ")) + "\n")
