@@ -95,7 +95,7 @@ jobs:
       # evidence-free publish rather than a failed job.
       - name: Download the BOMs this run produced
         continue-on-error: true
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: '{sca,cbom,aibom}'
           merge-multiple: true
