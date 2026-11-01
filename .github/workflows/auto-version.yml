@@ -47,7 +47,10 @@ jobs:
           CURRENT="${LAST_TAG#v}"
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
 
-          # Analyze commit messages for conventional commits
+          # Analyze commit messages for conventional commits. Commits marked
+          # [skip ci] never count: the release workflow pushes
+          # "chore: update flake.nix to vX [skip ci]" after every tag, and
+          # counting it made the next unrelated push cut a patch release.
           BUMP=""
           while IFS= read -r msg; do
             if echo "$msg" | grep -qE '^[a-z]+(\(.+\))?!:|BREAKING CHANGE:'; then
@@ -62,7 +65,7 @@ jobs:
                 BUMP="patch"
               fi
             fi
-          done < <(git log "$RANGE" --format="%s" 2>/dev/null)
+          done < <(git log "$RANGE" --format="%s" 2>/dev/null | grep -vF '[skip ci]')
 
           if [ -z "$BUMP" ]; then
             echo "No conventional commits found since $LAST_TAG, skipping release."
