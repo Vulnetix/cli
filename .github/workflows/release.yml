@@ -2,8 +2,12 @@ name: Release
 
 on:
   push:
+    # Full versions only. The floating major tag (v3) is moved by this workflow
+    # and by hand; matching it released "v3" as a version on 2026-11-02 and
+    # pointed Homebrew, Scoop and the flake at "3".
     tags:
-      - 'v*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
   workflow_dispatch:
     inputs:
       version:
