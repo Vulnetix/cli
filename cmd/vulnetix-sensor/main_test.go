@@ -42,6 +42,9 @@ func TestDeployFilesUseRealFlags(t *testing.T) {
 	fs.SetOutput(io.Discard)
 	defineFlags(fs)
 	fs.VisitAll(func(f *flag.Flag) { known[f.Name] = true })
+	for _, sub := range subcommandFlagSets() {
+		sub.VisitAll(func(f *flag.Flag) { known[f.Name] = true })
+	}
 
 	flagToken := regexp.MustCompile(`--([a-z][a-z-]+)`)
 	for _, name := range []string{"install.sh", "ssm-document.yaml", "ecs-sidecar.json", "kubernetes-sidecar.yaml", "kubernetes-node-daemonset.yaml", "README.md"} {
@@ -85,6 +88,10 @@ var notSensorFlag = map[string]bool{
 	"name": true, "document-type": true, "document-format": true, "content": true,
 	"secret-id": true, "query": true, "output": true, "build-arg": true,
 	"from-literal": true, "now": true, "trimpath": true, "ldflags": true,
+	// install.sh's own switch, which hands the rest to `vulnetix-sensor enroll`.
+	"enroll": true,
+	// vulnetix auth login's, which the enroll section of the README tells people to run first.
+	"store": true,
 }
 
 func TestVersion(t *testing.T) {

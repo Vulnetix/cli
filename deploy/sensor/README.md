@@ -194,6 +194,78 @@ openssl pkey -in feed-signing-key.pem -pubout -outform DER | tail -c 32 | base64
 Keep the PEM file offline or in your secrets manager, not in a repository.
 Republish each feed after the secret is set, so its manifest is signed.
 
+## Enroll with a provisioning profile
+
+On a host (a laptop, a VM, an EC2 instance you manage yourself), enroll the
+sensor instead of writing credentials by hand. The org's provisioning profile
+decides which credential the host gets and which config it runs, and an edit
+to the profile reaches every enrolled host within five minutes, without a
+reinstall. API: vdb-site `docs/sensor-provisioning-api.md`.
+
+```sh
+# a person, signed in with the CLI
+vulnetix auth login --store home
+sudo vulnetix-sensor enroll --from-cli-login
+
+# no person: an MDM pushes the integration's private key and runs
+sudo vulnetix-sensor enroll --mdm-key /etc/vulnetix/mdm.key --integration <uuid> --kid k1
+
+# or download, verify and enroll in one step
+curl -fsSL https://raw.githubusercontent.com/Vulnetix/cli/main/deploy/sensor/install.sh | sudo sh -s -- --enroll --from-cli-login
+```
+
+`--from-cli-login` reads `~/.vulnetix/credentials.json` of the user who ran
+`sudo`, not root's. The OS keyring is not reachable under `sudo`, so sign in
+with `--store home` first. `--api-key` with `--org-id` (or
+`VULNETIX_API_KEY` and `VULNETIX_ORG_ID`) enrolls with a personal key instead.
+A tenant org key is refused: enrolling names a person.
+
+Enroll writes:
+
+| Path | What |
+|---|---|
+| `/etc/vulnetix-sensor/credential` | The device credential (`Sensor <deviceUuid>:<secret>`, or an ApiKey for `user-key` and `org-key` profiles), JSON, root only (0600). The service reads it through systemd `LoadCredential=`, so the sensor still runs as a dynamic user. |
+| `/etc/vulnetix-sensor/config.json` | The profile and its config. The running sensor writes later pulls to `/var/lib/vulnetix-sensor/config.json`; the newer of the two is used. |
+| `/usr/local/bin/vulnetix-sensor` | The binary, copied there if enroll ran from somewhere else. |
+| `/etc/systemd/system/vulnetix-sensor.service` | The sensor, `--config-dir /etc/vulnetix-sensor`. `/etc/vulnetix-sensor.env` is still read when present, and credentials in it win over the device credential. |
+| `/etc/systemd/system/vulnetix-sensor-guard.{service,timer}` | Runs `vulnetix-sensor guard-check` as root every minute. |
+| `/etc/polkit-1/rules.d/50-vulnetix-sensor.rules` | Hardened and locked only. |
+
+The profile's config is the default for every sensor flag; a flag in the
+unit's `ExecStart` wins. A change to the mode, hold time or feeds is applied
+live. A change to a listener, forwarding or the inventory interval makes the
+sensor exit, and systemd starts it on the new config. Once the device is
+revoked, the sensor logs `DEVICE REVOKED`, keeps enforcing the rules it has
+and reports nothing more. On SIGTERM it tells the console it stopped
+(`goodbye`, reason `signal`), so a stop shows as a stop, not as a silent host.
+
+### Protection levels
+
+| Level | What it adds |
+|---|---|
+| `standard` | The service as `install.sh` writes it. The guard only keeps the units in step with the profile, so raising the level later takes effect without a reinstall. |
+| `hardened` | `Type=notify` with `WatchdogSec=30` (the sensor pings at half that). `StartLimitIntervalSec=0`, so it is never given up on. `RefuseManualStop=yes` on the service and the guard timer, unless the profile allows a user stop. A polkit rule refuses anyone but root managing the sensor or its guard. polkit is not told which unit an enable, disable or mask is for, so that rule refuses those to anyone but root for every unit: on a hardened host, an administrator changes unit files with `sudo`. Every minute the guard unmasks, enables and starts a sensor that was masked, disabled or stopped, and reports it (`goodbye`, reason `stop`, "restored by guard"). With `allowUserStop`, a stopped sensor stays stopped. |
+| `locked` | Hardened, never allows a user stop, and `uninstall` needs a one-time code from the console. |
+
+Root can always remove the sensor by hand. Protection makes that a deliberate
+act that the console sees, not something a user does by accident.
+
+### Managing an enrolled host
+
+```sh
+vulnetix-sensor status          # enrolled, profile, protection, etag, service state; exits 3 when not running
+vulnetix-sensor config          # the profile config the sensor runs
+sudo vulnetix-sensor enroll --print --protection hardened   # preview the units; contacts nothing
+sudo vulnetix-sensor uninstall  # --code <code> when the profile is locked
+```
+
+`uninstall` tells the site (a locked device's code is checked before anything
+stops), sends `goodbye` with reason `uninstall`, then removes the units, the
+polkit rule, the credential and the config. The binary and the sensor key in
+`/var/lib/vulnetix-sensor` are left. Running `enroll` again on an enrolled
+host is safe: the site revokes the old credential and issues a new one for the
+same device.
+
 ## Install
 
 The sensor takes the CLI's credentials: `VULNETIX_ORG_ID` and `VULNETIX_API_KEY`
@@ -258,6 +330,23 @@ the event still lands in the hold queue for your decision on later ones.
 --forward siem                 copy every DNS and egress decision to Guardian
 --siem-token gdn_...           Guardian ingest token (default: VULNETIX_SIEM_TOKEN)
 --siem-url <url>               Guardian events route (default: VULNETIX_SIEM_URL, else ingest.vulnetix.com)
+--config-dir /etc/vulnetix-sensor   an enrolled sensor's credential and profile config
+```
+
+Subcommands:
+
+```
+enroll       --from-cli-login | --api-key <key> --org-id <org> | --mdm-key <file> --integration <uuid> --kid <id> [--mdm-device-id <id>]
+             [--profile <uuid>] [--endpoint <url>] [--no-start] [--print [--protection standard|hardened|locked]]
+             [--config-dir <dir>] [--state-dir <dir>]
+status       [--config-dir <dir>] [--state-dir <dir>]
+config       [--config-dir <dir>] [--state-dir <dir>]
+uninstall    [--code <code>] [--config-dir <dir>] [--state-dir <dir>] [--endpoint <url>]
+goodbye      --reason signal|stop|uninstall|upgrade [--detail <text>]
+guard-check  run by vulnetix-sensor-guard.timer
+inventory    [--root /]
+run          <sensor flags> -- <command>
+tetragon-policy --feed <url> [--feed-key <base64>]
 ```
 
 API: vdb-site `docs/runtime-sensor-api.md`.

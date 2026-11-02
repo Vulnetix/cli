@@ -3,20 +3,23 @@
 // compiled, post rule matches and holds, and long-poll decisions.
 //
 // It authenticates with the org's ApiKey through pkg/auth, so a sensor holds
-// the same credential the CLI does and can never make a decision: the site
-// refuses decisions from an ApiKey.
+// the same credential the CLI does, or with an enrolled device's Sensor
+// credential (Authorization). Neither can make a decision: the site refuses
+// decisions from both.
 package uplink
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/vulnetix/cli/v3/pkg/auth"
@@ -29,8 +32,35 @@ const DefaultEndpoint = "https://www.vulnetix.com/api/site"
 type Client struct {
 	Endpoint string
 	Creds    *auth.Credentials
-	HTTP     *http.Client
-	Version  string
+	// Authorization, when set, is the whole Authorization header and wins
+	// over Creds: an enrolled device's "Sensor <deviceUuid>:<secret>".
+	Authorization func() string
+	HTTP          *http.Client
+	Version       string
+
+	stopped atomic.Bool
+}
+
+// ErrStopped is returned by every call once Stop was called.
+var ErrStopped = errors.New("uplink stopped: the sensor no longer reports")
+
+// Stop makes every later call fail with ErrStopped, for a sensor whose
+// credential was revoked: it keeps running offline instead of hammering the
+// site with a credential that is refused.
+func (c *Client) Stop() { c.stopped.Store(true) }
+
+// Stopped is whether Stop was called.
+func (c *Client) Stopped() bool { return c.stopped.Load() }
+
+// Goodbye says the sensor is stopping, so the console shows a stop rather
+// than a silent host. reason is signal, stop, uninstall or upgrade.
+func (c *Client) Goodbye(ctx context.Context, sensorKey, reason, detail string) error {
+	raw, err := json.Marshal(map[string]string{"sensorKey": sensorKey, "reason": reason, "detail": detail})
+	if err != nil {
+		return err
+	}
+
+	return c.do(ctx, http.MethodPost, "/v1/runtime/sensors/goodbye", raw, nil)
 }
 
 // RuleLoad is whether the sensor compiled one rule.
@@ -151,6 +181,9 @@ func (c *Client) PollDecisions(ctx context.Context, sensorKey string, since int6
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body []byte, out any) error {
+	if c.Stopped() {
+		return ErrStopped
+	}
 	endpoint := strings.TrimRight(c.Endpoint, "/")
 	if endpoint == "" {
 		endpoint = DefaultEndpoint
@@ -165,7 +198,12 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte, out a
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "vulnetix-sensor/"+c.Version)
-	if c.Creds != nil {
+	switch {
+	case c.Authorization != nil:
+		if h := c.Authorization(); h != "" {
+			req.Header.Set("Authorization", h)
+		}
+	case c.Creds != nil:
 		if h := auth.GetAuthHeader(c.Creds); h != "" {
 			req.Header.Set("Authorization", h)
 		}
@@ -180,6 +218,9 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte, out a
 	}
 	defer func() { _ = resp.Body.Close() }()
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	if out == nil && resp.StatusCode == http.StatusNoContent {
+		return nil
+	}
 	if resp.StatusCode != http.StatusOK {
 		var e struct {
 			Error string `json:"error"`

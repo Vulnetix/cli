@@ -18,7 +18,14 @@
 //	vulnetix-sensor run --mode guard --feed <url> -- /app/server
 //
 // Credentials are the CLI's: VULNETIX_ORG_ID with VULNETIX_API_KEY, or the
-// credentials file `vulnetix auth login` writes.
+// credentials file `vulnetix auth login` writes. Or the host is enrolled with
+// a provisioning profile, which gives it its own credential and its config:
+//
+//	sudo vulnetix-sensor enroll --from-cli-login
+//	vulnetix-sensor status
+//
+// Subcommands: enroll, status, config, uninstall, goodbye, guard-check,
+// inventory, run, tetragon-policy, lambda-extension.
 package main
 
 import (
@@ -27,12 +34,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	iofs "io/fs"
 	"log"
 	"net"
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -45,6 +55,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/sensor/feed"
 	"github.com/vulnetix/cli/v3/internal/sensor/host"
 	"github.com/vulnetix/cli/v3/internal/sensor/inventory"
+	"github.com/vulnetix/cli/v3/internal/sensor/provision"
 	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
 	"github.com/vulnetix/cli/v3/internal/sensor/siem"
 	"github.com/vulnetix/cli/v3/internal/sensor/tetragon"
@@ -77,6 +88,18 @@ func main() {
 			run, args = guardCmd, args[1:]
 		case "tetragon-policy":
 			run, args = tetragonPolicyCmd, args[1:]
+		case "enroll":
+			run, args = enrollCmd, args[1:]
+		case "status":
+			run, args = statusCmd, args[1:]
+		case "config":
+			run, args = configCmd, args[1:]
+		case "uninstall":
+			run, args = uninstallCmd, args[1:]
+		case "goodbye":
+			run, args = goodbyeCmd, args[1:]
+		case "guard-check":
+			run, args = guardCheckCmd, args[1:]
 		}
 	}
 	err := run(args)
@@ -96,7 +119,7 @@ func main() {
 //	vulnetix-sensor inventory [--root /]
 func inventoryCmd(args []string) error {
 	fs := flag.NewFlagSet("vulnetix-sensor inventory", flag.ContinueOnError)
-	root := fs.String("root", "/", "filesystem whose proc and package databases are read")
+	root := defineInventoryFlags(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -107,9 +130,13 @@ func inventoryCmd(args []string) error {
 	return enc.Encode(res)
 }
 
+func defineInventoryFlags(fs *flag.FlagSet) *string {
+	return fs.String("root", "/", "filesystem whose proc and package databases are read")
+}
+
 type options struct {
 	mode, listen, upstream, egressListen, feedKey, stateDir, endpoint *string
-	tetragonExport, hostRoot, dnsListen, dnsUpstream                  *string
+	tetragonExport, hostRoot, dnsListen, dnsUpstream, configDir       *string
 	siemToken, siemURL                                                *string
 	hold, inventoryEvery                                              *time.Duration
 	offline, showVersion, bpfLSM                                      *bool
@@ -130,6 +157,8 @@ func defineFlags(fs *flag.FlagSet) *options {
 		endpoint:     fs.String("endpoint", uplink.DefaultEndpoint, "Vulnetix site API"),
 		offline:      fs.Bool("offline", false, "run without reporting to Vulnetix (rules still load from the feeds)"),
 		showVersion:  fs.Bool("version", false, "print the version and exit"),
+		configDir: fs.String("config-dir", provision.DefaultDir,
+			"where an enrolled sensor's credential and profile config are (written by vulnetix-sensor enroll); the profile's config is the default for every flag not given"),
 		tetragonExport: fs.String("tetragon-export", "",
 			"Tetragon JSON export file (e.g. "+execwatch.DefaultExport+"); every process start is checked against the feeds' file hashes"),
 		inventoryEvery: fs.Duration("inventory-every", 6*time.Hour,
@@ -221,41 +250,81 @@ func runSensor(args []string, guard bool) error {
 			return errors.New("run needs a command after --")
 		}
 	}
-	mode, hold, listen, upstream, egressListen := o.mode, o.hold, o.listen, o.upstream, o.egressListen
-	feedKey, stateDir, endpoint, offline, showVersion := o.feedKey, o.stateDir, o.endpoint, o.offline, o.showVersion
-	feeds, healthPaths := o.feeds, o.healthPaths
-	if *showVersion {
+	if *o.showVersion {
 		fmt.Println(version)
 
 		return nil
 	}
+
+	// An enrolled sensor takes its profile's config as defaults; a flag
+	// given on the command line wins.
+	store := provision.Store{Dir: *o.configDir}
+	snap, snapPath, snapErr := provision.LoadSnapshot(snapshotPaths(store, *o.stateDir)...)
+	provisioned := snapErr == nil
+	explicit := explicitFlags(fs)
+	if provisioned {
+		if err := applySnapshot(fs, explicit, snap.Config); err != nil {
+			return fmt.Errorf("profile config %s: %w", snapPath, err)
+		}
+		log.Printf("sensor: profile %q (%s), config %s", snap.Profile.Name, snap.Profile.UUID, shortEtag(snap.ConfigEtag))
+	} else if !errors.Is(snapErr, iofs.ErrNotExist) {
+		return snapErr
+	}
+
+	mode, hold, listen, upstream, egressListen := o.mode, o.hold, o.listen, o.upstream, o.egressListen
+	feedKey, stateDir, endpoint, offline := o.feedKey, o.stateDir, o.endpoint, o.offline
+	feeds, healthPaths := o.feeds, o.healthPaths
 	if !decide.ValidMode(*mode) {
 		return fmt.Errorf("--mode must be monitor, guard or enforce")
 	}
-	if len(feeds) == 0 {
+	// An enrolled host sensor may run with neither feeds nor listeners: it
+	// still reports its inventory and host checks, and a profile edit can
+	// add either later.
+	if len(feeds) == 0 && !provisioned {
 		return errors.New("at least one --feed is required")
 	}
-	if !guard && !*o.bpfLSM && *listen == "" && *egressListen == "" && *o.tetragonExport == "" && *o.dnsListen == "" {
+	if !guard && !provisioned && !*o.bpfLSM && *listen == "" && *egressListen == "" && *o.tetragonExport == "" && *o.dnsListen == "" {
 		return errors.New("set --listen with --upstream, --egress-listen, --dns-listen, --tetragon-export, or a combination")
 	}
 	forwarder, err := siemForwarder(o)
 	if err != nil {
-		return err
-	}
-
-	var key []byte
-	if strings.TrimSpace(*feedKey) != "" {
-		pk, err := feed.ParsePublicKey(*feedKey)
-		if err != nil {
+		if !provisioned || explicit["forward"] {
 			return err
 		}
-		key = pk
-	} else {
+		// A profile that asks for forwarding on a host with no token must
+		// not crash-loop the sensor.
+		log.Printf("sensor: not forwarding to Guardian: %v", err)
+		forwarder = nil
+	}
+
+	key, err := parseFeedKey(*feedKey)
+	if err != nil {
+		return err
+	}
+	if key == nil {
 		log.Printf("no --feed-key: rules will report and never block")
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sigs := make(chan os.Signal, 1)
+	handled := []os.Signal{syscall.SIGINT, syscall.SIGTERM}
+	if provisioned && !guard {
+		// enroll and the guard send SIGHUP to restart the sensor on a new
+		// configuration or unit; systemd restarts it after it exits.
+		handled = append(handled, syscall.SIGHUP)
+	}
+	signal.Notify(sigs, handled...)
+	defer signal.Stop(sigs)
+	var received atomic.Value
+	go func() {
+		select {
+		case s := <-sigs:
+			received.Store(s)
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
 
 	sensorKey, err := host.SensorKey(*stateDir)
 	if err != nil {
@@ -266,15 +335,33 @@ func runSensor(args []string, guard bool) error {
 	cfg := agent.Config{
 		SensorKey: sensorKey, Version: version, Mode: decide.Mode(*mode), Hold: *hold, Facts: facts,
 	}
-	for _, f := range feeds {
-		cfg.Feeds = append(cfg.Feeds, &feed.Source{BaseURL: f, PublicKey: key})
-	}
+	cfg.Feeds = feedSources(feeds, key)
+	var cred *provision.Credential
 	if !*offline {
-		creds, err := auth.LoadCredentials()
-		if err != nil || creds == nil {
-			return fmt.Errorf("no Vulnetix credentials: set VULNETIX_ORG_ID and VULNETIX_API_KEY, or run with --offline")
+		if !explicitCredentialEnv() {
+			c, err := store.LoadCredential()
+			switch {
+			case err == nil:
+				cred = &c
+			case !errors.Is(err, provision.ErrNoCredential):
+				return err
+			}
 		}
-		cfg.Uplink = &uplink.Client{Endpoint: *endpoint, Creds: creds, Version: version}
+		if cred != nil {
+			if !explicit["endpoint"] && cred.Endpoint != "" {
+				*endpoint = cred.Endpoint
+			}
+			c := *cred
+			cfg.Uplink = &uplink.Client{Endpoint: *endpoint, Authorization: c.AuthHeader, Version: version}
+			cfg.PollConfig = configPoller(*endpoint, c, snap, explicit, filepath.Join(*stateDir, "config.json"), feeds, *feedKey, sensorKey)
+			log.Printf("sensor: enrolled device %s (%s credential)", c.DeviceUUID, c.Scheme)
+		} else {
+			creds, err := auth.LoadCredentials()
+			if err != nil || creds == nil {
+				return fmt.Errorf("no Vulnetix credentials: run vulnetix-sensor enroll, set VULNETIX_ORG_ID and VULNETIX_API_KEY, or run with --offline")
+			}
+			cfg.Uplink = &uplink.Client{Endpoint: *endpoint, Creds: creds, Version: version}
+		}
 	}
 	if *listen != "" {
 		u, err := url.Parse(*upstream)
@@ -318,8 +405,53 @@ func runSensor(args []string, guard bool) error {
 	if guard {
 		return exitCode(a.ExitCode)
 	}
+	if a.Restart {
+		log.Printf("sensor: the profile changed in a way that needs a restart; exiting for the service manager to start it again")
+
+		return nil
+	}
+	if s, _ := received.Load().(os.Signal); s != nil {
+		if s == syscall.SIGHUP {
+			log.Printf("sensor: SIGHUP: exiting to restart on the new configuration")
+
+			return nil
+		}
+		if cfg.Uplink != nil && !cfg.Uplink.Stopped() && !store.Uninstalling() {
+			sayGoodbye(cfg.Uplink, sensorKey, "signal", s.String())
+		}
+	}
 
 	return nil
+}
+
+// sayGoodbye tells the console the sensor is stopping, within two seconds.
+func sayGoodbye(c *uplink.Client, sensorKey, reason, detail string) {
+	gctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := c.Goodbye(gctx, sensorKey, reason, detail); err != nil {
+		log.Printf("sensor: goodbye not sent: %v", err)
+	}
+}
+
+func parseFeedKey(s string) ([]byte, error) {
+	if strings.TrimSpace(s) == "" {
+		return nil, nil
+	}
+	pk, err := feed.ParsePublicKey(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return pk, nil
+}
+
+func feedSources(feeds []string, key []byte) []*feed.Source {
+	out := make([]*feed.Source, 0, len(feeds))
+	for _, f := range feeds {
+		out = append(out, &feed.Source{BaseURL: f, PublicKey: key})
+	}
+
+	return out
 }
 
 // siemForwarder reads --forward, and returns the Guardian forwarder when it

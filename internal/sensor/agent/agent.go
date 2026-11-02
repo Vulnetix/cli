@@ -32,6 +32,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/sensor/inventory"
 	"github.com/vulnetix/cli/v3/internal/sensor/lsmguard"
 	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
+	"github.com/vulnetix/cli/v3/internal/sensor/sdnotify"
 	"github.com/vulnetix/cli/v3/internal/sensor/siem"
 	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
 )
@@ -85,6 +86,18 @@ type Config struct {
 	// or not, for Guardian (--forward siem). Nil forwards nothing.
 	SIEM *siem.Forwarder
 
+	// PollConfig, when set, is called every ConfigEvery (default five
+	// minutes) for an enrolled sensor's profile changes. It applies what it
+	// can to the running agent; returning true stops Run cleanly so the
+	// service manager restarts the sensor with the new configuration.
+	PollConfig  func(ctx context.Context, a *Agent) (restart bool)
+	ConfigEvery time.Duration
+
+	// Notify is sd_notify, sdnotify.Notify outside tests. READY=1 is sent
+	// when Run starts and WATCHDOG=1 at half the unit's watchdog interval.
+	Notify           func(state string) (bool, error)
+	WatchdogInterval time.Duration
+
 	FeedEvery      time.Duration
 	HeartbeatEvery time.Duration
 	FlushEvery     time.Duration
@@ -100,6 +113,9 @@ type Agent struct {
 	Rules    *proxy.Rules
 	// ExitCode is the guarded workload's exit code, once Run returns.
 	ExitCode int
+	// Restart is set when Run returned because PollConfig asked for a
+	// restart.
+	Restart bool
 
 	lsm       *lsmguard.Guard
 	feedRules []feed.Rule // the merged feed rules, for the BPF LSM's paths
@@ -129,6 +145,15 @@ func New(cfg Config) *Agent {
 	if cfg.Logf == nil {
 		cfg.Logf = log.Printf
 	}
+	if cfg.ConfigEvery <= 0 {
+		cfg.ConfigEvery = 5 * time.Minute
+	}
+	if cfg.Notify == nil {
+		cfg.Notify = sdnotify.Notify
+	}
+	if cfg.WatchdogInterval <= 0 {
+		cfg.WatchdogInterval = sdnotify.WatchdogInterval()
+	}
 	a := &Agent{
 		cfg:      cfg,
 		Verdicts: decide.New(cfg.Mode, decide.Config{Hold: cfg.Hold}),
@@ -147,6 +172,40 @@ func New(cfg Config) *Agent {
 	return a
 }
 
+// reporting is whether the sensor reports to the platform: it has an uplink
+// and the uplink was not stopped by a revoked credential.
+func (a *Agent) reporting() bool {
+	return a.cfg.Uplink != nil && !a.cfg.Uplink.Stopped()
+}
+
+// Mode is the verdict engine's current mode.
+func (a *Agent) Mode() decide.Mode { return a.Verdicts.Mode() }
+
+// SetMode changes the mode live, as a profile change does.
+func (a *Agent) SetMode(m decide.Mode) {
+	a.Verdicts.SetMode(m)
+	a.syncLSM()
+}
+
+// SetHold changes how long guard mode holds a new match.
+func (a *Agent) SetHold(d time.Duration) { a.Verdicts.SetHold(d) }
+
+// SetFeeds replaces the feeds. The next refresh fetches every one of them
+// afresh, so the rule set is rebuilt from the new list only.
+func (a *Agent) SetFeeds(feeds []*feed.Source) {
+	a.mu.Lock()
+	a.cfg.Feeds = feeds
+	a.mu.Unlock()
+}
+
+// StopReporting stops the uplink: the sensor keeps enforcing what it has and
+// reports nothing more.
+func (a *Agent) StopReporting() {
+	if a.cfg.Uplink != nil {
+		a.cfg.Uplink.Stop()
+	}
+}
+
 // Enqueue adds an event to the outbound queue.
 func (a *Agent) Enqueue(e uplink.Event) {
 	a.mu.Lock()
@@ -160,6 +219,19 @@ func (a *Agent) Enqueue(e uplink.Event) {
 
 // Run serves until ctx ends.
 func (a *Agent) Run(ctx context.Context) error {
+	// Ready as soon as the sensor is up: the first feed fetch can take a
+	// minute on a slow network, and a notify unit that is not ready by its
+	// start timeout is killed.
+	if ok, err := a.cfg.Notify("READY=1"); err != nil {
+		a.cfg.Logf("sensor: sd_notify READY failed: %v", err)
+	} else if ok && a.cfg.WatchdogInterval > 0 {
+		// The ping runs on its own: a feed refresh in the loop below can
+		// legitimately outlast the watchdog. What it proves is that the
+		// process is alive and scheduled, not stopped or wedged.
+		wctx, stopWatchdog := context.WithCancel(ctx)
+		defer stopWatchdog()
+		go a.watchdog(wctx, a.cfg.WatchdogInterval/2)
+	}
 	if a.cfg.BPFLSM {
 		g, err := lsmguard.Load()
 		if err != nil {
@@ -252,6 +324,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		stopped = nil
 	}
 	shutdown := func() error {
+		_, _ = a.cfg.Notify("STOPPING=1")
 		sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		for _, s := range servers {
@@ -264,6 +337,12 @@ func (a *Agent) Run(ctx context.Context) error {
 		return nil
 	}
 
+	var configTick <-chan time.Time
+	if a.cfg.PollConfig != nil {
+		t := time.NewTicker(a.cfg.ConfigEvery)
+		defer t.Stop()
+		configTick = t.C
+	}
 	feedTick := time.NewTicker(a.cfg.FeedEvery)
 	beat := time.NewTicker(a.cfg.HeartbeatEvery)
 	flush := time.NewTicker(a.cfg.FlushEvery)
@@ -281,6 +360,21 @@ func (a *Agent) Run(ctx context.Context) error {
 			return shutdown()
 		case <-feedTick.C:
 			if loads := a.RefreshRules(ctx); loads != nil {
+				if err := a.register(ctx, loads); err != nil {
+					a.cfg.Logf("sensor: register failed: %v", err)
+				}
+			}
+		case <-configTick:
+			modeBefore := a.Verdicts.Mode()
+			if a.cfg.PollConfig(ctx, a) {
+				a.Restart = true
+
+				return shutdown()
+			}
+			// A changed feed list is fetched now rather than at the next
+			// feed tick, and a mode change is reported at once.
+			loads := a.RefreshRules(ctx)
+			if loads != nil || a.Verdicts.Mode() != modeBefore {
 				if err := a.register(ctx, loads); err != nil {
 					a.cfg.Logf("sensor: register failed: %v", err)
 				}
@@ -305,7 +399,10 @@ func (a *Agent) RefreshRules(ctx context.Context) []uplink.RuleLoad {
 		changed  bool
 		etags    string
 	)
-	for _, src := range a.cfg.Feeds {
+	a.mu.Lock()
+	feeds := a.cfg.Feeds
+	a.mu.Unlock()
+	for _, src := range feeds {
 		got, err := src.Fetch(ctx)
 		switch {
 		case errors.Is(err, feed.ErrNotModified):
@@ -362,8 +459,24 @@ func (a *Agent) RefreshRules(ctx context.Context) []uplink.RuleLoad {
 	return loads
 }
 
+// watchdog pings systemd's watchdog every interval until ctx ends.
+func (a *Agent) watchdog(ctx context.Context, every time.Duration) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if _, err := a.cfg.Notify("WATCHDOG=1"); err != nil {
+				a.cfg.Logf("sensor: sd_notify WATCHDOG failed: %v", err)
+			}
+		}
+	}
+}
+
 func (a *Agent) register(ctx context.Context, loads []uplink.RuleLoad) error {
-	if a.cfg.Uplink == nil {
+	if !a.reporting() {
 		return nil
 	}
 	a.mu.Lock()
@@ -407,7 +520,7 @@ func (a *Agent) capabilities() map[string]bool {
 // Flush posts the queue in batches of 500. A batch that fails goes back to
 // the front of the queue.
 func (a *Agent) Flush(ctx context.Context) {
-	if a.cfg.Uplink == nil {
+	if !a.reporting() {
 		return
 	}
 	for {
@@ -451,6 +564,11 @@ func (a *Agent) decisionLoop(ctx context.Context) {
 	}
 	backoff := time.Second
 	for ctx.Err() == nil {
+		if a.cfg.Uplink.Stopped() {
+			<-ctx.Done()
+
+			return
+		}
 		ds, cursor, err := a.cfg.Uplink.PollDecisions(ctx, a.cfg.SensorKey, a.cursor, 25*time.Second)
 		if err != nil {
 			select {
@@ -522,6 +640,9 @@ func (a *Agent) inventoryLoop(ctx context.Context) {
 
 // ReportInventory reads which installed packages processes map and posts it.
 func (a *Agent) ReportInventory(ctx context.Context) error {
+	if !a.reporting() {
+		return nil
+	}
 	root := a.cfg.HostRoot
 	if root == "" {
 		root = "/"

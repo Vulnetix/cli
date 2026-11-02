@@ -99,3 +99,29 @@ func TestServerErrorIsReported(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestSensorCredentialAndGoodbye(t *testing.T) {
+	c, rec := client(t)
+	c.Authorization = func() string { return "Sensor dev:secret" }
+	rec.bodies["x"] = ""
+	err := c.Goodbye(context.Background(), "k", "signal", "terminated")
+	// The recorder answers unknown paths with 409; the request is what is checked.
+	_ = err
+	if rec.auth != "Sensor dev:secret" {
+		t.Fatalf("auth = %q, want the Sensor credential over Creds", rec.auth)
+	}
+	var sent map[string]string
+	_ = json.Unmarshal([]byte(rec.bodies["/v1/runtime/sensors/goodbye"]), &sent)
+	if sent["sensorKey"] != "k" || sent["reason"] != "signal" || sent["detail"] != "terminated" {
+		t.Fatalf("goodbye = %v", sent)
+	}
+
+	c.Stop()
+	delete(rec.bodies, "/v1/runtime/sensors/register")
+	if _, err := c.Register(context.Background(), Registration{SensorKey: "k"}); err != ErrStopped {
+		t.Fatalf("err = %v, want ErrStopped", err)
+	}
+	if _, sent := rec.bodies["/v1/runtime/sensors/register"]; sent {
+		t.Fatal("a stopped uplink sends nothing")
+	}
+}

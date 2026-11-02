@@ -190,6 +190,28 @@ func (e *Engine) Mode() Mode {
 	return e.mode
 }
 
+// SetMode changes the mode, as a profile change does. An invalid mode is
+// ignored.
+func (e *Engine) SetMode(m Mode) {
+	if !ValidMode(string(m)) {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.mode = m
+}
+
+// SetHold changes how long a new hold waits. Holds already running keep
+// their expiry.
+func (e *Engine) SetHold(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.cfg.Hold = d
+}
+
 // SetRules replaces the loaded rule set. Holds and decisions about rules that
 // are gone are kept: a rule dropped and re-added keeps its history.
 func (e *Engine) SetRules(rules []Rule) {
