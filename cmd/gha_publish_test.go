@@ -90,3 +90,38 @@ func TestCodeScanningPublishUploadsOneCategoryPerKind(t *testing.T) {
 		}
 	}
 }
+
+func TestDependencyGraphPublish(t *testing.T) {
+	root := t.TempDir()
+	sbom := filepath.Join(root, ".vulnetix", "sbom.cdx.json")
+	if err := os.MkdirAll(filepath.Dir(sbom), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	doc := `{"components":[{"bom-ref":"a","purl":"pkg:npm/a@1.0.0","properties":[{"name":"vulnetix:source-file","value":"package.json"}]}]}`
+	if err := os.WriteFile(sbom, []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var got github.Snapshot
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, `{"id":1,"result":"SUCCESS"}`)
+	}))
+	defer srv.Close()
+	client := github.NewClient("tok")
+	client.BaseURL = srv.URL
+	var out strings.Builder
+	err := runDependencyGraphPublish(context.Background(), dependencyGraphPublishOptions{
+		Root: root, SBOM: sbom, Correlator: "vulnetix/test/job",
+		Repo: "o/r", SHA: "abc", Ref: "refs/heads/main", Client: client,
+	}, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Job.Correlator != "vulnetix/test/job" || got.Manifests["package.json"].Resolved["pkg:npm/a@1.0.0"].PackageURL == "" {
+		t.Fatalf("snapshot %+v", got)
+	}
+	if !strings.Contains(out.String(), "1 package(s) in 1 manifest(s)") {
+		t.Fatalf("output %q", out.String())
+	}
+}

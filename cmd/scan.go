@@ -4320,7 +4320,7 @@ func addSASTFlags(cmd *cobra.Command) {
 	cmd.Flags().Int("snippet-context", -1,
 		"Surrounding non-empty source lines to capture around each SARIF finding (-1 = dynamic: 3 if span <10 lines else 5; 0 disables)")
 	cmd.Flags().StringSlice("github-publish", nil,
-		"Publish into GitHub when the scan finishes: code-scanning (comma-separated or repeated). Forces a full, uncached result set; needs GITHUB_TOKEN with security-events: write")
+		"Publish into GitHub when the scan finishes: code-scanning, dependency-graph (comma-separated or repeated). code-scanning forces a full, uncached result set and needs security-events: write; dependency-graph needs contents: write")
 	cmd.Flags().Bool("no-cache", false,
 		"Evaluate and parse every file, not reusing rule results or graph facts kept for files unchanged since an earlier run")
 }

@@ -29,6 +29,7 @@ var ghaPublishCmd = &cobra.Command{
 
   code-scanning     SARIF to GitHub code scanning, one category per scanner
                     (vulnetix/sast/, vulnetix/sca/, ...)
+  dependency-graph  the CycloneDX SBOM as a dependency graph snapshot
 
 The token is GITHUB_TOKEN, then GH_TOKEN, then 'gh auth token'. GITHUB_API_URL
 selects a GitHub Enterprise Server. Publishing to GitHub needs no Vulnetix
@@ -41,7 +42,7 @@ const (
 	publishDependencyList = "dependency-graph"
 )
 
-var githubPublishTargets = []string{publishCodeScanning}
+var githubPublishTargets = []string{publishCodeScanning, publishDependencyList}
 
 // publishTargetFlags are the flags every publish subcommand shares.
 type publishTargetFlags struct {
@@ -330,6 +331,14 @@ func publishScanToGitHub(ctx context.Context, opts pipeline.Options, root string
 			fmt.Fprintf(w, "  warning: GitHub code scanning: %v\n", err)
 		}
 	}
+	if hasPublishTarget(opts.GitHubPublish, publishDependencyList) {
+		sbom := filepath.Join(root, ".vulnetix", "sbom.cdx.json")
+		if _, err := os.Stat(sbom); err != nil {
+			fmt.Fprintln(w, "  warning: GitHub dependency graph: no SBOM was written by this scan")
+		} else if err := runDependencyGraphPublish(ctx, dependencyGraphPublishOptions{Root: root, SBOM: sbom}, w); err != nil {
+			fmt.Fprintf(w, "  warning: GitHub %v\n", err)
+		}
+	}
 }
 
 func hasKind(kinds []string, k string) bool {
@@ -339,4 +348,108 @@ func hasKind(kinds []string, k string) bool {
 		}
 	}
 	return false
+}
+
+var (
+	dgTarget     publishTargetFlags
+	dgPath       string
+	dgSBOM       string
+	dgCorrelator string
+)
+
+var ghaPublishDependencyGraphCmd = &cobra.Command{
+	Use:   "dependency-graph",
+	Short: "Submit the CycloneDX SBOM to the GitHub dependency graph",
+	Long: `Submit a CycloneDX SBOM to the GitHub dependency graph as a snapshot
+(POST /repos/{owner}/{repo}/dependency-graph/snapshots).
+
+Packages are grouped into the manifest that declared them (the SBOM's
+vulnetix:source-file property), scoped runtime or development from
+vulnetix:scope, and marked direct or indirect from the root component's
+dependencies. The correlator vulnetix/<workflow>/<job> makes the next run's
+snapshot replace this one.
+
+Needs permissions: contents: write.`,
+	Example: `  vulnetix gha publish dependency-graph
+  vulnetix gha publish dependency-graph --sbom build/app.cdx.json`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		sbom := dgSBOM
+		if sbom == "" {
+			sbom = filepath.Join(dgPath, ".vulnetix", "sbom.cdx.json")
+		}
+		return runDependencyGraphPublish(cmd.Context(), dependencyGraphPublishOptions{
+			Root: dgPath, SBOM: sbom, Correlator: dgCorrelator,
+			Repo: dgTarget.repo, SHA: dgTarget.sha, Ref: dgTarget.ref,
+		}, os.Stderr)
+	},
+}
+
+type dependencyGraphPublishOptions struct {
+	Root, SBOM, Correlator string
+	Repo, SHA, Ref         string
+	Client                 *github.Client
+}
+
+// runDependencyGraphPublish submits one snapshot built from the SBOM.
+func runDependencyGraphPublish(ctx context.Context, o dependencyGraphPublishOptions, w io.Writer) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if o.Root == "" {
+		o.Root = "."
+	}
+	raw, err := os.ReadFile(o.SBOM)
+	if err != nil {
+		return fmt.Errorf("dependency graph: %w", err)
+	}
+	target, err := github.ResolveTarget(o.Root, o.Repo, o.SHA, o.Ref)
+	if err != nil {
+		return err
+	}
+	jobURL := ""
+	if s, r, id := os.Getenv("GITHUB_SERVER_URL"), os.Getenv("GITHUB_REPOSITORY"), os.Getenv("GITHUB_RUN_ID"); s != "" && r != "" && id != "" {
+		jobURL = s + "/" + r + "/actions/runs/" + id
+	}
+	snap, err := github.BuildSnapshot(raw, github.SnapshotOptions{
+		Target: target, Correlator: o.Correlator, JobURL: jobURL, DetectorVersion: version,
+		DefaultManifest: filepath.ToSlash(relOrSelf(o.Root, o.SBOM)),
+	})
+	if err != nil {
+		return err
+	}
+	if snap.PackageCount() == 0 {
+		fmt.Fprintln(w, "  dependency graph: the SBOM has no packages with a purl; nothing to submit")
+		return nil
+	}
+	client := o.Client
+	if client == nil {
+		tok, _, terr := github.ResolveToken()
+		if terr != nil {
+			return terr
+		}
+		client = github.NewClient(tok)
+	}
+	res, err := client.SubmitSnapshot(ctx, target.Repo, snap)
+	if err != nil {
+		return fmt.Errorf("dependency graph: %w%s", err, permissionHint(err, "contents: write"))
+	}
+	fmt.Fprintf(w, "  dependency graph: %d package(s) in %d manifest(s) submitted (%s, snapshot %d, %s)\n",
+		snap.PackageCount(), snap.ManifestCount(), snap.Job.Correlator, res.ID, strings.ToLower(res.Result))
+	return nil
+}
+
+func relOrSelf(root, p string) string {
+	if r, err := filepath.Rel(root, p); err == nil && !strings.HasPrefix(r, "..") {
+		return r
+	}
+	return p
+}
+
+func init() {
+	dgTarget.register(ghaPublishDependencyGraphCmd)
+	ghaPublishDependencyGraphCmd.Flags().StringVar(&dgPath, "path", ".", "Repository root the manifest paths are relative to")
+	ghaPublishDependencyGraphCmd.Flags().StringVar(&dgSBOM, "sbom", "", "CycloneDX SBOM to submit (default: <path>/.vulnetix/sbom.cdx.json)")
+	ghaPublishDependencyGraphCmd.Flags().StringVar(&dgCorrelator, "correlator", "", "Snapshot correlator (default: vulnetix/<workflow>/<job>)")
+	ghaPublishCmd.AddCommand(ghaPublishDependencyGraphCmd)
 }

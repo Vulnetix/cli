@@ -64,3 +64,20 @@ uploads the scan's own results, with an empty upload for each kind that ran clea
 alerts close. It forces `--no-cache`: a cached run must never close an alert that is still
 real. A failure only warns; the scan's exit code and its Vulnetix upload are unaffected, and a
 community run (no Vulnetix credentials) still publishes to GitHub.
+
+## `vulnetix gha publish dependency-graph`
+
+Builds a dependency graph snapshot from a CycloneDX SBOM (`--sbom`, default
+`.vulnetix/sbom.cdx.json`) and posts it to `POST /repos/{o}/{r}/dependency-graph/snapshots`
+(`internal/github/depgraph.go`). Permission: `contents: write`.
+
+| Snapshot field | From |
+|---|---|
+| manifests | grouped by each component's `vulnetix:source-file` property; components without it go under the SBOM's own path |
+| `scope` | `vulnetix:scope` (or the CycloneDX scope): anything development or test is `development`, the rest `runtime` |
+| `relationship` | `direct` when the root component's dependencies name it, else `indirect`; omitted when the SBOM has no root dependencies |
+| `dependencies` | the component's own `dependsOn`, as purls |
+| `job.correlator` | `vulnetix/<workflow>/<job>` (`--correlator`), so the next run replaces this snapshot |
+
+Components without a purl cannot be named to the dependency graph and are skipped. Scans take
+`--github-publish dependency-graph` to submit the SBOM they just wrote.
