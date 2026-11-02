@@ -141,7 +141,7 @@ func TestRepoFromRemote(t *testing.T) {
 		"https://x-access-token:s@github.com/a/b":     "a/b",
 		"git@github.com:Vulnetix/cli.git":             "Vulnetix/cli",
 		"ssh://git@github.example.com/team/repo.git/": "team/repo",
-		"not a url":                                   "",
+		"not a url": "",
 	} {
 		if got := RepoFromRemote(in); got != want {
 			t.Errorf("RepoFromRemote(%q) = %q, want %q", in, got, want)

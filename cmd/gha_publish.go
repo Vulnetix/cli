@@ -65,6 +65,7 @@ var (
 	csOutDir   string
 	csWait     time.Duration
 	csCheckout string
+	csDryRun   bool
 )
 
 var ghaPublishCodeScanningCmd = &cobra.Command{
@@ -103,7 +104,7 @@ repository).`,
 		}
 		return runCodeScanningPublish(cmd.Context(), codeScanningPublishOptions{
 			Root: csPath, Logs: logs, OutDir: csOutDir, Wait: csWait,
-			Repo: csTarget.repo, SHA: csTarget.sha, Ref: csTarget.ref, CheckoutURI: csCheckout,
+			Repo: csTarget.repo, SHA: csTarget.sha, Ref: csTarget.ref, CheckoutURI: csCheckout, DryRun: csDryRun,
 		}, os.Stderr)
 	},
 }
@@ -126,6 +127,8 @@ type codeScanningPublishOptions struct {
 	Repo, SHA   string
 	Ref         string
 	CheckoutURI string
+	// DryRun writes the per-kind files and uploads nothing.
+	DryRun bool
 	// Client overrides the GitHub client (tests).
 	Client *github.Client
 }
@@ -175,11 +178,11 @@ func runCodeScanningPublish(ctx context.Context, o codeScanningPublishOptions, w
 		return nil
 	}
 	target, err := github.ResolveTarget(o.Root, o.Repo, o.SHA, o.Ref)
-	if err != nil {
+	if err != nil && !o.DryRun {
 		return err
 	}
 	client := o.Client
-	if client == nil {
+	if client == nil && !o.DryRun {
 		tok, _, terr := github.ResolveToken()
 		if terr != nil {
 			return terr
@@ -212,6 +215,10 @@ func runCodeScanningPublish(ctx context.Context, o codeScanningPublishOptions, w
 		n := 0
 		for _, r := range l.Runs {
 			n += len(r.Results)
+		}
+		if o.DryRun {
+			fmt.Fprintf(w, "  code scanning %s: dry run, %d result(s) written to %s, nothing uploaded\n", k, n, path)
+			continue
 		}
 		up, err := client.UploadSARIF(ctx, target, data, o.CheckoutURI)
 		if err != nil {
@@ -287,6 +294,7 @@ func init() {
 	ghaPublishCodeScanningCmd.Flags().StringVar(&csOutDir, "out-dir", "", "Where to write the per-kind SARIF that is uploaded (default: <path>/.vulnetix/code-scanning)")
 	ghaPublishCodeScanningCmd.Flags().DurationVar(&csWait, "wait", 2*time.Minute, "How long to wait for GitHub to process each upload (0 to not wait)")
 	ghaPublishCodeScanningCmd.Flags().StringVar(&csCheckout, "checkout-uri", "", "URI of the checkout the SARIF paths are relative to, when not the repository root")
+	ghaPublishCodeScanningCmd.Flags().BoolVar(&csDryRun, "dry-run", false, "Write the per-kind SARIF and upload nothing")
 	ghaPublishCmd.AddCommand(ghaPublishCodeScanningCmd)
 	ghaCmd.AddCommand(ghaPublishCmd)
 }
@@ -352,6 +360,7 @@ var (
 	dgPath       string
 	dgSBOM       string
 	dgCorrelator string
+	dgDryRun     bool
 )
 
 var ghaPublishDependencyGraphCmd = &cobra.Command{
@@ -376,7 +385,7 @@ Needs permissions: contents: write.`,
 			sbom = filepath.Join(dgPath, ".vulnetix", "sbom.cdx.json")
 		}
 		return runDependencyGraphPublish(cmd.Context(), dependencyGraphPublishOptions{
-			Root: dgPath, SBOM: sbom, Correlator: dgCorrelator,
+			Root: dgPath, SBOM: sbom, Correlator: dgCorrelator, DryRun: dgDryRun,
 			Repo: dgTarget.repo, SHA: dgTarget.sha, Ref: dgTarget.ref,
 		}, os.Stderr)
 	},
@@ -384,8 +393,10 @@ Needs permissions: contents: write.`,
 
 type dependencyGraphPublishOptions struct {
 	Root, SBOM, Correlator string
-	Repo, SHA, Ref         string
-	Client                 *github.Client
+	// DryRun prints the snapshot and submits nothing.
+	DryRun         bool
+	Repo, SHA, Ref string
+	Client         *github.Client
 }
 
 // runDependencyGraphPublish submits one snapshot built from the SBOM.
@@ -401,7 +412,7 @@ func runDependencyGraphPublish(ctx context.Context, o dependencyGraphPublishOpti
 		return fmt.Errorf("dependency graph: %w", err)
 	}
 	target, err := github.ResolveTarget(o.Root, o.Repo, o.SHA, o.Ref)
-	if err != nil {
+	if err != nil && !o.DryRun {
 		return err
 	}
 	jobURL := ""
@@ -418,6 +429,11 @@ func runDependencyGraphPublish(ctx context.Context, o dependencyGraphPublishOpti
 	if snap.PackageCount() == 0 {
 		fmt.Fprintln(w, "  dependency graph: the SBOM has no packages with a purl; nothing to submit")
 		return nil
+	}
+	if o.DryRun {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(snap)
 	}
 	client := o.Client
 	if client == nil {
@@ -448,6 +464,7 @@ func init() {
 	ghaPublishDependencyGraphCmd.Flags().StringVar(&dgPath, "path", ".", "Repository root the manifest paths are relative to")
 	ghaPublishDependencyGraphCmd.Flags().StringVar(&dgSBOM, "sbom", "", "CycloneDX SBOM to submit (default: <path>/.vulnetix/sbom.cdx.json)")
 	ghaPublishDependencyGraphCmd.Flags().StringVar(&dgCorrelator, "correlator", "", "Snapshot correlator (default: vulnetix/<workflow>/<job>)")
+	ghaPublishDependencyGraphCmd.Flags().BoolVar(&dgDryRun, "dry-run", false, "Print the snapshot as JSON and submit nothing")
 	ghaPublishCmd.AddCommand(ghaPublishDependencyGraphCmd)
 }
 

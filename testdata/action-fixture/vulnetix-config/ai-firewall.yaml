@@ -1,0 +1,5 @@
+apiVersion: vulnetix.com/v1
+kind: AiFirewallPolicy
+spec:
+  settings:
+    logsEnabled: true

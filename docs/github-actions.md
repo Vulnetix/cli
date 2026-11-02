@@ -56,3 +56,35 @@ Every input reaches the action's scripts as an environment variable, never as a
 | `upload-uuid` | Pipeline UUID of uploaded artifact (with `task: upload`) |
 
 See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/github-actions/) for advanced configuration, matrix strategies, and troubleshooting.
+
+## One action per command
+
+Each CLI command also has its own composite action in a subdirectory of this repository, used as
+`Vulnetix/cli/<name>@v3`: `setup`, `sca`, `sast`, `secrets`, `iac`, `containers`, `license`,
+`malscan`, `analyze`, `cbom`, `aibom`, `sbom`, `upload`, `gha-upload`, `tea-release`,
+`config-plan`, `config-apply`, `attest`, `jail`, `vex` and `github-publish`. Their inputs,
+outputs, permissions and examples are in [`github-actions/`](github-actions/README.md).
+
+They are generated, not hand-written: `tools/actiongen/spec.go` is the table, and
+`go generate ./tools/actiongen` writes every `<name>/action.yml`, every
+`docs/github-actions/<name>.md` and `action-lib/commands.sh`. `TestGeneratedFilesAreCurrent`
+fails when they drift. The shared shell is in `action-lib/` and is called as
+`$GITHUB_ACTION_PATH/../action-lib/*.sh`, because a relative `uses:` does not resolve from a
+remote action:
+
+| Script | Job |
+|---|---|
+| `install.sh` | Major channel, `binary-path`, skips a second install in the same job |
+| `run.sh` | Builds the argv from `VX_*` env (through `commands.sh`), runs it with an artifact manifest, sets the outputs |
+| `config.sh`, `config-plan-comment.sh` | `config-plan` and `config-apply`, and the pull request plan comment |
+| `publish.sh` | `gha publish` after a command that does not publish itself, and the `github-publish` action |
+| `release-assets.sh` | Attaches the manifest's files to a release |
+| `finish.sh` | Re-raises the command's exit code when `fail-on-findings` is set |
+
+The root action's `task` input takes the same names and runs the same `run.sh`.
+
+The `actions-e2e` job in `test.yml` runs the root action and `sca`, `sast`, `sbom` and
+`config-plan` against the binary the branch built (`binary-path`) on
+`testdata/action-fixture/`, checks the outputs, the SARIF and the dependency graph snapshot
+(with `--dry-run`), and that no credentials file was written. It also runs actionlint and
+shellcheck. Third-party actions are pinned by commit SHA in `tools/actiongen/spec.go`.

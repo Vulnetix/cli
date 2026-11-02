@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -182,7 +183,7 @@ func BuildSnapshot(cdxJSON []byte, o SnapshotOptions) (*Snapshot, error) {
 		if c.Purl == "" {
 			continue
 		}
-		src := c.prop("vulnetix:source-file")
+		src := strings.TrimPrefix(filepath.ToSlash(c.prop("vulnetix:source-file")), "./")
 		if src == "" {
 			src = o.DefaultManifest
 		}
@@ -291,4 +292,3 @@ func (s *Snapshot) PackageCount() int {
 	}
 	return n
 }
-

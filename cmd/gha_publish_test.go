@@ -164,3 +164,23 @@ func TestReleaseAssetsFromTheArtifactManifest(t *testing.T) {
 		t.Fatalf("attached %v", names)
 	}
 }
+
+func TestCodeScanningDryRunUploadsNothing(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GITHUB_REPOSITORY", "")
+	t.Setenv("GITHUB_SHA", "")
+	t.Setenv("GITHUB_REF", "")
+	var out strings.Builder
+	err := runCodeScanningPublish(context.Background(), codeScanningPublishOptions{
+		Root: root, EnsureKinds: []string{"sast"}, DryRun: true,
+	}, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".vulnetix", "code-scanning", "sast.sarif")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "nothing uploaded") {
+		t.Fatalf("output %q", out.String())
+	}
+}

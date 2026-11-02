@@ -19,7 +19,7 @@ inputs:
     required: false
     default: ''
   task:
-    description: 'Task to perform: info, upload, gha, tea-release, config-plan, config-apply'
+    description: 'Task to perform: info, upload, gha (gha-upload), tea-release, config-plan, config-apply, or any subdirectory action: sca, sast, secrets, iac, containers, license, malscan, analyze, cbom, aibom, sbom, jail. The subdirectory actions (Vulnetix/cli/sca@v3) offer the artifact, attestation and release steps as well'
     required: false
     default: 'info'
   api-key:
@@ -74,31 +74,65 @@ inputs:
     required: false
     default: 'false'
   github-token:
-    description: 'Token used to comment the config plan on a pull request (task: config-plan). Needs pull-requests: write'
+    description: 'Token for GitHub publishing and for commenting the config plan on a pull request (task: config-plan, needs pull-requests: write)'
     required: false
     default: ${{ github.token }}
+  path:
+    description: 'Directory to scan, for the scanning tasks'
+    required: false
+    default: '.'
+  args:
+    description: 'Extra arguments for the command, separated by spaces or newlines (no shell quoting is applied)'
+    required: false
+  fail-on-findings:
+    description: 'Fail the step when the command exits non-zero: true or false'
+    required: false
+    default: 'true'
+  github-code-scanning:
+    description: 'Upload SARIF to GitHub code scanning (needs security-events: write): true or false'
+    required: false
+    default: 'false'
+  dependency-graph:
+    description: 'Submit the SBOM to the GitHub dependency graph (needs contents: write): true or false'
+    required: false
+    default: 'false'
+  validate-only:
+    description: 'task: config-plan only. Validate the documents offline instead of planning: true or false'
+    required: false
+    default: 'false'
 outputs:
   result:
     description: 'Result of the Vulnetix CLI execution'
     value: ${{ steps.vulnetix-run.outputs.result }}
   summary:
-    description: 'Summary of vulnerabilities processed'
+    description: 'Summary of what ran'
     value: ${{ steps.vulnetix-run.outputs.summary }}
   upload-uuid:
     description: 'Pipeline UUID of the uploaded artifact (when task is upload)'
     value: ${{ steps.vulnetix-run.outputs.upload-uuid }}
+  files:
+    description: 'Every file the command wrote, one per line'
+    value: ${{ steps.vulnetix-run.outputs.files }}
+  sarif:
+    description: 'The SARIF files it wrote, one per line'
+    value: ${{ steps.vulnetix-run.outputs.sarif }}
+  sbom:
+    description: 'The CycloneDX SBOM it wrote, if any'
+    value: ${{ steps.vulnetix-run.outputs.sbom }}
+  manifest:
+    description: 'The artifact manifest (JSON Lines) listing what it wrote'
+    value: ${{ steps.vulnetix-run.outputs.manifest }}
+  exit-code:
+    description: 'The command''s exit code'
+    value: ${{ steps.vulnetix-run.outputs.exit-code }}
 
 runs:
   using: 'composite'
   steps:
+    # The installer shipped at this action's ref, so the major channel logic
+    # matches the ref the workflow pinned. binary-path skips the download.
     - name: Setup Vulnetix CLI
       shell: bash
-      # The released binary, not a build from source: building needs private Go
-      # modules (vdb-sca-match), which a runner in another repository cannot read.
-      # Every reusable workflow in the fleet installs the same way.
-      # The installer is the one shipped at this action's ref, so the major
-      # channel logic matches the ref the workflow pinned. binary-path skips
-      # the download (the repository's own tests run the branch build).
       env:
         VX_VERSION: ${{ inputs.version }}
         VX_BINARY_PATH: ${{ inputs.binary-path }}
@@ -117,202 +151,56 @@ runs:
         VULNETIX_API_TOKEN: ${{ inputs.api-token }}
       run: vulnetix auth verify
 
+    # The same runner the subdirectory actions use (action-lib/run.sh). Every
+    # input arrives as an environment variable; the command is an argv array,
+    # never eval, and no expression is interpolated into a script.
     - name: Run Vulnetix CLI
       id: vulnetix-run
       shell: bash
-      # Read by the tea-release task below. They arrive as environment variables
-      # rather than being interpolated into the script, so a value containing a
-      # quote or a command substitution stays data.
       env:
+        VX_ACTION: ${{ inputs.task }}
         VULNETIX_ORG_ID: ${{ inputs.org-id }}
         VULNETIX_API_KEY: ${{ inputs.api-key }}
         VULNETIX_API_TOKEN: ${{ inputs.api-token }}
-        VX_TASK: ${{ inputs.task }}
-        VX_UPLOAD_FILE: ${{ inputs.upload-file }}
-        VX_UPLOAD_FORMAT: ${{ inputs.upload-format }}
-        VX_TEA_FILES: ${{ inputs.tea-files }}
-        VX_TEA_PRODUCT: ${{ inputs.tea-product }}
-        VX_TEA_PURL: ${{ inputs.tea-purl }}
-        VX_TEA_VERSION: ${{ inputs.tea-version }}
-        VX_TEA_DATE: ${{ inputs.tea-date }}
-        VX_TEA_PRE_RELEASE: ${{ inputs.tea-pre-release }}
-        VX_TEA_VISIBILITY: ${{ inputs.tea-visibility }}
-        VX_TEA_DRY_RUN: ${{ inputs.tea-dry-run }}
-        # The config tasks. The token is only ever an environment variable, so
-        # it never appears in a process list or in the job log's command echo.
         VULNETIX_CONFIG_TOKEN: ${{ inputs.config-token }}
-        VX_CONFIG_PATH: ${{ inputs.config-path }}
-        VX_CONFIG_MANAGER: ${{ inputs.config-manager }}
-        VX_CONFIG_PRUNE: ${{ inputs.config-prune }}
-        VX_GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
         VX_EVENT_NAME: ${{ github.event_name }}
-      run: |
-        if [ -n "$VULNETIX_ORG_ID" ]; then
-          echo "Running Vulnetix CLI for organization $VULNETIX_ORG_ID"
-        else
-          echo "Running Vulnetix CLI"
-        fi
+        VX_PATH: ${{ inputs.path }}
+        VX_ARGS: ${{ inputs.args }}
+        VX_CODE_SCANNING: ${{ inputs.github-code-scanning }}
+        VX_DEPENDENCY_GRAPH: ${{ inputs.dependency-graph }}
+        VX_IN_UPLOAD_FILE: ${{ inputs.upload-file }}
+        VX_IN_UPLOAD_FORMAT: ${{ inputs.upload-format }}
+        VX_IN_TEA_FILES: ${{ inputs.tea-files }}
+        VX_IN_TEA_PRODUCT: ${{ inputs.tea-product }}
+        VX_IN_TEA_PURL: ${{ inputs.tea-purl }}
+        VX_IN_TEA_VERSION: ${{ inputs.tea-version }}
+        VX_IN_TEA_DATE: ${{ inputs.tea-date }}
+        VX_IN_TEA_PRE_RELEASE: ${{ inputs.tea-pre-release }}
+        VX_IN_TEA_VISIBILITY: ${{ inputs.tea-visibility }}
+        VX_IN_TEA_DRY_RUN: ${{ inputs.tea-dry-run }}
+        VX_IN_CONFIG_PATH: ${{ inputs.config-path }}
+        VX_IN_CONFIG_MANAGER: ${{ inputs.config-manager }}
+        VX_IN_CONFIG_PRUNE: ${{ inputs.config-prune }}
+        VX_IN_VALIDATE_ONLY: ${{ inputs.validate-only }}
+      run: bash "$GITHUB_ACTION_PATH/action-lib/run.sh"
 
-        # Handle tea-release task - publish a product, release, collection and artifacts to TEA
-        if [ "$VX_TASK" = "tea-release" ]; then
-          args=(tea release)
+    # license writes SARIF but does not publish it itself.
+    - name: Publish to GitHub
+      if: ${{ !cancelled() && inputs.task == 'license' && inputs.github-code-scanning == 'true' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        VX_PATH: ${{ inputs.path }}
+        VX_MANIFEST: ${{ steps.vulnetix-run.outputs.manifest }}
+        VX_CODE_SCANNING: ${{ inputs.github-code-scanning }}
+      run: bash "$GITHUB_ACTION_PATH/action-lib/publish.sh"
 
-          # One path or glob per line; the CLI expands globs itself.
-          while IFS= read -r f; do
-            f="${f#"${f%%[![:space:]]*}"}"
-            f="${f%"${f##*[![:space:]]}"}"
-            [ -n "$f" ] && args+=("$f")
-          done <<< "$VX_TEA_FILES"
-
-          [ -n "$VX_TEA_PRODUCT" ] && args+=(--product "$VX_TEA_PRODUCT")
-          [ -n "$VX_TEA_PURL" ] && args+=(--purl "$VX_TEA_PURL")
-          [ -n "$VX_TEA_VERSION" ] && args+=(--version "$VX_TEA_VERSION")
-          [ -n "$VX_TEA_DATE" ] && args+=(--date "$VX_TEA_DATE")
-          [ -n "$VX_TEA_VISIBILITY" ] && args+=(--visibility "$VX_TEA_VISIBILITY")
-          [ "$VX_TEA_PRE_RELEASE" = "true" ] && args+=(--pre-release)
-          [ "$VX_TEA_DRY_RUN" = "true" ] && args+=(--dry-run)
-
-          vulnetix "${args[@]}"
-          echo "result=success" >> "$GITHUB_OUTPUT"
-          if [ "$VX_TEA_DRY_RUN" = "true" ]; then
-            echo "summary=TEA release dry run completed; nothing was published" >> "$GITHUB_OUTPUT"
-          else
-            echo "summary=TEA release published successfully" >> "$GITHUB_OUTPUT"
-          fi
-          exit 0
-        fi
-
-        # Handle config-plan and config-apply - Platform IaC through the config engine
-        if [ "$VX_TASK" = "config-plan" ] || [ "$VX_TASK" = "config-apply" ]; then
-          cfg=()
-          while IFS= read -r f; do
-            f="${f#"${f%%[![:space:]]*}"}"
-            f="${f%"${f##*[![:space:]]}"}"
-            [ -n "$f" ] && cfg+=(-f "$f")
-          done <<< "$VX_CONFIG_PATH"
-          [ -n "$VX_CONFIG_MANAGER" ] && cfg+=(--manager "$VX_CONFIG_MANAGER")
-          [ "$VX_CONFIG_PRUNE" = "true" ] && cfg+=(--prune)
-
-          if [ "$VX_TASK" = "config-apply" ]; then
-            set +e
-            vulnetix config apply --auto-approve "${cfg[@]}" | tee "$RUNNER_TEMP/vulnetix-apply.txt"
-            code=${PIPESTATUS[0]}
-            set -e
-            {
-              echo "### Vulnetix config apply"
-              echo
-              echo '```'
-              cat "$RUNNER_TEMP/vulnetix-apply.txt"
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-            case "$code" in
-              0) echo "result=success" >> "$GITHUB_OUTPUT"; echo "summary=Config applied" >> "$GITHUB_OUTPUT" ;;
-              3) echo "result=blocked" >> "$GITHUB_OUTPUT"; echo "summary=Config plan has blocking conditions; nothing applied" >> "$GITHUB_OUTPUT" ;;
-              *) echo "result=failure" >> "$GITHUB_OUTPUT"; echo "summary=Config apply failed" >> "$GITHUB_OUTPUT" ;;
-            esac
-            exit "$code"
-          fi
-
-          plan="$RUNNER_TEMP/vulnetix-plan.json"
-          set +e
-          vulnetix config plan -o json "${cfg[@]}" > "$plan"
-          code=$?
-          set -e
-          if ! jq -e .planHash "$plan" > /dev/null 2>&1; then
-            # No plan came back (usage error, auth, network); the CLI has
-            # already printed why on stderr.
-            echo "result=failure" >> "$GITHUB_OUTPUT"
-            echo "summary=Config plan failed" >> "$GITHUB_OUTPUT"
-            exit "$code"
-          fi
-
-          body="$RUNNER_TEMP/vulnetix-plan.md"
-          jq -r '
-            def cell: tostring | gsub("\\|"; "\\|") | gsub("\n"; " ");
-            def mark: {create: "+", update: "~", delete: "-", noop: "="}[.] // "?";
-            "<!-- vulnetix-config-plan -->",
-            "### Vulnetix config plan",
-            "",
-            "Manager `\(.manager)`, prune \(if .prune then "on" else "off" end), plan hash `\(.planHash)`",
-            "",
-            "| | Object | Action | Changes |",
-            "|---|---|---|---|",
-            (.items[] | "| \(.action | mark) | `\(.kind)/\(.name)` | \(.action)\(if .adopt then " (adopt)" else "" end)\(if .drift then " (drift)" else "" end) | \([.changes[] | "`\(.path)`: \(.from | tojson | cell) -> \(.to | tojson | cell)"] | join("<br>")) |"),
-            (if (.blocking | length) > 0 then "", "**Blocking: this plan cannot be applied**", "", (.blocking[] | "- `\(.code)` \(if .kind then "`\(.kind)/\(.name)` " else "" end)\(.message)") else empty end),
-            (if (.warnings | length) > 0 then "", "**Warnings**", "", (.warnings[] | "- `\(.code)` \(.message)") else empty end),
-            "",
-            "\(.summary.create) to create, \(.summary.update) to update, \(.summary.delete) to delete, \(.summary.noop) unchanged"
-          ' "$plan" > "$body"
-          cat "$body" >> "$GITHUB_STEP_SUMMARY"
-
-          # On a pull request, keep one plan comment up to date rather than
-          # adding one per push. A fork's read-only token cannot comment; the
-          # job summary still has the plan, so that is a warning, not a failure.
-          if [ "$VX_EVENT_NAME" = "pull_request" ] && [ -n "$VX_GITHUB_TOKEN" ]; then
-            pr=$(jq -r '.pull_request.number // empty' "$GITHUB_EVENT_PATH")
-            if [ -n "$pr" ]; then
-              api="${GITHUB_API_URL:-https://api.github.com}/repos/$GITHUB_REPOSITORY/issues"
-              hdr=(-H "Authorization: Bearer $VX_GITHUB_TOKEN" -H "Accept: application/vnd.github+json")
-              payload=$(jq -Rs '{body: .}' "$body")
-              existing=$(curl -fsS "${hdr[@]}" "$api/$pr/comments?per_page=100" \
-                | jq -r '[.[] | select(.body | startswith("<!-- vulnetix-config-plan -->"))][0].id // empty' || true)
-              if [ -n "$existing" ]; then
-                curl -fsS -X PATCH "${hdr[@]}" "$api/comments/$existing" -d "$payload" > /dev/null \
-                  || echo "::warning::could not update the config plan comment"
-              else
-                curl -fsS -X POST "${hdr[@]}" "$api/$pr/comments" -d "$payload" > /dev/null \
-                  || echo "::warning::could not comment the config plan on the pull request"
-              fi
-            fi
-          fi
-
-          echo "summary=$(jq -r '"\(.summary.create) to create, \(.summary.update) to update, \(.summary.delete) to delete, \(.summary.noop) unchanged"' "$plan")" >> "$GITHUB_OUTPUT"
-          if [ "$code" = "3" ]; then
-            echo "result=blocked" >> "$GITHUB_OUTPUT"
-          elif [ "$code" = "0" ]; then
-            echo "result=success" >> "$GITHUB_OUTPUT"
-          else
-            echo "result=failure" >> "$GITHUB_OUTPUT"
-          fi
-          exit "$code"
-        fi
-
-        # Handle gha task - upload all workflow artifacts via GitHub API.
-        # The organization comes from VULNETIX_ORG_ID or the API token.
-        if [ "$VX_TASK" = "gha" ]; then
-          vulnetix gha upload --json
-          echo "result=success" >> "$GITHUB_OUTPUT"
-          echo "summary=GitHub Actions artifacts uploaded successfully" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-
-        # Handle upload task - upload a single file directly. An argv array,
-        # never eval: the file name and format stay data whatever they contain.
-        if [ "$VX_TASK" = "upload" ]; then
-          if [ -z "$VX_UPLOAD_FILE" ]; then
-            echo "::error::task: upload needs the upload-file input"
-            exit 2
-          fi
-          args=(upload --file "$VX_UPLOAD_FILE" --json)
-          [ -n "$VX_UPLOAD_FORMAT" ] && args+=(--format "$VX_UPLOAD_FORMAT")
-
-          RESULT=$(vulnetix "${args[@]}")
-          echo "$RESULT"
-
-          # Extract pipeline ID for output
-          PIPELINE_ID=$(echo "$RESULT" | jq -r '.pipelineRecord.uuid // empty' 2>/dev/null || true)
-          if [ -n "$PIPELINE_ID" ]; then
-            echo "upload-uuid=$PIPELINE_ID" >> "$GITHUB_OUTPUT"
-          fi
-
-          echo "result=success" >> "$GITHUB_OUTPUT"
-          echo "summary=Artifact uploaded successfully" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-
-        # Default task: run info healthcheck
-        vulnetix
-
-        # Set outputs (these would be set by the actual CLI)
-        echo "result=success" >> "$GITHUB_OUTPUT"
-        echo "summary=Vulnerability analysis completed" >> "$GITHUB_OUTPUT"
+    - name: Finish
+      if: ${{ !cancelled() }}
+      shell: bash
+      env:
+        VX_EXIT_CODE: ${{ steps.vulnetix-run.outputs.exit-code }}
+        VX_FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+        VX_SUMMARY: ${{ steps.vulnetix-run.outputs.summary }}
+      run: bash "$GITHUB_ACTION_PATH/action-lib/finish.sh"

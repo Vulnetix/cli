@@ -313,3 +313,145 @@ jobs:
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             signed.cdx.json
         shell: bash
+
+  # The subdirectory actions and the root action, run as a consumer runs them
+  # but against the binary this branch builds (binary-path), on a fixture with
+  # a vulnerable package.json, a SAST pattern, a fake secret and a .vulnetix
+  # folder that mixes config documents with SARIF and CycloneDX files.
+  # Nothing is published: GitHub publishing is checked with --dry-run, and
+  # real uploads happen only on main through vulnetix.yml.
+  actions-e2e:
+    name: Actions end to end
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    needs: [lint]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Configure private fetch of vdb-sca-match and vdb-manifest (not yet in module proxy)
+        run: |
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-manifest".insteadOf "https://github.com/Vulnetix/vdb-manifest"
+
+      - name: The generated actions are current
+        run: go run ./tools/actiongen -root . -check
+        shell: bash
+
+      - name: actionlint and shellcheck
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/lint-bin"
+          mkdir -p "$bin"
+          curl -fsSL --retry 3 https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz | tar -xz -C "$bin" actionlint
+          curl -fsSL --retry 3 https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz | tar -xJ -C "$bin" --strip-components=1 shellcheck-v0.10.0/shellcheck
+          "$bin/shellcheck" -x action-lib/*.sh
+          # install.sh runs under sh but relies on local, which every sh it targets has.
+          "$bin/shellcheck" -e SC3043 install.sh
+          # This workflow uses every action the job runs, so actionlint checks
+          # their inputs as well as its own scripts.
+          "$bin/actionlint" -shellcheck "$bin/shellcheck" .github/workflows/test.yml
+        shell: bash
+
+      - name: Build the CLI
+        run: go build -o "$RUNNER_TEMP/vulnetix" .
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-w"
+
+      - name: Prepare the fixture
+        id: fixture
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/action-fixture"
+          rm -rf "$dir"
+          cp -r testdata/action-fixture "$dir"
+          mv "$dir/vulnetix-config" "$dir/.vulnetix"
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "bin=$RUNNER_TEMP/vulnetix" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Root action, task sast
+        id: root
+        uses: ./
+        with:
+          binary-path: ${{ steps.fixture.outputs.bin }}
+          task: sast
+          path: ${{ steps.fixture.outputs.dir }}
+          args: --no-banner --no-progress
+          fail-on-findings: 'false'
+
+      - name: sca
+        id: sca
+        uses: ./sca
+        with:
+          binary-path: ${{ steps.fixture.outputs.bin }}
+          path: ${{ steps.fixture.outputs.dir }}
+          args: --no-banner --no-progress
+          fail-on-findings: 'false'
+
+      - name: sast
+        id: sast
+        uses: ./sast
+        with:
+          binary-path: ${{ steps.fixture.outputs.bin }}
+          path: ${{ steps.fixture.outputs.dir }}
+          args: --no-banner --no-progress
+          fail-on-findings: 'false'
+
+      - name: sbom
+        id: sbom
+        uses: ./sbom
+        with:
+          binary-path: ${{ steps.fixture.outputs.bin }}
+          path: ${{ steps.fixture.outputs.dir }}
+          args: --no-banner --no-progress --no-aibom --no-cbom
+          fail-on-findings: 'false'
+
+      - name: config-plan, validating offline
+        id: config
+        uses: ./config-plan
+        with:
+          binary-path: ${{ steps.fixture.outputs.bin }}
+          config-path: ${{ steps.fixture.outputs.dir }}/.vulnetix/config/quality-gate.yaml
+          validate-only: 'true'
+
+      - name: Check the outputs
+        env:
+          DIR: ${{ steps.fixture.outputs.dir }}
+          BIN: ${{ steps.fixture.outputs.bin }}
+          ROOT_FILES: ${{ steps.root.outputs.files }}
+          SCA_FILES: ${{ steps.sca.outputs.files }}
+          SCA_EXIT: ${{ steps.sca.outputs.exit-code }}
+          SAST_SARIF: ${{ steps.sast.outputs.sarif }}
+          SBOM: ${{ steps.sbom.outputs.sbom }}
+          CONFIG_RESULT: ${{ steps.config.outputs.result }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          [ -n "$ROOT_FILES" ] || fail "the root action listed no files"
+          [ -n "$SCA_FILES" ] || fail "sca listed no files"
+          [ -n "$SCA_EXIT" ] || fail "sca reported no exit code"
+          grep -q 'sca.sarif$' <<<"$SCA_FILES" || fail "sca did not write sca.sarif: $SCA_FILES"
+          sarif=$(head -n1 <<<"$SAST_SARIF")
+          [ -f "$sarif" ] || fail "sast listed no SARIF"
+          jq -e '.runs[0].automationDetails.id == "vulnetix/sast/"' "$sarif" >/dev/null || fail "no automationDetails"
+          jq -e '[.runs[].results[].partialFingerprints.primaryLocationLineHash] | length > 0 and all(. != null)' "$sarif" >/dev/null || fail "no partialFingerprints"
+          jq -e '[.runs[].tool.driver.rules[].properties["security-severity"] | select(. != null)] | length > 0' "$sarif" >/dev/null || fail "no security-severity"
+          [ -f "$SBOM" ] || fail "sbom listed no SBOM"
+          "$BIN" gha publish dependency-graph --dry-run --no-banner --path "$DIR" --sbom "$SBOM" > "$RUNNER_TEMP/snapshot.json"
+          jq -e '.manifests | length > 0' "$RUNNER_TEMP/snapshot.json" >/dev/null || fail "the snapshot has no manifests"
+          "$BIN" gha publish code-scanning --dry-run --no-banner --path "$DIR"
+          ls "$DIR/.vulnetix/code-scanning/"*.sarif
+          [ "$CONFIG_RESULT" = success ] || fail "config-plan validate: $CONFIG_RESULT"
+          [ ! -e "$DIR/.vulnetix/credentials.json" ] || fail "a credentials file was written"
+          [ ! -e .vulnetix/credentials.json ] || fail "a credentials file was written to the workspace"
+        shell: bash
