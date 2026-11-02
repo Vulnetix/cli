@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"flag"
 	"io"
@@ -152,8 +153,15 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	case "/v1/runtime/sensors/goodbye":
+		// The uplink gzips every body.
+		var body io.Reader = r.Body
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			if zr, err := gzip.NewReader(r.Body); err == nil {
+				body = zr
+			}
+		}
 		var in map[string]string
-		_ = json.NewDecoder(r.Body).Decode(&in)
+		_ = json.NewDecoder(body).Decode(&in)
 		s.goodbyes = append(s.goodbyes, in)
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	default:

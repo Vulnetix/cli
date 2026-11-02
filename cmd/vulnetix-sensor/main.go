@@ -341,7 +341,6 @@ func runSensor(args []string, guard bool) error {
 	cfg := agent.Config{
 		SensorKey: sensorKey, Version: version, Mode: decide.Mode(*mode), Hold: *hold, Facts: facts,
 	}
-	cfg.Feeds = feedSources(feeds, key)
 	var cred *provision.Credential
 	if !*offline {
 		if !explicitCredentialEnv() {
@@ -359,7 +358,8 @@ func runSensor(args []string, guard bool) error {
 			}
 			c := *cred
 			cfg.Uplink = &uplink.Client{Endpoint: *endpoint, Authorization: c.AuthHeader, Version: version}
-			cfg.PollConfig = configPoller(*endpoint, c, snap, explicit, filepath.Join(*stateDir, "config.json"), feeds, *feedKey, sensorKey)
+			cfg.PollConfig = configPoller(*endpoint, c, snap, explicit, filepath.Join(*stateDir, "config.json"), feeds, *feedKey, sensorKey, cfg.Uplink)
+			cfg.ConfigEtag = snap.ConfigEtag
 			log.Printf("sensor: enrolled device %s (%s credential)", c.DeviceUUID, c.Scheme)
 		} else {
 			creds, err := auth.LoadCredentials()
@@ -369,6 +369,9 @@ func runSensor(args []string, guard bool) error {
 			cfg.Uplink = &uplink.Client{Endpoint: *endpoint, Creds: creds, Version: version}
 		}
 	}
+	// After the uplink: catalog: and org: feeds are fetched from the site with
+	// its credential.
+	cfg.Feeds = feedSources(feeds, key, cfg.Uplink)
 	if *listen != "" {
 		u, err := url.Parse(*upstream)
 		if err != nil || u.Scheme == "" || u.Host == "" {
@@ -451,13 +454,47 @@ func parseFeedKey(s string) ([]byte, error) {
 	return pk, nil
 }
 
-func feedSources(feeds []string, key []byte) []*feed.Source {
-	out := make([]*feed.Source, 0, len(feeds))
+// feedSources turns feed references (--feed, or the profile's config.feeds)
+// into sources:
+//
+//   - https://vulnetix.com/feeds/<org>/<feed>: a signed Vulnetix rule feed,
+//     fetched directly and verified against key.
+//   - catalog:<id> and org:<uuid>: an indicator list the site serves, fetched
+//     from site's endpoint with its credential. Without an uplink (offline,
+//     or no credential) there is nothing to authenticate with, so these are
+//     skipped.
+//
+// Anything else is logged and skipped, so one bad reference in a profile does
+// not stop the others loading.
+func feedSources(feeds []string, key []byte, site *uplink.Client) []feed.Fetcher {
+	out := make([]feed.Fetcher, 0, len(feeds))
 	for _, f := range feeds {
-		out = append(out, &feed.Source{BaseURL: f, PublicKey: key})
+		f = strings.TrimSpace(f)
+		switch {
+		case feed.IsIndicatorRef(f):
+			if site == nil {
+				log.Printf("sensor: feed %s skipped: the site serves it, and this sensor has no credential to fetch it with", f)
+
+				continue
+			}
+			out = append(out, &feed.Indicators{
+				Reference: f, Endpoint: site.Base(), Authorization: site.AuthHeader, Stopped: site.Stopped,
+				UserAgent: "vulnetix-sensor/" + version,
+			})
+		case isFeedURL(f):
+			out = append(out, &feed.Source{BaseURL: f, PublicKey: key})
+		default:
+			log.Printf("sensor: feed %q skipped: not a feed URL, catalog:<id> or org:<uuid>", f)
+		}
 	}
 
 	return out
+}
+
+func isFeedURL(s string) bool {
+	u, err := url.Parse(s)
+
+	return err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != ""
 }
 
 // siemForwarder reads --forward, and returns the Guardian forwarder when it

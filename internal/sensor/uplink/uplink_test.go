@@ -1,6 +1,7 @@
 package uplink
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"io"
@@ -20,7 +21,14 @@ type recorder struct {
 }
 
 func (r *recorder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	body, _ := io.ReadAll(req.Body)
+	// The client gzips every body.
+	var src io.Reader = req.Body
+	if req.Header.Get("Content-Encoding") == "gzip" {
+		if zr, err := gzip.NewReader(req.Body); err == nil {
+			src = zr
+		}
+	}
+	body, _ := io.ReadAll(src)
 	r.bodies[req.URL.Path] = string(body)
 	r.auth = req.Header.Get("Authorization")
 	r.query = req.URL.RawQuery

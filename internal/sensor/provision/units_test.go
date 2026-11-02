@@ -23,6 +23,9 @@ func TestRenderUnitsStandard(t *testing.T) {
 		"ExecStart=/usr/local/bin/vulnetix-sensor --config-dir /etc/vulnetix-sensor",
 		"EnvironmentFile=-/etc/vulnetix-sensor.env",
 		"DynamicUser=yes", "StateDirectory=vulnetix-sensor", "Restart=always", "Type=simple",
+		"AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_SYS_PTRACE CAP_DAC_READ_SEARCH\n",
+		"CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SYS_PTRACE CAP_DAC_READ_SEARCH\n",
+		"NoNewPrivileges=yes", "ProtectSystem=strict",
 	} {
 		if !strings.Contains(svc, want) {
 			t.Errorf("standard unit lacks %q:\n%s", want, svc)
@@ -55,7 +58,7 @@ func TestRenderUnitsHardened(t *testing.T) {
 	} {
 		files := RenderUnits(c.cfg, "/usr/local/bin/vulnetix-sensor", UnitOptions{ConfigDir: "/tmp/x", UnitDir: "/u", PolkitDir: "/p"})
 		svc := unitByName(files, ServiceUnit)
-		for _, want := range []string{"StartLimitIntervalSec=0", "Type=notify", "WatchdogSec=30", "NotifyAccess=main", "LoadCredential=credential:/tmp/x/credential", "DynamicUser=yes"} {
+		for _, want := range []string{"StartLimitIntervalSec=0", "Type=notify", "WatchdogSec=30", "NotifyAccess=main", "LoadCredential=credential:/tmp/x/credential", "DynamicUser=yes", "AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_SYS_PTRACE CAP_DAC_READ_SEARCH\n", "CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SYS_PTRACE CAP_DAC_READ_SEARCH\n", "NoNewPrivileges=yes"} {
 			if !strings.Contains(svc, want) {
 				t.Errorf("%+v: unit lacks %q", c.cfg, want)
 			}

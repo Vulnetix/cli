@@ -34,6 +34,8 @@ type platform struct {
 	decisions []uplink.Decision
 	files     map[string][]byte
 	inventory []byte
+	// configEtag, when set, rides on every decisions answer.
+	configEtag string
 }
 
 func (p *platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +82,11 @@ func (p *platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p.inventory = body
 		_, _ = w.Write([]byte(`{"stored":1}`))
 	case r.URL.Path == "/v1/runtime/decisions":
-		out, _ := json.Marshal(map[string]any{"decisions": p.decisions, "cursor": 99})
+		page := map[string]any{"decisions": p.decisions, "cursor": 99}
+		if p.configEtag != "" {
+			page["configEtag"] = p.configEtag
+		}
+		out, _ := json.Marshal(page)
 		p.decisions = nil
 		_, _ = w.Write(out)
 	}
@@ -112,7 +118,7 @@ func newAgent(t *testing.T, mode decide.Mode) (*Agent, *platform) {
 
 	a := New(Config{
 		SensorKey: "k", Version: "test", Mode: mode, Facts: host.Facts{ComputeKind: "ec2", Hostname: "h"},
-		Feeds:  []*feed.Source{{BaseURL: srv.URL + "/feed", PublicKey: pub}},
+		Feeds:  []feed.Fetcher{&feed.Source{BaseURL: srv.URL + "/feed", PublicKey: pub}},
 		Uplink: &uplink.Client{Endpoint: srv.URL, Creds: &auth.Credentials{Method: auth.SigV4, OrgID: "o", Secret: "s"}},
 		Logf:   func(string, ...any) {},
 	})

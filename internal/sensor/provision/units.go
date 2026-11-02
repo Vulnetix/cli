@@ -69,6 +69,11 @@ func (o UnitOptions) UnitPaths() []string {
 	}
 }
 
+// unitCapabilities is all the sensor service holds: binding a privileged
+// listen port, and reading other processes' /proc entries for the in-use
+// package inventory, which a dynamic user cannot otherwise do.
+const unitCapabilities = "CAP_NET_BIND_SERVICE CAP_SYS_PTRACE CAP_DAC_READ_SEARCH"
+
 // RenderUnits returns the systemd units (and, from hardened up, the polkit
 // rule) for cfg's protection level, running binPath.
 //
@@ -114,7 +119,11 @@ func RenderUnits(cfg Config, binPath string, opts ...UnitOptions) []File {
 RestartSec=5
 StateDirectory=vulnetix-sensor
 DynamicUser=yes
-AmbientCapabilities=CAP_NET_BIND_SERVICE
+# CAP_SYS_PTRACE and CAP_DAC_READ_SEARCH let the in-use package inventory
+# read which packages other users' processes map (/proc/<pid>/maps and the
+# exe links need PTRACE_MODE_READ). Read-only: the sensor attaches to nothing.
+AmbientCapabilities=` + unitCapabilities + `
+CapabilityBoundingSet=` + unitCapabilities + `
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

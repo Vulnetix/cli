@@ -47,7 +47,7 @@ type Config struct {
 	Hold      time.Duration
 	Facts     host.Facts
 
-	Feeds  []*feed.Source
+	Feeds  []feed.Fetcher
 	Uplink *uplink.Client
 
 	// Reverse is nil when the sensor does not front a port; Egress is nil
@@ -94,6 +94,13 @@ type Config struct {
 	// service manager restarts the sensor with the new configuration.
 	PollConfig  func(ctx context.Context, a *Agent) (restart bool)
 	ConfigEvery time.Duration
+	// ConfigEtag is the etag of the profile config the sensor started on. When
+	// the decisions long-poll names another one, PollConfig runs at once (at
+	// most every ConfigSoonest, default ten seconds) rather than waiting for
+	// the tick, which stays as the fallback. PollConfig reports the etag it
+	// applies with SetConfigEtag.
+	ConfigEtag    string
+	ConfigSoonest time.Duration
 
 	// Notify is sd_notify, sdnotify.Notify outside tests. READY=1 is sent
 	// when Run starts and WATCHDOG=1 at half the unit's watchdog interval.
@@ -121,6 +128,17 @@ type Agent struct {
 
 	lsm       *lsmguard.Guard
 	feedRules []feed.Rule // the merged feed rules, for the BPF LSM's paths
+	// lastGood is each feed's last good fetch, by Ref: every compile is the
+	// union of them, so one feed changing never drops another's rules, and a
+	// feed that fails keeps the rules it had. feedsChanged forces a compile
+	// after SetFeeds, so a feed taken out of the list is dropped.
+	lastGood     map[string]feed.Loaded
+	feedsChanged bool
+
+	// configEtag is the profile config the sensor runs (under mu); configNow
+	// asks Run for a config poll now.
+	configEtag string
+	configNow  chan struct{}
 
 	mu      sync.Mutex
 	queue   []uplink.Event
@@ -159,6 +177,9 @@ func New(cfg Config) *Agent {
 	if cfg.ConfigEvery <= 0 {
 		cfg.ConfigEvery = 5 * time.Minute
 	}
+	if cfg.ConfigSoonest <= 0 {
+		cfg.ConfigSoonest = 10 * time.Second
+	}
 	if cfg.Notify == nil {
 		cfg.Notify = sdnotify.Notify
 	}
@@ -166,10 +187,12 @@ func New(cfg Config) *Agent {
 		cfg.WatchdogInterval = sdnotify.WatchdogInterval()
 	}
 	a := &Agent{
-		cfg:      cfg,
-		Verdicts: decide.New(cfg.Mode, decide.Config{Hold: cfg.Hold}),
-		Rules:    &proxy.Rules{},
-		started:  time.Now(),
+		cfg:        cfg,
+		Verdicts:   decide.New(cfg.Mode, decide.Config{Hold: cfg.Hold}),
+		Rules:      &proxy.Rules{},
+		started:    time.Now(),
+		configEtag: cfg.ConfigEtag,
+		configNow:  make(chan struct{}, 1),
 	}
 	if cfg.Reverse != nil {
 		cfg.Reverse.Rules, cfg.Reverse.Verdicts, cfg.Reverse.Report = a.Rules, a.Verdicts, a.Enqueue
@@ -203,11 +226,39 @@ func (a *Agent) SetMode(m decide.Mode) {
 func (a *Agent) SetHold(d time.Duration) { a.Verdicts.SetHold(d) }
 
 // SetFeeds replaces the feeds. The next refresh fetches every one of them
-// afresh, so the rule set is rebuilt from the new list only.
-func (a *Agent) SetFeeds(feeds []*feed.Source) {
+// afresh and rebuilds the rule set from the new list only; a feed still in
+// the list keeps its last good rules until its new source fetches.
+func (a *Agent) SetFeeds(feeds []feed.Fetcher) {
 	a.mu.Lock()
 	a.cfg.Feeds = feeds
+	a.feedsChanged = true
 	a.mu.Unlock()
+}
+
+// SetConfigEtag records the etag of the profile config the sensor now runs.
+func (a *Agent) SetConfigEtag(etag string) {
+	a.mu.Lock()
+	a.configEtag = etag
+	a.mu.Unlock()
+}
+
+// noticeConfigEtag asks for a config poll when the site names a profile
+// config other than the one the sensor runs.
+func (a *Agent) noticeConfigEtag(etag string) {
+	if etag == "" || a.cfg.PollConfig == nil {
+		return
+	}
+	a.mu.Lock()
+	current := a.configEtag
+	a.mu.Unlock()
+	bare := func(s string) string { return strings.Trim(strings.TrimPrefix(s, "W/"), `"`) }
+	if bare(etag) == bare(current) {
+		return
+	}
+	select {
+	case a.configNow <- struct{}{}:
+	default:
+	}
 }
 
 // StopReporting stops the uplink: the sensor keeps enforcing what it has and
@@ -362,6 +413,32 @@ func (a *Agent) Run(ctx context.Context) error {
 	defer beat.Stop()
 	defer flush.Stop()
 
+	// pollConfig runs PollConfig and applies what came back; true means Run
+	// must stop for a restart.
+	var lastConfigPoll time.Time
+	pollConfig := func() bool {
+		modeBefore := a.Verdicts.Mode()
+		lastConfigPoll = time.Now()
+		restart := a.cfg.PollConfig(ctx, a)
+		a.passes.record("config", lastConfigPoll, nil)
+		if restart {
+			return true
+		}
+		// A changed feed list is fetched now rather than at the next
+		// feed tick, and a mode change is reported at once.
+		loads := a.RefreshRules(ctx)
+		if loads != nil || a.Verdicts.Mode() != modeBefore {
+			if err := a.register(ctx, loads); err != nil {
+				a.cfg.Logf("sensor: register failed: %v", err)
+			}
+		}
+
+		return false
+	}
+	// configSoon fires a config poll the long-poll asked for inside the
+	// rate limit, once the limit allows it.
+	var configSoon <-chan time.Time
+
 	for {
 		select {
 		case <-stopped:
@@ -377,22 +454,31 @@ func (a *Agent) Run(ctx context.Context) error {
 				}
 			}
 		case <-configTick:
-			modeBefore := a.Verdicts.Mode()
-			pollStart := time.Now()
-			restart := a.cfg.PollConfig(ctx, a)
-			a.passes.record("config", pollStart, nil)
-			if restart {
+			if pollConfig() {
 				a.Restart = true
 
 				return shutdown()
 			}
-			// A changed feed list is fetched now rather than at the next
-			// feed tick, and a mode change is reported at once.
-			loads := a.RefreshRules(ctx)
-			if loads != nil || a.Verdicts.Mode() != modeBefore {
-				if err := a.register(ctx, loads); err != nil {
-					a.cfg.Logf("sensor: register failed: %v", err)
-				}
+		case <-a.configNow:
+			if configSoon != nil {
+				continue
+			}
+			if wait := a.cfg.ConfigSoonest - time.Since(lastConfigPoll); wait > 0 {
+				configSoon = time.After(wait)
+
+				continue
+			}
+			if pollConfig() {
+				a.Restart = true
+
+				return shutdown()
+			}
+		case <-configSoon:
+			configSoon = nil
+			if pollConfig() {
+				a.Restart = true
+
+				return shutdown()
 			}
 		case <-beat.C:
 			if err := a.register(ctx, nil); err != nil {
@@ -407,45 +493,78 @@ func (a *Agent) Run(ctx context.Context) error {
 }
 
 // RefreshRules fetches every feed and, when any changed, compiles and installs
-// the merged rule set. It returns the rule loads to report, or nil when
-// nothing changed or nothing could be fetched.
+// the union of every feed's last good rules: a feed that did not change, or
+// failed this round, contributes what it fetched before. It returns the rule
+// loads to report, or nil when nothing changed or nothing could be fetched.
 func (a *Agent) RefreshRules(ctx context.Context) []uplink.RuleLoad {
 	start := time.Now()
 	var fetchErr error
 	defer func() { a.passes.record("feeds", start, fetchErr) }()
-	var (
-		rules    []feed.Rule
-		verified = map[decide.RuleRef]bool{}
-		changed  bool
-		etags    string
-	)
 	a.mu.Lock()
 	feeds := a.cfg.Feeds
+	changed := a.feedsChanged
+	a.feedsChanged = false
 	a.mu.Unlock()
+
+	fetched := map[string]feed.Loaded{}
 	for _, src := range feeds {
 		got, err := src.Fetch(ctx)
 		switch {
 		case errors.Is(err, feed.ErrNotModified):
 			continue
+		case errors.Is(err, feed.ErrRevoked):
+			fetchErr = err
+			if a.reporting() {
+				a.cfg.Logf("sensor: DEVICE REVOKED: the site refused this sensor's credential fetching feed %s. The sensor keeps enforcing the rules it has and reports nothing more. Re-enroll with: sudo vulnetix-sensor enroll", src.Ref())
+				a.StopReporting()
+			}
+
+			continue
 		case err != nil:
 			fetchErr = err
-			a.cfg.Logf("sensor: feed %s: %v", src.BaseURL, err)
+			a.cfg.Logf("sensor: feed %s: %v; keeping its last good rules", src.Ref(), err)
 
 			continue
 		}
 		changed = true
-		etags += got.ETag
-		if !got.Verified {
-			a.cfg.Logf("sensor: feed %s is not verified (%s); its rules report and never block", src.BaseURL, got.Unverified)
-		}
-		for _, r := range got.Rules {
-			rules = append(rules, r)
-			verified[decide.RuleRef{Table: r.RuleTable, UUID: r.RuleUUID}] = got.Verified
+		fetched[src.Ref()] = got
+		if !got.Verified && got.FeedType != feed.RuleTypeIOCList {
+			a.cfg.Logf("sensor: feed %s is not verified (%s); its rules report and never block", src.Ref(), got.Unverified)
 		}
 	}
 	if !changed {
 		return nil
 	}
+
+	// The union, in feed order, of each feed's newest good result. A feed no
+	// longer in the list is forgotten.
+	var (
+		rules    []feed.Rule
+		verified = map[decide.RuleRef]bool{}
+		etags    string
+	)
+	a.mu.Lock()
+	good := make(map[string]feed.Loaded, len(feeds))
+	for _, src := range feeds {
+		ref := src.Ref()
+		if _, dup := good[ref]; dup {
+			continue
+		}
+		got, ok := fetched[ref]
+		if !ok {
+			if got, ok = a.lastGood[ref]; !ok {
+				continue
+			}
+		}
+		good[ref] = got
+		etags += got.ETag
+		for _, r := range got.Rules {
+			rules = append(rules, r)
+			verified[decide.RuleRef{Table: r.RuleTable, UUID: r.RuleUUID}] = got.Verified
+		}
+	}
+	a.lastGood = good
+	a.mu.Unlock()
 
 	set, results := engine.Compile(rules)
 	var loaded []decide.Rule
@@ -599,7 +718,8 @@ func (a *Agent) decisionLoop(ctx context.Context) {
 
 			return
 		}
-		ds, cursor, err := a.cfg.Uplink.PollDecisions(ctx, a.cfg.SensorKey, a.cursor, 25*time.Second)
+		page, err := a.cfg.Uplink.PollDecisionPage(ctx, a.cfg.SensorKey, a.cursor, 25*time.Second)
+		ds, cursor := page.Decisions, page.Cursor
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -620,6 +740,7 @@ func (a *Agent) decisionLoop(ctx context.Context) {
 			a.syncLSM()
 		}
 		a.cursor = cursor
+		a.noticeConfigEtag(page.ConfigEtag)
 		if a.Verdicts.Mode() != modeBefore {
 			if err := a.register(ctx, nil); err != nil {
 				a.cfg.Logf("sensor: mode change not reported: %v", err)

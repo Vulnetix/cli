@@ -53,6 +53,28 @@ func (c *Client) Stop() { c.stopped.Store(true) }
 // Stopped is whether Stop was called.
 func (c *Client) Stopped() bool { return c.stopped.Load() }
 
+// AuthHeader is the Authorization header every call sends: the device's
+// Sensor credential, else the ApiKey one. Empty with neither.
+func (c *Client) AuthHeader() string {
+	switch {
+	case c.Authorization != nil:
+		return c.Authorization()
+	case c.Creds != nil:
+		return auth.GetAuthHeader(c.Creds)
+	}
+
+	return ""
+}
+
+// Base is the endpoint calls go to, with the default filled in.
+func (c *Client) Base() string {
+	if e := strings.TrimRight(c.Endpoint, "/"); e != "" {
+		return e
+	}
+
+	return DefaultEndpoint
+}
+
 // Goodbye says the sensor is stopping, so the console shows a stop rather
 // than a silent host. reason is signal, stop, uninstall or upgrade.
 func (c *Client) Goodbye(ctx context.Context, sensorKey, reason, detail string) error {
@@ -165,22 +187,37 @@ func (c *Client) PostEvents(ctx context.Context, sensorKey string, events []Even
 // PollDecisions waits up to wait for decisions after since, and returns them
 // with the cursor to poll from next.
 func (c *Client) PollDecisions(ctx context.Context, sensorKey string, since int64, wait time.Duration) ([]Decision, int64, error) {
+	p, err := c.PollDecisionPage(ctx, sensorKey, since, wait)
+
+	return p.Decisions, p.Cursor, err
+}
+
+// DecisionPage is one long-poll answer.
+type DecisionPage struct {
+	Decisions []Decision `json:"decisions"`
+	Cursor    int64      `json:"cursor"`
+	// ConfigEtag is the etag of the device's profile config, for an
+	// enrolled device; empty for a hand-configured sensor. A sensor running
+	// another etag pulls its config at once instead of at its next tick.
+	ConfigEtag string `json:"configEtag,omitempty"`
+}
+
+// PollDecisionPage is PollDecisions with the whole answer. On error the
+// cursor is since.
+func (c *Client) PollDecisionPage(ctx context.Context, sensorKey string, since int64, wait time.Duration) (DecisionPage, error) {
 	q := url.Values{}
 	q.Set("sensorKey", sensorKey)
 	q.Set("since", strconv.FormatInt(since, 10))
 	q.Set("wait", strconv.Itoa(int(wait/time.Second)))
-	var out struct {
-		Decisions []Decision `json:"decisions"`
-		Cursor    int64      `json:"cursor"`
-	}
+	var out DecisionPage
 	if err := c.do(ctx, http.MethodGet, "/v1/runtime/decisions?"+q.Encode(), nil, &out); err != nil {
-		return nil, since, err
+		return DecisionPage{Cursor: since}, err
 	}
 	if out.Cursor < since {
 		out.Cursor = since
 	}
 
-	return out.Decisions, out.Cursor, nil
+	return out, nil
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body []byte, out any) error {

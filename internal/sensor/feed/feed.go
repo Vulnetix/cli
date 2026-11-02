@@ -68,6 +68,17 @@ type Loaded struct {
 	ETag       string
 }
 
+// Fetcher is anything the sensor loads rules from: a signed Vulnetix rule
+// feed (Source) or an indicator list the site serves (Indicators).
+type Fetcher interface {
+	// Fetch returns the rules, or ErrNotModified when nothing changed since
+	// the last successful fetch.
+	Fetch(ctx context.Context) (Loaded, error)
+	// Ref is the reference the source was configured with: for logs, and the
+	// key the agent keeps its last good result under.
+	Ref() string
+}
+
 // Source is one feed the sensor subscribes to.
 type Source struct {
 	// BaseURL is the feed's publicBaseUrl.
@@ -82,6 +93,9 @@ type Source struct {
 // ErrNotModified is returned when the manifest has not changed since the
 // last successful fetch.
 var ErrNotModified = errors.New("feed not modified")
+
+// Ref is the feed's base URL.
+func (s *Source) Ref() string { return s.BaseURL }
 
 // Fetch reads the feed. It returns ErrNotModified when the manifest's ETag is
 // unchanged, so a poll costs one conditional request.

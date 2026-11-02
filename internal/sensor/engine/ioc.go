@@ -67,13 +67,72 @@ func (s IOCSet) MatchHash(hexDigest string) (decide.RuleRef, bool) {
 func (s IOCSet) add(r decide.RuleRef, ruleType, body string) (int, error) {
 	before := s.Len()
 	var err error
-	if strings.EqualFold(ruleType, "STIX") {
+	switch {
+	case strings.EqualFold(ruleType, "STIX"):
 		err = s.addSTIX(r, body)
-	} else {
+	case strings.EqualFold(ruleType, "IOC_LIST"):
+		s.addList(r, body)
+	default:
 		err = s.addOpenIOC(r, body)
 	}
 
 	return s.Len() - before, err
+}
+
+// addList reads an IOC_LIST body, one indicator per line as "<kind> <value>":
+// d domain, i address, u URL (its host is the indicator), h SHA-256. Blank
+// lines, # comments, unknown kinds and values that are not what their kind
+// says are skipped.
+//
+// A list can hold 250,000 indicators, so the body is walked by index rather
+// than split, and a key is a substring of the body wherever it is already in
+// canonical form: the rule keeps the body anyway, so the set costs its map
+// entries and little else.
+func (s IOCSet) addList(r decide.RuleRef, body string) {
+	for body != "" {
+		line := body
+		if i := strings.IndexByte(body, '\n'); i >= 0 {
+			line, body = body[:i], body[i+1:]
+		} else {
+			body = ""
+		}
+		line = strings.TrimSpace(line)
+		if len(line) < 3 || line[0] == '#' || line[1] != ' ' {
+			continue
+		}
+		value := strings.TrimSpace(line[2:])
+		if value == "" || strings.ContainsAny(value, " \t") {
+			continue
+		}
+		switch line[0] {
+		case 'd':
+			s.putDomain(r, value)
+		case 'u':
+			s.putDomain(r, urlHost(value))
+		case 'i':
+			if ip := net.ParseIP(value); ip != nil {
+				s.IPs[ip.String()] = r
+			}
+		case 'h':
+			if len(value) == 64 && isHex(value) {
+				s.Hashes[strings.ToLower(value)] = r
+			}
+		}
+	}
+}
+
+func (s IOCSet) putDomain(r decide.RuleRef, d string) {
+	d = strings.TrimSuffix(strings.ToLower(d), ".")
+	if d == "" || strings.ContainsAny(d, "/:@[]") {
+		return
+	}
+	// An address written as a host is matched as an address.
+	if ip := net.ParseIP(d); ip != nil {
+		s.IPs[ip.String()] = r
+
+		return
+	}
+	s.Domains[d] = r
 }
 
 // stixComparison pulls the comparisons out of a STIX pattern:

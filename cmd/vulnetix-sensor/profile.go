@@ -13,6 +13,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/sensor/agent"
 	"github.com/vulnetix/cli/v3/internal/sensor/decide"
 	"github.com/vulnetix/cli/v3/internal/sensor/provision"
+	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
 )
 
 // snapshotPaths is where a config snapshot can be: the one enroll writes,
@@ -137,7 +138,7 @@ func diffConfig(old, cur provision.Config, explicit map[string]bool) liveChange 
 //
 // flagFeeds and flagFeedKey are what the sensor started with, used where the
 // command line fixed them.
-func configPoller(endpoint string, cred provision.Credential, snap provision.Snapshot, explicit map[string]bool, statePath string, flagFeeds []string, flagFeedKey, sensorKey string) func(context.Context, *agent.Agent) bool {
+func configPoller(endpoint string, cred provision.Credential, snap provision.Snapshot, explicit map[string]bool, statePath string, flagFeeds []string, flagFeedKey, sensorKey string, site *uplink.Client) func(context.Context, *agent.Agent) bool {
 	etag, current := snap.ConfigEtag, snap.Config
 	revoked := false
 
@@ -168,6 +169,7 @@ func configPoller(endpoint string, cred provision.Credential, snap provision.Sna
 		log.Printf("sensor: profile %q config changed (%s -> %s)", next.Profile.Name, shortEtag(etag), shortEtag(next.ConfigEtag))
 		d := diffConfig(current, next.Config, explicit)
 		etag, current = next.ConfigEtag, next.Config
+		a.SetConfigEtag(etag)
 		if d.Restart {
 			return true
 		}
@@ -198,7 +200,7 @@ func configPoller(endpoint string, cred provision.Credential, snap provision.Sna
 			if explicit["feed"] {
 				feeds = flagFeeds
 			}
-			a.SetFeeds(feedSources(feeds, key))
+			a.SetFeeds(feedSources(feeds, key, site))
 			log.Printf("sensor: feeds are now %v", feeds)
 		}
 

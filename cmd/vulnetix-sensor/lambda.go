@@ -73,14 +73,12 @@ func lambdaExtensionCmd(_ []string) error {
 		// flushes on every invoke rather than waiting on a ticker.
 		FlushEvery: time.Second,
 	}
-	for _, f := range feeds {
-		cfg.Feeds = append(cfg.Feeds, &feed.Source{BaseURL: f, PublicKey: key})
-	}
 	if creds, err := auth.LoadCredentials(); err == nil && creds != nil {
 		cfg.Uplink = &uplink.Client{Endpoint: envOr("VULNETIX_ENDPOINT", uplink.DefaultEndpoint), Creds: creds, Version: version}
 	} else {
 		log.Printf("vulnetix-sensor: no credentials; rules load and nothing is reported")
 	}
+	cfg.Feeds = feedSources(feeds, key, cfg.Uplink)
 	if port := os.Getenv("VULNETIX_SENSOR_EGRESS"); port != "" {
 		cfg.Egress = &proxy.Egress{}
 		cfg.EgressListen = "127.0.0.1:" + port

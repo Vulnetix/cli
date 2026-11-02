@@ -16,6 +16,7 @@ decide about anything it holds.
 In every mode:
 
 - A rule from a feed the sensor cannot verify against `--feed-key` reports and never blocks.
+- An indicator list the site serves (a `catalog:` or `org:` feed) reports and never blocks.
 - A rule whose start mode is `log` reports and never blocks.
 - A request on a `--health-path` is never held.
 - A rule that holds more than 20 distinct requests in five minutes trips a breaker and reports only, until you decide about it.
@@ -175,6 +176,25 @@ A running sensor reports the same inventory every `--inventory-every` (default
 6h) from `--host-root`, so a finding page can say whether the vulnerable
 package is loaded, and where.
 
+## Feed references
+
+`--feed` and the profile's `config.feeds` take three forms:
+
+| Reference | What the sensor loads |
+|---|---|
+| `https://vulnetix.com/feeds/<org>/<feed>` | A signed Vulnetix rule feed, fetched directly and verified against `--feed-key`. The only kind whose rules may hold or block. |
+| `catalog:<id>` | A built-in indicator feed, from `<endpoint>/v1/runtime/feeds/catalog/<id>/indicators`. |
+| `org:<uuid>` | One of your org's own feeds (a URL feed or a connector stream), from `<endpoint>/v1/runtime/feeds/org/<uuid>/indicators`. |
+
+The site fetches and parses `catalog:` and `org:` feeds and serves each as one
+list of domains, addresses, URLs and SHA-256 hashes. The sensor fetches it with
+its own credential (the enrolled device's, or the ApiKey), so these need a
+credential and are skipped with `--offline`. Each loads as one `IOC_LIST` rule
+that reports and never blocks, and is polled with its etag on the feed refresh
+(5 minutes), so an unchanged list costs a 304. A list that fails to fetch keeps
+the last one it had, and so does every other feed: one feed changing never
+drops another's rules. Anything else in the list is logged and skipped.
+
 ## The feed signing key
 
 Release builds pin the feed signing public key from the repository variable
@@ -233,7 +253,9 @@ Enroll writes:
 
 The profile's config is the default for every sensor flag; a flag in the
 unit's `ExecStart` wins. A change to the mode, hold time or feeds is applied
-live. A change to a listener, forwarding or the inventory interval makes the
+live. A sensor that long-polls decisions learns of a profile change
+from the site at once and pulls it within ten seconds; otherwise within five
+minutes. A change to a listener, forwarding or the inventory interval makes the
 sensor exit, and systemd starts it on the new config. Once the device is
 revoked, the sensor logs `DEVICE REVOKED`, keeps enforcing the rules it has
 and reports nothing more. On SIGTERM it tells the console it stopped
@@ -322,7 +344,7 @@ the event still lands in the hold queue for your decision on later ones.
 --bpf-lsm                      refuse block-mode exact paths in the kernel (root, bpf LSM)
 --tetragon-export <file>       Tetragon's JSON export; check every process start
 --host-root /                  where the host filesystem is mounted
---feed <url>                   repeatable; a published feed's base URL
+--feed <ref>                   repeatable; a feed URL, catalog:<id> or org:<uuid>
 --feed-key <base64>            Ed25519 public key the feeds are signed with
 --state-dir /var/lib/vulnetix-sensor
 --endpoint https://www.vulnetix.com/api/site

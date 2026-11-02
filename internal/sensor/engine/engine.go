@@ -13,7 +13,9 @@
 //     backreferences) is rejected with that reason rather than approximated.
 //
 //   - STIX and OpenIOC become sets of domains, IP addresses and file hashes
-//     for the egress proxy, the DNS check and the file scan.
+//     for the egress proxy, the DNS check and the file scan. So does IOC_LIST,
+//     the line-per-indicator list the site serves for catalog: and org:
+//     feeds (ioc.go addList).
 //
 //   - SIGMA rules for process_creation run against process starts (sigma.go).
 //
@@ -118,7 +120,7 @@ func Compile(rules []feed.Rule) (*Set, []Result) {
 			rule.ref = ref(r)
 			set.yara = append(set.yara, rule)
 			results = append(results, Result{Rule: r, Status: Compiled})
-		case "STIX", "OPENIOC":
+		case "STIX", "OPENIOC", "IOC_LIST":
 			n, err := set.IOC.add(ref(r), r.RuleType, r.Body)
 			switch {
 			case err != nil:

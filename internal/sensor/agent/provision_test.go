@@ -67,3 +67,52 @@ func TestStopReportingSendsNothing(t *testing.T) {
 		t.Fatalf("a revoked sensor reported: %d events, %d registers", len(p.events), len(p.registers))
 	}
 }
+
+func TestDecisionsNamingANewConfigPullItAtOnce(t *testing.T) {
+	a, p := newAgent(t, decide.Monitor)
+	a.cfg.ConfigEvery = time.Hour // the tick never fires in this test
+	a.cfg.ConfigSoonest = 200 * time.Millisecond
+	a.cfg.Notify = func(string) (bool, error) { return false, nil }
+	a.SetConfigEtag("old")
+	p.mu.Lock()
+	p.configEtag = `"new"`
+	p.mu.Unlock()
+
+	var mu sync.Mutex
+	var polls []time.Time
+	a.cfg.PollConfig = func(_ context.Context, got *Agent) bool {
+		mu.Lock()
+		defer mu.Unlock()
+		polls = append(polls, time.Now())
+		if len(polls) == 1 {
+			got.SetConfigEtag("new")
+			p.mu.Lock()
+			p.configEtag = "newer"
+			p.mu.Unlock()
+
+			return false
+		}
+
+		return true
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	start := time.Now()
+	if err := a.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !a.Restart || ctx.Err() != nil {
+		t.Fatalf("Run returned with Restart=%v ctx=%v; the second pull asked for a restart", a.Restart, ctx.Err())
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(polls) != 2 {
+		t.Fatalf("config polls = %d, want 2", len(polls))
+	}
+	if polls[0].Sub(start) > 2*time.Second {
+		t.Fatalf("the first pull waited %s", polls[0].Sub(start))
+	}
+	if gap := polls[1].Sub(polls[0]); gap < 200*time.Millisecond {
+		t.Fatalf("pulls %s apart; the limit is one per ConfigSoonest", gap)
+	}
+}

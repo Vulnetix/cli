@@ -50,7 +50,7 @@ func TestExecGuardRefusesAMatchingExec(t *testing.T) {
 
 	a := New(Config{
 		SensorKey: "k", Version: "test", Mode: decide.Enforce, Facts: host.Facts{ComputeKind: "ecs", Hostname: "h"},
-		Feeds:     []*feed.Source{{BaseURL: srv.URL + "/feed", PublicKey: pub}},
+		Feeds:     []feed.Fetcher{&feed.Source{BaseURL: srv.URL + "/feed", PublicKey: pub}},
 		Uplink:    &uplink.Client{Endpoint: srv.URL, Creds: &auth.Credentials{Method: auth.SigV4, OrgID: "o", Secret: "s"}},
 		ExecGuard: []string{sh, "-c", falsePath + "; echo $? > " + out + "; exit 5"},
 		Logf:      t.Logf,
