@@ -117,6 +117,11 @@ func loadConfigInput(cmd *cobra.Command, files []string, resolve bool) (*configI
 	if len(send) == 0 {
 		return nil, configUsage("nothing to send: every document is a kind the engine does not take yet")
 	}
+	if resolve {
+		if err := inlineConfigFiles(send, configRoots(files)); err != nil {
+			return nil, err
+		}
+	}
 	in := &configInput{Docs: send}
 	for _, d := range send {
 		if !resolve {
