@@ -37,6 +37,7 @@ type (
 	SARIFSnippet             = sarif.Snippet
 	SARIFArtifact            = sarif.Artifact
 	SARIFPropertyBag         = sarif.PropertyBag
+	SARIFAutomationDetails   = sarif.RunAutomationDetails
 )
 
 // MarkConfidenceGap flags a result whose evidence could not be fully
@@ -66,8 +67,13 @@ func BuildSARIF(findings []Finding, rules []RuleMetadata, toolVersion string) *S
 			HelpURI: r.HelpURI,
 			Properties: SARIFPropertyBag{
 				"severity": r.Severity,
-				"tags":     r.Tags,
+				// "security" and external/cwe/cwe-N are what GitHub code
+				// scanning files the rule under (github.go).
+				"tags": SecurityTags(r.Tags, r.CWE),
 			},
+		}
+		if ss := SecuritySeverity(r.Severity); ss != "" {
+			desc.Properties["security-severity"] = ss
 		}
 		if len(r.CWE) > 0 {
 			cweStrs := make([]string, len(r.CWE))
@@ -161,21 +167,55 @@ func BuildSARIF(findings []Finding, rules []RuleMetadata, toolVersion string) *S
 		results = append(results, result)
 	}
 
+	run := SARIFRun{
+		Tool: SARIFTool{
+			Driver: SARIFToolDriver{
+				Name:           "vulnetix",
+				Version:        toolVersion,
+				InformationURI: "https://vulnetix.com",
+				Rules:          descriptors,
+			},
+		},
+		Results: results,
+	}
+	// A run of one kind carries its code scanning category. A mixed run
+	// (scan writes every rule kind into one sast.sarif) is split per kind by
+	// SplitByKind before it is published.
+	if kind, ok := uniformKind(findings, rules); ok {
+		run.AutomationDetails = &SARIFAutomationDetails{ID: AutomationID(kind)}
+	}
 	return &SARIFLog{
 		Schema:  "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
 		Version: "2.1.0",
-		Runs: []SARIFRun{{
-			Tool: SARIFTool{
-				Driver: SARIFToolDriver{
-					Name:           "vulnetix",
-					Version:        toolVersion,
-					InformationURI: "https://vulnetix.com",
-					Rules:          descriptors,
-				},
-			},
-			Results: results,
-		}},
+		Runs:    []SARIFRun{run},
 	}
+}
+
+// uniformKind reports the one rule kind every finding and rule shares.
+func uniformKind(findings []Finding, rules []RuleMetadata) (string, bool) {
+	kind := ""
+	see := func(k string) bool {
+		k = CategoryKind(k)
+		if kind == "" {
+			kind = k
+		}
+		return kind == k
+	}
+	for _, r := range rules {
+		if !see(r.Kind) {
+			return "", false
+		}
+	}
+	for _, f := range findings {
+		k := ""
+		if f.Metadata != nil {
+			k = f.Metadata.Kind
+		}
+		if !see(k) {
+			return "", false
+		}
+	}
+	return kind, kind != ""
 }
 
 // WriteSARIF serializes a SARIF log to the given file path.

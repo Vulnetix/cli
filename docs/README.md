@@ -15,3 +15,9 @@ platform docs generators read them from here:
 
 The hand-written SAST rule prose is in [`internal/sast/docs/`](../internal/sast/docs/), read by
 `migration/generators/sast-rules.mjs`.
+
+In-repository references:
+
+| Page | Covers |
+|---|---|
+| [`github-publishing.md`](github-publishing.md) | GitHub-compatible SARIF and `vulnetix gha publish` |

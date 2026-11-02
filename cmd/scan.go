@@ -1835,6 +1835,7 @@ func runLocalScan(
 			if len(sastReport.Findings) > 0 && !explaining {
 				sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
 				sarifLog.AddExecutionNotifications(sastReport.Degradations)
+				sast.AddLineHashes(sarifLog, rootPath)
 				if werr := sast.WriteSARIF(sarifLog, sarifPath); werr != nil {
 					fmt.Fprintf(progressStderr, "  warning: could not write %s: %v\n", sarifFileName, werr)
 				} else {
@@ -2121,6 +2122,14 @@ func runLocalScan(
 		Opts: opts, Root: rootPath, Vulns: enrichedVulns, Groups: manifestGroups,
 		AllPackages: allPackages, VEXHidden: vexSuppressedCount(vexPass), Started: scanStarted,
 	})
+	// SCA findings as GitHub-ready SARIF (category vulnetix/sca/), written
+	// whenever SCA ran, even clean, so a publish closes fixed alerts.
+	if !noSCA && !explaining {
+		scaSARIF := filepath.Join(vulnetixDir, "sca.sarif")
+		if werr := sast.WriteSARIF(report.BuildSARIF(scanReport, rootPath, version), scaSARIF); werr != nil {
+			fmt.Fprintf(progressStderr, "  warning: could not write sca.sarif: %v\n", werr)
+		}
+	}
 	// What the vulnerability gates read: findings the advisory rules out by
 	// version are not a reason to fail a build (unless --strict), and neither is
 	// one covered by an unexpired recorded control when --accept-defended says
@@ -2607,6 +2616,7 @@ func runLocalScan(
 	if outCfg.sarifFile != "" && sastReport != nil {
 		sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
 		sarifLog.AddExecutionNotifications(sastReport.Degradations)
+		sast.AddLineHashes(sarifLog, rootPath)
 		if err := sast.WriteSARIF(sarifLog, outCfg.sarifFile); err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ could not write SARIF to %s: %v\n", outCfg.sarifFile, err)
 			if outputWriteErr == nil {
@@ -2658,6 +2668,7 @@ func runLocalScan(
 		if sastReport != nil {
 			sarifLog = sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
 			sarifLog.AddExecutionNotifications(sastReport.Degradations)
+			sast.AddLineHashes(sarifLog, rootPath)
 		}
 		data, merr := json.MarshalIndent(sarifLog, "", "  ")
 		if merr != nil {

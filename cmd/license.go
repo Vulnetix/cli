@@ -17,6 +17,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v3/internal/sast"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/scanopts"
 )
@@ -487,6 +488,13 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 	// Populate license data on BOM components and dependency tree.
 	license.PopulateBOMLicenses(sbomPath, result.Packages, manifestGroups)
 	progress.Update(5, "Updated CycloneDX license data")
+
+	// The same findings as GitHub-ready SARIF (category vulnetix/license/),
+	// written even when clean so a publish closes alerts that are fixed.
+	licenseSARIF := filepath.Join(vulnetixDir, "license.sarif")
+	if err := sast.WriteSARIF(license.BuildLog(result, rootPath, version), licenseSARIF); err != nil {
+		fmt.Fprintf(os.Stderr, "  warning: could not write %s: %v\n", licenseSARIF, err)
+	}
 
 	// ── Phase-2: persist license SARIF to /v2/cli.license ──────────────
 	// License findings are package-level (no source line), so snippet capture
