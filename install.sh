@@ -28,7 +28,8 @@ Usage: install.sh [options]
 
 Options:
   --install-dir DIR    Installation directory (default: /usr/local/bin)
-  --version VERSION    Version to install, e.g. v1.2.3 (default: latest)
+  --version VERSION    Version to install, e.g. v1.2.3, or a major channel
+                       such as v3 for the newest v3 release (default: latest)
   --help               Show this message
 
 Environment variables:
@@ -197,6 +198,39 @@ resolve_latest_tag() {
   esac
 }
 
+# resolve_major_tag prints the newest stable vMAJOR.x.y release, or nothing.
+#
+# The latest release answers it when it belongs to that major, which is the
+# usual case and needs no token. An older major (v3 once v4 ships) is read
+# from the tag list: git ls-remote when git is present, else the releases API.
+# Prereleases (v3.1.0-rc.1) never match.
+resolve_major_tag() {
+  local channel="$1"
+  local major="${channel#v}"
+  local latest
+  latest=$(resolve_latest_tag)
+  case "$latest" in
+    "v${major}."*-*) ;;
+    "v${major}."*) printf '%s' "$latest"; return ;;
+  esac
+
+  local tags=""
+  if command -v git >/dev/null 2>&1; then
+    tags=$(git ls-remote --tags --refs "https://github.com/${GITHUB_REPO}.git" "v${major}.*" 2>/dev/null \
+      | awk '{sub("refs/tags/", "", $2); print $2}')
+  fi
+  if [ -z "$tags" ] && command -v curl >/dev/null 2>&1; then
+    tags=$(curl -fsSL --retry 2 "https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=100" 2>/dev/null \
+      | awk -F'"' '/"tag_name":/ {print $4}')
+  fi
+  printf '%s\n' "$tags" \
+    | grep -E "^v${major}\.[0-9]+\.[0-9]+$" \
+    | sed 's/^v//' \
+    | sort -t. -k1,1n -k2,2n -k3,3n \
+    | tail -n1 \
+    | sed 's/^./v&/'
+}
+
 # expected_size reports the asset's size from the server, or nothing when the
 # server will not say. Used to tell an interrupted download apart from a
 # genuine integrity failure before the checksum is even computed.
@@ -342,6 +376,22 @@ main() {
   # That is not hypothetical: a 90 MB binary takes long enough to download that
   # a release landing mid-transfer is an ordinary event on an active project,
   # and the failure it produces accuses us of shipping a tampered binary.
+  # A bare major (v3) is a channel: the newest stable release of that major.
+  # It is what the GitHub Action installs by default, so a workflow pinned to
+  # Vulnetix/cli@v3 keeps a v3 binary after v4 ships.
+  case "$VERSION" in
+    v[0-9]|v[0-9][0-9]|[0-9]|[0-9][0-9])
+      CHANNEL="v${VERSION#v}"
+      RESOLVED=$(resolve_major_tag "$CHANNEL")
+      if [ -z "$RESOLVED" ]; then
+        echo "error: could not resolve the newest $CHANNEL release" >&2
+        exit 1
+      fi
+      echo "info: channel $CHANNEL resolved to $RESOLVED"
+      VERSION="$RESOLVED"
+      ;;
+  esac
+
   if [ "$VERSION" = "latest" ]; then
     RESOLVED=$(resolve_latest_tag)
     if [ -n "$RESOLVED" ]; then

@@ -11,9 +11,13 @@ inputs:
     required: false
     default: ''
   version:
-    description: 'Release of the Vulnetix CLI to install, for example v3.111.0 (default: latest)'
+    description: 'Release of the Vulnetix CLI to install: an exact tag (v3.111.0), a major channel (v3, the newest v3 release) or latest. The default is the major channel matching this action, so a workflow pinned to @v3 keeps a v3 binary after v4 ships'
     required: false
-    default: 'latest'
+    default: 'v3'
+  binary-path:
+    description: 'Path to an already-built vulnetix binary to use instead of downloading a release, for example one built earlier in the same job'
+    required: false
+    default: ''
   task:
     description: 'Task to perform: info, upload, gha, tea-release, config-plan, config-apply'
     required: false
@@ -92,31 +96,13 @@ runs:
       # The released binary, not a build from source: building needs private Go
       # modules (vdb-sca-match), which a runner in another repository cannot read.
       # Every reusable workflow in the fleet installs the same way.
+      # The installer is the one shipped at this action's ref, so the major
+      # channel logic matches the ref the workflow pinned. binary-path skips
+      # the download (the repository's own tests run the branch build).
       env:
         VX_VERSION: ${{ inputs.version }}
-      run: |
-        echo "Setting up Vulnetix CLI..."
-
-        mkdir -p "$HOME/bin"
-        args=(--install-dir "$HOME/bin")
-
-        # install.sh takes a release tag, which starts with v; accept 3.59.4 as well.
-        if [ -n "$VX_VERSION" ] && [ "$VX_VERSION" != "latest" ]; then
-          case "$VX_VERSION" in
-            v*) args+=(--version "$VX_VERSION") ;;
-            *) args+=(--version "v$VX_VERSION") ;;
-          esac
-        fi
-
-        # Downloaded to a file with retries, so a transient 5xx from
-        # cli.vulnetix.com is retried instead of failing the caller's job.
-        curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
-          -o "$RUNNER_TEMP/vulnetix-install.sh" https://cli.vulnetix.com/install.sh
-        sh "$RUNNER_TEMP/vulnetix-install.sh" "${args[@]}"
-
-        echo "$HOME/bin" >> "$GITHUB_PATH"
-
-        "$HOME/bin/vulnetix" version
+        VX_BINARY_PATH: ${{ inputs.binary-path }}
+      run: bash "$GITHUB_ACTION_PATH/action-lib/install.sh"
 
     # Credentials reach the CLI only as environment variables, which it reads
     # before any stored file (pkg/auth/credentials.go). Nothing is written to

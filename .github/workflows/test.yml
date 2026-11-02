@@ -146,10 +146,44 @@ jobs:
           PY
         shell: bash
 
+      # The action as a consumer runs it, but with the binary this branch just
+      # built rather than the last release, so a change to the CLI and the
+      # action that depends on it is tested together.
+      - name: Locate the branch build
+        id: branch-bin
+        if: runner.os == 'Linux'
+        run: |
+          ARCH=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
+          echo "path=$PWD/bin/vulnetix-linux-${ARCH}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
       - name: Test action
+        if: runner.os == 'Linux'
         uses: ./
         with:
           org-id: '123e4567-e89b-12d3-a456-426614174000'
+          binary-path: ${{ steps.branch-bin.outputs.path }}
+
+      # The default the action installs: the newest release of the v3 channel.
+      - name: install.sh resolves a major channel
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/channel"
+          VULNETIX_NO_ANALYTICS=1 sh install.sh --install-dir "$dir" --version v3 | tee "$RUNNER_TEMP/channel.log"
+          grep -E '^info: channel v3 resolved to v3\.[0-9]+\.[0-9]+$' "$RUNNER_TEMP/channel.log"
+        shell: bash
+
+      - name: The action used the branch build and stored no credentials
+        if: runner.os == 'Linux'
+        env:
+          WANT: ${{ steps.branch-bin.outputs.path }}
+        run: |
+          set -euo pipefail
+          got=$(command -v vulnetix)
+          cmp "$got" "$WANT"
+          test ! -e .vulnetix/credentials.json
+        shell: bash
 
   # Runs the unit tests and `analyze` from a git worktree rather than a clone.
   #

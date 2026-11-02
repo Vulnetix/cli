@@ -42,7 +42,8 @@ Every input reaches the action's scripts as an environment variable, never as a
 | `api-key` | Direct API Key for authentication | No | - |
 | `api-token` | Vulnetix API token; the server resolves the organization | No | - |
 | `task` | Task to perform: `info`, `upload`, `gha`, `tea-release`, `config-plan`, `config-apply` | No | `info` |
-| `version` | CLI version to use | No | `latest` |
+| `version` | CLI release to install: an exact tag (`v3.158.0`), a major channel (`v3`, the newest v3 release) or `latest` | No | `v3` |
+| `binary-path` | Use this already-built binary instead of downloading a release | No | - |
 | `upload-file` | Artifact file path (with `task: upload`) | No | - |
 | `upload-format` | Override format (`cyclonedx`, `spdx`, `sarif`, `openvex`, `csaf_vex`) | No | - |
 

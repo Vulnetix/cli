@@ -11,7 +11,7 @@ How releases are built and published. Installing a release is documented at **[d
 | Homebrew Tap | Automated on release | `brew install vulnetix/tap/vulnetix` |
 | Scoop Bucket | Automated on release | `scoop install vulnetix` |
 | Nix Flake | Automated on release | `nix profile install github:Vulnetix/cli` |
-| GitHub Actions | In-repo | `uses: Vulnetix/cli@v3.59.4` (pin an exact tag; no moving major tag exists) |
+| GitHub Actions | In-repo | `uses: Vulnetix/cli@v3` (the major tag moves to each newest release of that major; the action installs the newest release of the same major by default) |
 
 See [Install](https://docs.vulnetix.com/cli/get-started/install/) for every channel's install steps.
 
