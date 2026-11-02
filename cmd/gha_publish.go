@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 	"github.com/vulnetix/cli/v3/internal/github"
 	"github.com/vulnetix/cli/v3/internal/pipeline"
 	"github.com/vulnetix/cli/v3/internal/sast"
@@ -30,6 +32,7 @@ var ghaPublishCmd = &cobra.Command{
   code-scanning     SARIF to GitHub code scanning, one category per scanner
                     (vulnetix/sast/, vulnetix/sca/, ...)
   dependency-graph  the CycloneDX SBOM as a dependency graph snapshot
+  release-assets    files (or the artifact manifest) attached to a release
 
 The token is GITHUB_TOKEN, then GH_TOKEN, then 'gh auth token'. GITHUB_API_URL
 selects a GitHub Enterprise Server. Publishing to GitHub needs no Vulnetix
@@ -201,8 +204,6 @@ func runCodeScanningPublish(ctx context.Context, o codeScanningPublishOptions, w
 		path := filepath.Join(o.OutDir, k+".sarif")
 		if err := sast.WriteSARIF(l, path); err != nil {
 			fmt.Fprintf(w, "  warning: could not write %s: %v\n", path, err)
-		} else {
-			recordArtifact(path, "sarif")
 		}
 		data, err := json.Marshal(l)
 		if err != nil {
@@ -245,10 +246,6 @@ func permissionHint(err error, perm string) string {
 	}
 	return ""
 }
-
-// recordArtifact notes a written file in the artifact manifest, when one is
-// in use. Replaced by the manifest package's writer.
-var recordArtifact = func(path, kind string) {}
 
 // parseGitHubPublish validates --github-publish values.
 func parseGitHubPublish(values []string) ([]string, error) {
@@ -452,4 +449,137 @@ func init() {
 	ghaPublishDependencyGraphCmd.Flags().StringVar(&dgSBOM, "sbom", "", "CycloneDX SBOM to submit (default: <path>/.vulnetix/sbom.cdx.json)")
 	ghaPublishDependencyGraphCmd.Flags().StringVar(&dgCorrelator, "correlator", "", "Snapshot correlator (default: vulnetix/<workflow>/<job>)")
 	ghaPublishCmd.AddCommand(ghaPublishDependencyGraphCmd)
+}
+
+var (
+	raRepo     string
+	raTag      string
+	raManifest string
+	raClobber  bool
+	raCreate   bool
+)
+
+var ghaPublishReleaseAssetsCmd = &cobra.Command{
+	Use:   "release-assets [file...]",
+	Short: "Attach files to a GitHub release",
+	Long: `Attach files to the GitHub release for --tag.
+
+With no files named, every file in the artifact manifest is attached
+(--manifest, default --artifact-manifest or VULNETIX_ARTIFACT_MANIFEST), which
+is how the GitHub Actions attach exactly what the scan wrote, including the
+.sig, .pem and .intoto.jsonl files of a signed SBOM.
+
+A missing release is an error unless --create, which creates it as a draft so
+nothing is published by accident. An asset that already exists is an error
+unless --clobber replaces it.
+
+Needs permissions: contents: write.`,
+	Example: `  vulnetix gha publish release-assets --tag v1.2.3 .vulnetix/sbom.cdx.json
+  vulnetix sca --artifact-manifest "$RUNNER_TEMP/vx.jsonl"
+  vulnetix gha publish release-assets --tag "$GITHUB_REF_NAME" --manifest "$RUNNER_TEMP/vx.jsonl" --clobber`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runReleaseAssetsPublish(cmd.Context(), releaseAssetsOptions{
+			Repo: raRepo, Tag: raTag, Files: args, Manifest: raManifest, Clobber: raClobber, Create: raCreate,
+		}, os.Stderr)
+	},
+}
+
+type releaseAssetsOptions struct {
+	Repo, Tag, Manifest string
+	Files               []string
+	Clobber, Create     bool
+	Client              *github.Client
+}
+
+func runReleaseAssetsPublish(ctx context.Context, o releaseAssetsOptions, w io.Writer) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if o.Tag == "" {
+		o.Tag = os.Getenv("GITHUB_REF_NAME")
+		if os.Getenv("GITHUB_REF_TYPE") != "tag" {
+			o.Tag = ""
+		}
+	}
+	if o.Tag == "" {
+		return fmt.Errorf("--tag is required (or run on a tag push)")
+	}
+	files := o.Files
+	if len(files) == 0 {
+		m := o.Manifest
+		if m == "" {
+			m = artifacts.Path()
+		}
+		if m == "" {
+			return fmt.Errorf("no files named and no artifact manifest (--manifest or %s)", artifacts.EnvVar)
+		}
+		entries, err := artifacts.Read(m)
+		if err != nil {
+			return fmt.Errorf("read artifact manifest: %w", err)
+		}
+		for _, e := range entries {
+			files = append(files, e.Path)
+		}
+	}
+	if len(files) == 0 {
+		fmt.Fprintln(w, "  release assets: nothing to attach")
+		return nil
+	}
+	repo := o.Repo
+	if repo == "" {
+		t, err := github.ResolveTarget(".", "", "x", "x")
+		if err != nil {
+			return err
+		}
+		repo = t.Repo
+	}
+	client := o.Client
+	if client == nil {
+		tok, _, err := github.ResolveToken()
+		if err != nil {
+			return err
+		}
+		client = github.NewClient(tok)
+		client.HTTP = &http.Client{Timeout: 15 * time.Minute}
+	}
+	rel, created, err := client.EnsureRelease(ctx, repo, o.Tag, o.Create)
+	if err != nil {
+		if github.IsStatus(err, http.StatusNotFound) && !o.Create {
+			return fmt.Errorf("no release for %s (pass --create to create a draft)", o.Tag)
+		}
+		return fmt.Errorf("release %s: %w%s", o.Tag, err, permissionHint(err, "contents: write"))
+	}
+	if created {
+		fmt.Fprintf(w, "  release assets: created draft release %s\n", o.Tag)
+	}
+	seen := map[string]bool{}
+	var failed []string
+	for _, f := range files {
+		name := filepath.Base(f)
+		if seen[name] {
+			fmt.Fprintf(w, "  release assets: skipped %s, a file named %s is already attached in this run\n", f, name)
+			continue
+		}
+		seen[name] = true
+		a, err := client.UploadAsset(ctx, repo, rel, f, name, o.Clobber)
+		if err != nil {
+			failed = append(failed, name)
+			fmt.Fprintf(w, "  release assets: %s: %v\n", name, err)
+			continue
+		}
+		fmt.Fprintf(w, "  release assets: attached %s (%d bytes)\n", a.Name, a.Size)
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("could not attach %s", strings.Join(failed, ", "))
+	}
+	return nil
+}
+
+func init() {
+	ghaPublishReleaseAssetsCmd.Flags().StringVar(&raRepo, "repo", "", "Repository owner/name (default: GITHUB_REPOSITORY, then the git remote)")
+	ghaPublishReleaseAssetsCmd.Flags().StringVar(&raTag, "tag", "", "Release tag (default: the tag of a tag push)")
+	ghaPublishReleaseAssetsCmd.Flags().StringVar(&raManifest, "manifest", "", "Artifact manifest whose files to attach when none are named")
+	ghaPublishReleaseAssetsCmd.Flags().BoolVar(&raClobber, "clobber", false, "Replace an asset that already has the same name")
+	ghaPublishReleaseAssetsCmd.Flags().BoolVar(&raCreate, "create", false, "Create the release as a draft when there is none")
+	ghaPublishCmd.AddCommand(ghaPublishReleaseAssetsCmd)
 }

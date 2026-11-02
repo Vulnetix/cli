@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 	"github.com/vulnetix/cli/v3/internal/sast"
 	"github.com/vulnetix/cli/v3/internal/triage"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
@@ -150,7 +151,7 @@ func writeJailArtifact(path string, body []byte) error {
 			return fmt.Errorf("create %s: %w", dir, err)
 		}
 	}
-	if err := os.WriteFile(path, body, 0o644); err != nil {
+	if err := artifacts.WriteFile(path, body, 0o644, ""); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil

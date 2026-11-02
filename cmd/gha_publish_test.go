@@ -16,6 +16,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 	"github.com/vulnetix/cli/v3/internal/github"
 	"github.com/vulnetix/cli/v3/internal/sast"
 )
@@ -123,5 +124,43 @@ func TestDependencyGraphPublish(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "1 package(s) in 1 manifest(s)") {
 		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestReleaseAssetsFromTheArtifactManifest(t *testing.T) {
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "vx.jsonl")
+	t.Setenv(artifacts.EnvVar, manifest)
+	// Writers record what they write.
+	if err := sast.WriteSARIF(sast.BuildSARIF(nil, nil, "t"), filepath.Join(dir, "sast.sarif")); err != nil {
+		t.Fatal(err)
+	}
+	if err := artifacts.WriteFile(filepath.Join(dir, "sbom.cdx.json.sig"), []byte("sig"), 0o644, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	var srv *httptest.Server
+	var names []string
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/o/r/releases/tags/v1":
+			_ = json.NewEncoder(w).Encode(map[string]any{"id": 1, "tag_name": "v1", "upload_url": srv.URL + "/up{?name,label}"})
+		case r.URL.Path == "/up":
+			names = append(names, r.URL.Query().Get("name"))
+			_, _ = io.WriteString(w, `{"id":2,"name":"x"}`)
+		default:
+			t.Errorf("unexpected %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+	client := github.NewClient("tok")
+	client.BaseURL = srv.URL
+	var out strings.Builder
+	if err := runReleaseAssetsPublish(context.Background(), releaseAssetsOptions{Repo: "o/r", Tag: "v1", Client: client}, &out); err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(names)
+	if strings.Join(names, ",") != "sast.sarif,sbom.cdx.json.sig" {
+		t.Fatalf("attached %v", names)
 	}
 }

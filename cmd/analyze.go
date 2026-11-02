@@ -30,6 +30,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vulnetix/cli/v3/internal/analyze"
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/pkg/auth"
@@ -236,7 +237,7 @@ func writeAnalyzeReport(path string, body []byte) error {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 
-	return os.WriteFile(path, body, 0o644)
+	return artifacts.WriteFile(path, body, 0o644, "report")
 }
 
 // uploadInsights submits the report: the graph, every metric, and one evidence record for every

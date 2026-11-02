@@ -19,6 +19,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vulnetix/cli/v3/internal/artifacts"
+
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 )
 
@@ -114,7 +116,7 @@ func writeSidecar(path string, data []byte, result *Result) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := artifacts.WriteFile(path, data, 0o644, ""); err != nil {
 		return err
 	}
 	result.Files = append(result.Files, path)

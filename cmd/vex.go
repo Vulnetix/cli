@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/scan"
@@ -286,7 +287,7 @@ func runVEXApply(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		}
-		if err := os.WriteFile(outPath, append(data, '\n'), 0o644); err != nil {
+		if err := artifacts.WriteFile(outPath, append(data, '\n'), 0o644, "vex"); err != nil {
 			return err
 		}
 	}
@@ -632,7 +633,7 @@ func runVEXMerge(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		}
-		if err := os.WriteFile(outPath, append(data, '\n'), 0o644); err != nil {
+		if err := artifacts.WriteFile(outPath, append(data, '\n'), 0o644, "vex"); err != nil {
 			return err
 		}
 	}

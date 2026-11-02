@@ -21,6 +21,7 @@ import (
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/aibom"
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 	"github.com/vulnetix/cli/v3/internal/binpkg"
 	"github.com/vulnetix/cli/v3/internal/cbom"
 	"github.com/vulnetix/cli/v3/internal/cdx"
@@ -1684,7 +1685,7 @@ func writeCDXFile(path string, data []byte) error {
 			return fmt.Errorf("creating %s: %w", dir, err)
 		}
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := artifacts.WriteFile(path, data, 0o644, ""); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 	return nil

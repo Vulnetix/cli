@@ -15,6 +15,7 @@ import (
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/analytics"
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/defences"
 	"github.com/vulnetix/cli/v3/internal/display"
@@ -4080,7 +4081,7 @@ func writeBOMToFile(bom *cdx.BOM, path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return artifacts.WriteFile(path, data, 0o644, "cyclonedx")
 }
 
 // ---------------------------------------------------------------------------

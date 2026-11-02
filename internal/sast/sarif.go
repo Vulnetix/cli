@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 )
 
 // SARIF 2.1.0 types now live in the shared module
@@ -231,7 +232,7 @@ func WriteSARIF(log *SARIFLog, path string) error {
 			return fmt.Errorf("create sarif dir: %w", err)
 		}
 	}
-	return os.WriteFile(path, data, 0o644)
+	return artifacts.WriteFile(path, data, 0o644, "sarif")
 }
 
 // LoadExistingSARIF reads a SARIF log from disk. Returns nil if the file

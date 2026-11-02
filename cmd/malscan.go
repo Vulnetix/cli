@@ -34,6 +34,7 @@ import (
 	"github.com/vulnetix/malscan-engine/detect"
 	"github.com/vulnetix/malscan-engine/iocscan"
 
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/ecosystems"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
@@ -1005,7 +1006,7 @@ func writeMalscanFileTo(path string, data []byte, w io.Writer) error {
 			return fmt.Errorf("creating %s: %w", dir, err)
 		}
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := artifacts.WriteFile(path, data, 0o644, ""); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 	if !silent {

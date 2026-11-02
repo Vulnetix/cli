@@ -81,3 +81,24 @@ Builds a dependency graph snapshot from a CycloneDX SBOM (`--sbom`, default
 
 Components without a purl cannot be named to the dependency graph and are skipped. Scans take
 `--github-publish dependency-graph` to submit the SBOM they just wrote.
+
+## The artifact manifest (`internal/artifacts`)
+
+`--artifact-manifest <file>` (a root flag) or `VULNETIX_ARTIFACT_MANIFEST` names a JSON Lines
+file to which every file the CLI writes is appended: path, kind (`sarif`, `cyclonedx`, `vex`,
+`signature`, `certificate`, `attestation`, `report`), SHA-256, size and command. Writers go
+through `artifacts.WriteFile` or record after writing: `sast.WriteSARIF` (every SARIF, including
+`sca.sarif`, `license.sarif` and `.vulnetix/code-scanning/`), `writeBOMToFile` (the scan SBOM),
+`cdx`, `cbom`, `aibom`, `malscan`, `jail`, `vex`, `analyze`, and the cdxsign `.sig`, `.pem` and
+`.intoto.jsonl` sidecars. Appends use `O_APPEND`, so several commands in one job share one
+manifest; `artifacts.Read` keeps the last entry per path and drops files that no longer exist.
+An unwritable manifest never fails the write it records.
+
+## `vulnetix gha publish release-assets`
+
+Attaches the named files, or with none every file in the artifact manifest, to the release for
+`--tag` (default: the tag of a tag push), through `Client.EnsureRelease` and
+`Client.UploadAsset` (`internal/github/release.go`). A missing release is an error unless
+`--create`, which creates a draft. An existing asset of the same name is an error unless
+`--clobber`. The upload host comes from the release's `upload_url`, so GitHub Enterprise Server
+works. Permission: `contents: write`.

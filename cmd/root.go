@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vulnetix/cli/v3/internal/analytics"
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 	"github.com/vulnetix/cli/v3/internal/buildinfo"
 	"github.com/vulnetix/cli/v3/internal/config"
 	"github.com/vulnetix/cli/v3/internal/display"
@@ -131,6 +132,7 @@ automated remediation over discovery. It helps organizations prioritize and reso
 vulnerabilities efficiently.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initDisplayContext(cmd, display.ModeText)
+		artifacts.SetCommand(cmd.CommandPath())
 		captureDeploymentContext(cmd)
 		printBanner(cmd)
 		// Track command invocation. Not for a hook: it fires once per tool call
@@ -445,6 +447,7 @@ func startupHooks() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
+	rootCmd.PersistentFlags().StringVar(&artifacts.FlagPath, "artifact-manifest", "", "Record every file this command writes in this JSON Lines manifest (also VULNETIX_ARTIFACT_MANIFEST)")
 	rootCmd.PersistentFlags().BoolVar(&silent, "silent", false, "Suppress all log output, only print final result")
 	rootCmd.PersistentFlags().CountVarP(&verboseLevel, "verbose", "v", "Show more detail: -v adds diagnostics (rate limits, cache status, auth notes) and per-advisory version checks; -vv adds the raw evidence")
 	rootCmd.PersistentFlags().BoolVar(&noProgress, "no-progress", false, "Suppress progress indicators")

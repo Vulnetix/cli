@@ -12,6 +12,7 @@ import (
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/aibom"
+	"github.com/vulnetix/cli/v3/internal/artifacts"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
@@ -541,7 +542,7 @@ func writeAIBOMFile(path string, data []byte) error {
 			return fmt.Errorf("creating %s: %w", dir, err)
 		}
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := artifacts.WriteFile(path, data, 0o644, ""); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 	if !silent {
