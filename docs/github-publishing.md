@@ -102,3 +102,20 @@ Attaches the named files, or with none every file in the artifact manifest, to t
 `--create`, which creates a draft. An existing asset of the same name is an error unless
 `--clobber`. The upload host comes from the release's `upload_url`, so GitHub Enterprise Server
 works. Permission: `contents: write`.
+
+## `vulnetix gha publish advisories`
+
+Drafts GitHub repository security advisories (`POST /repos/{o}/{r}/security-advisories`) for
+this repository's own SAST findings (`cmd/gha_publish_advisories.go`,
+`internal/github/advisories.go`).
+
+| Rule | Detail |
+|---|---|
+| Scope | Findings of kind `sast` at or above `--min-severity` (default `high`), read from `--sarif` (default `.vulnetix/sast.sarif`). Suppressed findings, test-suite findings (`vulnetix/test-suite`) and confidence-gap findings are excluded |
+| Grouping | One advisory per rule and CWE set, worst severity first, then most locations, capped at `--max` (default 10) |
+| Fields | `summary` `[Vulnetix] <rule>`, a description listing up to 25 locations, `cwe_ids`, `severity`; never a CVSS vector. The package is the repository's own, from `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml` or `composer.json`, else ecosystem `other` with the repository name |
+| Dedupe | The description ends with `<!-- vulnetix-advisory:<hash> -->` (hash of rule and CWEs). A later run updates the matching draft with `PATCH` and leaves a published or closed one alone |
+| Lifecycle | Never published: the update body has no `state`. Publishing stays a maintainer's decision |
+| Token | Repository advisories write: a fine-grained PAT or a GitHub App token. The workflow `GITHUB_TOKEN` cannot create advisories |
+
+`--dry-run` prints what would be drafted and calls nothing.

@@ -33,6 +33,7 @@ var ghaPublishCmd = &cobra.Command{
                     (vulnetix/sast/, vulnetix/sca/, ...)
   dependency-graph  the CycloneDX SBOM as a dependency graph snapshot
   release-assets    files (or the artifact manifest) attached to a release
+  advisories        draft repository security advisories for SAST findings
 
 The token is GITHUB_TOKEN, then GH_TOKEN, then 'gh auth token'. GITHUB_API_URL
 selects a GitHub Enterprise Server. Publishing to GitHub needs no Vulnetix
