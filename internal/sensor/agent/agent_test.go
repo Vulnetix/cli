@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -38,7 +39,17 @@ type platform struct {
 func (p *platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	body, _ := io.ReadAll(r.Body)
+	var src io.Reader = r.Body
+	if r.Header.Get("Content-Encoding") == "gzip" {
+		zr, err := gzip.NewReader(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+
+			return
+		}
+		src = zr
+	}
+	body, _ := io.ReadAll(src)
 	switch {
 	case strings.HasPrefix(r.URL.Path, "/feed/"):
 		b, ok := p.files[strings.TrimPrefix(r.URL.Path, "/feed/")]

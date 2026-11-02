@@ -49,11 +49,30 @@ func (idx OwnerIndex) Lookup(root, hostPath string) (Owner, bool) {
 // and rpm (the Berkeley DB, NDB or SQLite database, read in pure Go by sysinv).
 func BuildOwnerIndex(root string) OwnerIndex {
 	idx := OwnerIndex{}
-	addDpkgOwners(root, idx)
-	addAPKOwners(root, idx)
-	addPacmanOwners(root, idx)
-	addRPMOwners(root, idx)
+	addOwners(root, idx.put)
 	return idx
+}
+
+// BuildOwnerIndexFor is BuildOwnerIndex holding only the paths want names. The
+// package databases are still read in full, but a host with half a million
+// packaged files keeps the few thousand a caller asks about instead of all of
+// them: the runtime sensor's inventory peaked at 200 MB building the whole
+// index to look up the files running processes had mapped.
+func BuildOwnerIndexFor(root string, want map[string]bool) OwnerIndex {
+	idx := OwnerIndex{}
+	addOwners(root, func(path string, owner Owner) {
+		if want[path] {
+			idx.put(path, owner)
+		}
+	})
+	return idx
+}
+
+func addOwners(root string, put func(string, Owner)) {
+	addDpkgOwners(root, put)
+	addAPKOwners(root, put)
+	addPacmanOwners(root, put)
+	addRPMOwners(root, put)
 }
 
 // HasFileOwnership reports whether the root filesystem carries any package
@@ -80,7 +99,7 @@ func HasFileOwnership(root string) bool {
 
 // ── dpkg ────────────────────────────────────────────────────────────────────
 
-func addDpkgOwners(root string, idx OwnerIndex) {
+func addDpkgOwners(root string, put func(string, Owner)) {
 	infoDir := filepath.Join(root, filepath.FromSlash("var/lib/dpkg/info"))
 	entries, err := os.ReadDir(infoDir)
 	if err != nil {
@@ -103,7 +122,7 @@ func addDpkgOwners(root string, idx OwnerIndex) {
 		}
 		eachLine(filepath.Join(infoDir, e.Name()), func(line string) {
 			if path := normalizeOwnedPath(line); path != "" {
-				idx.put(path, owner)
+				put(path, owner)
 			}
 		})
 	}
@@ -142,7 +161,7 @@ func dpkgVersions(root string) map[string]string {
 
 // addAPKOwners walks the apk installed database. Its file records are stateful:
 // `F:` opens a directory, and each following `R:` names a file inside it.
-func addAPKOwners(root string, idx OwnerIndex) {
+func addAPKOwners(root string, put func(string, Owner)) {
 	for _, rel := range []string{"lib/apk/db/installed", "var/lib/apk/db/installed"} {
 		path := filepath.Join(root, filepath.FromSlash(rel))
 		f, err := os.Open(path)
@@ -176,7 +195,7 @@ func addAPKOwners(root string, idx OwnerIndex) {
 				if dir != "" {
 					full = "/" + dir + "/" + value
 				}
-				idx.put(full, Owner{Name: name, Version: version, Ecosystem: "apk", Source: rel})
+				put(full, Owner{Name: name, Version: version, Ecosystem: "apk", Source: rel})
 			}
 		}
 		_ = f.Close()
@@ -185,7 +204,7 @@ func addAPKOwners(root string, idx OwnerIndex) {
 
 // ── rpm ─────────────────────────────────────────────────────────────────────
 
-func addRPMOwners(root string, idx OwnerIndex) {
+func addRPMOwners(root string, put func(string, Owner)) {
 	res := sysinv.Collect(root)
 	for _, p := range res.Packages {
 		if p.Ecosystem != "rpm" {
@@ -194,7 +213,7 @@ func addRPMOwners(root string, idx OwnerIndex) {
 		owner := Owner{Name: p.Name, Version: p.Version, Ecosystem: "rpm", Source: p.DB}
 		for _, f := range p.Files {
 			if path := normalizeOwnedPath(f); path != "" {
-				idx.put(path, owner)
+				put(path, owner)
 			}
 		}
 	}
@@ -202,7 +221,7 @@ func addRPMOwners(root string, idx OwnerIndex) {
 
 // ── pacman ──────────────────────────────────────────────────────────────────
 
-func addPacmanOwners(root string, idx OwnerIndex) {
+func addPacmanOwners(root string, put func(string, Owner)) {
 	localDir := filepath.Join(root, filepath.FromSlash("var/lib/pacman/local"))
 	entries, err := os.ReadDir(localDir)
 	if err != nil {
@@ -232,7 +251,7 @@ func addPacmanOwners(root string, idx OwnerIndex) {
 					return // directory entry
 				}
 				if path := normalizeOwnedPath("/" + line); path != "" {
-					idx.put(path, owner)
+					put(path, owner)
 				}
 			}
 		})

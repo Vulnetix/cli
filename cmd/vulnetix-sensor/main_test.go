@@ -26,7 +26,8 @@ func TestRunRefusesAnIncompleteConfiguration(t *testing.T) {
 		"upstream":  {[]string{"--feed", "https://x/f", "--listen", ":1", "--upstream", "not-a-url", "--offline", "--state-dir", t.TempDir()}, "--upstream"},
 	}
 	for name, c := range cases {
-		err := run(c.args)
+		// An enrolled test host has a real profile and state dir; keep them out.
+		err := run(append([]string{"--config-dir", t.TempDir(), "--state-dir", t.TempDir()}, c.args...))
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: err = %v, want it to mention %q", name, err, c.want)
 		}

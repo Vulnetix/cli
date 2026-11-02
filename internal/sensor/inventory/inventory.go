@@ -246,3 +246,44 @@ func hasPID(list []Process, pid int) bool {
 
 	return false
 }
+
+// MappedPaths is every file a running process has mapped under root/proc, with
+// the merged-/usr twins lookup tries, so binpkg.BuildOwnerIndexFor can keep
+// only what Scan will ask about.
+func MappedPaths(root string) map[string]bool {
+	want := map[string]bool{}
+	entries, err := os.ReadDir(filepath.Join(root, "proc"))
+	if err != nil {
+		return want
+	}
+	for _, e := range entries {
+		if _, err := strconv.Atoi(e.Name()); err != nil || !e.IsDir() {
+			continue
+		}
+		f, err := os.Open(filepath.Join(root, "proc", e.Name(), "maps"))
+		if err != nil {
+			continue
+		}
+		sc := bufio.NewScanner(f)
+		sc.Buffer(make([]byte, 64*1024), 1<<20)
+		for sc.Scan() {
+			path, _, ok := mappedPath(sc.Text())
+			if !ok || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "/memfd:") {
+				continue
+			}
+			path = strings.TrimSuffix(path, " (deleted)")
+			want[path] = true
+			for _, top := range []string{"/lib", "/lib64", "/bin", "/sbin"} {
+				if strings.HasPrefix(path, "/usr"+top+"/") {
+					want[strings.TrimPrefix(path, "/usr")] = true
+				}
+				if strings.HasPrefix(path, top+"/") {
+					want["/usr"+path] = true
+				}
+			}
+		}
+		_ = f.Close()
+	}
+
+	return want
+}

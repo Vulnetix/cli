@@ -17,6 +17,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -35,6 +36,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/sensor/sdnotify"
 	"github.com/vulnetix/cli/v3/internal/sensor/siem"
 	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v3/internal/sysinv"
 )
 
 // Config is how the sensor is run.
@@ -125,6 +127,15 @@ type Agent struct {
 	dropped int
 	etag    string
 	cursor  int64
+
+	started time.Time
+	passes  passes
+
+	// flushFails and flushAfter back event posts off after a failure, so a
+	// refused or unreachable site costs a request (and a log line) every few
+	// minutes rather than every FlushEvery.
+	flushFails int
+	flushAfter time.Time
 }
 
 // New builds an agent. The proxies in cfg are wired to its verdict engine and
@@ -158,6 +169,7 @@ func New(cfg Config) *Agent {
 		cfg:      cfg,
 		Verdicts: decide.New(cfg.Mode, decide.Config{Hold: cfg.Hold}),
 		Rules:    &proxy.Rules{},
+		started:  time.Now(),
 	}
 	if cfg.Reverse != nil {
 		cfg.Reverse.Rules, cfg.Reverse.Verdicts, cfg.Reverse.Report = a.Rules, a.Verdicts, a.Enqueue
@@ -366,7 +378,10 @@ func (a *Agent) Run(ctx context.Context) error {
 			}
 		case <-configTick:
 			modeBefore := a.Verdicts.Mode()
-			if a.cfg.PollConfig(ctx, a) {
+			pollStart := time.Now()
+			restart := a.cfg.PollConfig(ctx, a)
+			a.passes.record("config", pollStart, nil)
+			if restart {
 				a.Restart = true
 
 				return shutdown()
@@ -384,7 +399,9 @@ func (a *Agent) Run(ctx context.Context) error {
 				a.cfg.Logf("sensor: heartbeat failed: %v", err)
 			}
 		case <-flush.C:
-			a.Flush(ctx)
+			if a.flushDue(time.Now()) {
+				a.Flush(ctx)
+			}
 		}
 	}
 }
@@ -393,6 +410,9 @@ func (a *Agent) Run(ctx context.Context) error {
 // the merged rule set. It returns the rule loads to report, or nil when
 // nothing changed or nothing could be fetched.
 func (a *Agent) RefreshRules(ctx context.Context) []uplink.RuleLoad {
+	start := time.Now()
+	var fetchErr error
+	defer func() { a.passes.record("feeds", start, fetchErr) }()
 	var (
 		rules    []feed.Rule
 		verified = map[decide.RuleRef]bool{}
@@ -408,6 +428,7 @@ func (a *Agent) RefreshRules(ctx context.Context) []uplink.RuleLoad {
 		case errors.Is(err, feed.ErrNotModified):
 			continue
 		case err != nil:
+			fetchErr = err
 			a.cfg.Logf("sensor: feed %s: %v", src.BaseURL, err)
 
 			continue
@@ -493,6 +514,7 @@ func (a *Agent) register(ctx context.Context, loads []uplink.RuleLoad) error {
 		Capabilities:  a.capabilities(),
 		RulesetEtag:   etag,
 		RuleLoads:     loads,
+		Metrics:       a.metrics(time.Now()),
 	})
 
 	return err
@@ -543,10 +565,15 @@ func (a *Agent) Flush(ctx context.Context) {
 			}
 			batch[0].Detail["droppedBefore"] = dropped
 		}
-		if _, rejected, err := a.cfg.Uplink.PostEvents(ctx, a.cfg.SensorKey, batch); err != nil {
+		postStart := time.Now()
+		_, rejected, err := a.cfg.Uplink.PostEvents(ctx, a.cfg.SensorKey, batch)
+		a.passes.record("events", postStart, err)
+		if err != nil {
 			a.mu.Lock()
 			a.queue = append(batch, a.queue...)
 			a.dropped += dropped
+			a.flushFails++
+			a.flushAfter = time.Now().Add(flushBackoff(a.flushFails))
 			a.mu.Unlock()
 			a.cfg.Logf("sensor: event post failed, %d kept for retry: %v", len(batch), err)
 
@@ -554,6 +581,9 @@ func (a *Agent) Flush(ctx context.Context) {
 		} else if len(rejected) > 0 {
 			a.cfg.Logf("sensor: server refused %d events: %v", len(rejected), rejected)
 		}
+		a.mu.Lock()
+		a.flushFails, a.flushAfter = 0, time.Time{}
+		a.mu.Unlock()
 	}
 }
 
@@ -626,10 +656,15 @@ func (a *Agent) inventoryLoop(ctx context.Context) {
 	tick := time.NewTicker(a.cfg.InventoryEvery)
 	defer tick.Stop()
 	for {
-		if err := a.ReportInventory(ctx); err != nil {
+		invStart := time.Now()
+		err := a.ReportInventory(ctx)
+		a.passes.record("inventory", invStart, err)
+		if err != nil {
 			a.cfg.Logf("sensor: inventory not reported: %v", err)
 		}
-		a.ReportHostChecks(time.Now())
+		hcStart := time.Now()
+		a.ReportHostChecks(hcStart)
+		a.passes.record("hostchecks", hcStart, nil)
 		select {
 		case <-ctx.Done():
 			return
@@ -647,7 +682,10 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 	if root == "" {
 		root = "/"
 	}
-	res := inventory.Scan(root, binpkg.BuildOwnerIndex(root))
+	res := inventory.Scan(root, binpkg.BuildOwnerIndexFor(root, inventory.MappedPaths(root)))
+	// The package databases are read in full each pass; hand what that
+	// allocated back to the OS now rather than holding it for six hours.
+	defer debug.FreeOSMemory()
 	if res.Processes == 0 {
 		return fmt.Errorf("no processes readable under %s/proc", strings.TrimRight(root, "/"))
 	}
@@ -664,6 +702,7 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 			Processes: len(p.Processes), Examples: examples,
 		})
 	}
+	pkgs = withInstalled(pkgs, sysinv.Collect(root).Packages)
 	_, err := a.cfg.Uplink.PostInventory(ctx, a.cfg.SensorKey, pkgs)
 
 	return err

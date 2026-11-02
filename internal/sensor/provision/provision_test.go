@@ -125,10 +125,17 @@ func TestEnrollWithPerson(t *testing.T) {
 }
 
 func TestPollConfig(t *testing.T) {
-	revoked := false
+	revoked, unauthorized := false, false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if revoked {
+		switch {
+		case revoked:
 			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"this device was revoked; enroll it again","revoked":true}`))
+
+			return
+		case unauthorized:
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"not authenticated"}`))
 
 			return
 		}
@@ -155,7 +162,11 @@ func TestPollConfig(t *testing.T) {
 	if _, changed, err := PollConfig(context.Background(), srv.URL, auth, "e2", ""); err != nil || changed {
 		t.Fatalf("304: changed=%v err=%v", changed, err)
 	}
-	revoked = true
+	unauthorized = true
+	if _, _, err := PollConfig(context.Background(), srv.URL, auth, "e2", ""); err == nil || errors.Is(err, ErrRevoked) {
+		t.Fatalf("a 401 that does not say revoked is an error to retry, got %v", err)
+	}
+	unauthorized, revoked = false, true
 	if _, _, err := PollConfig(context.Background(), srv.URL, auth, "e2", ""); !errors.Is(err, ErrRevoked) {
 		t.Fatalf("401: err = %v, want ErrRevoked", err)
 	}

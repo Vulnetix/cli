@@ -68,6 +68,9 @@ type HTTPError struct {
 	Method, Path string
 	Status       int
 	Message      string
+	// Revoked is the site saying, in so many words, that this device is
+	// switched off. A 401 without it is a deploy in flight or a proxy fault.
+	Revoked bool
 }
 
 func (e *HTTPError) Error() string {
@@ -190,7 +193,9 @@ var ErrRevoked = errors.New("the sensor's credential was revoked")
 // If-None-Match, because the worker in front of the site API drops
 // If-None-Match. sensorKey is needed with an ApiKey credential only (see
 // Credential.SensorKeyParam), which names a person or an org, not the
-// device. A 401 is ErrRevoked.
+// device. ErrRevoked only when the site says the device is revoked; any other
+// 401 is an error to retry, since a sensor that wrongly decides it is revoked
+// stops reporting until someone restarts it.
 func PollConfig(ctx context.Context, endpoint, authHeader, etag, sensorKey string) (Snapshot, bool, error) {
 	h := http.Header{}
 	q := url.Values{}
@@ -210,7 +215,7 @@ func PollConfig(ctx context.Context, endpoint, authHeader, etag, sensorKey strin
 	switch {
 	case status == http.StatusNotModified:
 		return Snapshot{}, false, nil
-	case status == http.StatusUnauthorized:
+	case status == http.StatusUnauthorized && isRevoked(err):
 		return Snapshot{}, false, ErrRevoked
 	case err != nil:
 		return Snapshot{}, false, err
@@ -282,10 +287,11 @@ func call(ctx context.Context, endpoint, method, path, authHeader string, header
 	if resp.StatusCode/100 != 2 {
 		e := &HTTPError{Method: method, Path: path, Status: resp.StatusCode}
 		var msg struct {
-			Error string `json:"error"`
+			Error   string `json:"error"`
+			Revoked bool   `json:"revoked"`
 		}
 		if json.Unmarshal(data, &msg) == nil {
-			e.Message = msg.Error
+			e.Message, e.Revoked = msg.Error, msg.Revoked
 		}
 
 		return resp.StatusCode, e
@@ -298,4 +304,10 @@ func call(ctx context.Context, endpoint, method, path, authHeader string, header
 	}
 
 	return resp.StatusCode, nil
+}
+
+func isRevoked(err error) bool {
+	var he *HTTPError
+
+	return errors.As(err, &he) && he.Revoked
 }

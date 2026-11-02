@@ -41,6 +41,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -123,7 +124,7 @@ func inventoryCmd(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	res := inventory.Scan(*root, binpkg.BuildOwnerIndex(*root))
+	res := inventory.Scan(*root, binpkg.BuildOwnerIndexFor(*root, inventory.MappedPaths(*root)))
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 
@@ -238,6 +239,11 @@ func guardCmd(args []string) error { return runSensor(args, true) }
 func run(args []string) error { return runSensor(args, false) }
 
 func runSensor(args []string, guard bool) error {
+	// A soft heap limit well under the unit's MemoryMax, so the collector runs
+	// harder rather than letting a burst grow toward the cap. GOMEMLIMIT wins.
+	if os.Getenv("GOMEMLIMIT") == "" {
+		debug.SetMemoryLimit(sensorMemoryLimit)
+	}
 	fs := flag.NewFlagSet("vulnetix-sensor", flag.ContinueOnError)
 	o := defineFlags(fs)
 	if err := fs.Parse(args); err != nil {
@@ -523,3 +529,6 @@ func defaultFeedKey() string {
 
 	return pinnedFeedKey
 }
+
+// sensorMemoryLimit is the Go heap's soft limit when GOMEMLIMIT is not set.
+const sensorMemoryLimit = 64 << 20
