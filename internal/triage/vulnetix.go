@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/versions"
@@ -481,9 +480,9 @@ func decisionFromFailure(f *TriageFinding) *memory.Decision {
 		return nil
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	// The provider chose the default, but it was chosen on this machine for
-	// whoever ran triage, so that is who the decision is attributed to.
-	actor := gitctx.LocalActor("")
+	// The provider chose the default, but it was chosen for whoever ran
+	// triage: the signed-in account, or this machine's claim when none is.
+	actor := decisionActor("")
 	switch f.Status {
 	case "not_affected":
 		return &memory.Decision{

@@ -253,7 +253,14 @@ them as `localSuppressions`. A new filter must record what it hides.
 the HEAD author, the OS account and the GitHub Actions actor, and the client
 sends a GitHub Actions OIDC token (audience `vulnetix`) as `X-Vulnetix-GHA-OIDC`
 on `/v2/cli.*` (`internal/ghactx/oidc.go`). The server ranks them. Never put a
-token in the body or a log. `memory.Decision.Actor` is `gitctx.LocalActor`.
+token in the body or a log.
+
+**A decision names the best identity the CLI has.** `memory.Decision.Actor`
+and the OpenVEX `author` of a triage decision, including a provider default,
+come from `triage.decisionActor`: `vulnetix:<account id>` when signed in (the
+key's VdbOrganization, a person for a device-login key), and the local claim
+(`gitctx.LocalActor`: git config email, else user@host) only when the run is
+unauthenticated. The community key and an org-less token name no account.
 
 **`GenerateOpenVEX` writes OpenVEX 0.2.0.** `action_statement` for affected,
 justifications only on not_affected and only from the vocabulary (anything

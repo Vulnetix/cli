@@ -19,10 +19,21 @@ import (
 	"github.com/vulnetix/cli/v3/internal/memory"
 )
 
-// decisionActor is who a decision written under vulnetixDir is attributed to:
-// the git config email of the project the .vulnetix directory belongs to,
-// else user@host. A claim, recorded so a reviewer can see who said so.
+// AccountActor names the Vulnetix account the CLI is signed in as, or ""
+// when it is not. cmd sets it; a nil or empty answer means unauthenticated.
+var AccountActor func() string
+
+// decisionActor is who a decision written under vulnetixDir is attributed to,
+// the strongest identity available: the signed-in Vulnetix account
+// (vulnetix:<account id>, which the key proves), else the git config email of
+// the project the .vulnetix directory belongs to, else user@host. The last two
+// are claims, used only when no account is signed in.
 func decisionActor(vulnetixDir string) string {
+	if AccountActor != nil {
+		if a := AccountActor(); a != "" {
+			return a
+		}
+	}
 	dir := ""
 	if vulnetixDir != "" {
 		dir = filepath.Dir(vulnetixDir)

@@ -18,6 +18,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/suppress"
 	"github.com/vulnetix/cli/v3/internal/vex"
+	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
@@ -249,5 +250,26 @@ func TestVEXFilteringIsNotALocalSuppression(t *testing.T) {
 	}
 	if got := localSuppressionsForFinalize(); len(got) != 0 {
 		t.Fatalf("VEX filtering recorded local suppressions: %+v", got)
+	}
+}
+
+// Only a real account is named: the embedded community key and a token with
+// no org (resolved server-side) leave the decision to the local fallback.
+func TestAccountActorFor(t *testing.T) {
+	cases := []struct {
+		name  string
+		creds *auth.Credentials
+		want  string
+	}{
+		{"none", nil, ""},
+		{"community", auth.CommunityCredentials(), ""},
+		{"token without org", &auth.Credentials{Token: "t", Method: auth.Token}, ""},
+		{"device login key", &auth.Credentials{OrgID: "acct-1", APIKey: "k", Method: auth.DirectAPIKey}, "vulnetix:acct-1"},
+		{"sigv4", &auth.Credentials{OrgID: "acct-2", Secret: "s", Method: auth.SigV4}, "vulnetix:acct-2"},
+	}
+	for _, c := range cases {
+		if got := accountActorFor(c.creds); got != c.want {
+			t.Errorf("%s: accountActorFor = %q, want %q", c.name, got, c.want)
+		}
 	}
 }

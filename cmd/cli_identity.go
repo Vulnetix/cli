@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/vulnetix/cli/v3/internal/ghactx"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/triage"
+	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
@@ -14,6 +17,35 @@ import (
 
 func init() {
 	vdb.GHAOIDCToken = ghactx.OIDCToken
+	triage.AccountActor = signedInAccountActor
+}
+
+// storedCredentials loads the saved credentials once, for commands that never
+// resolved them (a local triage run, the TUI).
+var storedCredentials = sync.OnceValue(func() *auth.Credentials {
+	c, _ := auth.LoadCredentials()
+	return c
+})
+
+// signedInAccountActor is the account a decision is attributed to when the
+// CLI is signed in: vulnetix:<account id>, the VdbOrganization the key belongs
+// to (a person for a device-login key). "" when there is no account to name:
+// no credentials, the embedded community key, or a token whose account only
+// the server can resolve. Then the decision falls back to git config or
+// user@host.
+func signedInAccountActor() string {
+	c := vdbCreds
+	if c == nil {
+		c = storedCredentials()
+	}
+	return accountActorFor(c)
+}
+
+func accountActorFor(c *auth.Credentials) string {
+	if c == nil || c.OrgID == "" || auth.IsCommunity(c) || c.OrgID == auth.CommunityOrgID {
+		return ""
+	}
+	return "vulnetix:" + c.OrgID
 }
 
 // cliIdentity collects the claimed identity for a request: git config for the
