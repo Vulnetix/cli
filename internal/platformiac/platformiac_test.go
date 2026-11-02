@@ -104,7 +104,7 @@ func TestDiscoverRules(t *testing.T) {
 	}
 }
 
-func TestValidatorCoversLocalKinds(t *testing.T) {
+func TestValidatorCoversValidateOnlyKinds(t *testing.T) {
 	v, err := NewValidator()
 	if err != nil {
 		t.Fatal(err)

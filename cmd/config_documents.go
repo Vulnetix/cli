@@ -164,10 +164,6 @@ func newConfigSchemaCommand() *cobra.Command {
 			return platformiac.Kinds(), cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if local, ok := platformiac.LocalKinds[args[0]]; ok {
-				_, err := cmd.OutOrStdout().Write(local)
-				return err
-			}
 			b, err := configschemas.Schema(args[0])
 			if err != nil {
 				return fmt.Errorf("%w; run 'vulnetix config kinds' for the list", err)

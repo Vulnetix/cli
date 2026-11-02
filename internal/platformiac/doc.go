@@ -1,10 +1,11 @@
 // Package platformiac decides what is a Platform IaC document and finds them.
 //
 // The rule, in one place: a document is Platform IaC if and only if its
-// apiVersion is vulnetix.com/v1 and its kind is one config-schemas knows, or a
-// LocalKind this CLI validates itself. Everything else that lives under
-// .vulnetix/ (SARIF, CycloneDX, OpenVEX, memory, credentials) is not, and is
-// skipped where it sits in a folder.
+// apiVersion is vulnetix.com/v1 and its kind is one config-schemas knows. A
+// kind whose schema carries x-vulnetix.validateOnly is validated here and never
+// sent to the config engine. Everything else under .vulnetix/ (SARIF,
+// CycloneDX, OpenVEX, memory, credentials) is not, and is skipped where it sits
+// in a folder.
 //
 //	| Case                                                      | Result                     |
 //	|-----------------------------------------------------------|----------------------------|
@@ -16,52 +17,26 @@
 package platformiac
 
 import (
-	"bytes"
-	_ "embed"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
 
-	"github.com/santhosh-tekuri/jsonschema/v6"
 	configschemas "github.com/vulnetix/config-schemas"
 )
 
 // APIVersion is the only apiVersion a document has.
 const APIVersion = "vulnetix.com/v1"
 
-//go:embed schemas/LicenseExceptions.schema.json
-var licenseExceptionsSchema []byte
-
-// LocalKinds are kinds the CLI validates with a schema of its own and never
-// sends to the config engine. LicenseExceptions is one until config-schemas
-// releases it (switch to that copy then) and vdb-site has an adapter for it.
-var LocalKinds = map[string][]byte{
-	"LicenseExceptions": licenseExceptionsSchema,
-}
-
-// Kinds lists every kind: config-schemas' and the local ones, sorted.
+// Kinds lists every kind config-schemas releases, sorted.
 func Kinds() []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, k := range configschemas.Kinds() {
-		seen[k] = true
-		out = append(out, k)
-	}
-	for k := range LocalKinds {
-		if !seen[k] {
-			out = append(out, k)
-		}
-	}
+	out := append([]string(nil), configschemas.Kinds()...)
 	sort.Strings(out)
 	return out
 }
 
 // IsKnownKind reports whether kind is a Platform IaC kind.
 func IsKnownKind(kind string) bool {
-	if _, ok := LocalKinds[kind]; ok {
-		return true
-	}
 	for _, k := range configschemas.Kinds() {
 		if k == kind {
 			return true
@@ -70,10 +45,12 @@ func IsKnownKind(kind string) bool {
 	return false
 }
 
-// IsLocal reports whether kind is validated here and never sent.
+// IsLocal reports whether kind is validated here and never sent to the config
+// engine: its schema carries x-vulnetix.validateOnly, because nothing on the
+// server stores it yet.
 func IsLocal(kind string) bool {
-	_, ok := LocalKinds[kind]
-	return ok
+	m, err := configschemas.KindMeta(kind)
+	return err == nil && m.ValidateOnly
 }
 
 // Class is what a decoded value is.
@@ -110,10 +87,9 @@ func IsDocument(v any) bool {
 	return c == IsDoc
 }
 
-// Validator checks a document against its kind's schema, local or not.
+// Validator checks a document against its kind's schema.
 type Validator struct {
 	shared *configschemas.Validator
-	local  map[string]*jsonschema.Schema
 }
 
 var (
@@ -130,38 +106,13 @@ func NewValidator() (*Validator, error) {
 			validatorErr = err
 			return
 		}
-		v := &Validator{shared: shared, local: map[string]*jsonschema.Schema{}}
-		c := jsonschema.NewCompiler()
-		c.DefaultDraft(jsonschema.Draft2020)
-		c.AssertFormat()
-		for kind, raw := range LocalKinds {
-			doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(raw))
-			if err != nil {
-				validatorErr = fmt.Errorf("%s schema: %w", kind, err)
-				return
-			}
-			url := "local://" + kind + ".schema.json"
-			if err := c.AddResource(url, doc); err != nil {
-				validatorErr = err
-				return
-			}
-			s, err := c.Compile(url)
-			if err != nil {
-				validatorErr = fmt.Errorf("%s schema: %w", kind, err)
-				return
-			}
-			v.local[kind] = s
-		}
-		validator = v
+		validator = &Validator{shared: shared}
 	})
 	return validator, validatorErr
 }
 
 // Validate checks one document.
 func (v *Validator) Validate(d configschemas.Document) error {
-	if s, ok := v.local[d.Kind]; ok {
-		return s.Validate(d.Value)
-	}
 	if d.Kind != "" && !IsKnownKind(d.Kind) {
 		return fmt.Errorf("unknown kind %q (known: %s)", d.Kind, strings.Join(Kinds(), ", "))
 	}

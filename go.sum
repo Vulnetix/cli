@@ -316,6 +316,8 @@ github.com/vektah/gqlparser/v2 v2.5.34 h1:MEea5P0qhdcqfBL45ghKE+qr9laidVHTMHjav5
 github.com/vektah/gqlparser/v2 v2.5.34/go.mod h1:mFdHLGCio7OGX1fby9ZjTW6FN+qxgmbnBcRIeeScE5s=
 github.com/vulnetix/config-schemas v1.2.0 h1:Xks7vVZ7KO05uvfl6f+3LA1+oI8cJhTa2hR7ISFfJw0=
 github.com/vulnetix/config-schemas v1.2.0/go.mod h1:ZzpFRYhOvxtd9a4fEFEujdAr73Z7NoOvhDb8/NggBxo=
+github.com/vulnetix/config-schemas v1.3.0 h1:ZzFA7sdoQD7JkVyEUqjaGBlhFDvPdQJ9ewsp27vo/l0=
+github.com/vulnetix/config-schemas v1.3.0/go.mod h1:ZzpFRYhOvxtd9a4fEFEujdAr73Z7NoOvhDb8/NggBxo=
 github.com/vulnetix/malscan-engine v0.6.1 h1:ND2q5bu21p8DKIJbnyzZC9xqNN9GfmReTxqnJC4sAmc=
 github.com/vulnetix/malscan-engine v0.6.1/go.mod h1:gqHbbwWvHHS2mRmhSlAEB0g/U8SIMy77zO3gOrF/vbw=
 github.com/xanzy/ssh-agent v0.3.3 h1:+/15pJfg/RsTxqYcX6fHqOXZwwMP+2VyYWJeWM2qQFM=
