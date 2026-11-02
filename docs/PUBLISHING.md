@@ -15,6 +15,19 @@ How releases are built and published. Installing a release is documented at **[d
 
 See [Install](https://docs.vulnetix.com/cli/get-started/install/) for every channel's install steps.
 
+## Majors, Latest and the package managers
+
+`release.yml` publishes every tag it is given, but only the newest stable tag
+across every major becomes the GitHub Latest release, moves its major tag
+(`MAJOR=${VERSION%%.*}`, so `v3` or `v4`) and updates Homebrew, Scoop and the
+flake. Once v4 ships, a v3 patch release is still published with its binaries,
+but the `v3` tag, Latest and the package managers stay where they are, so
+`uses: Vulnetix/cli@v3` keeps its last v3 release and nothing rolls back.
+
+The Go module path in the build ldflags, the `go install` test and the TEA
+channel is read from `go.mod` (`go list -m`), so a major bump needs no edit to
+the workflow.
+
 ## Build provenance and TEA
 
 Every release carries signed SLSA v1 provenance, `provenance.sigstore.json`,

@@ -104,7 +104,8 @@ jobs:
           VERSION=${{ needs.version.outputs.version }}
           COMMIT=$(git rev-parse --short HEAD)
           BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          LDFLAGS="-s -w -X github.com/vulnetix/cli/v3/cmd.version=${VERSION} -X github.com/vulnetix/cli/v3/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/v3/cmd.buildDate=${BUILD_DATE}"
+          MODULE=$(go list -m)
+          LDFLAGS="-s -w -X ${MODULE}/cmd.version=${VERSION} -X ${MODULE}/cmd.commit=${COMMIT} -X ${MODULE}/cmd.buildDate=${BUILD_DATE}"
           mkdir -p bin
 
           build_target() {
@@ -174,7 +175,8 @@ jobs:
           VERSION=${{ needs.version.outputs.version }}
           COMMIT=$(git rev-parse --short HEAD)
           BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          LDFLAGS="-s -w -X github.com/vulnetix/cli/v3/cmd.version=${VERSION} -X github.com/vulnetix/cli/v3/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/v3/cmd.buildDate=${BUILD_DATE}"
+          MODULE=$(go list -m)
+          LDFLAGS="-s -w -X ${MODULE}/cmd.version=${VERSION} -X ${MODULE}/cmd.commit=${COMMIT} -X ${MODULE}/cmd.buildDate=${BUILD_DATE}"
           mkdir -p bin
 
           CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
@@ -203,15 +205,33 @@ jobs:
     outputs:
       version: ${{ needs.version.outputs.version }}
       newest: ${{ steps.newest.outputs.newest }}
+      major: ${{ steps.newest.outputs.major }}
+      module: ${{ steps.module.outputs.module }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
+      # The Go module path (github.com/vulnetix/cli/v3, /v4 after the cut),
+      # read from go.mod rather than written into this workflow, so a major
+      # bump needs no edit here. The same line `go list -m` prints; this job
+      # has no Go toolchain, and the jobs that do call `go list -m`.
+      - name: Module path
+        id: module
+        run: |
+          set -euo pipefail
+          MODULE=$(awk '$1 == "module" { print $2; exit }' go.mod)
+          test -n "$MODULE"
+          echo "module=$MODULE" >> "$GITHUB_OUTPUT"
+          echo "Module $MODULE"
+
       # Two pushes minutes apart each start a release, and the earlier one can
       # finish last (v3.153.0 finished after v3.154.0 on 2026-11-02). Only the
-      # newest stable tag of its major may become Latest, move the major tag or
+      # newest stable tag overall may become Latest, move its major tag or
       # update the package managers; an older one is published and left there.
+      # Newest overall, not newest of its major: once v4 ships, a v3 patch is
+      # still published, but v3 stays frozen, Latest stays on v4, and Homebrew,
+      # Scoop and the flake never roll back to v3.
       # Checked here, at publish time, because the newer tag can appear while
       # this run is still building.
       - name: Is this the newest release
@@ -221,10 +241,11 @@ jobs:
           VERSION=${{ needs.version.outputs.version }}
           git fetch --force --tags --quiet origin
           MAJOR="${VERSION%%.*}"
-          NEWEST=$(git tag -l "${MAJOR}.*" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+          NEWEST=$(git tag -l 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
           if [ "$VERSION" = "$NEWEST" ]; then
             echo "newest=true" >> "$GITHUB_OUTPUT"
-            echo "$VERSION is the newest $MAJOR release"
+            echo "$VERSION is the newest release"
           else
             echo "newest=false" >> "$GITHUB_OUTPUT"
             echo "::warning::$VERSION is older than $NEWEST; publishing it without Latest, the $MAJOR tag move or package updates"
@@ -275,30 +296,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
 
-      # Move the major tag so `uses: Vulnetix/cli@v3` tracks the newest v3
-      # release. Without it every workflow that consumes the action has to pin
-      # an exact version and be revisited to bump it, which is how a fleet ends
-      # up spread across three CLI versions with nobody noticing.
+      # Move the major tag so `uses: Vulnetix/cli@v3` (and the subdirectory
+      # actions, Vulnetix/cli/sca@v3) track the newest release of that major.
+      # Without it every workflow that consumes the action has to pin an exact
+      # version and be revisited to bump it, which is how a fleet ends up spread
+      # across three CLI versions with nobody noticing.
       #
+      # Only the newest release overall moves its tag, so an older major's tag
+      # stays frozen on its last release once the next major ships.
       # Prereleases are excluded: `@v3` must never point at a -rc or -beta.
-      - name: Move the v3 major tag
+      - name: Move the major tag
         if: steps.newest.outputs.newest == 'true'
+        env:
+          MAJOR: ${{ steps.newest.outputs.major }}
         run: |
           VERSION=${{ needs.version.outputs.version }}
           case "$VERSION" in
-            v3.*-*)
-              echo "$VERSION is a prerelease; leaving v3 where it is"
-              exit 0
-              ;;
-            v3.*) ;;
-            *)
-              echo "$VERSION is not a v3 release; nothing to move"
+            *-*)
+              echo "$VERSION is a prerelease; leaving $MAJOR where it is"
               exit 0
               ;;
           esac
-          git tag -f v3 "$VERSION"
-          git push origin -f refs/tags/v3
-          echo "v3 -> $VERSION"
+          git tag -f "$MAJOR" "$VERSION"
+          git push origin -f "refs/tags/$MAJOR"
+          echo "$MAJOR -> $VERSION"
 
   # SLSA v1 build provenance for every binary in the release, signed and
   # verified by the shared reusable workflow (also called by belai).
@@ -336,13 +357,14 @@ jobs:
       - name: Test go install
         env:
           GOTMPDIR: ${{ runner.temp }}
+          MODULE: ${{ needs.release.outputs.module }}
         run: |
           # The proxy learns of a new tag some time after it is pushed, and
           # @latest can resolve to an old major meanwhile. Ask for this tag, and
           # retry while the proxy catches up.
           VERSION=${{ needs.release.outputs.version }}
           for i in 1 2 3 4 5 6 7 8 9 10; do
-            go install github.com/vulnetix/cli/v3@${VERSION} && break
+            go install "${MODULE}@${VERSION}" && break
             [ "$i" = 10 ] && exit 1
             sleep 30
           done
@@ -351,9 +373,10 @@ jobs:
       - name: Test specific version install
         env:
           GOTMPDIR: ${{ runner.temp }}
+          MODULE: ${{ needs.release.outputs.module }}
         run: |
           VERSION=${{ needs.release.outputs.version }}
-          go install github.com/vulnetix/cli/v3@${VERSION}
+          go install "${MODULE}@${VERSION}"
           vulnetix version --short || echo "Version command failed"
 
   update-packages:
@@ -658,6 +681,8 @@ jobs:
           GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
 
       - name: Publish product, release, artifacts and distributions
+        env:
+          MODULE: ${{ needs.release.outputs.module }}
         run: |
           set -euo pipefail
           VERSION="${{ needs.release.outputs.version }}"
@@ -674,7 +699,7 @@ jobs:
             --channel "name=Homebrew: brew install Vulnetix/tap/vulnetix,url=https://github.com/Vulnetix/homebrew-tap" \
             --channel "name=Scoop: scoop bucket add vulnetix https://github.com/Vulnetix/scoop-bucket,url=https://github.com/Vulnetix/scoop-bucket" \
             --channel "name=Nix flake: nix run github:Vulnetix/cli,url=https://github.com/Vulnetix/cli/blob/main/flake.nix" \
-            --channel "name=go install github.com/vulnetix/cli/v3@${VERSION},purl=pkg:golang/github.com/vulnetix/cli/v3@${VERSION}" \
+            --channel "name=go install ${MODULE}@${VERSION},purl=pkg:golang/${MODULE}@${VERSION}" \
             --channel "name=Install script: curl -fsSL https://cli.vulnetix.com/install.sh | sh,url=https://cli.vulnetix.com/install.sh" \
             --visibility public
 
