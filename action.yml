@@ -7,8 +7,9 @@ branding:
 
 inputs:
   org-id:
-    description: 'Organization ID (UUID) for Vulnetix operations'
-    required: true
+    description: 'Organization ID (UUID) for Vulnetix operations. Optional: without credentials the CLI runs in community mode. Passed to the CLI as VULNETIX_ORG_ID'
+    required: false
+    default: ''
   version:
     description: 'Release of the Vulnetix CLI to install, for example v3.111.0 (default: latest)'
     required: false
@@ -18,7 +19,10 @@ inputs:
     required: false
     default: 'info'
   api-key:
-    description: 'Direct API Key for Vulnetix authentication (hex digest)'
+    description: 'Direct API Key for Vulnetix authentication (hex digest), used with org-id. Passed to the CLI as VULNETIX_API_KEY, never on the command line'
+    required: false
+  api-token:
+    description: 'Vulnetix API token; the server resolves the organization. Passed to the CLI as VULNETIX_API_TOKEN, never on the command line'
     required: false
   upload-file:
     description: 'Path to artifact file to upload (used with task: upload)'
@@ -114,20 +118,18 @@ runs:
 
         "$HOME/bin/vulnetix" version
 
-    - name: Authenticate with Vulnetix
-      if: inputs.api-key != ''
-      shell: bash
-      run: |
-        vulnetix auth login \
-          --api-key '${{ inputs.api-key }}' \
-          --org-id '${{ inputs.org-id }}' \
-          --store project
-
+    # Credentials reach the CLI only as environment variables, which it reads
+    # before any stored file (pkg/auth/credentials.go). Nothing is written to
+    # .vulnetix/credentials.json, so no credential can end up in an artifact a
+    # later step uploads, and none appears on a command line.
     - name: Verify Vulnetix Authentication
-      if: inputs.api-key != ''
+      if: inputs.api-key != '' || inputs.api-token != ''
       shell: bash
-      run: |
-        vulnetix auth verify
+      env:
+        VULNETIX_ORG_ID: ${{ inputs.org-id }}
+        VULNETIX_API_KEY: ${{ inputs.api-key }}
+        VULNETIX_API_TOKEN: ${{ inputs.api-token }}
+      run: vulnetix auth verify
 
     - name: Run Vulnetix CLI
       id: vulnetix-run
@@ -136,7 +138,12 @@ runs:
       # rather than being interpolated into the script, so a value containing a
       # quote or a command substitution stays data.
       env:
+        VULNETIX_ORG_ID: ${{ inputs.org-id }}
+        VULNETIX_API_KEY: ${{ inputs.api-key }}
+        VULNETIX_API_TOKEN: ${{ inputs.api-token }}
         VX_TASK: ${{ inputs.task }}
+        VX_UPLOAD_FILE: ${{ inputs.upload-file }}
+        VX_UPLOAD_FORMAT: ${{ inputs.upload-format }}
         VX_TEA_FILES: ${{ inputs.tea-files }}
         VX_TEA_PRODUCT: ${{ inputs.tea-product }}
         VX_TEA_PURL: ${{ inputs.tea-purl }}
@@ -154,7 +161,11 @@ runs:
         VX_GITHUB_TOKEN: ${{ inputs.github-token }}
         VX_EVENT_NAME: ${{ github.event_name }}
       run: |
-        echo "Running Vulnetix CLI with org-id: ${{ inputs.org-id }}"
+        if [ -n "$VULNETIX_ORG_ID" ]; then
+          echo "Running Vulnetix CLI for organization $VULNETIX_ORG_ID"
+        else
+          echo "Running Vulnetix CLI"
+        fi
 
         # Handle tea-release task - publish a product, release, collection and artifacts to TEA
         if [ "$VX_TASK" = "tea-release" ]; then
@@ -176,11 +187,11 @@ runs:
           [ "$VX_TEA_DRY_RUN" = "true" ] && args+=(--dry-run)
 
           vulnetix "${args[@]}"
-          echo "result=success" >> $GITHUB_OUTPUT
+          echo "result=success" >> "$GITHUB_OUTPUT"
           if [ "$VX_TEA_DRY_RUN" = "true" ]; then
-            echo "summary=TEA release dry run completed; nothing was published" >> $GITHUB_OUTPUT
+            echo "summary=TEA release dry run completed; nothing was published" >> "$GITHUB_OUTPUT"
           else
-            echo "summary=TEA release published successfully" >> $GITHUB_OUTPUT
+            echo "summary=TEA release published successfully" >> "$GITHUB_OUTPUT"
           fi
           exit 0
         fi
@@ -209,9 +220,9 @@ runs:
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
             case "$code" in
-              0) echo "result=success" >> $GITHUB_OUTPUT; echo "summary=Config applied" >> $GITHUB_OUTPUT ;;
-              3) echo "result=blocked" >> $GITHUB_OUTPUT; echo "summary=Config plan has blocking conditions; nothing applied" >> $GITHUB_OUTPUT ;;
-              *) echo "result=failure" >> $GITHUB_OUTPUT; echo "summary=Config apply failed" >> $GITHUB_OUTPUT ;;
+              0) echo "result=success" >> "$GITHUB_OUTPUT"; echo "summary=Config applied" >> "$GITHUB_OUTPUT" ;;
+              3) echo "result=blocked" >> "$GITHUB_OUTPUT"; echo "summary=Config plan has blocking conditions; nothing applied" >> "$GITHUB_OUTPUT" ;;
+              *) echo "result=failure" >> "$GITHUB_OUTPUT"; echo "summary=Config apply failed" >> "$GITHUB_OUTPUT" ;;
             esac
             exit "$code"
           fi
@@ -224,8 +235,8 @@ runs:
           if ! jq -e .planHash "$plan" > /dev/null 2>&1; then
             # No plan came back (usage error, auth, network); the CLI has
             # already printed why on stderr.
-            echo "result=failure" >> $GITHUB_OUTPUT
-            echo "summary=Config plan failed" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "summary=Config plan failed" >> "$GITHUB_OUTPUT"
             exit "$code"
           fi
 
@@ -269,44 +280,47 @@ runs:
             fi
           fi
 
-          echo "summary=$(jq -r '"\(.summary.create) to create, \(.summary.update) to update, \(.summary.delete) to delete, \(.summary.noop) unchanged"' "$plan")" >> $GITHUB_OUTPUT
+          echo "summary=$(jq -r '"\(.summary.create) to create, \(.summary.update) to update, \(.summary.delete) to delete, \(.summary.noop) unchanged"' "$plan")" >> "$GITHUB_OUTPUT"
           if [ "$code" = "3" ]; then
-            echo "result=blocked" >> $GITHUB_OUTPUT
+            echo "result=blocked" >> "$GITHUB_OUTPUT"
           elif [ "$code" = "0" ]; then
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           else
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
           fi
           exit "$code"
         fi
 
-        # Handle gha task - upload all workflow artifacts via GitHub API
-        if [ "${{ inputs.task }}" = "gha" ]; then
-          vulnetix gha upload --org-id '${{ inputs.org-id }}' --json
-          echo "result=success" >> $GITHUB_OUTPUT
-          echo "summary=GitHub Actions artifacts uploaded successfully" >> $GITHUB_OUTPUT
+        # Handle gha task - upload all workflow artifacts via GitHub API.
+        # The organization comes from VULNETIX_ORG_ID or the API token.
+        if [ "$VX_TASK" = "gha" ]; then
+          vulnetix gha upload --json
+          echo "result=success" >> "$GITHUB_OUTPUT"
+          echo "summary=GitHub Actions artifacts uploaded successfully" >> "$GITHUB_OUTPUT"
           exit 0
         fi
 
-        # Handle upload task - upload a single file directly
-        if [ "${{ inputs.task }}" = "upload" ]; then
-          UPLOAD_ARGS="upload --file '${{ inputs.upload-file }}' --org-id '${{ inputs.org-id }}' --json"
-
-          if [ -n "${{ inputs.upload-format }}" ]; then
-            UPLOAD_ARGS="$UPLOAD_ARGS --format '${{ inputs.upload-format }}'"
+        # Handle upload task - upload a single file directly. An argv array,
+        # never eval: the file name and format stay data whatever they contain.
+        if [ "$VX_TASK" = "upload" ]; then
+          if [ -z "$VX_UPLOAD_FILE" ]; then
+            echo "::error::task: upload needs the upload-file input"
+            exit 2
           fi
+          args=(upload --file "$VX_UPLOAD_FILE" --json)
+          [ -n "$VX_UPLOAD_FORMAT" ] && args+=(--format "$VX_UPLOAD_FORMAT")
 
-          RESULT=$(eval "vulnetix $UPLOAD_ARGS")
+          RESULT=$(vulnetix "${args[@]}")
           echo "$RESULT"
 
           # Extract pipeline ID for output
           PIPELINE_ID=$(echo "$RESULT" | jq -r '.pipelineRecord.uuid // empty' 2>/dev/null || true)
           if [ -n "$PIPELINE_ID" ]; then
-            echo "upload-uuid=$PIPELINE_ID" >> $GITHUB_OUTPUT
+            echo "upload-uuid=$PIPELINE_ID" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "result=success" >> $GITHUB_OUTPUT
-          echo "summary=Artifact uploaded successfully" >> $GITHUB_OUTPUT
+          echo "result=success" >> "$GITHUB_OUTPUT"
+          echo "summary=Artifact uploaded successfully" >> "$GITHUB_OUTPUT"
           exit 0
         fi
 
@@ -314,5 +328,5 @@ runs:
         vulnetix
 
         # Set outputs (these would be set by the actual CLI)
-        echo "result=success" >> $GITHUB_OUTPUT
-        echo "summary=Vulnerability analysis completed" >> $GITHUB_OUTPUT
+        echo "result=success" >> "$GITHUB_OUTPUT"
+        echo "summary=Vulnerability analysis completed" >> "$GITHUB_OUTPUT"
