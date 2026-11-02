@@ -156,6 +156,9 @@ type Options struct {
 	// code scanning forces NoSASTCache, so a cached run never closes an alert
 	// that is still real.
 	GitHubPublish []string
+	// GitHubPublishDryRun writes the per-kind SARIF and prints the snapshot but
+	// submits nothing (--github-publish-dry-run).
+	GitHubPublishDryRun bool
 
 	// Reachability selects the tree-sitter reachability mode applied to the
 	// CVEs the SCA pass produces: "direct" scans only each vulnerable

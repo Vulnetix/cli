@@ -39,11 +39,12 @@ var NotReplayed = map[string]string{
 	"project": "document label", "cluster": "document label", "namespace": "document label",
 	"environment": "document label", "tag": "document label",
 
-	"concurrency":       "how fast, not what is found",
-	"no-cache":          "an explain run uses no result cache anyway",
-	"github-publish":    "an explain run publishes nothing",
-	"artifact-manifest": "an explain run writes no artifacts",
-	"no-banner":         "display",
+	"concurrency":            "how fast, not what is found",
+	"no-cache":               "an explain run uses no result cache anyway",
+	"github-publish":         "an explain run publishes nothing",
+	"github-publish-dry-run": "an explain run publishes nothing",
+	"artifact-manifest":      "an explain run writes no artifacts",
+	"no-banner":              "display",
 
 	// What is shown, not what is found.
 	"view": "display", "filter": "display", "min-severity": "display", "sort": "display",

@@ -399,13 +399,18 @@ jobs:
           args: --no-banner --no-progress
           fail-on-findings: 'false'
 
+      # github-code-scanning and dependency-graph make the action pass
+      # --github-publish to the CLI; the dry run keeps the job from uploading
+      # to this repository. A command that did not accept the flag fails here.
       - name: sca
         id: sca
         uses: ./sca
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           path: ${{ steps.fixture.outputs.dir }}
-          args: --no-banner --no-progress
+          github-code-scanning: 'true'
+          dependency-graph: 'true'
+          args: --no-banner --no-progress --github-publish-dry-run
           fail-on-findings: 'false'
 
       - name: sast
@@ -455,6 +460,7 @@ jobs:
           [ -n "$SCA_FILES" ] || fail "sca listed no files"
           [ -n "$SCA_EXIT" ] || fail "sca reported no exit code"
           grep -q 'sca.sarif$' <<<"$SCA_FILES" || fail "sca did not write sca.sarif: $SCA_FILES"
+          [ -f "$DIR/.vulnetix/code-scanning/sca.sarif" ] || fail "sca did not accept --github-publish (no code-scanning/sca.sarif)"
           sarif=$(head -n1 <<<"$SAST_SARIF")
           [ -f "$sarif" ] || fail "sast listed no SARIF"
           jq -e '.runs[0].automationDetails.id == "vulnetix/sast/"' "$sarif" >/dev/null || fail "no automationDetails"

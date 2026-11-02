@@ -178,6 +178,7 @@ sca path, not misconfiguration rules.`,
 func init() {
 	// scaCmd has no rule-pack support (pure dependency scanning).
 	addScanFlags(scaCmd)
+	addGitHubPublishFlags(scaCmd)
 	rootCmd.AddCommand(scaCmd)
 
 	// secrets, containers, iac, sast all accept external Rego rule packs

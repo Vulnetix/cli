@@ -57,6 +57,7 @@ var flagToOption = map[string]string{
 	"snippet-context":         "SnippetContext",
 	"no-cache":                "NoSASTCache",
 	"github-publish":          "GitHubPublish",
+	"github-publish-dry-run":  "GitHubPublishDryRun",
 	"reachability":            "Reachability",
 	// Deployment labels. All five land on the one Deployment field, because
 	// they describe a single thing — where these results are deployed and who

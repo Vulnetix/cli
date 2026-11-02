@@ -334,7 +334,7 @@ func publishScanToGitHub(ctx context.Context, opts pipeline.Options, root string
 			logs = append(logs, l)
 		}
 		if err := runCodeScanningPublish(ctx, codeScanningPublishOptions{
-			Root: root, Logs: logs, EnsureKinds: kinds, Wait: 2 * time.Minute,
+			Root: root, Logs: logs, EnsureKinds: kinds, Wait: 2 * time.Minute, DryRun: opts.GitHubPublishDryRun,
 		}, w); err != nil {
 			fmt.Fprintf(w, "  warning: GitHub code scanning: %v\n", err)
 		}
@@ -343,7 +343,7 @@ func publishScanToGitHub(ctx context.Context, opts pipeline.Options, root string
 		sbom := filepath.Join(root, ".vulnetix", "sbom.cdx.json")
 		if _, err := os.Stat(sbom); err != nil {
 			fmt.Fprintln(w, "  warning: GitHub dependency graph: no SBOM was written by this scan")
-		} else if err := runDependencyGraphPublish(ctx, dependencyGraphPublishOptions{Root: root, SBOM: sbom}, w); err != nil {
+		} else if err := runDependencyGraphPublish(ctx, dependencyGraphPublishOptions{Root: root, SBOM: sbom, DryRun: opts.GitHubPublishDryRun}, w); err != nil {
 			fmt.Fprintf(w, "  warning: GitHub %v\n", err)
 		}
 	}

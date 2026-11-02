@@ -177,6 +177,7 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	if v, err := flags.GetStringSlice("github-publish"); err == nil {
 		opts.GitHubPublish = v
 	}
+	opts.GitHubPublishDryRun = getBool("github-publish-dry-run")
 
 	// -1 means "choose a width from the finding span"; an explicitly passed 0
 	// disables snippets. Only an explicit --snippet-context overrides the

@@ -4320,10 +4320,20 @@ func addSASTFlags(cmd *cobra.Command) {
 	// set it for their own output.
 	cmd.Flags().Int("snippet-context", -1,
 		"Surrounding non-empty source lines to capture around each SARIF finding (-1 = dynamic: 3 if span <10 lines else 5; 0 disables)")
-	cmd.Flags().StringSlice("github-publish", nil,
-		"Publish into GitHub when the scan finishes: code-scanning, dependency-graph (comma-separated or repeated). code-scanning forces a full, uncached result set and needs security-events: write; dependency-graph needs contents: write")
+	addGitHubPublishFlags(cmd)
 	cmd.Flags().Bool("no-cache", false,
 		"Evaluate and parse every file, not reusing rule results or graph facts kept for files unchanged since an earlier run")
+}
+
+// addGitHubPublishFlags registers --github-publish and its dry-run on a scan
+// family command. It is its own function, not part of addSASTFlags, because
+// sca publishes too (code scanning and the dependency graph) but takes no rule
+// packs; a generated action passes the flag to every scan it wraps.
+func addGitHubPublishFlags(cmd *cobra.Command) {
+	cmd.Flags().StringSlice("github-publish", nil,
+		"Publish into GitHub when the scan finishes: code-scanning, dependency-graph (comma-separated or repeated). code-scanning forces a full, uncached result set and needs security-events: write; dependency-graph needs contents: write")
+	cmd.Flags().Bool("github-publish-dry-run", false,
+		"With --github-publish, write the per-kind SARIF files and print the dependency graph snapshot, and submit nothing to GitHub")
 }
 
 // suppressTestCode is set from the --suppress-test-code flag in
