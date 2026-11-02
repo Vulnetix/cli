@@ -87,13 +87,6 @@ func (e *configHTTPError) Error() string {
 	return fmt.Sprintf("config engine: HTTP %d: %s", e.Status, msg)
 }
 
-// isConfigAuthError reports whether err is the engine refusing the credential
-// (not signed in, or not an owner or admin).
-func isConfigAuthError(err error) bool {
-	var he *configHTTPError
-	return errors.As(err, &he) && (he.Status == http.StatusUnauthorized || he.Status == http.StatusForbidden)
-}
-
 // Wire types: the JSON vdb-site's internal/config engine returns.
 
 type configFieldChange struct {

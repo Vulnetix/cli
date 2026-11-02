@@ -30,16 +30,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Health and observability endpoints are excluded. Every service has `/health`; if we
-// published it, every repo would appear to consume every other repo's health check, and the
-// org graph would be an N×M mesh of edges that mean nothing. GitNexus hit exactly this and
-// had to filter it out after the fact.
-var noiseRoutes = map[string]bool{
-	"/health": true, "/healthz": true, "/healthcheck": true, "/health-check": true,
-	"/ready": true, "/readyz": true, "/live": true, "/livez": true,
-	"/metrics": true, "/ping": true, "/status": true, "/": true, "": true,
-}
-
 var (
 	// Go: chi/gin/echo/mux all spell it `r.Get("/path", ...)` or `r.HandleFunc("/path", ...)`.
 	goRoute = regexp.MustCompile(`(?m)\.(Get|Post|Put|Patch|Delete|Head|Options|Handle|HandleFunc)\(\s*"([^"]+)"`)
@@ -52,9 +42,6 @@ var (
 
 	// Spring.
 	javaRoute = regexp.MustCompile(`(?m)@(Get|Post|Put|Patch|Delete|Request)Mapping\(\s*(?:value\s*=\s*)?"([^"]+)"`)
-
-	// Path parameters, in every dialect anyone uses.
-	pathParam = regexp.MustCompile(`(:[A-Za-z_][\w]*)|(\{[^}]*\})|(<[^>]*>)|(\*)`)
 
 	// Publish/subscribe, across the common client libraries.
 	publishCall   = regexp.MustCompile(`(?i)\b(?:publish|produce|send_message|sendmessage|emit)\s*\(\s*['"]([\w.\-/]+)['"]`)
