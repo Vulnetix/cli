@@ -535,6 +535,19 @@ func guardCheckCmd(args []string) error {
 		}
 		fmt.Printf("guard: units updated for protection %s\n", snap.Config.Level())
 	}
+	if tag, err := maybeSelfUpdate(context.Background(), snap.Config.AutoUpdateOn(), version, binPath, *c.stateDir, time.Now()); err != nil {
+		fmt.Fprintf(os.Stderr, "guard: self-update not applied: %v\n", err)
+	} else if tag != "" {
+		if cred, err := store.LoadCredential(); err == nil {
+			if key := readSensorKey(*c.stateDir); key != "" {
+				sayGoodbye(uplinkFor(c.endpointFor(cred), cred), key, "upgrade", "self-update from "+version+" to "+tag)
+			}
+		}
+		if isActive() {
+			_, _ = systemctl("kill", "--kill-whom=main", "--signal=SIGHUP", provision.ServiceUnit)
+		}
+		fmt.Printf("guard: sensor updated %s -> %s\n", version, tag)
+	}
 	if snap.Config.Level() == provision.Standard {
 		return nil
 	}

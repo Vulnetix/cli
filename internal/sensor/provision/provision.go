@@ -48,6 +48,9 @@ type Config struct {
 	Protection            string   `json:"protection"`
 	AllowUserStop         bool     `json:"allowUserStop"`
 	HeartbeatAlertMinutes int      `json:"heartbeatAlertMinutes,omitempty"`
+	// AutoUpdate lets the guard replace the sensor with the latest release.
+	// Absent means on; false pins the fleet to the installed version.
+	AutoUpdate *bool `json:"autoUpdate,omitempty"`
 }
 
 // Level is the protection level, standard when unset or unknown.
@@ -289,3 +292,7 @@ func writeFile(path string, data []byte, mode os.FileMode) error {
 
 	return os.Rename(tmp.Name(), path)
 }
+
+// AutoUpdateOn reports whether the sensor keeps itself current: on unless
+// the profile says false.
+func (c Config) AutoUpdateOn() bool { return c.AutoUpdate == nil || *c.AutoUpdate }
