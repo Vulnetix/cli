@@ -198,10 +198,33 @@ jobs:
       id-token: write
     outputs:
       version: ${{ needs.version.outputs.version }}
+      newest: ${{ steps.newest.outputs.newest }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Two pushes minutes apart each start a release, and the earlier one can
+      # finish last (v3.153.0 finished after v3.154.0 on 2026-11-02). Only the
+      # newest stable tag of its major may become Latest, move the major tag or
+      # update the package managers; an older one is published and left there.
+      # Checked here, at publish time, because the newer tag can appear while
+      # this run is still building.
+      - name: Is this the newest release
+        id: newest
+        run: |
+          set -euo pipefail
+          VERSION=${{ needs.version.outputs.version }}
+          git fetch --force --tags --quiet origin
+          MAJOR="${VERSION%%.*}"
+          NEWEST=$(git tag -l "${MAJOR}.*" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          if [ "$VERSION" = "$NEWEST" ]; then
+            echo "newest=true" >> "$GITHUB_OUTPUT"
+            echo "$VERSION is the newest $MAJOR release"
+          else
+            echo "newest=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::$VERSION is older than $NEWEST; publishing it without Latest, the $MAJOR tag move or package updates"
+          fi
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -242,6 +265,7 @@ jobs:
           else
             gh release create "$VERSION" bin/* \
               --title "Release $VERSION" \
+              --latest=${{ steps.newest.outputs.newest }} \
               --generate-notes
           fi
         env:
@@ -254,6 +278,7 @@ jobs:
       #
       # Prereleases are excluded: `@v3` must never point at a -rc or -beta.
       - name: Move the v3 major tag
+        if: steps.newest.outputs.newest == 'true'
         run: |
           VERSION=${{ needs.version.outputs.version }}
           case "$VERSION" in
@@ -329,6 +354,9 @@ jobs:
 
   update-packages:
     needs: release
+    # An older release finishing after a newer one must not roll Homebrew,
+    # Scoop and the flake back to it.
+    if: needs.release.outputs.newest == 'true'
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     steps:
@@ -496,7 +524,8 @@ jobs:
     # A provenance failure publishes the release without the bundle, with a
     # warning below, rather than leaving the transparency log silent about it.
     # The other two needs still have to succeed, as they did before.
-    if: ${{ !cancelled() && needs.release.result == 'success' && needs.update-packages.result == 'success' }}
+    # update-packages is skipped, not failed, for a release older than the newest.
+    if: ${{ !cancelled() && needs.release.result == 'success' && (needs.update-packages.result == 'success' || needs.update-packages.result == 'skipped') }}
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     # id-token lets this job get an OIDC token from GitHub, which is the
