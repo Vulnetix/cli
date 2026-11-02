@@ -294,11 +294,16 @@ func TestAddingNeverBlocksOnASlowServer(t *testing.T) {
 	release := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { <-release }))
 	defer srv.Close()
-	defer close(release)
 	f := &Forwarder{URL: srv.URL, Token: "gdn_test", BatchSize: 1, FlushEvery: time.Hour, Logf: t.Logf}
 	ctx, cancel := context.WithCancel(context.Background())
+	// Run logs a failed flush through t.Logf, so it must have returned before
+	// the test ends: a log after that panics. Deferred last-in, first-out:
+	// cancel, release the server, then wait for Run.
+	done := make(chan struct{})
+	defer func() { <-done }()
+	defer close(release)
 	defer cancel()
-	go f.Run(ctx)
+	go func() { defer close(done); f.Run(ctx) }()
 	start := time.Now()
 	for i := 0; i < 5000; i++ {
 		f.DNS(DNSDecision{Time: at, QName: "example.com"})

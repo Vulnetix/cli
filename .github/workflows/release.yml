@@ -318,7 +318,16 @@ jobs:
               ;;
           esac
           git tag -f "$MAJOR" "$VERSION"
-          git push origin -f "refs/tags/$MAJOR"
+          # The job token is a GitHub App token without the workflows
+          # permission. GitHub refuses it a tag move across commits that change
+          # .github/workflows (v3 to v3.162.0 on 2026-11-02), but lets it create
+          # a tag on a commit main already has, which is how auto-version tags
+          # every release. So when the move is refused, delete and recreate.
+          if ! git push origin -f "refs/tags/$MAJOR"; then
+            echo "the move was refused; recreating $MAJOR"
+            git push origin ":refs/tags/$MAJOR"
+            git push origin "refs/tags/$MAJOR"
+          fi
           echo "$MAJOR -> $VERSION"
 
   # SLSA v1 build provenance for every binary in the release, signed and

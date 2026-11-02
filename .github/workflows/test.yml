@@ -135,7 +135,17 @@ jobs:
           dir="$RUNNER_TEMP/gha-live"
           mkdir -p "$dir/.github/workflows"
           printf 'on: push\npermissions: {}\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: tj-actions/changed-files@v45.0.7\n' > "$dir/.github/workflows/ci.yml"
-          "$BINARY" gha actions "$dir" --repo "${{ github.repository }}" --format json --no-banner --no-analytics > "$RUNNER_TEMP/gha-live.json"
+          # The job token shares the repository's hourly API quota with every
+          # other run. An exhausted quota says nothing about this change, so it
+          # is a warning; any other failure still fails the step.
+          if ! "$BINARY" gha actions "$dir" --repo "${{ github.repository }}" --format json --no-banner --no-analytics > "$RUNNER_TEMP/gha-live.json" 2> "$RUNNER_TEMP/gha-live.err"; then
+            cat "$RUNNER_TEMP/gha-live.err"
+            if grep -q "rate limit" "$RUNNER_TEMP/gha-live.err"; then
+              echo "::warning::GitHub API rate limit exhausted; the live gha actions check did not run"
+              exit 0
+            fi
+            exit 1
+          fi
           python3 - "$RUNNER_TEMP/gha-live.json" <<'PY'
           import json, sys
           doc = json.load(open(sys.argv[1]))
