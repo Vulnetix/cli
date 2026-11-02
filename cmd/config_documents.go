@@ -1,16 +1,12 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v3/internal/platformiac"
 	configschemas "github.com/vulnetix/config-schemas"
 )
 
@@ -29,85 +25,38 @@ type configDocument struct {
 	Index int // 1-based position within its file
 }
 
-// configDocumentFiles expands -f arguments into YAML/JSON files. A directory is
-// walked recursively; "-" is standard input. With no arguments the default
-// directory is read, and its absence is not an error: a repository with no
-// config documents has nothing to validate.
-func configDocumentFiles(args []string) ([]string, error) {
-	if len(args) == 0 {
-		if _, err := os.Stat(defaultConfigDir); errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
-		args = []string{defaultConfigDir}
+// discoverConfigDocuments reads documents through internal/platformiac, which
+// owns the rule for what a Platform IaC document is: apiVersion vulnetix.com/v1
+// and a known kind. With no -f it reads .vulnetix/config/** (skipping SARIF,
+// CycloneDX and anything else that is not a document, with a note under -v)
+// and, with wellKnown, .vulnetix/ai-firewall.yaml, license-policy.yaml and
+// license-exceptions.yaml. A file named with -f must be a document. It
+// returns the documents and how many files they came from.
+func discoverConfigDocuments(cmd *cobra.Command, files []string, wellKnown bool) ([]configDocument, int, error) {
+	var notes io.Writer
+	if verboseLevel > 0 {
+		notes = cmd.ErrOrStderr()
 	}
-	var out []string
-	for _, a := range args {
-		if a == "-" {
-			out = append(out, a)
-			continue
-		}
-		st, err := os.Stat(a)
-		if err != nil {
-			return nil, err
-		}
-		if !st.IsDir() {
-			out = append(out, a)
-			continue
-		}
-		err = filepath.WalkDir(a, func(p string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() {
-				return nil
-			}
-			switch strings.ToLower(filepath.Ext(p)) {
-			case ".yaml", ".yml", ".json":
-				out = append(out, p)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-	sort.Strings(out)
-	return out, nil
-}
-
-// readConfigDocuments decodes every document in the given files.
-func readConfigDocuments(files []string, stdin io.Reader) ([]configDocument, error) {
-	var docs []configDocument
-	for _, p := range files {
-		ds, err := decodeConfigFile(p, stdin)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", p, err)
-		}
-		for i, d := range ds {
-			docs = append(docs, configDocument{Document: d, Path: p, Index: i + 1})
-		}
-	}
-	return docs, nil
-}
-
-// decodeConfigFile decodes one file, or standard input for "-".
-func decodeConfigFile(p string, stdin io.Reader) ([]configschemas.Document, error) {
-	if p == "-" {
-		return configschemas.Decode(stdin)
-	}
-	f, err := os.Open(p)
+	found, err := platformiac.Discover(platformiac.Options{
+		Root: ".", Files: files, Stdin: cmd.InOrStdin(), IncludeWellKnown: wellKnown, Notes: notes,
+	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	defer f.Close()
-	return configschemas.Decode(f)
+	paths := map[string]bool{}
+	docs := make([]configDocument, 0, len(found))
+	for _, d := range found {
+		paths[d.Path] = true
+		docs = append(docs, configDocument{Document: d.Document, Path: d.Path, Index: d.Index})
+	}
+	return docs, len(paths), nil
 }
 
 // validateConfigDocuments checks every document against its kind's schema and
 // that no kind and name appears twice, since a later duplicate would silently
 // win at apply time. It returns one line per problem.
 func validateConfigDocuments(docs []configDocument) ([]string, error) {
-	v, err := configschemas.NewValidator()
+	v, err := platformiac.NewValidator()
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +68,11 @@ func validateConfigDocuments(docs []configDocument) ([]string, error) {
 			problems = append(problems, fmt.Sprintf("%s: %s", where, indentContinuation(err.Error())))
 			continue
 		}
-		key := d.Kind + "/" + d.Name
+		name := d.Name
+		if name == "" {
+			name = "default" // a singleton in its repository form
+		}
+		key := d.Kind + "/" + name
 		if first, ok := seen[key]; ok {
 			problems = append(problems, fmt.Sprintf("%s: %s %q is already defined in %s", where, d.Kind, d.Name, first))
 			continue
@@ -140,9 +93,16 @@ func newConfigValidateCommand() *cobra.Command {
 		Short: "Check config-as-code documents against their schemas, offline",
 		Long: `Check vulnetix.com/v1 config documents against the schema of their kind.
 
-Reads every .yaml, .yml and .json file under .vulnetix/config/ (recursively), or
-the files and directories given with -f. "-f -" reads standard input. A file
-may hold several documents separated by "---".
+A document is Platform IaC when its apiVersion is vulnetix.com/v1 and its kind is
+one "vulnetix config kinds" lists. Reads .vulnetix/config/ (recursively) and the
+well-known files .vulnetix/ai-firewall.yaml, license-policy.yaml and
+license-exceptions.yaml, or the files and directories given with -f. "-f -"
+reads standard input. A file may hold several documents separated by "---".
+
+Other files in a folder (SARIF, CycloneDX, OpenVEX, memory) are skipped, with a
+note under -v. A vulnetix.com/v1 document of an unknown kind, a file that mixes
+documents with other content, a well-known file holding the wrong kind, and a
+file named with -f that is not a document are errors.
 
 Validation runs offline against the schemas built into this binary. It also
 fails when two documents define the same kind and name. Exit status is 1 when
@@ -152,18 +112,14 @@ any document is invalid.`,
   cat gate.yaml | vulnetix config validate -f -`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			paths, err := configDocumentFiles(files)
+			docs, nfiles, err := discoverConfigDocuments(cmd, files, true)
 			if err != nil {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			if len(paths) == 0 {
-				fmt.Fprintf(out, "no config documents (looked in %s)\n", defaultConfigDir)
+			if len(docs) == 0 {
+				fmt.Fprintf(out, "no config documents (looked in %s and the well-known files)\n", defaultConfigDir)
 				return nil
-			}
-			docs, err := readConfigDocuments(paths, cmd.InOrStdin())
-			if err != nil {
-				return err
 			}
 			problems, err := validateConfigDocuments(docs)
 			if err != nil {
@@ -175,7 +131,7 @@ any document is invalid.`,
 			if len(problems) > 0 {
 				return fmt.Errorf("%d of %d documents invalid", len(problems), len(docs))
 			}
-			fmt.Fprintf(out, "%d documents valid in %d files\n", len(docs), len(paths))
+			fmt.Fprintf(out, "%d documents valid in %d files\n", len(docs), nfiles)
 			return nil
 		},
 	}
@@ -189,7 +145,7 @@ func newConfigKindsCommand() *cobra.Command {
 		Short: "List the config-as-code kinds this CLI understands",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			for _, k := range configschemas.Kinds() {
+			for _, k := range platformiac.Kinds() {
 				fmt.Fprintln(cmd.OutOrStdout(), k)
 			}
 			return nil
@@ -205,9 +161,13 @@ func newConfigSchemaCommand() *cobra.Command {
   vulnetix config schema QualityGate > QualityGate.schema.json`,
 		Args: cobra.ExactArgs(1),
 		ValidArgsFunction: func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
-			return configschemas.Kinds(), cobra.ShellCompDirectiveNoFileComp
+			return platformiac.Kinds(), cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if local, ok := platformiac.LocalKinds[args[0]]; ok {
+				_, err := cmd.OutOrStdout().Write(local)
+				return err
+			}
 			b, err := configschemas.Schema(args[0])
 			if err != nil {
 				return fmt.Errorf("%w; run 'vulnetix config kinds' for the list", err)

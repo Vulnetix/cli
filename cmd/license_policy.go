@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/license"
+	"github.com/vulnetix/cli/v3/internal/platformiac"
 )
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -70,11 +71,11 @@ func loadPolicyFor(rootPath, explicit string) (*license.Policy, error) {
 		}
 		return p, nil
 	}
-	candidate := filepath.Join(rootPath, defaultPolicyPath)
-	if _, err := os.Stat(candidate); err != nil {
-		return nil, nil // no policy: the caller falls back to the default
+	data, err := licenseSingleton(rootPath, license.PolicyKind)
+	if err != nil || data == nil {
+		return nil, err // no policy: the caller falls back to the default
 	}
-	return license.LoadPolicy(candidate)
+	return license.ParsePolicy(data)
 }
 
 // loadExceptionsFor loads an explicit exceptions path, or the default one.
@@ -86,11 +87,11 @@ func loadExceptionsFor(rootPath, explicit string) (*license.ExceptionSet, error)
 		}
 		return s, nil
 	}
-	candidate := filepath.Join(rootPath, defaultExceptionsPath)
-	if _, err := os.Stat(candidate); err != nil {
-		return nil, nil
+	data, err := licenseSingleton(rootPath, license.ExceptionsKind)
+	if err != nil || data == nil {
+		return nil, err
 	}
-	return license.LoadExceptions(candidate)
+	return license.ParseExceptions(data)
 }
 
 // ── license policy ──────────────────────────────────────────────────────────
@@ -684,4 +685,22 @@ func init() {
 	licenseExceptionsAddCmd.Flags().String("expires", "", "When it lapses, as YYYY-MM-DD")
 	licenseExceptionsAddCmd.Flags().String("id", "", "Stable identifier for referring to it in a report")
 	licenseExceptionsAddCmd.Flags().StringArray("project", nil, "Limit the exception to a project (repeatable)")
+}
+
+// licenseSingleton finds the repository's one document of a licence kind
+// through internal/platformiac: the well-known file
+// (.vulnetix/license-policy.yaml, .vulnetix/license-exceptions.yaml) or a
+// document in .vulnetix/config, never both. It returns the document in the
+// repository form license.ParsePolicy and ParseExceptions read, or nil when
+// there is none.
+func licenseSingleton(rootPath, kind string) ([]byte, error) {
+	doc, err := platformiac.LoadSingleton(rootPath, kind)
+	if err != nil || doc == nil {
+		return nil, err
+	}
+	data, err := doc.FlatYAML()
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", doc.Path, err)
+	}
+	return data, nil
 }

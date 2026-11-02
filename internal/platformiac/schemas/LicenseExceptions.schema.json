@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Vulnetix/cli/internal/platformiac/schemas/LicenseExceptions.schema.json",
+  "title": "LicenseExceptions",
+  "description": "Approved licence exceptions: a licence exempted everywhere (blanket) or a package exempted, each with who approved it, when, why and until when. Two forms are valid. The repository file .vulnetix/license-exceptions.yaml keeps blanket and packages at the top level with no metadata. The config form puts them under spec, with metadata. Embedded in the CLI until config-schemas releases this kind; the CLI validates it and never sends it to the config engine.",
+  "type": "object",
+  "required": ["apiVersion", "kind"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "apiVersion": { "const": "vulnetix.com/v1" },
+    "kind": { "const": "LicenseExceptions" },
+    "metadata": { "$ref": "#/$defs/metadata" },
+    "spec": { "$ref": "#/$defs/exceptions" },
+    "blanket": { "$ref": "#/$defs/exceptions/properties/blanket" },
+    "packages": { "$ref": "#/$defs/exceptions/properties/packages" }
+  },
+  "oneOf": [
+    {
+      "description": "The config form.",
+      "required": ["metadata", "spec"],
+      "properties": { "blanket": false, "packages": false }
+    },
+    {
+      "description": "The repository file form.",
+      "properties": { "spec": false }
+    }
+  ],
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$" },
+        "org": { "type": "string", "format": "uuid" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "date": {
+      "type": "string",
+      "description": "YYYY-MM-DD. YAML reads an unquoted date as a timestamp, so midnight UTC on that day is accepted too.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T00:00:00Z)?$"
+    },
+    "exception": {
+      "type": "object",
+      "required": ["reason"],
+      "properties": {
+        "id": { "type": "string" },
+        "reason": { "description": "Why the exception exists.", "type": "string", "minLength": 1 },
+        "scope": { "type": "string" },
+        "approver": { "type": "string" },
+        "approvedDate": { "$ref": "#/$defs/date" },
+        "expires": { "description": "The last day the exception applies, YYYY-MM-DD. Absent never expires.", "$ref": "#/$defs/date" },
+        "projects": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "exceptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blanket": {
+          "description": "Licences exempted wherever they appear.",
+          "type": "array",
+          "items": {
+            "allOf": [{ "$ref": "#/$defs/exception" }],
+            "required": ["license"],
+            "properties": { "license": { "type": "string", "minLength": 1 } },
+            "unevaluatedProperties": false
+          }
+        },
+        "packages": {
+          "description": "Packages exempted, by purl (with * wildcards) or by name, optionally under one licence.",
+          "type": "array",
+          "items": {
+            "allOf": [{ "$ref": "#/$defs/exception" }],
+            "anyOf": [{ "required": ["purl"] }, { "required": ["name"] }],
+            "properties": {
+              "purl": { "type": "string", "minLength": 1 },
+              "name": { "type": "string", "minLength": 1 },
+              "license": { "type": "string" }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      }
+    }
+  }
+}

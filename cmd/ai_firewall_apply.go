@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/platformiac"
 	aifw "github.com/vulnetix/cli/v3/pkg/aifirewall"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -182,7 +183,7 @@ func runAiFirewallApply(cmd *cobra.Command, args []string) error {
 	force, _ := cmd.Flags().GetBool("force")
 	required, _ := cmd.Flags().GetBool("baseline-required")
 
-	pf, err := aifw.LoadPolicyFile(path)
+	pf, err := loadAiFirewallPolicy(cmd, path)
 	if err != nil {
 		return err
 	}
@@ -649,4 +650,26 @@ func defaultModelFor(fwctx *aiFirewallContext, provider string) string {
 	default:
 		return "gpt-4o"
 	}
+}
+
+// loadAiFirewallPolicy reads the policy apply works from. A file named with -f
+// is read as given. Otherwise the policy is the repository's one
+// AiFirewallPolicy, found by internal/platformiac: .vulnetix/ai-firewall.yaml
+// or a document in .vulnetix/config, and defining it in both is an error.
+func loadAiFirewallPolicy(cmd *cobra.Command, path string) (*aifw.PolicyFile, error) {
+	if cmd.Flags().Changed("file") {
+		return aifw.LoadPolicyFile(path)
+	}
+	doc, err := platformiac.LoadSingleton(".", aifw.PolicyKind)
+	if err != nil {
+		return nil, err
+	}
+	if doc == nil {
+		return nil, fmt.Errorf("no AI Firewall policy: write %s or an AiFirewallPolicy document in %s (vulnetix ai-firewall export writes one)", aifw.DefaultPolicyPath, platformiac.ConfigDir)
+	}
+	pf, err := aifw.ParsePolicyValue(doc.Value)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", doc.Path, err)
+	}
+	return pf, nil
 }

@@ -416,12 +416,16 @@ jobs:
           args: --no-banner --no-progress --no-aibom --no-cbom
           fail-on-findings: 'false'
 
+      # The fixture folder mixes documents with SARIF and CycloneDX files,
+      # which the Platform IaC rule skips; ai-firewall.yaml is a well-known file.
       - name: config-plan, validating offline
         id: config
         uses: ./config-plan
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
-          config-path: ${{ steps.fixture.outputs.dir }}/.vulnetix/config/quality-gate.yaml
+          config-path: |
+            ${{ steps.fixture.outputs.dir }}/.vulnetix/config
+            ${{ steps.fixture.outputs.dir }}/.vulnetix/ai-firewall.yaml
           validate-only: 'true'
 
       - name: Check the outputs

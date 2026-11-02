@@ -714,3 +714,21 @@ func Export(org string, server ServerState, providerCatalog []string) ([]byte, e
 }
 
 func boolPtr(b bool) *bool { return &b }
+
+// ParsePolicyValue reads a policy from a decoded document (the JSON-shaped
+// value internal/platformiac returns), so a policy kept in .vulnetix/config
+// is read exactly as the well-known file is.
+func ParsePolicyValue(v any) (*PolicyFile, error) {
+	data, err := yaml.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var pf PolicyFile
+	if err := yaml.Unmarshal(data, &pf); err != nil {
+		return nil, err
+	}
+	if err := pf.Validate(); err != nil {
+		return nil, err
+	}
+	return &pf, nil
+}

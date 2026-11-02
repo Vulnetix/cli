@@ -16,6 +16,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/platformiac"
 )
 
 // Config-as-code against the server: plan, apply and export. Documents are
@@ -60,18 +61,17 @@ type configInput struct {
 // loadConfigInput reads and validates the documents named by -f, and with
 // resolve reads the secrets their valueFrom references name.
 func loadConfigInput(cmd *cobra.Command, files []string, resolve bool) (*configInput, error) {
-	paths, err := configDocumentFiles(files)
+	// The well-known files (.vulnetix/ai-firewall.yaml and the licence files)
+	// are validated by config validate but not yet planned: sending them to
+	// the engine is the v4 change. Name one with -f to plan it now.
+	docs, _, err := discoverConfigDocuments(cmd, files, false)
 	if err != nil {
 		return nil, err
 	}
-	if len(paths) == 0 {
+	if len(docs) == 0 {
 		// Planning nothing with --prune would delete everything this manager
 		// owns, so a missing directory is never read as "declare nothing".
 		return nil, configUsage("no config documents (looked in %s); pass -f", defaultConfigDir)
-	}
-	docs, err := readConfigDocuments(paths, cmd.InOrStdin())
-	if err != nil {
-		return nil, err
 	}
 	problems, err := validateConfigDocuments(docs)
 	if err != nil {
@@ -83,8 +83,21 @@ func loadConfigInput(cmd *cobra.Command, files []string, resolve bool) (*configI
 		}
 		return nil, fmt.Errorf("%d of %d documents invalid; nothing was sent", len(problems), len(docs))
 	}
-	in := &configInput{Docs: docs}
+	// Local kinds (LicenseExceptions) are validated here and never sent: the
+	// engine has no adapter for them yet.
+	send := docs[:0:0]
 	for _, d := range docs {
+		if platformiac.IsLocal(d.Kind) {
+			fmt.Fprintf(cmd.ErrOrStderr(), "note: %s (document %d) is a %s, which is validated locally and not sent to the config engine\n", d.Path, d.Index, d.Kind)
+			continue
+		}
+		send = append(send, d)
+	}
+	if len(send) == 0 {
+		return nil, configUsage("nothing to send: every document is a kind the engine does not take yet")
+	}
+	in := &configInput{Docs: send}
+	for _, d := range send {
 		if !resolve {
 			in.Values = append(in.Values, d.Value)
 			continue

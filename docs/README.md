@@ -21,3 +21,5 @@ In-repository references:
 | Page | Covers |
 |---|---|
 | [`github-publishing.md`](github-publishing.md) | GitHub-compatible SARIF and `vulnetix gha publish` |
+| [`platform-iac.md`](platform-iac.md) | What a Platform IaC document is, and where the CLI finds them |
+| [`github-actions.md`](github-actions.md) | The root action and the generated subdirectory actions |
