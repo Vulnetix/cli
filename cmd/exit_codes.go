@@ -33,6 +33,14 @@ const (
 	// the backend state it needs is stale or absent. NOT a pass and NOT a
 	// breach.
 	ExitIndeterminate = 3
+	// ExitPlanBlocked: `config plan` or `config apply` produced a plan with
+	// blocking conditions (invalid document, metadata.org naming another
+	// tenant, an object owned by another manager), so nothing was applied.
+	// It shares 3 with ExitIndeterminate on purpose: in both, nothing is wrong
+	// with the code under test; the pipeline's configuration has to be fixed
+	// before a verdict or an apply is possible. The two never come from the
+	// same command, so a pipeline reads 3 by the command it ran.
+	ExitPlanBlocked = 3
 )
 
 // ExitCodeError is an error that names the process exit code it should produce.

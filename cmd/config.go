@@ -320,7 +320,12 @@ proximity bucket maps a dependency to a finding severity during SCA scans.
 
 Buckets are relative to standard calendar quarters (Q1 Jan–Mar … Q4 Oct–Dec).
 A severity of "skip" disables findings for that bucket. Setting any policy
-opts the org in to synthetic EOL findings.`,
+opts the org in to synthetic EOL findings.
+
+Deprecated: declare a QualityGate document in .vulnetix/config/ and run
+'vulnetix config apply'. This command now sends the same document to the
+config engine, and uses the legacy endpoint when the engine refuses the
+credential or the change (unsetting with 'null').`,
 		Args: cobra.NoArgs,
 		RunE: runConfigSetEolPolicy,
 	}
@@ -373,21 +378,7 @@ func runConfigSetEolPolicy(cmd *cobra.Command, args []string) error {
 		*sf.target = &value
 	}
 
-	client, err := newPackageFirewallConfigClient(cmd)
-	if err != nil {
-		return err
-	}
-
-	ctx := display.FromCommand(cmd)
-	resp, err := client.CliQualityGateConfig(envForCli(), req)
-	if err != nil {
-		return err
-	}
-	if ctx.IsJSON() {
-		return ctx.Logger.ResultJSON(resp.Data)
-	}
-	ctx.Logger.Result(renderPackageFirewallResult(ctx, "EOL policy updated", resp.Data))
-	return nil
+	return setQualityGate(cmd, "eol-policy", "EOL policy updated", req)
 }
 
 func newConfigSetQualityGateCommand() *cobra.Command {
@@ -404,7 +395,12 @@ Each flag takes a value; only the flags you pass are updated and the rest keep
 their stored value. Pass 'null' as a flag's value to unset that setting entirely
 for the org — members then fall back to their own scan flags / builtin defaults:
 
-  vulnetix config set quality-gate --severity null --cooldown null`,
+  vulnetix config set quality-gate --severity null --cooldown null
+
+Deprecated: declare a QualityGate document in .vulnetix/config/ and run
+'vulnetix config apply'. This command now sends the same document to the
+config engine, and uses the legacy endpoint when the engine refuses the
+credential or the change (unsetting with 'null').`,
 		Args: cobra.NoArgs,
 		RunE: runConfigSetQualityGate,
 	}
@@ -527,21 +523,7 @@ func runConfigSetQualityGate(cmd *cobra.Command, args []string) error {
 		*ef.dst = &val
 	}
 
-	client, err := newPackageFirewallConfigClient(cmd)
-	if err != nil {
-		return err
-	}
-
-	ctx := display.FromCommand(cmd)
-	resp, err := client.CliQualityGateConfig(envForCli(), req)
-	if err != nil {
-		return err
-	}
-	if ctx.IsJSON() {
-		return ctx.Logger.ResultJSON(resp.Data)
-	}
-	ctx.Logger.Result(renderPackageFirewallResult(ctx, "Quality gate policy updated", resp.Data))
-	return nil
+	return setQualityGate(cmd, "quality-gate", "Quality gate policy updated", req)
 }
 
 func newConfigGetQualityGateCommand() *cobra.Command {

@@ -14,7 +14,7 @@ inputs:
     required: false
     default: 'latest'
   task:
-    description: 'Task to perform: info, upload, gha, tea-release'
+    description: 'Task to perform: info, upload, gha, tea-release, config-plan, config-apply'
     required: false
     default: 'info'
   api-key:
@@ -52,6 +52,23 @@ inputs:
     description: 'Print what would be published and exit: true or false (used with task: tea-release)'
     required: false
     default: 'false'
+  config-token:
+    description: 'Config management token (vmt_...) for config-plan and config-apply. Passed to the CLI as VULNETIX_CONFIG_TOKEN, never on the command line'
+    required: false
+  config-path:
+    description: 'Config documents to plan or apply, one file or directory per line (default: .vulnetix/config)'
+    required: false
+  config-manager:
+    description: 'Manager the documents are declared by (default: gitops:<owner/repo> of this repository)'
+    required: false
+  config-prune:
+    description: 'Delete objects this manager owns that the documents no longer declare: true or false'
+    required: false
+    default: 'false'
+  github-token:
+    description: 'Token used to comment the config plan on a pull request (task: config-plan). Needs pull-requests: write'
+    required: false
+    default: ${{ github.token }}
 outputs:
   result:
     description: 'Result of the Vulnetix CLI execution'
@@ -128,6 +145,14 @@ runs:
         VX_TEA_PRE_RELEASE: ${{ inputs.tea-pre-release }}
         VX_TEA_VISIBILITY: ${{ inputs.tea-visibility }}
         VX_TEA_DRY_RUN: ${{ inputs.tea-dry-run }}
+        # The config tasks. The token is only ever an environment variable, so
+        # it never appears in a process list or in the job log's command echo.
+        VULNETIX_CONFIG_TOKEN: ${{ inputs.config-token }}
+        VX_CONFIG_PATH: ${{ inputs.config-path }}
+        VX_CONFIG_MANAGER: ${{ inputs.config-manager }}
+        VX_CONFIG_PRUNE: ${{ inputs.config-prune }}
+        VX_GITHUB_TOKEN: ${{ inputs.github-token }}
+        VX_EVENT_NAME: ${{ github.event_name }}
       run: |
         echo "Running Vulnetix CLI with org-id: ${{ inputs.org-id }}"
 
@@ -158,6 +183,101 @@ runs:
             echo "summary=TEA release published successfully" >> $GITHUB_OUTPUT
           fi
           exit 0
+        fi
+
+        # Handle config-plan and config-apply - Platform IaC through the config engine
+        if [ "$VX_TASK" = "config-plan" ] || [ "$VX_TASK" = "config-apply" ]; then
+          cfg=()
+          while IFS= read -r f; do
+            f="${f#"${f%%[![:space:]]*}"}"
+            f="${f%"${f##*[![:space:]]}"}"
+            [ -n "$f" ] && cfg+=(-f "$f")
+          done <<< "$VX_CONFIG_PATH"
+          [ -n "$VX_CONFIG_MANAGER" ] && cfg+=(--manager "$VX_CONFIG_MANAGER")
+          [ "$VX_CONFIG_PRUNE" = "true" ] && cfg+=(--prune)
+
+          if [ "$VX_TASK" = "config-apply" ]; then
+            set +e
+            vulnetix config apply --auto-approve "${cfg[@]}" | tee "$RUNNER_TEMP/vulnetix-apply.txt"
+            code=${PIPESTATUS[0]}
+            set -e
+            {
+              echo "### Vulnetix config apply"
+              echo
+              echo '```'
+              cat "$RUNNER_TEMP/vulnetix-apply.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            case "$code" in
+              0) echo "result=success" >> $GITHUB_OUTPUT; echo "summary=Config applied" >> $GITHUB_OUTPUT ;;
+              3) echo "result=blocked" >> $GITHUB_OUTPUT; echo "summary=Config plan has blocking conditions; nothing applied" >> $GITHUB_OUTPUT ;;
+              *) echo "result=failure" >> $GITHUB_OUTPUT; echo "summary=Config apply failed" >> $GITHUB_OUTPUT ;;
+            esac
+            exit "$code"
+          fi
+
+          plan="$RUNNER_TEMP/vulnetix-plan.json"
+          set +e
+          vulnetix config plan -o json "${cfg[@]}" > "$plan"
+          code=$?
+          set -e
+          if ! jq -e .planHash "$plan" > /dev/null 2>&1; then
+            # No plan came back (usage error, auth, network); the CLI has
+            # already printed why on stderr.
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "summary=Config plan failed" >> $GITHUB_OUTPUT
+            exit "$code"
+          fi
+
+          body="$RUNNER_TEMP/vulnetix-plan.md"
+          jq -r '
+            def cell: tostring | gsub("\\|"; "\\|") | gsub("\n"; " ");
+            def mark: {create: "+", update: "~", delete: "-", noop: "="}[.] // "?";
+            "<!-- vulnetix-config-plan -->",
+            "### Vulnetix config plan",
+            "",
+            "Manager `\(.manager)`, prune \(if .prune then "on" else "off" end), plan hash `\(.planHash)`",
+            "",
+            "| | Object | Action | Changes |",
+            "|---|---|---|---|",
+            (.items[] | "| \(.action | mark) | `\(.kind)/\(.name)` | \(.action)\(if .adopt then " (adopt)" else "" end)\(if .drift then " (drift)" else "" end) | \([.changes[] | "`\(.path)`: \(.from | tojson | cell) -> \(.to | tojson | cell)"] | join("<br>")) |"),
+            (if (.blocking | length) > 0 then "", "**Blocking: this plan cannot be applied**", "", (.blocking[] | "- `\(.code)` \(if .kind then "`\(.kind)/\(.name)` " else "" end)\(.message)") else empty end),
+            (if (.warnings | length) > 0 then "", "**Warnings**", "", (.warnings[] | "- `\(.code)` \(.message)") else empty end),
+            "",
+            "\(.summary.create) to create, \(.summary.update) to update, \(.summary.delete) to delete, \(.summary.noop) unchanged"
+          ' "$plan" > "$body"
+          cat "$body" >> "$GITHUB_STEP_SUMMARY"
+
+          # On a pull request, keep one plan comment up to date rather than
+          # adding one per push. A fork's read-only token cannot comment; the
+          # job summary still has the plan, so that is a warning, not a failure.
+          if [ "$VX_EVENT_NAME" = "pull_request" ] && [ -n "$VX_GITHUB_TOKEN" ]; then
+            pr=$(jq -r '.pull_request.number // empty' "$GITHUB_EVENT_PATH")
+            if [ -n "$pr" ]; then
+              api="${GITHUB_API_URL:-https://api.github.com}/repos/$GITHUB_REPOSITORY/issues"
+              hdr=(-H "Authorization: Bearer $VX_GITHUB_TOKEN" -H "Accept: application/vnd.github+json")
+              payload=$(jq -Rs '{body: .}' "$body")
+              existing=$(curl -fsS "${hdr[@]}" "$api/$pr/comments?per_page=100" \
+                | jq -r '[.[] | select(.body | startswith("<!-- vulnetix-config-plan -->"))][0].id // empty' || true)
+              if [ -n "$existing" ]; then
+                curl -fsS -X PATCH "${hdr[@]}" "$api/comments/$existing" -d "$payload" > /dev/null \
+                  || echo "::warning::could not update the config plan comment"
+              else
+                curl -fsS -X POST "${hdr[@]}" "$api/$pr/comments" -d "$payload" > /dev/null \
+                  || echo "::warning::could not comment the config plan on the pull request"
+              fi
+            fi
+          fi
+
+          echo "summary=$(jq -r '"\(.summary.create) to create, \(.summary.update) to update, \(.summary.delete) to delete, \(.summary.noop) unchanged"' "$plan")" >> $GITHUB_OUTPUT
+          if [ "$code" = "3" ]; then
+            echo "result=blocked" >> $GITHUB_OUTPUT
+          elif [ "$code" = "0" ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+          fi
+          exit "$code"
         fi
 
         # Handle gha task - upload all workflow artifacts via GitHub API
