@@ -412,6 +412,14 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	if err != nil {
 		return err
 	}
+	// --github-publish: validated here; code scanning needs every finding,
+	// so a cached run cannot close an alert that is still real.
+	if opts.GitHubPublish, err = parseGitHubPublish(opts.GitHubPublish); err != nil {
+		return err
+	}
+	if hasPublishTarget(opts.GitHubPublish, publishCodeScanning) {
+		opts.NoSASTCache = true
+	}
 
 	// The output and gating vocabulary (--view, --filter, --fail-on, ...). It is
 	// parsed once and handed to the renderer through activeSurface; the gates
@@ -2625,6 +2633,12 @@ func runLocalScan(
 		}
 	}
 
+	// Publish into GitHub (--github-publish). Independent of the Vulnetix
+	// upload above: a failure here warns and never fails the scan.
+	if len(opts.GitHubPublish) > 0 && !explaining && !opts.DryRun {
+		publishScanToGitHub(ctx, opts, rootPath, sastReport, githubPublishKinds(noSASTRules, noSecrets, noIAC, noContainers, noSCA), progressStderr)
+	}
+
 	// Stdout format: emit machine-readable JSON, no pretty output. The pretty
 	// artefact summary is skipped, so echo any ingestion snapshot URLs to stderr
 	// instead of losing them.
@@ -4305,6 +4319,8 @@ func addSASTFlags(cmd *cobra.Command) {
 	// set it for their own output.
 	cmd.Flags().Int("snippet-context", -1,
 		"Surrounding non-empty source lines to capture around each SARIF finding (-1 = dynamic: 3 if span <10 lines else 5; 0 disables)")
+	cmd.Flags().StringSlice("github-publish", nil,
+		"Publish into GitHub when the scan finishes: code-scanning (comma-separated or repeated). Forces a full, uncached result set; needs GITHUB_TOKEN with security-events: write")
 	cmd.Flags().Bool("no-cache", false,
 		"Evaluate and parse every file, not reusing rule results or graph facts kept for files unchanged since an earlier run")
 }

@@ -56,6 +56,7 @@ var flagToOption = map[string]string{
 	"rule-id":                 "RuleID",
 	"snippet-context":         "SnippetContext",
 	"no-cache":                "NoSASTCache",
+	"github-publish":          "GitHubPublish",
 	"reachability":            "Reachability",
 	// Deployment labels. All five land on the one Deployment field, because
 	// they describe a single thing — where these results are deployed and who

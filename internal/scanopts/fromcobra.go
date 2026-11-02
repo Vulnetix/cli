@@ -174,6 +174,9 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	}
 	opts.RuleID = strings.ToUpper(strings.TrimSpace(getString("rule-id")))
 	opts.NoSASTCache = getBool("no-cache")
+	if v, err := flags.GetStringSlice("github-publish"); err == nil {
+		opts.GitHubPublish = v
+	}
 
 	// -1 means "choose a width from the finding span"; an explicitly passed 0
 	// disables snippets. Only an explicit --snippet-context overrides the

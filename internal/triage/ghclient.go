@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/vulnetix/cli/v3/internal/github"
 )
 
 // GitHubClient is a native Go HTTP client for the GitHub REST API.
@@ -25,37 +25,17 @@ type GitHubClient struct {
 // NewGitHubClient creates a GitHubClient by resolving a token from environment
 // variables or the gh CLI (single exec call).
 func NewGitHubClient() (*GitHubClient, error) {
-	c := &GitHubClient{
-		httpClient: &http.Client{Timeout: 30 * time.Second},
-		baseURL:    "https://api.github.com",
+	// Resolution is shared with every GitHub publisher (internal/github).
+	tok, src, err := github.ResolveToken()
+	if err != nil {
+		return nil, fmt.Errorf("no GitHub token found — set GITHUB_TOKEN env var or run 'gh auth login'")
 	}
-
-	// 1. GITHUB_TOKEN env var
-	if t := os.Getenv("GITHUB_TOKEN"); t != "" {
-		c.token = t
-		c.tokenSource = "env:GITHUB_TOKEN"
-		return c, nil
-	}
-
-	// 2. GH_TOKEN env var (gh CLI convention)
-	if t := os.Getenv("GH_TOKEN"); t != "" {
-		c.token = t
-		c.tokenSource = "env:GH_TOKEN"
-		return c, nil
-	}
-
-	// 3. Single exec call: gh auth token
-	out, err := exec.Command("gh", "auth", "token").Output()
-	if err == nil {
-		tok := strings.TrimSpace(string(out))
-		if tok != "" {
-			c.token = tok
-			c.tokenSource = "gh-cli"
-			return c, nil
-		}
-	}
-
-	return nil, fmt.Errorf("no GitHub token found — set GITHUB_TOKEN env var or run 'gh auth login'")
+	return &GitHubClient{
+		httpClient:  &http.Client{Timeout: 30 * time.Second},
+		baseURL:     github.APIURL(),
+		token:       tok,
+		tokenSource: src,
+	}, nil
 }
 
 // TokenSource returns how the token was resolved (for status display).

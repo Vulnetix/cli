@@ -151,6 +151,11 @@ type Options struct {
 	// NoSASTCache evaluates every file even when the SAST result cache holds
 	// its findings from an earlier run (--no-cache).
 	NoSASTCache bool
+	// GitHubPublish lists the GitHub targets the scan publishes to when it
+	// finishes (--github-publish): code-scanning, dependency-graph. Publishing
+	// code scanning forces NoSASTCache, so a cached run never closes an alert
+	// that is still real.
+	GitHubPublish []string
 
 	// Reachability selects the tree-sitter reachability mode applied to the
 	// CVEs the SCA pass produces: "direct" scans only each vulnerable
