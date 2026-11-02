@@ -43,6 +43,27 @@ func (e *configUsageError) Error() string { return e.err.Error() }
 func (e *configUsageError) Unwrap() error { return e.err }
 func (e *configUsageError) ExitCode() int { return ExitUsage }
 
+// configApplyIncompleteError is an apply that wrote only part of its plan: the
+// server answered 207, or an object ended in phase Failed. The rest was applied
+// and stays applied, so it is not ExitPlanBlocked (nothing written); it is a
+// failure of the step. Exit 1.
+type configApplyIncompleteError struct {
+	failed, counted int
+	partial         bool
+}
+
+func (e *configApplyIncompleteError) Error() string {
+	n := e.failed
+	if n == 0 {
+		n = e.counted
+	}
+	if n == 0 {
+		return "applied only in part: the config engine answered 207; plan again to see what is left"
+	}
+	return fmt.Sprintf("applied only in part: %d object(s) failed to write; plan again to see what is left", n)
+}
+func (e *configApplyIncompleteError) ExitCode() int { return ExitFailure }
+
 func configUsage(format string, a ...any) error {
 	return &configUsageError{err: fmt.Errorf(format, a...)}
 }
@@ -314,7 +335,7 @@ func newConfigSession(cmd *cobra.Command, c *configCommon) (*configSession, erro
 func (s *configSession) plan(ctx context.Context) (*configPlan, []byte, error) {
 	p, raw, err := s.client.Plan(ctx, s.req)
 	if err != nil {
-		return nil, nil, explainConfigAuth(err, s.client.Auth)
+		return nil, nil, explainConfigAuth(err, s.client.Auth, ownerKindHint(err, s.in.Docs))
 	}
 	if err := checkConfigOrg(s.in.Docs, p.Tenant); err != nil {
 		return nil, nil, err
@@ -323,7 +344,7 @@ func (s *configSession) plan(ctx context.Context) (*configPlan, []byte, error) {
 }
 
 // explainConfigAuth adds what to do when the engine refuses the credential.
-func explainConfigAuth(err error, a configAuth) error {
+func explainConfigAuth(err error, a configAuth, hints ...string) error {
 	var he *configHTTPError
 	if !errors.As(err, &he) {
 		return err
@@ -332,7 +353,13 @@ func explainConfigAuth(err error, a configAuth) error {
 	case 401:
 		return fmt.Errorf("%w (credential from %s was not accepted; use a config management token via --token or %s)", err, a.Source, configTokenEnv)
 	case 403:
-		return fmt.Errorf("%w (credential from %s is not an owner or admin, or the token does not allow this kind)", err, a.Source)
+		msg := fmt.Errorf("%w (credential from %s is not an owner or admin, or the token does not allow this kind)", err, a.Source)
+		for _, h := range hints {
+			if h != "" {
+				msg = fmt.Errorf("%w; %s", msg, h)
+			}
+		}
+		return msg
 	}
 	return err
 }
@@ -417,7 +444,10 @@ the fresh plan has a different hash. Without a terminal one of the two is
 required.
 
 Exit status: 0 when applied (or nothing to do), 3 when the plan has blocking
-conditions, 2 for a usage error, 1 for anything else, including a 409.`,
+conditions, 2 for a usage error, 1 for anything else, including a 409 and an
+apply the server answered with 207: everything was applied except the objects
+whose write failed (phase Failed), which are listed. Plan again to see what is
+left.`,
 		Example: `  vulnetix config apply
   vulnetix config apply --auto-approve
   vulnetix config apply --plan-hash 3f1c...`,
@@ -455,6 +485,9 @@ conditions, 2 for a usage error, 1 for anything else, including a 409.`,
 				return explainConfigApplyError(err, s.client.Auth)
 			}
 			fmt.Fprint(out, renderConfigApplyResult(res))
+			if res.incomplete() {
+				return &configApplyIncompleteError{failed: len(res.failedItems()), partial: res.Partial, counted: res.Failed}
+			}
 			return nil
 		},
 	}
@@ -582,6 +615,9 @@ func renderConfigApplyResult(r *configApplyResult) string {
 	b.WriteString("\nApplied:\n")
 	for _, it := range r.Items {
 		fmt.Fprintf(&b, "  %s %s/%s  %s\n", configActionMarks[it.Action], it.Kind, it.Name, it.Status.Phase)
+		if it.Status.Message != "" {
+			fmt.Fprintf(&b, "      %s\n", it.Status.Message)
+		}
 	}
 	fmt.Fprintf(&b, "\n%s\n", summaryLine(r.Summary))
 	return b.String()
@@ -651,7 +687,11 @@ which converts YAML to HCL or a script without applying anything.`,
 			}
 			body, err := newConfigEngineClient(a).Export(cmd.Context(), q, draft)
 			if err != nil {
-				return explainConfigAuth(err, a)
+				hint := ""
+				if ownerOnlyKinds[kind] {
+					hint = kind + " can only be exported with an owner token"
+				}
+				return explainConfigAuth(err, a, hint)
 			}
 			if outFile == "" || outFile == "-" {
 				_, err = cmd.OutOrStdout().Write(body)

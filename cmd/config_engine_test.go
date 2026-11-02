@@ -23,15 +23,19 @@ type fakeEngine struct {
 	t   *testing.T
 	srv *httptest.Server
 
-	mu       sync.Mutex
-	calls    []string // "METHOD path"
-	bodies   map[string][]map[string]any
-	auth     map[string]string
-	query    map[string]string
-	plan     map[string]any
-	status   map[string]int // per path, non-200 answers
-	errBody  map[string]any
-	exportOK string
+	mu     sync.Mutex
+	calls  []string // "METHOD path"
+	bodies map[string][]map[string]any
+	auth   map[string]string
+	query  map[string]string
+	plan   map[string]any
+	status map[string]int // per path, non-200 answers
+	// applyCode and applyItems replace the apply answer (207, failed objects).
+	applyCode   int
+	applyItems  []any
+	applyFailed int
+	errBody     map[string]any
+	exportOK    string
 }
 
 func newFakeEngine(t *testing.T) *fakeEngine {
@@ -76,6 +80,13 @@ func (f *fakeEngine) serve(w http.ResponseWriter, r *http.Request) {
 	case "/config/plan":
 		_ = json.NewEncoder(w).Encode(f.plan)
 	case "/config/apply":
+		if f.applyItems != nil {
+			if f.applyCode != 0 {
+				w.WriteHeader(f.applyCode)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"planHash": f.plan["planHash"], "summary": f.plan["summary"], "failed": f.applyFailed, "items": f.applyItems})
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"planHash": f.plan["planHash"], "summary": f.plan["summary"],
 			"items": []any{map[string]any{"kind": "QualityGate", "name": "default", "action": "update",
 				"status": map[string]any{"phase": "Applied"}}}})

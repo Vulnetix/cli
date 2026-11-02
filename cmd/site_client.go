@@ -101,6 +101,13 @@ func (e *configHTTPError) Error() string {
 }
 
 func (c *siteClient) do(ctx context.Context, method, path string, query url.Values, body any) ([]byte, http.Header, error) {
+	out, hdr, _, err := c.doStatus(ctx, method, path, query, body)
+	return out, hdr, err
+}
+
+// doStatus is do that also returns the HTTP status of a 2xx answer, for the
+// calls where 200 and 207 mean different things.
+func (c *siteClient) doStatus(ctx context.Context, method, path string, query url.Values, body any) ([]byte, http.Header, int, error) {
 	u := strings.TrimRight(c.BaseURL, "/") + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()
@@ -109,13 +116,13 @@ func (c *siteClient) do(ctx context.Context, method, path string, query url.Valu
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, 0, err
 		}
 		rd = bytes.NewReader(b)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, u, rd)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -127,12 +134,12 @@ func (c *siteClient) do(ctx context.Context, method, path string, query url.Valu
 	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return nil, nil, fmt.Errorf(c.Label+": %w", err)
+		return nil, nil, 0, fmt.Errorf(c.Label+": %w", err)
 	}
 	defer resp.Body.Close()
 	out, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	if err != nil {
-		return nil, nil, fmt.Errorf(c.Label+": read response: %w", err)
+		return nil, nil, 0, fmt.Errorf(c.Label+": read response: %w", err)
 	}
 	if resp.StatusCode/100 != 2 {
 		he := &configHTTPError{Status: resp.StatusCode, Body: out, Label: c.Label}
@@ -146,7 +153,7 @@ func (c *siteClient) do(ctx context.Context, method, path string, query url.Valu
 				he.Message = e.Error
 			}
 		}
-		return nil, nil, he
+		return nil, nil, resp.StatusCode, he
 	}
-	return out, resp.Header, nil
+	return out, resp.Header, resp.StatusCode, nil
 }

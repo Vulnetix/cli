@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // Client for the Platform IaC config engine, served by vdb-site under
@@ -86,6 +87,8 @@ type configObjectStatus struct {
 	Manager     string `json:"manager,omitempty"`
 	AppliedHash string `json:"appliedHash,omitempty"`
 	AppliedAt   int64  `json:"appliedAt,omitempty"`
+	// Message says why an external write failed (phase Failed).
+	Message string `json:"message,omitempty"`
 }
 
 type configAppliedItem struct {
@@ -96,9 +99,14 @@ type configAppliedItem struct {
 }
 
 type configApplyResult struct {
-	PlanHash string              `json:"planHash"`
-	Summary  configSummary       `json:"summary"`
-	Items    []configAppliedItem `json:"items"`
+	PlanHash string        `json:"planHash"`
+	Summary  configSummary `json:"summary"`
+	// Failed counts the external objects whose write failed (phase Failed).
+	Failed int `json:"failed,omitempty"`
+	// Partial is set from the HTTP status: 207 means applied except the
+	// objects with phase Failed.
+	Partial bool                `json:"-"`
+	Items   []configAppliedItem `json:"items"`
 }
 
 // configRequest is the JSON body of plan, apply and a draft export.
@@ -126,7 +134,7 @@ func (c *configEngineClient) Plan(ctx context.Context, req configRequest) (*conf
 
 // Apply applies the plan named by req.PlanHash.
 func (c *configEngineClient) Apply(ctx context.Context, req configRequest) (*configApplyResult, error) {
-	raw, _, err := c.do(ctx, http.MethodPost, "/config/apply", nil, req)
+	raw, _, status, err := c.doStatus(ctx, http.MethodPost, "/config/apply", nil, req)
 	if err != nil {
 		return nil, err
 	}
@@ -134,6 +142,7 @@ func (c *configEngineClient) Apply(ctx context.Context, req configRequest) (*con
 	if err := json.Unmarshal(raw, &r); err != nil {
 		return nil, fmt.Errorf("config engine: decode apply result: %w", err)
 	}
+	r.Partial = status == http.StatusMultiStatus
 	return &r, nil
 }
 
@@ -160,4 +169,21 @@ func planFromHTTPError(err error) *configPlan {
 		return nil
 	}
 	return body.Plan
+}
+
+// failedItems are the objects whose write failed.
+func (r *configApplyResult) failedItems() []configAppliedItem {
+	var out []configAppliedItem
+	for _, it := range r.Items {
+		if strings.EqualFold(it.Status.Phase, "Failed") {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
+// incomplete reports an apply that did not write everything: the server
+// answered 207, counted failed objects, or an object's phase is Failed.
+func (r *configApplyResult) incomplete() bool {
+	return r.Partial || r.Failed > 0 || len(r.failedItems()) > 0
 }
