@@ -7,7 +7,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Vulnetix/vdb-cyclonedx v0.17.0
 	github.com/Vulnetix/vdb-manifest v0.1.0
-	github.com/Vulnetix/vdb-openapi v0.0.0
+	github.com/Vulnetix/vdb-openapi v0.1.0
 	github.com/Vulnetix/vdb-sca-match v0.8.14
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/charmbracelet/bubbles v1.0.0
@@ -120,7 +120,7 @@ require (
 	github.com/valllabh/ocsf-schema-golang v1.0.3 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.34 // indirect
-	github.com/vulnetix/config-schemas v1.0.1
+	github.com/vulnetix/config-schemas v1.2.0
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
@@ -146,8 +146,3 @@ require (
 // The one OpenAPI/Swagger reader for every Vulnetix service (the attack
 // surface feature). Cloned next to this repo for local builds; becomes a
 // tagged require at release, like vdb-cyclonedx.
-replace github.com/Vulnetix/vdb-openapi => ../vdb-openapi
-
-// config-schemas carries the ApiSpecSource kind (attack surface); cloned next
-// to this repo until the tag that adds it is published.
-replace github.com/vulnetix/config-schemas => ../config-schemas

@@ -13,6 +13,8 @@ github.com/Vulnetix/vdb-cyclonedx v0.17.0 h1:tub0UYMnzDgAjW9d+NEDA0oynqHSkZ2T5Ih
 github.com/Vulnetix/vdb-cyclonedx v0.17.0/go.mod h1:rPnQLm9teN2VN/gsSby8lHqpGRouVxvMDqxRvBh6tWA=
 github.com/Vulnetix/vdb-manifest v0.1.0 h1:YFuS82MQN+xpuLR9JVB8Cj5nhXR5nKHV6ECvTWzB5PQ=
 github.com/Vulnetix/vdb-manifest v0.1.0/go.mod h1:IjwPihORYfuAMH/tCkTBOlZ21k1tOzJFOxH/a8//FJk=
+github.com/Vulnetix/vdb-openapi v0.1.0 h1:WosLLeWsBea4rs12gBhnct/ltPOO7KF0vMNsW2vTH6Y=
+github.com/Vulnetix/vdb-openapi v0.1.0/go.mod h1:0vfsyZTneUlS+7kMHmDp0a0ExqeR16mwXUy1TBoZy3I=
 github.com/Vulnetix/vdb-sca-match v0.8.14 h1:eR4jyOZp/p9MRyv92ZppiJsjzevvX6k7J2/+oqQ0i6w=
 github.com/Vulnetix/vdb-sca-match v0.8.14/go.mod h1:zMsDFA9z8tqTneEeoxZbfh8k8I2kQtZu3hX5WMWiFQ8=
 github.com/agnivade/levenshtein v1.2.1 h1:EHBY3UOn1gwdy/VbFwgo4cxecRznFk7fKWN1KOX7eoM=
@@ -312,6 +314,8 @@ github.com/valyala/fastjson v1.6.10 h1:/yjJg8jaVQdYR3arGxPE2X5z89xrlhS0eGXdv+ADT
 github.com/valyala/fastjson v1.6.10/go.mod h1:e6FubmQouUNP73jtMLmcbxS6ydWIpOfhz34TSfO3JaE=
 github.com/vektah/gqlparser/v2 v2.5.34 h1:MEea5P0qhdcqfBL45ghKE+qr9laidVHTMHjav5h7ckk=
 github.com/vektah/gqlparser/v2 v2.5.34/go.mod h1:mFdHLGCio7OGX1fby9ZjTW6FN+qxgmbnBcRIeeScE5s=
+github.com/vulnetix/config-schemas v1.2.0 h1:Xks7vVZ7KO05uvfl6f+3LA1+oI8cJhTa2hR7ISFfJw0=
+github.com/vulnetix/config-schemas v1.2.0/go.mod h1:ZzpFRYhOvxtd9a4fEFEujdAr73Z7NoOvhDb8/NggBxo=
 github.com/vulnetix/malscan-engine v0.6.1 h1:ND2q5bu21p8DKIJbnyzZC9xqNN9GfmReTxqnJC4sAmc=
 github.com/vulnetix/malscan-engine v0.6.1/go.mod h1:gqHbbwWvHHS2mRmhSlAEB0g/U8SIMy77zO3gOrF/vbw=
 github.com/xanzy/ssh-agent v0.3.3 h1:+/15pJfg/RsTxqYcX6fHqOXZwwMP+2VyYWJeWM2qQFM=
