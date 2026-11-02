@@ -7,6 +7,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Vulnetix/vdb-cyclonedx v0.17.0
 	github.com/Vulnetix/vdb-manifest v0.1.0
+	github.com/Vulnetix/vdb-openapi v0.0.0
 	github.com/Vulnetix/vdb-sca-match v0.8.14
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/charmbracelet/bubbles v1.0.0
@@ -141,3 +142,12 @@ require (
 )
 
 // Sibling module, not yet tagged: cloned next to this repo like vdb-api and vdb-site do.
+
+// The one OpenAPI/Swagger reader for every Vulnetix service (the attack
+// surface feature). Cloned next to this repo for local builds; becomes a
+// tagged require at release, like vdb-cyclonedx.
+replace github.com/Vulnetix/vdb-openapi => ../vdb-openapi
+
+// config-schemas carries the ApiSpecSource kind (attack surface); cloned next
+// to this repo until the tag that adds it is published.
+replace github.com/vulnetix/config-schemas => ../config-schemas

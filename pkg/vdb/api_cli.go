@@ -2111,3 +2111,40 @@ func (c *Client) CliInsightsDeferred(env CliEnv, req CliInsightsRequest) (*CliRe
 	}
 	return decodeCliResponse[CliInsightsResponse](raw)
 }
+
+// ─── API specs (attack surface) ──────────────────────────────────────────────
+
+// CliApiSpec is one OpenAPI or Swagger document the CLI found, uploaded for
+// the attack surface feature. The server re-reads Content through the shared
+// vdb-openapi module and never trusts a client-side parse, so only the raw
+// bytes and where they came from are sent.
+type CliApiSpec struct {
+	// Path is the file's path within the repository.
+	Path string `json:"path"`
+	// Content is the raw document, exactly as on disk.
+	Content string `json:"content"`
+	// Discovered marks a spec found by probing rather than committed in the
+	// repository; the server lands it as a candidate for a person to accept.
+	Discovered bool `json:"discovered,omitempty"`
+}
+
+// CliApiSpecsRequest is the POST /v2/cli.api-specs body.
+type CliApiSpecsRequest struct {
+	RepoName        string       `json:"repoName,omitempty"`
+	CommitSha       string       `json:"commitSha,omitempty"`
+	InsightsRunUuid string       `json:"insightsRunUuid,omitempty"`
+	Specs           []CliApiSpec `json:"specs"`
+}
+
+// CliApiSpecsResponse is what the server returns per upload.
+type CliApiSpecsResponse struct {
+	SpecUuids []string `json:"specUuids"`
+	Accepted  int      `json:"accepted"`
+	Rejected  int      `json:"rejected"`
+}
+
+// CliApiSpecs — POST /v2/cli.api-specs. Upload the OpenAPI and Swagger
+// documents found in a repository.
+func (c *Client) CliApiSpecs(ctx context.Context, env CliEnv, req CliApiSpecsRequest) (*CliResponse[CliApiSpecsResponse], error) {
+	return cliPostWithEnvContext[CliApiSpecsResponse](ctx, c, "cli.api-specs", env, req)
+}

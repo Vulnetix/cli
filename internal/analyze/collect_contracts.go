@@ -24,6 +24,8 @@ import (
 	"sort"
 	"strings"
 
+	oasroute "github.com/Vulnetix/vdb-openapi/route"
+
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"gopkg.in/yaml.v3"
 )
@@ -335,38 +337,22 @@ func extractRoutes(src, language string) []route {
 // their position does — so every dialect of them becomes `{param}`.
 //
 // Returns "" for routes that are pure noise.
+//
+// The normalisation itself is the shared route key from
+// github.com/Vulnetix/vdb-openapi/route, so a route extracted from code here
+// and an operation read from an OpenAPI document by the backend collapse to
+// the exact same string. The extra rules this collector adds are which routes
+// never become a cross-repo edge: health and observability paths (noise) and
+// a path made only of parameters (identifies nothing).
 func normaliseRoute(method, p string) string {
-	p = strings.TrimSpace(p)
-	if p == "" || !strings.HasPrefix(p, "/") {
+	if oasroute.IsNoise(p) {
 		return ""
 	}
-	if i := strings.IndexAny(p, "?#"); i >= 0 {
-		p = p[:i]
-	}
-	if len(p) > 1 {
-		p = strings.TrimSuffix(p, "/")
-	}
-
-	if noiseRoutes[strings.ToLower(p)] {
+	norm := oasroute.Path(p)
+	if norm == "" || !oasroute.Identifying(norm) {
 		return ""
 	}
-
-	norm := pathParam.ReplaceAllString(p, "{param}")
-
-	// A route that is nothing but parameters (`/{param}`, `/{param}/{param}`) matches
-	// everything and therefore identifies nothing. Publishing it would link every repo that
-	// has a catch-all to every other one.
-	stripped := strings.ReplaceAll(norm, "{param}", "")
-	stripped = strings.ReplaceAll(stripped, "/", "")
-	if stripped == "" {
-		return ""
-	}
-
-	if method == "HANDLE" || method == "HANDLEFUNC" || method == "ALL" || method == "ROUTE" || method == "REQUEST" {
-		method = "ANY"
-	}
-
-	return method + " " + norm
+	return oasroute.Method(method) + " " + norm
 }
 
 // collectImages reads Dockerfiles and compose files. A repo that runs `FROM ghcr.io/acme/base`
