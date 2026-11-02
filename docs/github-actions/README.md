@@ -26,7 +26,7 @@ One composite action per CLI command, used as `Vulnetix/cli/<name>@v3`. The root
 | [`attest`](attest.md) | Verify an artefact's signature, identity and provenance (vulnetix attest verify). |
 | [`jail`](jail.md) | Assess the repository against the organisation's jail policy (vulnetix jail). |
 | [`vex`](vex.md) | Work with VEX documents: validate, list, merge or apply (vulnetix vex <vex-command>). |
-| [`github-publish`](github-publish.md) | Publish existing results into GitHub: code scanning, the dependency graph and release assets (vulnetix gha publish). |
+| [`github-publish`](github-publish.md) | Publish existing results into GitHub: code scanning, the dependency graph, release assets and security campaigns (vulnetix gha publish). |
 
 Every action installs the CLI (`setup` alone does only that), passes credentials only as
 environment variables, runs the command with `--artifact-manifest`, and then, as asked:
@@ -44,3 +44,4 @@ true, so the artifact, attestation and publish steps run either way.
 | Release assets | `contents: write` |
 | config-plan pull request comment | `pull-requests: write` |
 | Repository advisories | A PAT or GitHub App token with repository advisories write |
+| Security campaigns | A PAT or GitHub App token of an organization owner or security manager, with GitHub Advanced Security, plus a Vulnetix `vmt_` token with the campaigns read scope |

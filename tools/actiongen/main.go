@@ -204,6 +204,10 @@ func actionYAML(a action) string {
 		if in.Name == "config-token" {
 			continue
 		}
+		if in.Name == "campaigns-token" {
+			b.WriteString("        VULNETIX_CONFIG_TOKEN: ${{ inputs.campaigns-token }}\n")
+			continue
+		}
 		fmt.Fprintf(&b, "        %s: ${{ inputs.%s }}\n", envName(in.Name), in.Name)
 	}
 	b.WriteString("      run: bash \"$GITHUB_ACTION_PATH/../action-lib/run.sh\"\n")
@@ -385,6 +389,7 @@ true, so the artifact, attestation and publish steps run either way.
 | Release assets | ` + "`contents: write`" + ` |
 | config-plan pull request comment | ` + "`pull-requests: write`" + ` |
 | Repository advisories | A PAT or GitHub App token with repository advisories write |
+| Security campaigns | A PAT or GitHub App token of an organization owner or security manager, with GitHub Advanced Security, plus a Vulnetix ` + "`vmt_`" + ` token with the campaigns read scope |
 `)
 	return b.String()
 }
@@ -420,6 +425,9 @@ func docsPage(a action) string {
 	}
 	if a.Name == "sbom" {
 		perms = append(perms, "`id-token: write` with `sign: true`")
+	}
+	if a.Name == "github-publish" {
+		perms = append(perms, "no workflow permission for `campaigns: true`: `campaigns-github-token` must be a PAT or GitHub App token of an organization owner or security manager (the organization needs GitHub Advanced Security), and `campaigns-token` a Vulnetix `vmt_` token with the campaigns read scope")
 	}
 	for _, p := range perms {
 		fmt.Fprintf(&b, "- %s\n", p)

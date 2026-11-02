@@ -144,7 +144,7 @@ func engineFallbackReason(err error, a configAuth) string {
 		return fmt.Sprintf("the config engine refused the credential from %s (HTTP %d: %s); a config management token (%s) or an owner/admin sign-in uses the engine",
 			a.Source, he.Status, he.Message, configTokenEnv)
 	case http.StatusNotFound:
-		return "the config engine is not available at " + configEngineBase()
+		return "the config engine is not available at " + siteBase()
 	}
 	return ""
 }

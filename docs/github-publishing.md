@@ -119,3 +119,27 @@ this repository's own SAST findings (`cmd/gha_publish_advisories.go`,
 | Token | Repository advisories write: a fine-grained PAT or a GitHub App token. The workflow `GITHUB_TOKEN` cannot create advisories |
 
 `--dry-run` prints what would be drafted and calls nothing.
+
+## `vulnetix gha publish campaigns`
+
+Mirrors Vulnetix remediation campaigns (Pro) as GitHub security campaigns
+(`POST /orgs/{org}/campaigns`) (`cmd/gha_publish_campaigns.go`, `internal/campaigns`,
+`internal/github/campaigns.go`). It needs GitHub Advanced Security and is meant to run as an
+organization-level scheduled job, after code scanning has published the alerts it maps to.
+
+| Rule | Detail |
+|---|---|
+| Source | `GET /api/site/v1/campaigns` and `.../{id}/items` through the shared `siteClient` (`cmd/site_client.go`, the same client and credential the config engine uses). A `vmt_` config management token (`--token` or `VULNETIX_CONFIG_TOKEN`) needs the `campaigns` read scope; a token only ever reads there |
+| Entitlement | A non-Pro organization gets HTTP 200 with a `planLocked` marker body, not an error. It is reported as a note and the command exits 0 |
+| Mapping | An open item maps to an open code scanning alert of this CLI (category `vulnetix/...`) in the item's repository where `rule.id == findingId`; when the item names a package, the alert message must name it too. A dependency item maps to a `vulnetix/sca/` alert naming the package. Items in repositories outside `--org`, items whose alerts cannot be read, and done items are not mapped. Nothing matching means no campaign is created |
+| Name and fields | `[Vulnetix] <name>` (at most 50 characters); `ends_at` from `deadlineAt`, else `--default-days` (90) after creation; `contact_link` is the campaign in the Vulnetix console |
+| Marker | The description ends with `<!-- vulnetix-campaign:<uuid> -->`, so a later run finds the campaign and `PATCH`es name, description, `ends_at` and `contact_link` when they changed |
+| Close | A completed or archived Vulnetix campaign closes its GitHub campaign (`state: closed`). A campaign closed in GitHub by a person stays closed |
+| Scope change | GitHub cannot change a campaign's alerts after creation. A second marker, `<!-- vulnetix-scope:<hash> -->`, is a hash of the Vulnetix cohort's item keys. If the cohort changed, the run says so; with `--recreate-on-scope-change` it creates the new campaign first, then closes the old one, so a failure leaves the old one running |
+| Limits | 1,000 alerts per campaign, 255-character description (the markers are kept whole) |
+| Tokens | GitHub: a PAT or GitHub App token of an organization owner or security manager (`GITHUB_TOKEN`, `GH_TOKEN` or `gh auth token`); the workflow `GITHUB_TOKEN` cannot manage campaigns. A 403 or 404 is reported with that hint |
+
+`--dry-run` reads from Vulnetix and GitHub and prints what would be created, updated or closed;
+it writes nothing. The `github-publish` action runs it with `campaigns: true`
+(`campaigns-token`, `campaigns-github-token`, `campaigns-org`, `campaigns-recreate`,
+`campaigns-dry-run`).

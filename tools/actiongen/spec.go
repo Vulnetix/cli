@@ -97,11 +97,17 @@ var actions = []action{
 	{Name: "vex", Title: "VEX", Desc: "Work with VEX documents: validate, list, merge or apply (vulnetix vex <vex-command>).",
 		Command: []string{"vex"},
 		Inputs:  []input{{Name: "vex-command", Desc: "The vex subcommand: validate, ls, merge or apply", Default: "validate", Flag: "lines"}}},
-	{Name: "github-publish", Title: "GitHub publish", Desc: "Publish existing results into GitHub: code scanning, the dependency graph and release assets (vulnetix gha publish).",
+	{Name: "github-publish", Title: "GitHub publish", Desc: "Publish existing results into GitHub: code scanning, the dependency graph, release assets and security campaigns (vulnetix gha publish).",
 		Script: "publish", CodeScanning: true, DependencyGraph: true,
 		Inputs: []input{
 			{Name: "sarif", Desc: "SARIF files to upload to code scanning, one per line (default: every .vulnetix/*.sarif under path)"},
 			{Name: "sbom", Desc: "CycloneDX SBOM to submit to the dependency graph (default: .vulnetix/sbom.cdx.json under path)"},
+			{Name: "campaigns", Desc: "Mirror Vulnetix remediation campaigns (Pro) as GitHub security campaigns (vulnetix gha publish campaigns). Run it as an organization-level scheduled job after code scanning has published: true or false", Default: "false"},
+			{Name: "campaigns-org", Desc: "GitHub organization that owns the campaigns; defaults to the repository owner"},
+			{Name: "campaigns-token", Desc: "Vulnetix config management token (vmt_...) with the campaigns read scope. Passed to the CLI as VULNETIX_CONFIG_TOKEN, never on the command line"},
+			{Name: "campaigns-github-token", Desc: "GitHub token of an organization owner or security manager (a PAT or GitHub App token); the workflow token cannot manage campaigns. Defaults to github-token"},
+			{Name: "campaigns-recreate", Desc: "Close and recreate a GitHub campaign whose Vulnetix cohort changed, because GitHub cannot change a campaign's alerts: true or false", Default: "false"},
+			{Name: "campaigns-dry-run", Desc: "Print what would change and write nothing: true or false", Default: "false"},
 		}},
 }
 

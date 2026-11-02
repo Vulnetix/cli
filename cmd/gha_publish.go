@@ -26,7 +26,7 @@ import (
 
 var ghaPublishCmd = &cobra.Command{
 	Use:   "publish",
-	Short: "Publish results into GitHub: code scanning, dependency graph, advisories, release assets",
+	Short: "Publish results into GitHub: code scanning, dependency graph, advisories, campaigns, release assets",
 	Long: `Publish this CLI's results into GitHub in GitHub's native formats.
 
   code-scanning     SARIF to GitHub code scanning, one category per scanner
@@ -34,10 +34,12 @@ var ghaPublishCmd = &cobra.Command{
   dependency-graph  the CycloneDX SBOM as a dependency graph snapshot
   release-assets    files (or the artifact manifest) attached to a release
   advisories        draft repository security advisories for SAST findings
+  campaigns         Vulnetix remediation campaigns as GitHub security campaigns
 
 The token is GITHUB_TOKEN, then GH_TOKEN, then 'gh auth token'. GITHUB_API_URL
 selects a GitHub Enterprise Server. Publishing to GitHub needs no Vulnetix
-credentials, and sending to Vulnetix (gha upload) is unaffected by it.`,
+credentials (campaigns reads Vulnetix campaigns and takes a vmt_ token), and
+sending to Vulnetix (gha upload) is unaffected by it.`,
 }
 
 // The publish targets a scan's --github-publish accepts.

@@ -4,6 +4,9 @@
 #
 #   VX_CODE_SCANNING     true: vulnetix gha publish code-scanning
 #   VX_DEPENDENCY_GRAPH  true: vulnetix gha publish dependency-graph
+#   VX_IN_CAMPAIGNS      true: vulnetix gha publish campaigns (github-publish
+#                        only), with VX_IN_CAMPAIGNS_ORG, _RECREATE, _DRY_RUN
+#                        and _GITHUB_TOKEN
 #   VX_PATH              the repository root (default .)
 #   VX_MANIFEST          the run step's artifact manifest: its SARIF and SBOM
 #                        are what gets published
@@ -50,6 +53,20 @@ if [ "${VX_DEPENDENCY_GRAPH:-}" = "true" ]; then
   if [ -n "$sbom" ]; then args+=(--sbom "$sbom"); fi
   if ! vulnetix "${args[@]}"; then
     echo "::warning::GitHub dependency graph submission failed; see the log above"
+    status=1
+  fi
+fi
+
+if [ "${VX_IN_CAMPAIGNS:-}" = "true" ]; then
+  args=(gha publish campaigns)
+  if [ -n "${VX_IN_CAMPAIGNS_ORG:-}" ]; then args+=(--org "$VX_IN_CAMPAIGNS_ORG"); fi
+  if [ "${VX_IN_CAMPAIGNS_RECREATE:-}" = "true" ]; then args+=(--recreate-on-scope-change); fi
+  if [ "${VX_IN_CAMPAIGNS_DRY_RUN:-}" = "true" ]; then args+=(--dry-run); fi
+  # Campaigns need an organization owner's or security manager's token; the
+  # workflow token cannot manage them. VULNETIX_CONFIG_TOKEN (the Vulnetix
+  # side) is already in the environment.
+  if ! GITHUB_TOKEN="${VX_IN_CAMPAIGNS_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}" vulnetix "${args[@]}"; then
+    echo "::warning::GitHub security campaigns failed; see the log above"
     status=1
   fi
 fi
