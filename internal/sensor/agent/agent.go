@@ -823,7 +823,7 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 			Processes: len(p.Processes), Examples: examples,
 		})
 	}
-	pkgs = withInstalled(pkgs, sysinv.Collect(root).Packages)
+	pkgs = withInstalled(pkgs, sysinv.Collect(root))
 	_, err := a.cfg.Uplink.PostInventory(ctx, a.cfg.SensorKey, pkgs)
 
 	return err

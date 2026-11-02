@@ -297,6 +297,9 @@ type InventoryPackage struct {
 	State     string   `json:"state"`
 	Processes int      `json:"processes"`
 	Examples  []string `json:"examples,omitempty"`
+	// Purl is the package URL carrying the host's real distro, architecture
+	// and source package, which is what a distro advisory matches on.
+	Purl string `json:"purl,omitempty"`
 }
 
 // PostInventory replaces the sensor's in-use package report.

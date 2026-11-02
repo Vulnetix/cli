@@ -55,13 +55,43 @@ func TestMetricsReportsTheProcess(t *testing.T) {
 
 func TestWithInstalledAddsWhatNoProcessMaps(t *testing.T) {
 	loaded := []uplink.InventoryPackage{{Name: "openssl", Version: "3.2.1-1", Ecosystem: "arch", State: "loaded", Processes: 4}}
-	got := withInstalled(loaded, []sysinv.Package{
+	got := withInstalled(loaded, sysinv.Result{Packages: []sysinv.Package{
 		{Name: "openssl", Version: "3.2.1-1", Ecosystem: "arch"},
 		{Name: "vim", Version: "9.1-1", Ecosystem: "arch"},
 		{Name: "vim", Version: "9.1-1", Ecosystem: "arch"},
 		{Name: "", Version: "1", Ecosystem: "arch"},
-	})
+	}})
 	if len(got) != 2 || got[0].State != "loaded" || got[1].Name != "vim" || got[1].State != "installed" {
 		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestInventoryCarriesTheHostsRealPurl(t *testing.T) {
+	epoch := 1
+	sys := sysinv.Result{
+		Distro: sysinv.Distro{ID: "amzn", VersionID: "2023"},
+		Packages: []sysinv.Package{
+			{Name: "openssl-libs", Version: "3.0.8-1.amzn2023.0.12", Ecosystem: "rpm", Arch: "x86_64", Epoch: &epoch, SourceName: "openssl"},
+			{Name: "bash", Version: "5.2.15-1.amzn2023", Ecosystem: "rpm", Arch: "x86_64"},
+		},
+	}
+	loaded := []uplink.InventoryPackage{{Name: "openssl-libs", Version: "3.0.8-1.amzn2023.0.12", Ecosystem: "rpm", State: "loaded"}}
+	got := withInstalled(loaded, sys)
+	want := map[string]string{
+		"openssl-libs": "pkg:rpm/amazon/openssl-libs@3.0.8-1.amzn2023.0.12?arch=x86_64&distro=amazon-2023&epoch=1&upstream=openssl",
+		"bash":         "pkg:rpm/amazon/bash@5.2.15-1.amzn2023?arch=x86_64&distro=amazon-2023",
+	}
+	for _, p := range got {
+		if p.Purl != want[p.Name] {
+			t.Errorf("%s: purl %q, want %q", p.Name, p.Purl, want[p.Name])
+		}
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %+v", got)
+	}
+	// A loaded package the OS database does not list has no purl, and says so
+	// rather than guessing one.
+	if got := withInstalled([]uplink.InventoryPackage{{Name: "ghost", Version: "1", Ecosystem: "rpm", State: "loaded"}}, sys); got[0].Purl != "" {
+		t.Fatalf("a package the OS does not list got a purl: %q", got[0].Purl)
 	}
 }

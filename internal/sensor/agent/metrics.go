@@ -94,10 +94,12 @@ func flushBackoff(fails int) time.Duration {
 // "installed", so the site holds the host's whole package list (what a host
 // SBOM is built from) and not only what is loaded. A package already reported
 // as loaded keeps that state.
-func withInstalled(loaded []uplink.InventoryPackage, installed []sysinv.Package) []uplink.InventoryPackage {
+func withInstalled(loaded []uplink.InventoryPackage, sys sysinv.Result) []uplink.InventoryPackage {
+	installed := sys.Packages
 	seen := make(map[string]bool, len(loaded))
-	for _, p := range loaded {
+	for i, p := range loaded {
 		seen[p.Ecosystem+"|"+p.Name] = true
+		loaded[i].Purl = purlFor(sys, p.Ecosystem, p.Name, p.Version)
 	}
 	for _, p := range installed {
 		if p.Name == "" || seen[p.Ecosystem+"|"+p.Name] {
@@ -106,8 +108,23 @@ func withInstalled(loaded []uplink.InventoryPackage, installed []sysinv.Package)
 		seen[p.Ecosystem+"|"+p.Name] = true
 		loaded = append(loaded, uplink.InventoryPackage{
 			Name: p.Name, Version: p.Version, Ecosystem: p.Ecosystem, State: "installed",
+			Purl: p.Purl(sys.Distro),
 		})
 	}
 
 	return loaded
+}
+
+// purlFor is the distro-qualified purl of the installed package that a loaded
+// one names, or "" when the OS database does not list it (the site then falls
+// back to a plain purl and does not send the host for analysis, because a
+// match without the distro would read as clean).
+func purlFor(sys sysinv.Result, ecosystem, name, version string) string {
+	for _, p := range sys.Packages {
+		if p.Ecosystem == ecosystem && p.Name == name && p.Version == version {
+			return p.Purl(sys.Distro)
+		}
+	}
+
+	return ""
 }
