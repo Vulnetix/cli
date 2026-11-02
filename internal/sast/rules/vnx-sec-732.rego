@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-732",
 	"name": "Hardcoded encryption key (AES/Fernet context)",
 	"description": "A hardcoded symmetric encryption key assigned to an encryption-key/aes/fernet variable was found. Exposure of the key allows decryption of all data it protects.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-732",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-732",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

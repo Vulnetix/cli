@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-254",
 	"name": "OpenAI project ID (proj_)",
 	"description": "An OpenAI project identifier (proj_ prefix) was found. It scopes API usage to a project and is frequently committed next to project keys.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-254",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-254",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

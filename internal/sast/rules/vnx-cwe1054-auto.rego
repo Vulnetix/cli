@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1054",
 	"name": "Invokable Control Element with Excessive Volume of Commented-out Code",
 	"description": "A block of line comments in Go, Java, JavaScript/TypeScript, PHP, Python or Ruby that is disabled code rather than prose: at least three of its lines read as code (a statement terminator with a keyword, assignment or call; a Python block opener ending in ':'; a closing brace; a bare return/break/raise; an unterminated assignment; in Ruby a bare 'end', a condition on a method call, or a DSL call with a symbol such as before_action :authenticate_user!). Disabled code can hold old credentials, bypassed security checks or deprecated algorithms that a developer might re-enable. One finding per block, at its first code-like line. Not reported: prose (six lower-case words in a row, or a line that is not code-like), a single commented-out line, usage examples in documentation comments (a code-like line indented deeper than the prose of the same block, as in RDoc, godoc and Javadoc, unless a block opener ending in ':' or '{' sits at the prose's own indent, which is a note above disabled code), godoc preformatted lines (a tab straight after //; '// ' followed by tab indentation is editor-commented gofmt code and is inspected), PHP 8 #[Attribute] lines (PHP '#' comments are otherwise read like '//'), block comments (/* */), test files, and library code under node_modules/vendor/dist or JavaScript copied into static/assets/public trees.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1054/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1054/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "low",
 	"level": "note",

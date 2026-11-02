@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-191",
 	"name": "Integer Underflow (Wrap or Wraparound)",
 	"description": "A C or C++ length is reduced by subtraction with no check that it is large enough, and the result sizes a memory operation, so a short input wraps the unsigned length to a huge value and the copy or read runs far past the buffer. Reported: a size argument of memcpy/memmove/memset/memcmp/strncpy/strncat/strncmp/malloc/calloc/realloc/alloca/read/recv/recvfrom/fread/fwrite/write/send/bzero (std:: forms included, arguments spread over several lines included) written as len - x where len is a length-like name (len, size, count, total, remain, avail, bytes, n...); an unsigned declaration (size_t, unsigned, uintN_t, DWORD, uN) initialised as a - b, or a compound len -= x on a variable declared unsigned in the file, whose result reaches such a call within 8 lines; and buf[strlen(buf) - 1], which writes before the buffer when the string is empty. Not reported: a subtraction preceded within 10 lines by a comparison of the minuend (if (len < HDR) return, if (off <= total)) or by an if/while on the sink's own line that compares it (if (n > HDR) memcpy(..., n - HDR)), a ternary or min() on the same line, a constant minuend (sizeof(buf) - 1, a numeric or upper-case macro), pointer differences (end - start), signed arithmetic that does not reach a size argument, strings and comments. Go and Java were dropped: Go panics on an out-of-range slice and Java has no unsigned lengths, so neither has a line-level underflow-to-overflow shape.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-191/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-191/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

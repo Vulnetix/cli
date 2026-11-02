@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-752",
 	"name": "Gusto OAuth access token",
 	"description": "A Gusto OAuth2 access token was found. It grants API access to the company's Gusto payroll, employee and benefits data until it expires.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-752",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-752",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-008",
 	"name": "Flask debug mode enabled",
 	"description": "The Werkzeug interactive debugger is switched on in a Flask or Werkzeug application's code, so an exception page offers a Python console to whoever triggers it (the debugger PIN is guessable from host facts and has been bypassed): run(..., debug=True) on a Flask application object (a name assigned from Flask(...) or SocketIO(...), app, application, or create_app()), with the keyword anywhere in a call broken over several lines; <app>.debug = True; <app>.config[\"DEBUG\"] = True and <app>.config.update(DEBUG=True); werkzeug run_simple(..., use_debugger=True); and DebuggedApplication(..., evalex=True). Files must import flask or werkzeug. Not reported: debug driven by an environment variable or set to False, run(debug=True) on other objects (task.run, uvicorn.run), class attributes named debug, test files, and the calls in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-008/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-008/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

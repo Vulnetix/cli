@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-15",
 	"name": "External Control of System or Configuration Setting",
 	"description": "A value read from an HTTP request is written into a process-wide setting: an environment variable (Go os.Setenv/syscall.Setenv, Python os.environ[...] = / os.environ.update / os.putenv, Node process.env.X = / process.env[k] = / Object.assign(process.env, ...), PHP putenv), the module search path (Python sys.path.append/insert, PHP set_include_path), runtime configuration (Go viper.Set*, PHP ini_set/ini_alter, Java System.setProperty/setProperties/Security.setProperty) or the database catalog of a JDBC connection (setCatalog). The request value must be on the setting line or assigned from the request (Go r.FormValue/r.URL.Query()/r.Header.Get/PathValue and gin/echo c.Query/c.Param/c.PostForm, Flask/Django request.args/form/json/values/GET/POST/headers/cookies, Express req.body/query/params/headers/cookies, Java getParameter/getHeader, PHP $_GET/$_POST/$_REQUEST/$_COOKIE) within the 15 lines above (including names destructured from req.body/req.query, and a call whose arguments continue on the next two lines). Not reported: constant values, settings taken from the environment or a config file, reads of the environment beside request data, a request value checked against an allow-list (in/not in, includes, has, indexOf, in_array, contains, an allowed/whitelist name, a regex match) before the write, and the patterns in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-15/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-15/",
 	"languages": ["go", "java", "node", "php", "python"],
 	"severity": "medium",
 	"level": "warning",

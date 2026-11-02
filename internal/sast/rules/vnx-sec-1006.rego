@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1006",
 	"name": "Circle USDC API key (live)",
 	"description": "A Circle API key in the documented colon-delimited format (key-id:hex-secret) was found. The QA_/TEST_/LIVE_ prefixed Circle key authenticates USDC mint, transfer and payout operations against the Circle API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1006",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1006",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

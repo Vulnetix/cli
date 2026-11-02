@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-204",
 	"name": "Harness service account token (sat.)",
 	"description": "A Harness service account token using the sat. prefix was found. It grants automation-scoped access to the Harness platform API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-204",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-204",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

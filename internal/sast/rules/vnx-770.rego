@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-770",
 	"name": "Allocation of Resources Without Limits or Throttling",
 	"description": "Reports configuration that switches off, or raises out of reach, a limit a web framework applies to what one request may make the server allocate. Python: Django DATA_UPLOAD_MAX_MEMORY_SIZE, DATA_UPLOAD_MAX_NUMBER_FIELDS or DATA_UPLOAD_MAX_NUMBER_FILES set to None; Flask MAX_CONTENT_LENGTH assigned None (also inside app.config.update or from_mapping); Flask-Limiter turned off (RATELIMIT_ENABLED = False, Limiter(..., enabled=False)); sys.set_int_max_str_digits(0), which removes the guard against quadratic int/str conversion. Node: an express/body-parser json, urlencoded, raw or text parser, or a koa-body / koa-bodyparser call, with limit (jsonLimit, formLimit, textLimit) Infinity, a gigabyte limit or one of 50 MB and more (a string size, a byte count or a product such as 1024 * 1024 * 1024), or parameterLimit Infinity; multer() configured without a limits block (no file size or count limit); a socket.io maxHttpBufferSize of Infinity or 100 MB and more. Not reported: bounded values, the frameworks' own defaults tables (dict literals), these settings in a configuration class or settings module named for testing, development or local use (settings/dev.py, settings_local.py), comments, string literals and test files. Missing limits that are never configured at all (no body parser options, no rate limiter) are not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-770/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-770/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

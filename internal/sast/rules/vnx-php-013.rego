@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-013",
 	"name": "PHP XXE via LIBXML_NOENT or LIBXML_DTDLOAD flag",
 	"description": "An XML parser is told to expand entities or load external DTDs, which lets a document read local files (file:///etc/passwd) or make server-side requests through external entities (XXE). Reported: simplexml_load_string()/simplexml_load_file(), new SimpleXMLElement(), DOMDocument ->loadXML()/->load()/->loadHTML()/->loadHTMLFile() and XMLReader ->open()/->xml() called with LIBXML_NOENT or LIBXML_DTDLOAD, given inline, on the following lines of a call broken across lines, or through a variable assigned such flags within the 20 lines above; a DOMDocument ->substituteEntities or ->resolveExternals property set to true; XMLReader setParserProperty(XMLReader::SUBST_ENTITIES or XMLReader::LOADDTD, true); and libxml_disable_entity_loader(false), which re-enables the external entity loader on PHP before 8.0. Not reported: parsing with default options or with LIBXML_NONET/LIBXML_NOCDATA/LIBXML_NOERROR, a flag cleared with ~LIBXML_NOENT, the properties set to false, the flag name inside a string literal, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-013/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-013/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-171",
 	"name": "Hetzner Cloud robot webservice password (context)",
 	"description": "A Hetzner Robot webservice password under a Hetzner robot context was found. Robot credentials manage dedicated servers, reverse DNS and boot configuration.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-171",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-171",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-608",
 	"name": "Splunk session / authentication token",
 	"description": "A Splunk authentication token using the eyJ JWT-style prefix (Splunk token auth) assigned to a context keyword was found. It authenticates to the Splunk REST API as the issuing user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-608",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-608",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

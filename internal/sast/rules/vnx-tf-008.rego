@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-TF-008",
 	"name": "Terraform AWS provider with hardcoded static credentials",
 	"description": "A literal AWS access key pair is written into Terraform: access_key, aws_access_key, aws_access_key_id or AWS_ACCESS_KEY_ID assigned a quoted AKIA/ASIA key id, or secret_key, aws_secret_key, aws_secret_access_key or AWS_SECRET_ACCESS_KEY assigned a quoted 40-character secret, in .tf, .tofu or .tfvars files (provider and s3 backend blocks, variable files, and function environment maps alike), and the value of an ECS-style { name = \"AWS_ACCESS_KEY_ID\" / \"AWS_SECRET_ACCESS_KEY\", value = \"...\" } environment entry whose value has the matching shape. Committed keys can be extracted from the repository and its history. Not reported: values from variables, data sources, interpolation or shared credential files, empty strings, placeholders (runs of X, all one case, no digit or symbol), other attributes whose names merely contain access_key or secret_key, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-tf-008/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-tf-008/",
 	"languages": ["terraform"],
 	"severity": "high",
 	"level": "error",

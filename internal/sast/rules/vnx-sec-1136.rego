@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1136",
 	"name": "Steam server API key context",
 	"description": "A Steam Web API key paired with a steam server-key context was found. It authorizes Steam Web API methods under the registered key.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1136",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1136",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

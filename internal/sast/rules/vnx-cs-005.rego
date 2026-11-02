@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-CS-005",
 	"name": "C# MVC action accepting cross-site form posts without anti-forgery validation",
 	"description": "An ASP.NET MVC or ASP.NET Core MVC controller action that a cross-site HTML form can reach is not protected against Cross-Site Request Forgery. Reported: the [HttpPost] (including [HttpPost(\"route\")] and [HttpPost, Route(...)]) or [AcceptVerbs(HttpVerbs.Post)] attribute of an action in a class deriving from Controller (directly or through a base controller), when neither the action's own attribute block nor the class carries [ValidateAntiForgeryToken], [AutoValidateAntiforgeryToken] or [IgnoreAntiforgeryToken]; [HttpPut]/[HttpDelete]/[HttpPatch] are reported only where a form can reach them, in ASP.NET MVC 5 (System.Web.Mvc honours X-HTTP-Method-Override) or in a project that calls UseHttpMethodOverride. Not reported: a project-wide anti-forgery filter (Filters.Add of AutoValidateAntiforgeryTokenAttribute or ValidateAntiForgeryTokenAttribute), a base controller declared with the attribute, [ApiController] classes (or [assembly: ApiController]), ControllerBase and Web API 2 ApiController classes, actions restricted to JSON with [Consumes(\"application/json\")] or a [FromBody] parameter (a form cannot send that content type without a CORS preflight), PUT/DELETE/PATCH in ASP.NET Core without method override, test code, and attributes in comments. The CSRF exposure also depends on cookie authentication and SameSite settings, which are not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-cs-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-cs-005/",
 	"languages": ["csharp"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1109",
 	"name": "JW Player API v1 secret",
 	"description": "A JW Player Management API v1 secret key (24-character base62) was found. It signs JW Player v1 management API requests for the property.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1109",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1109",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

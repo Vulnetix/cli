@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-019",
 	"name": "Go debug endpoints (pprof, expvar) served on all interfaces",
 	"description": "Go profiling and runtime-introspection handlers are served on a listener bound to every interface (\":6060\", \"0.0.0.0:8080\", \"[::]:N\"). Reported: http.ListenAndServe/ListenAndServeTLS, an http.Server{Addr: ...} literal, or a net.Listen whose listener is passed to http.Serve, when the handler is the default mux (nil, http.DefaultServeMux, or a Server literal with no Handler) and a non-test file of the project imports net/http/pprof or expvar (whose init registers /debug/pprof/ and /debug/vars on the default mux); the same listeners when the handler is a mux the file registers pprof or expvar handlers on (mux.HandleFunc(\"/debug/pprof/\", pprof.Index), expvar.Handler(), a gorilla PathPrefix(\"/debug/pprof/\") route, chi r.Mount(\"/debug\", middleware.Profiler())); and a gin engine passed to gin-contrib pprof.Register that is started with r.Run() or r.Run(\":N\"). These endpoints expose heap and goroutine dumps, the command line and memstats, and let a caller run CPU profiles. Not reported: a loopback address (localhost, 127.0.0.1, [::1]), an address read from a flag or configuration (a constant or variable the same file assigns an all-interfaces literal, const debugAddr = \":6060\", is reported like the literal), port 0, a public listener whose handler is a mux without debug handlers (binding a service to every interface on its own is VNX-1327's concern), string literals, comments and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-019/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-019/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

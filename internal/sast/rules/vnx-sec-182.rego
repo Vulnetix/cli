@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-182",
 	"name": "Bitbucket app password (ATBB prefix)",
 	"description": "A Bitbucket Cloud app password using the ATBB prefix was found. These credentials authenticate to the Bitbucket API and git over HTTPS.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-182",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-182",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

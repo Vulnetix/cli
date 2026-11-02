@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-635",
 	"name": "ScyllaDB Cloud connection string with password",
 	"description": "A Cassandra/Scylla connection URL embedding the user password against a scylladb.com host was found. It authenticates to the managed ScyllaDB Cloud cluster.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-635",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-635",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

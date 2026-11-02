@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1036",
 	"name": "Keeper Secrets Manager config token (assignment)",
 	"description": "A Keeper Secrets Manager one-time access token or config token assigned to a keeper field was found. It bootstraps a client device into the Keeper vault to retrieve secrets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1036",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1036",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

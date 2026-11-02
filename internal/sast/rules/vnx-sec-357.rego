@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-357",
 	"name": "Paddle API key/auth code",
 	"description": "A Paddle API key or vendor auth code was found near a paddle assignment. Paddle credentials authorize subscription, transaction and payout operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-357",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-357",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

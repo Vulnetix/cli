@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-JAVA-024",
 	"name": "Java XML entity expansion (Billion Laughs) — DTD not disabled",
 	"description": "An XML parser factory is created and used without disabling DOCTYPE declarations or enabling secure processing, so a document with nested internal entity definitions can expand exponentially and exhaust memory and CPU (Billion Laughs). Reported: DocumentBuilderFactory.newInstance()/newDefaultInstance(), SAXParserFactory.newInstance(), dom4j new SAXReader() and JDOM new SAXBuilder() unless that same variable gets setFeature(\"http://apache.org/xml/features/disallow-doctype-decl\" or a constant naming DOCTYPE, true) or setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true) somewhere in the file; and XMLInputFactory.newInstance()/newFactory() unless it gets setProperty(XMLInputFactory.SUPPORT_DTD or \"javax.xml.stream.supportDTD\", false). A factory built and used in one chained expression is reported. Not reported: a factory passed to a harden/secure/configure helper, and the pattern in comments or string literals. setExpandEntityReferences(false), turning off external entities and ACCESS_EXTERNAL_DTD do not stop internal expansion and are not treated as mitigations; disabling the feature with false is not either. External entity resolution (XXE) is VNX-JAVA-004/VNX-JAVA-029's concern. Recent JDKs cap expansion at jdk.xml.entityExpansionLimit, which this rule does not assume.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-024/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-024/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

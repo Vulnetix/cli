@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-026",
 	"name": "Missing file type validation on upload",
 	"description": "An uploaded file is written to disk under the name the client sent, and nothing in the handler checks what kind of file it is. The handler receives a multipart file (r.FormFile, c.FormFile in gin/echo/fiber, beego GetFile, MultipartForm().File[...], a MultipartReader part) and saves it with os.Create, os.OpenFile, os.WriteFile, ioutil.WriteFile, gin SaveUploadedFile, fiber SaveFile, beego SaveToFile or iris SaveFormFile to a path built from the client's FileHeader.Filename or Part.FileName(), so the client picks the extension (shell.php, page.html, .htaccess) of a file the server stores and may serve. Not reported: a handler that checks the type anywhere (filepath.Ext/path.Ext, strings.HasSuffix, http.DetectContentType, the part's Content-Type header, mime/mimetype/filetype detection, image.Decode/DecodeConfig, or a helper named for the check such as validateUpload/isAllowedType), a file saved under a server-generated name, a file parsed in memory and never written, a client building a multipart request, comments and strings. A check in another function the handler does not call by such a name is not seen.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-026/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-026/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

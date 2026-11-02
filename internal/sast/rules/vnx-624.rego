@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-624",
 	"name": "Regular expression replacement evaluated as code (preg_replace /e, s///ee)",
 	"description": "Reports regular-expression replacements that execute the replacement as code, and patterns a client controls (which can add that modifier). PHP: preg_replace() whose literal pattern carries the /e modifier (any delimiter: /.../e, #...#ie, ~...~sie), including a pattern inside an array(...)/[...] first argument, a pattern on the line after a preg_replace( that breaks the call, and a $pattern = '/.../e' assignment later passed to preg_replace($pattern, ...), mb_ereg_replace()/mb_eregi_replace() with an 'e' option, and preg_replace() whose pattern argument contains a request superglobal (bare, concatenated as '/' . $_POST['find'] . '/' or interpolated as \"/{$_GET['t']}/\") or is a variable assigned from one a few lines above, unless preg_quote() escapes it (on PHP before 7 the caller can append /e; on any version they choose the pattern). Perl: a substitution with the double-eval modifier (s/.../.../ee, after =~ or on $_ at the start of a statement), which evaluates the result of the replacement string as Perl. Not reported: preg_replace_callback(), patterns with ordinary modifiers (i, s, m, u, x), user input passed only as the subject, Perl's single /e (the replacement is code the author wrote), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-624/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-624/",
 	"languages": ["php", "perl"],
 	"severity": "medium",
 	"level": "warning",

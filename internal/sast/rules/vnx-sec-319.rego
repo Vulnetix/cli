@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-319",
 	"name": "Lambda Labs API key (lambda. prefix)",
 	"description": "A Lambda Labs Cloud API key in the secret_\u003cname\u003e_\u003chex\u003e form was found in a Lambda configuration block.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-319",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-319",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

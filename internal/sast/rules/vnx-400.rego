@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-400",
 	"name": "Uncontrolled Resource Consumption from a request-supplied size",
 	"description": "A number read from the HTTP request decides how much work or memory a Python handler spends, with no upper bound, so one request can exhaust CPU, memory or a worker. Reported: a Flask/Django/DRF request value (request.args/form/values/json/GET/POST/data/query_params/headers/cookies), used directly or through a variable assigned from it in the 10 lines above, or a FastAPI route parameter typed int or float on a single-line def with no le=/lt= bound, as the count of range(...), the duration of time.sleep(...), the size of bytearray()/bytes()/os.urandom()/secrets.token_bytes()/token_hex()/token_urlsafe()/.read()/.recv()/numpy zeros/ones/empty/full/arange, the width of str.zfill/ljust/rjust/center, the multiplier of a string or list repetition (\"=\" * n, [x] * n), or the exponent of **. Not reported: a value bounded first (min(...), an if comparing the variable with a limit other than 0 or 1, a max/min clamp reassignment; a lower-bound-only check such as n <= 0 does not count), a FastAPI parameter declared with Query(le=...), constants, environment and settings values, len() of the input, test files, comments and strings. The rule is line-oriented: a limit enforced in another function or by a schema validator is not seen, and unbounded loops or queries driven by other sources are out of scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-400/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-400/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",

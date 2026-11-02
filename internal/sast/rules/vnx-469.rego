@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-469",
 	"name": "Use of Pointer Subtraction to Determine Size",
 	"description": "C or C++ pointer subtraction between two pointers that provably point into different objects, used as a size or distance: two distinct arrays declared with a size in the file (`body - header`, `&outbox[0] - &inbox[0]`), two pointers each assigned from its own allocation (malloc, calloc, strdup, strndup, new T[n]) in the file (`second - first`, including a subtraction broken across two lines), and C++ iterators of two different containers (`std::distance(left.begin(), right.end())`, `right.end() - left.begin()`). The result of subtracting pointers into different objects is undefined, so a length computed this way is garbage. Not reported: subtraction of pointers that may share an object (a pointer derived from a search, `cursor - buf` where cursor = buf + n, struct members such as `s->end - s->start`), element or dereferenced values (`a[i] - b[i]`, `*a - *b`), sizeof expressions, the same container's begin and end, realloc results, pointers whose provenance is not in the file, linked-list node pointers (the CWE's own example, whose provenance a line-oriented rule cannot follow), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-469/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-469/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

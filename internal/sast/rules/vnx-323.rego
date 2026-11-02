@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-323",
 	"name": "Reusing a Nonce, Key Pair in Encryption",
 	"description": "An IV or nonce is generated once and then reused for every message encrypted under the same key: it is created at module, package or class level (or once in a constructor) and the encryption call inside a function or method uses it without generating a fresh one. With GCM, CTR and ChaCha20-Poly1305 a repeated nonce leaks the XOR of plaintexts and lets an attacker forge messages; with CBC it leaks equal prefixes. Reported: Python AESGCM/ChaCha20Poly1305/AESCCM .encrypt(nonce, ...), pycryptodome AES/ChaCha20 .new(..., nonce=/iv=), cryptography modes.CBC/CTR/GCM/CFB/OFB; Node crypto.createCipheriv(alg, key, iv) and WebCrypto { name: 'AES-GCM', iv }; Go AEAD .Seal(dst, nonce, ...) and cipher.NewCBCEncrypter/NewCTR/NewOFB/NewCFBEncrypter; Java new IvParameterSpec/GCMParameterSpec/ChaCha20ParameterSpec in an ENCRYPT_MODE init, whose IV argument is a module-level variable assigned from os.urandom/get_random_bytes/secrets.token_bytes/crypto.randomBytes/getRandomValues, a self./this. attribute set in __init__/constructor, a Go package-level variable or a struct field declared as []byte, or a Java byte[] field. Not reported: an IV or nonce assigned, filled (rand.Read, io.ReadFull, nextBytes, randomFillSync, getRandomValues) or incremented inside the encrypting function, decryption calls, and test files. Hard-coded constant IVs are VNX-CRYPTO-010's concern; flows through helpers and across files are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-323/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-323/",
 	"languages": ["go", "java", "node", "python"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-564",
 	"name": "PlanetScale service token",
 	"description": "A PlanetScale service token using the pscale_tkn_ prefix was found. Paired with a service token ID, it grants programmatic access to PlanetScale databases and branches.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-564",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-564",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

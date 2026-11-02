@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-1105",
 	"name": "Insufficient Encapsulation of Machine-Dependent Functionality",
 	"description": "C or C++ inline assembly (asm(...), asm volatile(...), __asm__ __volatile__(...), MSVC __asm/_asm { ... } blocks and single-line __asm/_asm instructions) appears in a file that is not a dedicated machine-dependent module, so CPU-specific code is mixed into general logic instead of being isolated behind a portable interface. Every port to a new architecture or compiler then has to find and rewrite it in place. A file counts as a dedicated module when it lives in a directory named for an architecture or platform layer (arch/, asm/, platform/, port/, hal/, cpu/, x86/, x86_64/, x86-64/, arm64/, aarch64/, riscv/, simd/, intrinsics/, atomic/ and similar) or its name says so (*atomic*, *intrin*, *simd*, barrier*, spinlock*, cpu*, *_x86, *_arm, *_avx2, *_neon, rdtsc*, platform*, osdep*, and the time-source modules monotonic*, clock*, timer*). Reported: the line opening each assembly statement. Not reported: inline assembly in such modules, calls to wrapper functions and compiler intrinsics, the asm keyword inside strings, identifiers that merely contain 'asm', and comments. Machine dependence other than inline assembly (system calls, intrinsics, preprocessor platform checks) is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1105/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1105/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1061",
 	"name": "Steam Web API key",
 	"description": "A Steam Web API key (32-character uppercase hex) was found. It authenticates calls to the Steam Web API for the registered domain and can expose user, inventory and trade data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1061",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1061",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

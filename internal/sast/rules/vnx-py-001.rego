@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-001",
 	"name": "Missing Python lock file",
 	"description": "A Python project that has chosen a locking dependency manager has no lock file, so every install re-resolves its version ranges and can pull a different (or a hijacked) release. Reported: a Pipfile with no Pipfile.lock beside it (the [packages] header, or line 1), and a pyproject.toml managed by Poetry ([tool.poetry]), PDM ([tool.pdm]) or uv ([tool.uv]) that declares at least one dependency other than python, with no uv.lock, poetry.lock, pdm.lock, Pipfile.lock or pylock.toml in its directory (a uv.lock in an enclosing directory counts, which is how a uv workspace member is locked). Not reported: a pyproject.toml with no locking tool configured (a setuptools, flit or hatch library publishes ranges by design and is not expected to commit a lock), a project with no dependencies, requirements.txt files (whether they are pinned is not judged here), and test fixtures.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-001/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

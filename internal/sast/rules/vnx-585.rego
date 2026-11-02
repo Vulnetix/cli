@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-585",
 	"name": "Empty synchronized block",
 	"description": "A synchronized (lock) statement in Java or Kotlin whose block holds no code: {} on the same line, or an opening brace (same line or the next) followed only by blank and comment lines before the closing brace. An empty synchronized block protects nothing; it is usually a misplaced critical section or a fragile attempt to wait for another thread. Not reported: synchronized blocks with any statement in them, synchronized methods, comments and string literals that mention synchronized.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-585/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-585/",
 	"languages": ["java", "kotlin"],
 	"severity": "low",
 	"level": "note",

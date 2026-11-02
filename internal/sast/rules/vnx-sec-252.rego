@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-252",
 	"name": "OpenAI legacy API key (sk- 48 char)",
 	"description": "A legacy 48-character OpenAI secret key (sk- prefix) was found. It grants billed access to the OpenAI API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-252",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-252",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

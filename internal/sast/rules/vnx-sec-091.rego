@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-091",
 	"name": "Vercel API token (vc*_)",
 	"description": "A Vercel API token using a vcp_/vci_/vca_/vcr_/vck_ prefix was found, granting access to deployments, projects and environment variables.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-091",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-091",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

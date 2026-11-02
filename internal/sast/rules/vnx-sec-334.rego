@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-334",
 	"name": "Plaid secret",
 	"description": "A Plaid API secret was found near a plaid/secret assignment. It authorizes access to linked bank accounts, balances and transactions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-334",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-334",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

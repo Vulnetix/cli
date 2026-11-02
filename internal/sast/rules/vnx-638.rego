@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-638",
 	"name": "Not Using Complete Mediation (cached authorization decision)",
 	"description": "An authorization decision is memoised, so it is made once and then reused: a revoked permission, a demoted admin or a removed role keeps being granted until the process restarts. Reported: a Python function decorated with functools @lru_cache or @cache, a Java method annotated with Spring @Cacheable, and a JavaScript/TypeScript function wrapped in memoize/_.memoize/memoizee/moize/pMemoize/memoizeOne, when the function's name says it decides or loads access (has_permission/hasRole/has_access, is_admin/isAuthorized/is_allowed/is_owner, canX/can_x for an action on a resource such as canEdit/can_access_project, check_permission/checkAccess, get/load/fetch/lookup user permissions/roles/grants/acl/scopes, authorize; optionally prefixed user_/member_/account_, as in user_has_role), including TypeScript class fields (private readonly hasPermission = memoizeOne(...)). Not reported: names that describe a role or permission rather than decide one (get_role_display_name, getRoleLabel, get_permission_choices), capability probes (can_parse, canHandle),caches with an expiry (cachetools TTLCache, an @cached with a ttl), @cached_property (lives as long as one object, usually one request), cache eviction annotations, memoised functions whose names are not about access, and comments. Whether a configured cache manager adds a TTL to a @Cacheable region is not visible on the line and is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-638/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-638/",
 	"languages": ["java", "node", "python"],
 	"severity": "medium",
 	"level": "warning",

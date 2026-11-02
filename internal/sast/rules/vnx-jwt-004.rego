@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JWT-004",
 	"name": "JWT algorithm explicitly set to 'none'",
 	"description": "A JWT is signed with, or a verifier accepts, the unsigned 'none' algorithm, so anyone can forge a valid token by dropping the signature. Reported: an algorithm/algorithms option (keyword argument, object or hash key, including a list split over several lines) whose value is or contains 'none' in any case, and PyJWT jwt.encode(..., algorithm=None), in Python, JavaScript/TypeScript and Ruby; ruby-jwt JWT.encode(payload, nil, 'none') and PyJWT jwt.encode(payload, key, 'none'); jose UnsecuredJWT; Auth0 java-jwt Algorithm.none() and jjwt Jwts.parser().unsecured() (Java/Kotlin); golang-jwt SigningMethodNone used to sign and UnsafeAllowNoneSignatureType. Not reported: code that compares a token's alg with 'none' to reject it, strong algorithm lists, comments and string literals. Verification switched off by other means (verify_signature: False, jjwt parse()) is VNX-JWT-001.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-jwt-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-jwt-004/",
 	"languages": ["python", "javascript", "typescript", "ruby", "java", "kotlin", "go"],
 	"severity": "critical",
 	"level": "error",

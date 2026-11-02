@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-500",
 	"name": "Public Static Field Not Marked Final",
 	"description": "A field declared public and static without final (Java) or without readonly/const (C#), in any modifier order and with or without an annotation or initialiser. Any code in the process can reassign it, so a value other classes rely on (a configuration flag, a singleton, a trusted-host list, a connection string) can be replaced at run time. Reported on the declaration. Not reported: public static final / static readonly / const fields, non-public statics, methods, nested classes, generic methods, C# properties, expression-bodied members and events, fields of a Java interface (implicitly final), test code, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-500/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-500/",
 	"languages": ["java", "csharp"],
 	"severity": "low",
 	"level": "note",

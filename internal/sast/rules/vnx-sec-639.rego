@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-639",
 	"name": "Pyroscope / Grafana profiling ingest URL with token",
 	"description": "A Grafana Cloud Pyroscope/profiling ingest URL embedding HTTP basic-auth credentials was found. The embedded token authorises profile ingestion to the profiling backend.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-639",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-639",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

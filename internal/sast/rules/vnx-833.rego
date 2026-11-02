@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-833",
 	"name": "Deadlock",
 	"description": "Lock-order inversion in a Java file: one place acquires lock A and, while still holding it, acquires lock B, and another place in the same file acquires B and then A. Two threads taking the two paths at once each hold the lock the other is waiting for. Nested synchronized (x) blocks, instance synchronized methods (which hold this for their body) and explicit x.lock() calls (ReentrantLock and similar, held until x.unlock()) are read; the inner acquisition of each inverted pair is reported. Not reported: nested locks always taken in the same order, locks taken one after the other rather than nested, an inner lock taken inside a task handed to another thread (executor.submit(() -> {...}), new Thread, a TimerTask), tryLock(), static synchronized methods, inversions spread across different files, and the pattern in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-833/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-833/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

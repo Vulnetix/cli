@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-830",
 	"name": "Ecwid public token",
 	"description": "An Ecwid store public access token (public_ prefix) was found. It permits client-side read access to storefront data and should not be exposed if intended to be private.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-830",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-830",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

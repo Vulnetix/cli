@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-920",
 	"name": "Android wake lock acquired without a timeout",
 	"description": "An Android PowerManager.WakeLock or WifiManager.WifiLock is acquired with acquire() and no timeout, so if the release is skipped (an exception, an early return, a killed callback) the device stays awake or the Wi-Fi radio stays on until the process dies and drains the battery (CWE-920, Improper Restriction of Power Consumption). Reported in Java and Kotlin: X.acquire() (also X?.acquire(), X!!.acquire(), this.X.acquire()) with no argument where X is declared as a WakeLock/WifiLock or assigned from newWakeLock()/createWifiLock() in the same file, newWakeLock(...).acquire() chained, and a bare acquire() or it.acquire() inside a Kotlin apply/also/run/let block opened on a newWakeLock line or on its own chain line right after one. Not reported: acquire(timeout), Semaphore/lock/pool acquire() on other receivers, test files, comments and strings. Whether a release() follows is not judged; Android lint's WakelockTimeout check applies the same standard.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-920/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-920/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

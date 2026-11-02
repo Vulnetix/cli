@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1120",
 	"name": "KeyCDN account-context API key",
 	"description": "A KeyCDN API key in a keycdn context was found. It authorizes management of CDN zones and purges on the KeyCDN account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1120",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1120",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

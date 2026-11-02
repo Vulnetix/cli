@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-892",
 	"name": "Avalara account id",
 	"description": "An Avalara AvaTax account id was found. Paired with the license key it authenticates AvaTax calls; if the license key was also exposed, rotate immediately.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-892",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-892",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

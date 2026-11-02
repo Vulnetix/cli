@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-559",
 	"name": "Calendly OAuth client secret",
 	"description": "A Calendly OAuth application client secret was found. Combined with the client ID it grants OAuth access to Calendly user scheduling data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-559",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-559",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

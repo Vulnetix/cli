@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-566",
 	"name": "Authorization Bypass Through User-Controlled SQL Primary Key",
 	"description": "A SELECT, UPDATE or DELETE whose only WHERE condition is a key column (id, uuid, <name>_id, <name>Id) compared with a value the request supplied, in Java or Python, with no ownership or authorization condition in the query and no ownership check nearby, so any caller can read or change another user's record by changing the key. The key counts as request-supplied when it is read on the statement itself or a few lines above from request.getParameter/getHeader, a @PathVariable/@RequestParam/@PathParam/@QueryParam parameter, Flask request.args/form/values/json/view_args, Django request.GET/POST or a Django view parameter, or a Flask route placeholder, and when it reaches the statement (concatenated, interpolated, passed as a bind argument, or bound with setX(n, key) on the following lines). Not reported: a query that adds AND/OR conditions (owner_id = ?, tenant = ?), a key taken from the session or another server-side value, a constant key, a nearby owner/current_user/request.user/g.user/getUserPrincipal check, a nearby 403/Forbidden/PermissionDenied/AccessDenied response, or @PreAuthorize/@Secured/@RolesAllowed/permission_required, a key already passed to a lookup function a few lines above (get_post(id), which commonly loads the record and checks its owner), SQL in comments or in strings that are not queries. Ownership enforced in another function, a database row-level policy or an ORM call is not seen.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-566/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-566/",
 	"languages": ["java", "python"],
 	"severity": "high",
 	"level": "error",

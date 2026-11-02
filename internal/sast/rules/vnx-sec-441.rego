@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-441",
 	"name": "PubNub subscribe key (sub-c-)",
 	"description": "A PubNub subscribe key (sub-c-) was found. It authorizes subscribing to PubNub channels for the associated keyset.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-441",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-441",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

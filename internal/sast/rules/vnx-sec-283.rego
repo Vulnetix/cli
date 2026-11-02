@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-283",
 	"name": "Aleph Alpha API token",
 	"description": "An Aleph Alpha API token was found. It grants access to Aleph Alpha Luminous model inference billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-283",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-283",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

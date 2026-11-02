@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-332",
 	"name": "Adyen HMAC key",
 	"description": "An Adyen HMAC key used to sign and verify webhook notifications was found near an adyen/hmac assignment. Exposure lets attackers forge notification signatures.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-332",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-332",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

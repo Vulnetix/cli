@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-671",
 	"name": "Bitfinex API key",
 	"description": "A Bitfinex API key assigned to a bitfinex context was found. Paired with the secret it authorises trading and withdrawals on the Bitfinex account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-671",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-671",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

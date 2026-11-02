@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-384",
 	"name": "GoCardless webhook secret",
 	"description": "A GoCardless webhook signing secret was found near a gocardless/webhook assignment. Exposure lets attackers forge webhook event signatures.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-384",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-384",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

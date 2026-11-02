@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-185",
 	"name": "CircleCI personal API token",
 	"description": "A CircleCI personal API token was found. It grants access to the CircleCI API for pipelines, projects and environment variables for the owning user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-185",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-185",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

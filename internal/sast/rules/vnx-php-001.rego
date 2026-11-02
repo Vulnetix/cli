@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-001",
 	"name": "Missing composer.lock",
 	"description": "An application's composer.json that requires at least one Composer package (in require or require-dev, other than php itself and ext-*/lib-* platform packages) has no composer.lock committed in the same directory. Without the lock file, every composer install re-resolves the version ranges, so a compromised or broken release reaches the build unnoticed. An application is a manifest with \"type\": \"project\", or one with no \"name\" (it cannot be published as a package). Not reported: libraries and other published package types (Composer's own guidance leaves their lock file optional, and a missing type means library), a manifest that requires only platform packages, manifests under vendor/, test, fixture, example or demo directories, a project whose composer.lock is present, and a manifest that disables the lock with \"config\": {\"lock\": false} (a deliberate decision). A lock file listed in the root or same-directory .gitignore is treated as absent, because it is not committed. The rule declares the generic marker beside php because composer.json is JSON, which the engine otherwise hides from PHP rules.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-001/",
 	"languages": ["php", "generic"],
 	"severity": "high",
 	"level": "error",

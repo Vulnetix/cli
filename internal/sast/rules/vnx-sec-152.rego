@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-152",
 	"name": "Cloudflare Global API key (legacy 37-hex)",
 	"description": "A Cloudflare legacy Global API Key appearing alongside a Cloudflare email/key context was found. The Global API Key grants full account-wide access and cannot be scoped.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-152",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-152",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1053",
 	"name": "Lacework API secret (assignment)",
 	"description": "A Lacework API secret assigned to a lacework field was found. Paired with the API key ID it authenticates to the Lacework cloud-security platform and its FortiCNAPP APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1053",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1053",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

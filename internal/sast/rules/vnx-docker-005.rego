@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-DOCKER-005",
 	"name": "Privileged container in a Dockerfile, Compose file or Kubernetes manifest",
 	"description": "A container is configured to run privileged, which removes the seccomp, AppArmor/SELinux, capability and device isolation between it and the host. Reported: privileged: true (also True or \"true\") on a Compose service (docker-compose*.yml, compose*.yaml, podman-compose); privileged: true directly under a Kubernetes securityContext (containers, initContainers, ephemeral containers, any YAML manifest, Helm template or values file, block or flow style securityContext: {privileged: true}); and in Dockerfiles, a RUN --security=insecure build step, a LABEL RUN= or INSTALL= run command (the podman container runlabel convention) that passes --privileged, and a RUN, CMD or ENTRYPOINT that starts a container with docker/podman/nerdctl run or create --privileged. Not reported: privileged: false or a variable, a privileged key under any other parent (environment, labels, a ConfigMap payload, a PodSecurityPolicy, which permits rather than runs), --privileged=false, --privileged mentioned in comments, echo strings or free-text labels, test and .devcontainer configuration, and documentation. JSON manifests are not scanned.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-docker-005/",
 	"languages": ["docker", "kubernetes"],
 	"severity": "critical",
 	"level": "error",

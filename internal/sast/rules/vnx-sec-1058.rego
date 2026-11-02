@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1058",
 	"name": "Detectify API key (assignment)",
 	"description": "A Detectify API key assigned to a detectify field was found. It grants programmatic access to Detectify external-attack-surface scans and findings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1058",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1058",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

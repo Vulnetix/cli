@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-581",
 	"name": "Object Model Violation: Just One of Equals and Hashcode Defined",
 	"description": "A Java or Kotlin class overrides equals(Object) without hashCode(), or hashCode() without equals(Object), so two objects the class calls equal can hash differently (or the reverse): HashMap, HashSet and caches then miss entries, store duplicates, or fail to find a key that is present, which can defeat de-duplication, permission sets and lookups keyed by the object. The pairing is judged per class, so an inner or nested class that defines only one is reported even when the outer class defines both. Reported: the line declaring the lone method, public boolean equals(Object) / public int hashCode() in Java and override fun equals(other: Any?) / override fun hashCode() in Kotlin, also with the parameter list broken onto the next line. Not reported: a class that defines both, a Kotlin data class or Java record (the compiler generates the other method over the same components), an equals overload with another parameter type (equals(Point p)), calls of hashCode() or equals() on other objects, test code, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-581/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-581/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

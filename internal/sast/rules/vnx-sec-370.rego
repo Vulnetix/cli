@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-370",
 	"name": "Worldpay API/service key",
 	"description": "A Worldpay (FIS) service or API key was found near a worldpay assignment. Worldpay keys authorize live payment, refund and token operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-370",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-370",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

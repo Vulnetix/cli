@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-155",
 	"name": "Vultr Object Storage S3 secret (context)",
 	"description": "A Vultr Object Storage S3-compatible secret key under a Vultr storage context keyword was found. The secret signs requests to Vultr object storage buckets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-155",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-155",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

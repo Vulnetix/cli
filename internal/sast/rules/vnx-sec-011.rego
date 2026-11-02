@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-011",
 	"name": "Hardcoded JWT token",
 	"description": "A signed JSON Web Token is written into a file outside tests: three base64url segments whose header and payload decode to JSON objects, the header naming a signing algorithm other than none and the signature at least 16 characters long, in any file type. A committed bearer token authenticates as its subject until it expires, and its claims are readable by anyone with the repository. Not reported: tokens whose exp claim is already in the past, the public jwt.io sample token (sub 1234567890, John Doe), Supabase anon keys (role anon, public by design; VNX-SEC-493 reports them) and the Supabase CLI local demo keys (iss supabase-demo), unsigned alg none tokens, strings that only look like a JWT but do not decode, test, spec, fixture and mock paths (including .NET, Swift and Kotlin *Tests projects and files), lock files, minified bundles and prose files (Markdown, reStructuredText, AsciiDoc, plain text). Provider-specific JWT rules (VNX-SEC-211, VNX-SEC-482, VNX-SEC-492 and others) report the same token with a provider-specific message.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-011/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-011/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1057",
 	"name": "Data Access Operations Outside of Expected Data Manager Component",
 	"description": "A Python request-handling module performs raw database access although the project has a data manager component that should own it (CWE-1057). The handler module is one named or placed as a view, route, handler, controller, endpoint, resolver or API module (views.py, routes/, handlers.py, api/...) or one that declares routes (@app.route, @bp.get, @router.post, @api_view) or Django views (def name(request, ...)); the data manager component is another scanned file under a models, repositories, dao, db, database, persistence, store, crud or queries module. Raw access means: a DB-API driver connect() (sqlite3, psycopg2, pymysql, MySQLdb, mysql.connector, cx_Oracle), a .cursor() call, Django Model.objects.raw() or connection.cursor(), cursor.execute/executemany/executescript, and execute()/fetch()/fetchrow()/fetchval()/fetch_all()/fetch_one() (DB-API, asyncpg, databases) on a connection, db, session or engine handle whose argument is SQL text (a string starting with SELECT/INSERT/UPDATE/DELETE/WITH/..., sqlalchemy text(), or a name assigned such a string in the six lines above). Not reported: ORM queries (Model.objects.filter, session.query, select()), calls into the data manager's own functions, raw SQL inside the data manager modules themselves, projects with no data manager component, test files and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1057/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1057/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

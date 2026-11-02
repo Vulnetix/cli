@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-263",
 	"name": "ElevenLabs API key (sk_ prefix)",
 	"description": "An ElevenLabs API key using the modern sk_ prefix was found. It grants access to ElevenLabs voice synthesis billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-263",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-263",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

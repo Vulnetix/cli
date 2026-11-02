@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-004",
 	"name": "GitHub or GitLab token",
 	"description": "Reports a hard-coded GitHub or GitLab token in any file: a GitHub classic personal access, OAuth, user-to-server, installation or refresh token (ghp_, gho_, ghu_, ghs_, ghr_ followed by 36 characters), a GitHub fine-grained token (github_pat_…), and a GitLab personal/project access token (glpat- followed by 20 or more characters, including the newer dotted format), standalone or inside a clone URL or header. Not reported: placeholder runs (ghp_xxxx…, glpat-XXXX…), truncated tokens, prefix lists and prefix checks, environment and CI-secret references, and test, fixture, vendored and generated files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-004/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

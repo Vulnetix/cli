@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-597",
 	"name": "Memcached SASL connection with credentials",
 	"description": "A Memcached SASL connection URL embedding the username and password was found. It authenticates to a SASL-protected Memcached server and grants cache read/write access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-597",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-597",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

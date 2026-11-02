@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JAVA-026",
 	"name": "Java Spring/servlet file serving without access control",
 	"description": "A Spring or servlet handler serves a file whose name or path comes from the request, and the handler makes no authorisation decision. Reported: new FileSystemResource/UrlResource/PathResource/FileUrlResource(...) or new InputStreamResource(...) built from a request value, and FileCopyUtils/StreamUtils.copyToByteArray, Files.readAllBytes, Files.copy, IOUtils.copy/toByteArray of such a path returned in the response body or written to the response stream (directly, or through a local that is written, returned or put in a body within the next 8 lines). A request value is a handler parameter bound with @PathVariable, @RequestParam, @RequestHeader or @RequestPart, or a local assigned from getParameter/getHeader/getPathInfo/getQueryString/getRequestURI, followed through up to two local assignments (File, Path.resolve, string concatenation). Not reported: a handler (or its class) carrying @PreAuthorize/@PostAuthorize/@Secured/@RolesAllowed, a handler that consults the caller (Principal, Authentication, @AuthenticationPrincipal, getUserPrincipal, isUserInRole, getRemoteUser, SecurityContextHolder, hasPermission or an owner check), constant paths, ClassPathResource, in-memory streams (ByteArrayInputStream), comments and string literals. Flows through other methods or files are not followed; path canonicalisation alone is not treated as access control.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-026/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-026/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

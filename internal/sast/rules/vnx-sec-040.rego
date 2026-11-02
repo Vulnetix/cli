@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-040",
 	"name": "GitLab pipeline trigger / deploy / runner token",
 	"description": "Reports a GitLab infrastructure token by its documented prefix and body shape: pipeline trigger (glptt- + 40 hex), deploy (gldt-), runner authentication (glrt-), runner registration (GR1348941), Kubernetes agent (glagent-), CI job (glcbt-), OAuth application secret (gloas-), incoming mail (glimt-), feature-flag client (glffct-), feed (glft-) and SCIM (glsoat-) tokens. A prefix without a token body of the right length, placeholders and test or fixture paths are not reported; glpat- access tokens are VNX-SEC-039.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-040/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-040/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

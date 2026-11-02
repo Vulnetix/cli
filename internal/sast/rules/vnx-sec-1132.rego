@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1132",
 	"name": "Last.fm API key",
 	"description": "A Last.fm API key (32-character hex) was found. It authorizes Last.fm API read calls under the application rate limit.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1132",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1132",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

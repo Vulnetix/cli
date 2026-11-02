@@ -1,6 +1,6 @@
 # GitHub Actions
 
-This documentation has moved to **[docs.cli.vulnetix.com/docs/ci-cd/github-actions](https://docs.cli.vulnetix.com/docs/ci-cd/github-actions/)**.
+This documentation has moved to **[docs.vulnetix.com/cli/ci-cd/github-actions](https://docs.vulnetix.com/cli/ci-cd/github-actions/)**.
 
 ## Quick Start
 
@@ -39,4 +39,4 @@ jobs:
 | `summary` | Summary of vulnerabilities processed |
 | `upload-uuid` | Pipeline UUID of uploaded artifact (with `task: upload`) |
 
-See the [full documentation](https://docs.cli.vulnetix.com/docs/ci-cd/github-actions/) for advanced configuration, matrix strategies, and troubleshooting.
+See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/github-actions/) for advanced configuration, matrix strategies, and troubleshooting.

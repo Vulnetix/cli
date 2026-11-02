@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-487",
 	"name": "Reliance on Package-level Scope",
 	"description": "A credential is held in a Java field with no access modifier, so the only thing protecting it is package scope: a field of a top-level class, declared at member level without private/protected/public, that is either a key type (SecretKey, PrivateKey, Key, KeyPair, Credentials, any name) or a String/char[]/byte[] whose name says it is a password, passphrase, secret, API key, token, credential or private key. Java packages are open (any class that declares the same package, or a jar on the class path that splits it, can read the field), so this is not access control. Not reported: private, protected and public fields (public exposure is VNX-493), fields of an interface (implicitly public), injected fields carrying an annotation, constants that name a parameter, header, field, attribute or length rather than holding a value (PASSWORD_PARAM, TOKEN_HEADER), local variables, nested classes, test code and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-487/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-487/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

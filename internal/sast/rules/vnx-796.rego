@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-796",
 	"name": "Only Filtering Special Elements Relative to a Marker",
 	"description": "Reports sanitising that removes special elements only at the start or end of a value, leaving the same elements anywhere else: Python str.strip/lstrip/rstrip and lodash _.trim/_.trimStart/_.trimEnd whose character set mixes a dot with a path separator ('./', '../\\\\') or holds shell metacharacters (; | & $ backtick: two or more distinct, or one with a command such as exec, subprocess or os.system within six lines), Python removeprefix/removesuffix of a .. sequence, and Python re.sub / JavaScript replace() with an empty replacement whose pattern is anchored with ^ or $ and removes dots with path separators ('^(\\.\\./)+') or shell metacharacters (same test). 'a/../../etc/passwd'.lstrip('./') is unchanged. Plain normalisation (rstrip('/'), lstrip('.'), strip('\"'), strip('<>') on a Message-ID, rstrip(';') on SQL, strip('$') on a price), stripping a file extension (\\.[^/.]+$) and unanchored global replacements are deliberately not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-796/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-796/",
 	"languages": ["python", "node"],
 	"severity": "low",
 	"level": "note",

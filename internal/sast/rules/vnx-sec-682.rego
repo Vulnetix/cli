@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-682",
 	"name": "Facebook/Meta access token (EAAB)",
 	"description": "A Facebook/Meta Graph API access token (EAA prefix) was found. It authenticates Graph API requests on behalf of a user, page or app.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-682",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-682",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

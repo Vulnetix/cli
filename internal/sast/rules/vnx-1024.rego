@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1024",
 	"name": "Comparison of incompatible types (always false)",
 	"description": "A value is compared for equality with a value of a type it can never equal, so the check is constantly false (or, negated, constantly true) and whatever it guards never runs or always runs. Java: x.equals(y) or Objects.equals(x, y) where x is declared in the file with exactly one type and y is a literal of another: a String against a number, boolean or char literal; a Long against an int literal (5 boxes to Integer, which never equals a Long) or a string; an Integer, Short or Byte against a long, decimal or string literal; a Double or Float against an int or string literal; a Boolean, Character, BigDecimal, BigInteger or UUID against a string literal (or, for Boolean and Character, a number); and a string literal's own .equals() given a number or boolean. Python: a value read as a string (input(), sys.argv[...], os.environ.get/os.getenv, Flask request.args/form/headers/cookies .get or [...], Django request.GET/POST .get) compared with == or != to an int or float literal, directly or through a variable assigned from it a few lines above and not converted since. Not reported: names declared with more than one type in the file, request.args.get(..., type=int), a .get() or os.getenv() with a numeric or boolean default (the value is a number when the key is absent), values converted with int()/float()/len()/bool(), ordering comparisons, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1024/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1024/",
 	"languages": ["java", "python"],
 	"severity": "low",
 	"level": "note",

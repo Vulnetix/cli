@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1028",
 	"name": "HashiCorp Vault recovery token (hvr.)",
 	"description": "A HashiCorp Vault recovery token (hvr. prefix) was found. It can perform recovery operations on a Vault cluster running with auto-unseal.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1028",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1028",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

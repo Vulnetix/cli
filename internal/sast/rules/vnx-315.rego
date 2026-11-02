@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-315",
 	"name": "Cleartext Storage of Sensitive Information in a Cookie",
 	"description": "A password, payment card number, CVV, social security number, PIN, bank account number, API or private key is written into a cookie in cleartext, where it sits in the browser, in proxies and in logs and is sent with every request. Reported: a cookie whose name is such a value, or whose value expression names a password, card number, CVV or SSN, set through Flask/Django set_cookie/set_signed_cookie, Express res.cookie, Koa ctx.cookies.set, Fastify reply.setCookie, js-cookie Cookies.set, document.cookie = \"password=...\", Java new Cookie(...) and Spring ResponseCookie.from(...), PHP setcookie/setrawcookie, Rails cookies[...] / cookies.permanent / cookies.signed (signed cookies are readable), and Go http.Cookie{Name: ..., Value: ...} or Gin c.SetCookie(\"password\", ...). Not reported: values passed through a hash, encryption, HMAC or masking call, Rails cookies.encrypted, cookies being cleared (empty value or None), session ids, auth tokens, CSRF tokens and other identifiers, test files and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-315/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-315/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "medium",
 	"level": "warning",

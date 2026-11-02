@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-889",
 	"name": "BigCommerce client id",
 	"description": "A BigCommerce OAuth app client id was found. While not secret alone, it scopes the app's OAuth flow and is commonly committed alongside the client secret.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-889",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-889",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

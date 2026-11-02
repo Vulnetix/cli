@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-128",
 	"name": "Wrap-around Error",
 	"description": "Reports a C/C++ allocation whose size is a multiplication involving a count read from outside the program, with no overflow check, so a large count wraps the size around to a small value and the buffer is then overrun: malloc/xmalloc/alloca(n * size), realloc(p, n * size) and new T[a * b], where n is the result of atoi/atol/strtol/strtoul (and the ll variants), ntohl/ntohs/be*toh/le*toh or getenv, a variable filled by scanf/fscanf/sscanf (&n), fread(&n, ...) or read(fd, &n, ...), within the 20 lines above, or such a call written directly in the product; also size_t bytes = n * size; malloc(bytes). Not reported: calloc and reallocarray (which check the multiplication), a count compared with <, <=, > or >= before the allocation, a SIZE_MAX/INT_MAX bound, __builtin_mul_overflow or ckd_mul, counts that do not come from such a source (internal sizes, constants), comments. Counts that reach the allocation through a function argument or a struct field are out of scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-128/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-128/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

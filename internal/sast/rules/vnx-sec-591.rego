@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-591",
 	"name": "TimescaleDB Cloud connection string",
 	"description": "A Postgres connection string embedding a password against a Timescale Cloud (tsdb.cloud.timescale.com) host was found. It grants authenticated access to the managed TimescaleDB instance.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-591",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-591",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

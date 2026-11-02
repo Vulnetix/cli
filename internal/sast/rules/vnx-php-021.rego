@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-021",
 	"name": "Laravel mass assignment via empty guarded array",
 	"description": "Laravel Eloquent mass-assignment protection is switched off: a class property $guarded is declared as an empty array (protected/public $guarded = [], [ ], array(), or [ on one line and ] on the next), or Model::unguard() / Eloquent::unguard() / static::unguard() is called (with no argument or true) in application code that never calls reguard(). Any attribute, including is_admin, role or password, can then be set through create(), fill() or update() with request data. Not reported: a non-empty $guarded list (['id'], ['*']) or a $fillable allowlist, a local variable named $guarded, Model::unguarded(fn) (scoped to a callback), unguard() followed by reguard() in the same file, unguard(false), seeders, factories and migrations under database/, pivot models (extends Pivot/MorphPivot, filled by attach()), the framework's own and vendored package models (Illuminate/, vendor/), test files, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-021/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-021/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

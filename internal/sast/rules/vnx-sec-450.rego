@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-450",
 	"name": "Brevo/Sendinblue SMTP key (xsmtpsib-)",
 	"description": "A Brevo (formerly Sendinblue) SMTP key (xsmtpsib-) was found. SMTP keys authenticate outbound mail relay through the Brevo SMTP servers.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-450",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-450",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

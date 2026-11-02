@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1110",
 	"name": "Incomplete Design Documentation",
 	"description": "A design document with a section that was never written. Design documents are Markdown files named or filed as design, architecture, ADR, RFC, proposal or threat-model documents (DESIGN.md, ARCHITECTURE.md, auth-design.md, docs/design/*, docs/design-docs/*, docs/adr/*, rfcs/*); 'design' must be a whole word of the file name, so designer-onboarding.md is not one. Reported: a section whose whole body is a placeholder (TBD, TBC, TODO, FIXME, 'To be written/determined/decided', 'Coming soon', '...', also inside an HTML comment such as '<!-- TODO: ... -->'), at the placeholder line; and a heading with no content before the next heading of the same or a higher level, or before the end of the file, at the heading. Not reported: README and other prose that is not a design document, templates (files named *template* or *skeleton*, or under a templates/ directory), setext (underlined) headings, '# key' comment lines inside YAML/TOML front matter, a placeholder word inside a sentence, a section holding only subsections, and anything inside a fenced code block.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1110/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1110/",
 	"languages": [],
 	"severity": "low",
 	"level": "note",

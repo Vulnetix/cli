@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1113",
 	"name": "Dolby.io media app key",
 	"description": "A Dolby.io app key (UUID-like identifier) was found. Combined with the app secret it authorizes the Dolby.io Media Processing APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1113",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1113",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1108",
 	"name": "Vimeo OAuth client secret",
 	"description": "A Vimeo API app client secret was found. Combined with the client id it completes the OAuth flow to mint access tokens acting on Vimeo accounts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1108",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1108",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

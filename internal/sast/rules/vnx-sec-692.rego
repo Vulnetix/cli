@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-692",
 	"name": "Bluesky app password",
 	"description": "A Bluesky (AT Protocol) app password (xxxx-xxxx-xxxx-xxxx format) assigned to a bluesky context was found. It authenticates to Bluesky on behalf of the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-692",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-692",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

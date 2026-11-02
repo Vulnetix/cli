@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-492",
 	"name": "Use of Inner Class Containing Sensitive Data",
 	"description": "A Java inner class (a non-static member class, or an anonymous class created with new X() { ... }) reads a private field of its outer class whose name says it holds a password, passphrase, secret, API key, token, credential, private, master, signing, encryption or HMAC key, or PIN. Inner classes compile to separate top-level classes, so the compiler (before Java 11 nestmates) widens access to the outer class's private field through package-visible accessors any class in the package can call, and the inner instance keeps the outer instance, and the secret, reachable. Reported at the inner class's declaration. Not reported: static nested classes, inner classes that do not use a sensitive field, lambdas, sensitive fields that are not private, test code and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-492/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-492/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

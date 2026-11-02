@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-003",
 	"name": "Command injection via child_process",
 	"description": "child_process exec()/execSync() (which run their command through /bin/sh) called with a command built at run time: a template literal with ${...} interpolation (also one spanning several lines), string concatenation, a request/argv value passed directly, or a variable assigned within the previous 10 lines from such a string or from a request/argv value (req.query/body/params, ctx.request, process.argv). The call must resolve to child_process: a module bound by require/import (cp.exec, child_process.execSync, require('child_process').exec), a destructured or aliased import ({ exec }, { execSync as run }), or a util.promisify(exec) wrapper. Not reported: RegExp.prototype.exec and any other object's exec method (db.exec, re.exec), execFile/spawn with an argument array, constant command strings, and the pattern inside comments or string literals. spawn with shell:true is VNX-NODE-026 and shelljs is VNX-NODE-022.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-003/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

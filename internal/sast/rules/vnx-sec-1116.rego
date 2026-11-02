@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1116",
 	"name": "Giphy production app key context",
 	"description": "A Giphy production application key in a production-key context was found. Production keys have higher quotas and broader access than beta keys.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1116",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1116",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

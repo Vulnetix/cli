@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1133",
 	"name": "Spotify OAuth access token (bearer)",
 	"description": "A Spotify Web API OAuth access token (BQ prefixed bearer) was found. It authorizes Spotify API scopes on the account until it expires.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1133",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1133",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

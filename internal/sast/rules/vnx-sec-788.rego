@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-788",
 	"name": "Confluence/Jira OAuth 2.0 access token",
 	"description": "A Confluence/Jira (Atlassian) OAuth 2.0 (3LO) access token was found. It grants API access to the authorised Atlassian Cloud sites' content. This is distinct from the basic Atlassian API token.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-788",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-788",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

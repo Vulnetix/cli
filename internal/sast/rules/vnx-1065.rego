@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1065",
 	"name": "Runtime Resource Management Control Element in a Component Built to Run on Application Servers",
 	"description": "Java: a component that runs inside an application server or servlet container (a class extending HttpServlet/GenericServlet, an EJB annotated @Stateless/@Stateful/@Singleton/@MessageDriven, a @WebServlet/@WebFilter/@WebListener, a @ServerEndpoint WebSocket endpoint, a JAX-RS resource, or a Spring @Controller/@RestController, or a file importing javax/jakarta servlet, EJB, JAX-RS or WebSocket APIs) that manages the JVM or its threads itself: System.exit(), Runtime.getRuntime().exit()/halt() (also split across lines, or through a variable assigned Runtime.getRuntime()), new Thread(...), or an unmanaged java.util.concurrent.Executors.new...() pool. Exiting stops the whole server and every other application on it; unmanaged threads escape the container's lifecycle, security context and thread-pool limits (use a ManagedExecutorService or the framework's task executor). Not reported: the same calls in command-line programs and other classes with no container API, inside a `static void main` (a launcher that boots an embedded server), in test sources, Thread.currentThread() and other Thread static methods, ThreadLocal and Thread arrays, lookalike identifiers, and comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1065/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1065/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

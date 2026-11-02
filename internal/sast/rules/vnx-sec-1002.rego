@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1002",
 	"name": "Fireblocks API key (UUID)",
 	"description": "A Fireblocks API key (UUID) assigned to a fireblocks field was found. Paired with the RSA API secret it authenticates requests to the Fireblocks vault, transactions and policy APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1002",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1002",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-787",
 	"name": "Wrike permanent access token",
 	"description": "A Wrike permanent access token was found. It grants API access to the user's Wrike tasks, folders and projects without expiry until revoked.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-787",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-787",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

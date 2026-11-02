@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-299",
 	"name": "Anthropic API key (assignment context)",
 	"description": "An Anthropic API key referenced via an ANTHROPIC_API_KEY assignment was found, confirming a live Anthropic credential in source.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-299",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-299",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-672",
 	"name": "Operation on a file, socket, stream or connection after it was closed",
 	"description": "A resource is used after the code itself released it, in straight-line code of the same block. Python: X.close() (or os.close(fd)) followed within 15 lines by X.read/readline/readlines/write/writelines/seek/tell/truncate/flush, X.send/sendall/sendto/recv/recvfrom, X.execute/executemany/executescript/cursor/commit/fetchone/fetchall/fetchmany (or os.read/os.write/os.fstat/os.lseek on the fd), including a cursor whose connection was closed; and a 'with ... as X:' block followed, after it ends, by such a call on X. Node.js/TypeScript: X.end(), X.close(), X.destroy() or X.release() followed by X.write/read/query/execute/run/all/get/exec/prepare/send/push/each, and fs.close/closeSync(fd) followed by fs.read/write/fstat(Sync)(fd, ...). The call raises ValueError/'write after end'/'Client was released' or silently operates on a dead or recycled handle. Not reported: a reassignment or re-open of the variable in between, any return/raise/throw/break/continue/def/function boundary or end of the enclosing block between the release and the use (a close in an error branch or another method), attribute checks such as f.closed, event listeners (stream.on('finish')) after end(), HTTP responses (res.end(), covered by VNX-666), comments, docstrings and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-672/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-672/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-251",
 	"name": "OpenAI classic API key (sk-)",
 	"description": "A classic OpenAI user API key (sk- prefix) was found. It grants access to OpenAI model inference, fine-tuning and files billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-251",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-251",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

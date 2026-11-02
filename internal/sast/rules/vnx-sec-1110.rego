@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1110",
 	"name": "Brightcove policy key (BCpkc)",
 	"description": "A Brightcove Playback API policy key (BCpkc prefix) was found. It authorizes Playback API access to video metadata and sources for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1110",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1110",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

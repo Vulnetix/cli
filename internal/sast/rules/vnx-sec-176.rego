@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-176",
 	"name": "Oracle Cloud (OCI) config fingerprint+key context",
 	"description": "An OCI config fingerprint paired with key context was found. The fingerprint identifies the API signing key uploaded to the OCI user; its exposure alongside the private key compromises the user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-176",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-176",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

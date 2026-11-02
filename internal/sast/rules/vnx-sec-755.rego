@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-755",
 	"name": "Rippling API token",
 	"description": "A Rippling API token was found. It grants API access to the company's HR, payroll and IT data managed in Rippling.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-755",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-755",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

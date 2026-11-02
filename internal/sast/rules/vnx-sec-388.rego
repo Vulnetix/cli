@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-388",
 	"name": "BlueSnap data-protection key",
 	"description": "A BlueSnap data-protection/encryption key was found near a bluesnap assignment. It is used to encrypt card data and authorize hosted-checkout flows.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-388",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-388",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

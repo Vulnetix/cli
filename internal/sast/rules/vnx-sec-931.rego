@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-931",
 	"name": "ThingSpeak write/read API key",
 	"description": "A ThingSpeak channel API key (write or read) was found near a thingspeak assignment. It is a 16-character uppercase-alphanumeric key authorizing writes to or reads from an IoT data channel.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-931",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-931",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

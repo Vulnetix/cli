@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-340",
 	"name": "Razorpay key secret",
 	"description": "A Razorpay key secret was found near a razorpay/key_secret assignment. Combined with the key id it authorizes live payment, refund and payout operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-340",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-340",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-165",
 	"name": "Aiven service connection URI (context)",
 	"description": "An Aiven managed-service connection URI with embedded password under an Aiven context was found. It grants direct access to the managed database or streaming service.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-165",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-165",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-031",
 	"name": "Logging of sensitive data",
 	"description": "Reports a console.log/info/warn/error/debug/trace call, or a logger/log/winston/bunyan/pino (also this.logger, req.log, fastify.log) info/warn/error/debug/trace/fatal/verbose/silly call, or a call to a logger made by the debug package (require('debug')('ns'), or a factory imported or required from 'debug'), whose arguments pass a variable or property named as a credential or payment secret: password/passwd/pass/pwd/passphrase, secret, token (accessToken, sessionToken, refresh_token), apiKey/privateKey/accessKey/secretKey, credential(s), authorization/authHeader/bearer, jwt, otp, pin, ssn, cvv/cvc, cardNumber/creditCard. The value is read inside the call (the call may span lines; template-literal interpolations count). Not reported: the sensitive word inside the message text only ('password changed'), object keys with literal values, derived non-secret values (token.length, a fixed-length prefix such as token.substring(0, 8), !!password, Boolean(x), typeof x, redact()/mask()/hash/sha256() of it), lookalike names (tokens, tokenizer, tokenCount, nextPageTokenUrl, isTokenValid, hasSecret, passwordPolicy, secretName, secretArn, secretsManagerRegion, spinner, mapping), Math.log, comments, strings, minified files and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-031/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-031/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
 	"level": "error",

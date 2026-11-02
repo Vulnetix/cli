@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-792",
 	"name": "Incomplete Filtering of One or More Instances of Special Elements",
 	"description": "Reports HTML/script sanitising that only handles the first occurrence of a markup special element: in JavaScript/TypeScript, String.replace() with a string literal or a regex literal without the g flag whose pattern is <, >, &, a quote (including an escaped \"), a class of them such as [<>], a script/iframe tag, javascript: or an event-handler attribute, replaced with nothing or with an HTML entity; in Python, str.replace(..., 1) and re.sub(..., count=1) with the same tokens. Every later occurrence passes through unescaped. Global replacements (/g, replaceAll, Python's default replace-all), template substitutions whose replacement is markup, and path/command tokens (VNX-793) are deliberately not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-792/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-792/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

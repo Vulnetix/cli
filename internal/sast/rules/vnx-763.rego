@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-763",
 	"name": "Release of a pointer that never came from the heap",
 	"description": "free() or delete is given an address the allocator never returned: the address of a variable, a stack or static array, or a string literal. Releasing it is undefined behaviour and corrupts the allocator's state. Reported: free(&x) and free((void *)&x) for a plain identifier x (not &x[0], not a member access); free(arr) and delete[] arr where arr is declared as an array in the same function (no column-0 closing brace between the declaration and the release) or as an array at file scope, including arrays of pointers; free(\"literal\"); and C++ delete &x. Not reported: pointers assigned from an allocator, &p[0], array parameters (char buf[] is a pointer), struct members, wrappers such as sdsfree, an array of the same name in a different function or shadowed by a pointer of that name declared after it (a later method of a class body), comments and string literals. Pointers into the middle of an allocation are VNX-761; mismatched allocators are VNX-762; releasing the same pointer twice is VNX-415.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-763/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-763/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-032",
 	"name": "PGP private key block hardcoded",
 	"description": "Reports the armour header of a PGP/GPG private key block (-----BEGIN PGP PRIVATE KEY BLOCK-----) when key material follows it: a base64 line of at least 40 characters within the next eight lines (armoured files, YAML block scalars, quoted multi-line .env values, Go/JS backtick, Python triple-quoted and heredoc strings that open on the header line), or on the same line after escaped newlines (JSON and single-line strings). A header used as a string constant or prefix check in code, documentation with a placeholder body, PGP public key blocks, and test and fixture paths are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-032/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-032/",
 	"languages": ["generic"],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-717",
 	"name": "Gemini exchange API key (account-/master-)",
 	"description": "A Gemini exchange API key (account- or master- prefix) was found. Paired with the secret it authorises trading and funding on the Gemini account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-717",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-717",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

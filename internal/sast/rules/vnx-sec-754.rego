@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-754",
 	"name": "BambooHR API key",
 	"description": "A BambooHR API key (40-character hex) was found. Used as the HTTP basic-auth username it grants API access to the company's employee data in BambooHR.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-754",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-754",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

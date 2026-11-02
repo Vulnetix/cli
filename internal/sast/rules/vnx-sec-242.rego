@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-242",
 	"name": "Travis CI Pro/Enterprise access token (legacy)",
 	"description": "A Travis CI access token assigned to a TRAVIS_TOKEN/TRAVIS_API_TOKEN variable was found. It authenticates to the Travis API for the user's repositories.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-242",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-242",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

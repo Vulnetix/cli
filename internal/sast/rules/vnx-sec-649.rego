@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-649",
 	"name": "PKCS12 keystore reference",
 	"description": "A reference to a PKCS#12 keystore (.p12/.pfx) was found alongside a password. PKCS12 files bundle a private key and certificate chain and are frequently committed with the unlock password.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-649",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-649",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

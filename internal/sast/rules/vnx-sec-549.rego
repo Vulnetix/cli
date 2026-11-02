@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-549",
 	"name": "Hotjar API key",
 	"description": "A Hotjar API key was found. It grants access to read Hotjar site analytics, surveys and recordings for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-549",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-549",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

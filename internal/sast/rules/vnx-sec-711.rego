@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-711",
 	"name": "Pinterest app secret",
 	"description": "A Pinterest app secret assigned to a pinterest context was found. It authenticates the Pinterest OAuth app and can mint access tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-711",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-711",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-113",
 	"name": "Fastly API token",
 	"description": "A Fastly API token assigned to a context keyword was found. Fastly tokens grant access to CDN service configuration, purging and account resources per the token scopes.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-113",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-113",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

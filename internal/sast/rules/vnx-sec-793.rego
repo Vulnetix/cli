@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-793",
 	"name": "Heap server API key",
 	"description": "A Heap Analytics server-side API key was found. It grants API access to send and manage the organisation's Heap analytics data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-793",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-793",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

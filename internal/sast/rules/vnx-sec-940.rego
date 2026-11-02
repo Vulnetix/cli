@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-940",
 	"name": "Telesign customer ID + API key",
 	"description": "A Telesign API key was found near a telesign assignment. Telesign API keys are base64-encoded strings (~88 chars) paired with a customer ID GUID and authorize SMS, voice, and PhoneID services.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-940",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-940",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

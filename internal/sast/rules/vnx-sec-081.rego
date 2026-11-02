@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-081",
 	"name": "Cloudflare API token (cfk_)",
 	"description": "A Cloudflare API token using the modern cfk_ prefix was found. These tokens grant scoped access to Cloudflare DNS, WAF, Workers and account resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-081",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-081",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

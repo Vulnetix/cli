@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-343",
 	"name": "Predictable Value Range from Previous Values",
 	"description": "A secret is the previous value plus a small random step, so anyone who has seen one value knows the next lies in a narrow window just above it (the classic weak TCP initial-sequence-number and incrementing-token design). Reported: `x += <random draw>` where x is named for a secret or an initial sequence number (token, session id, reset code, OTP, CSRF, password, API key, isn), and `<previous> + <random draw>` where the previous value is named last/prev/previous/current/old/next or for a secret and the sum is stored under, returned as, or flows within six lines into a secret. A random draw is random.randint/randrange/getrandbits/uniform, secrets.randbelow, Math.random() (also inside Math.floor), rand()/mt_rand()/random_int(), nextInt/nextLong (Random, ThreadLocalRandom, kotlin.random.Random), Go rand.Intn/IntN/Int63n/Int31n (also inside a numeric conversion), Ruby rand/random_number and C rand()/random()/arc4random_uniform. Languages: Python, Java, Kotlin, JavaScript/TypeScript, PHP, Ruby, Go, C/C++. Not reported: jitter, delays, poll intervals and other non-secret values, counts and bookkeeping names, a draw written before the previous value (`rand() + last`), an increment by a constant (VNX-342), test files, and the pattern in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-343/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-343/",
 	"languages": ["python", "java", "kotlin", "node", "php", "ruby", "go", "c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

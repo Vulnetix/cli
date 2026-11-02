@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-396",
 	"name": "Declaration of Catch for Generic Exception",
 	"description": "A catch of the generic exception type that then throws away what was caught: Java catch (Exception e), catch (RuntimeException e) or catch (Throwable t) (final and java.lang. forms included), and C# catch (Exception), catch (Exception ex) and a bare catch, whose body neither rethrows nor references the caught exception (no log, wrap or record of it), so every failure, including unrelated programming errors, is converted into the same default (return null, return false, a flag). Not reported: a generic catch that logs, wraps, records or rethrows the exception (throw; or throw e), a catch of a specific type, a variable named ignored/ignore/expected/unused, an empty Java catch body (VNX-391 reports that), test files, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-396/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-396/",
 	"languages": ["java", "csharp"],
 	"severity": "low",
 	"level": "note",

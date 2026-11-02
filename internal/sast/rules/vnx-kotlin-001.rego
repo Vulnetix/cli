@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-KOTLIN-001",
 	"name": "Kotlin block cipher in ECB mode",
 	"description": "Kotlin code (.kt, .kts) creates a javax.crypto Cipher in Electronic Codebook mode with any block cipher (AES, DES, DESede/TripleDES, Blowfish, SM4, Camellia and the like), so equal plaintext blocks encrypt to equal ciphertext and nothing detects tampering. Reported: Cipher.getInstance with an X/ECB/... transformation (with or without a provider, across a line break, in lower case); with a bare block-cipher name (\"AES\", \"DES\", \"DESede\", \"Blowfish\", KeyProperties.KEY_ALGORITHM_AES or KEY_ALGORITHM_3DES), which names no mode and gets the provider default ECB; with a string template or concatenation that puts ECB in the mode position (\"$ALGORITHM/ECB/...\", \"${KeyProperties.KEY_ALGORITHM_AES}/${KeyProperties.BLOCK_MODE_ECB}/...\"); and with a constant anywhere in the file, companion objects included, whose literal value is one of those. Not reported: GCM, CBC, CTR and other modes, stream and AEAD ciphers (ChaCha20), RSA/ECB/... (RSA's mode name, not block ECB, also through a constant), KeyGenerator/SecretKeySpec/Mac.getInstance, a transformation passed in as a parameter or read from configuration, ECB literals that never reach Cipher.getInstance (a deny list), comments and strings, and Java files. AES-ECB is also reported by VNX-ANDROID-007.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-kotlin-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-kotlin-001/",
 	"languages": ["kotlin"],
 	"severity": "high",
 	"level": "error",

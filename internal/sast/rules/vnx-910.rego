@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-910",
 	"name": "Use of Expired File Descriptor",
 	"description": "A C or C++ file descriptor, socket or FILE stream is used after it was closed in the same function. Reported on the use: after close(fd)/::close(fd)/closesocket(s)/fclose(fp)/pclose(fp) (including a close on a single-line if), a later line within 25 lines (a call split across lines is joined with up to three continuation lines) passes the same handle (fd, conn->fd, sock_, fp) to a descriptor or stream call: read/write/send/recv/fstat/fsync/lseek/ioctl/fcntl/dup/mmap/setsockopt/shutdown/accept..., fprintf/fwrite/fread/fgets/fputs/fflush/fseek/fileno..., or closes it again (double close). By then the number may already name a different file or socket opened by another thread, so the write lands in the wrong file and the second close closes someone else's descriptor. Not reported: the handle reassigned between the close and the use (fd = -1, fd = open(...), fp = NULL) or on the use line before the use (if ((fd = open(p, O_RDONLY)) < 0 || fstat(fd, &st))), a close followed by return/goto/break/continue/exit before the use (an error path that leaves), a use in the else branch of the close, a goto label between them, the close and the use in different functions, other handles (pipefd[0] vs pipefd[1]), comments and strings. Closes in loops reached again on the next iteration, and descriptors closed through a wrapper function, are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-910/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-910/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

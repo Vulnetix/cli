@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-706",
 	"name": "Bitcoin testnet WIF private key",
 	"description": "A Bitcoin testnet WIF private key (starts with 9 or c) assigned to a wif/private-key context was found. While testnet, it indicates wallet key material committed in code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-706",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-706",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

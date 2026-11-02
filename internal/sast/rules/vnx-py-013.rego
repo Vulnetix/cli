@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-013",
 	"name": "Python ML/AI insecure deserialization",
 	"description": "A model, dataset or cached object is loaded with an ML or data loader that unpickles under the hood, which runs code embedded in the file: whoever can write or substitute the file (a downloaded checkpoint, a shared bucket, a user upload) gets code execution. Reported: joblib.load(), pandas.read_pickle(), numpy.load(..., allow_pickle=True), torch.load() without weights_only=True (or with weights_only=False), and Keras load_model(..., safe_mode=False), including module aliases (import pandas as pd), functions imported by name (from joblib import load as load_estimator) and arguments on continuation lines. Not reported: numpy.load without allow_pickle=True, torch.load(weights_only=True), torch.jit.load, safetensors, json, the dump/dumps writers, read_csv, load_model with the default safe mode, methods of other objects whose names merely contain pickle or load, and the pattern inside strings and comments. The pickle family itself (pickle, cPickle, _pickle, dill and cloudpickle load()/loads()/Unpickler()) is reported by VNX-PY-003, not here. Whether the file is trusted is not judged; torch.load is also reported by VNX-LLM-007.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-013/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-013/",
 	"languages": ["python"],
 	"severity": "critical",
 	"level": "error",

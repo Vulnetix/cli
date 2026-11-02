@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-20",
 	"name": "Input validation performed but its result ignored or bypassed",
 	"description": "Input validation is wired up but never decides anything, so invalid input is processed as if it were valid. Reported: a Spring handler that declares a BindingResult parameter and never reads it before the next method (the @Valid errors are swallowed); a Bean Validation validator.validate(...) call whose returned violations are discarded as a bare statement; express-validator chains (body/check/query/param/header/cookie(...).isX()) in a project that never calls validationResult(), so the checks only annotate the request; a Flask-WTF/WTForms form whose field .data is read in the function without form.validate() or validate_on_submit(); a pydantic Model.construct()/model_construct() fed from request data, which skips validation by design; and Go gin c.ShouldBind*/c.Bind* or validator Struct() calls whose error is discarded (a bare statement or assigned to _). Not reported: a BindingResult read in the method (hasErrors, or passed to a helper), violations assigned or chained, a validationResult call anywhere in the project's JavaScript (a shared middleware), a form validated in the same function, construct() on data that did not come from the request, a checked bind error, comments and strings. Data reaching a dangerous sink with no validation at all is the business of the injection and traversal rules, not this one.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-20/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-20/",
 	"languages": ["go", "java", "node", "python"],
 	"severity": "medium",
 	"level": "warning",

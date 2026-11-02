@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-499",
 	"name": "Serializable Class Containing Sensitive Data",
 	"description": "A Java class that implements Serializable (the clause may span lines) declares a non-transient, non-static field holding a secret: a String, char[], byte[] or CharSequence whose name says password, passwd, passphrase, pwd, pin, secret, API key, private key, an access/refresh/auth/session/bearer/id/csrf token, credential, credit card/card number, CVV or SSN, or a field of type PrivateKey, SecretKey, SecretKeySpec, KeyPair, KeyStore or Key. Serialising the object writes the secret into the byte stream (session stores, caches, files, RMI). Reported on the field. Not reported: transient and static fields (PASSWORD_PARAM constants), names that describe the secret rather than hold it (passwordPolicy, secretName, tokenEndpoint) or non-text types (int passwordLength), classes that control their serial form (writeObject, writeReplace, serialPersistentFields, Externalizable), classes that are not Serializable, test code, comments and string literals. Classes that become Serializable only through a superclass are not resolved.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-499/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-499/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

@@ -12,7 +12,7 @@ metadata := {
 	"id": "VNX-1324",
 	"name": "Hardware debug interface (JTAG/SWD) enabled in firmware outside a debug build",
 	"description": "Firmware code that turns a hardware debug port on, or keeps it alive, outside a debug-only preprocessor block: STM32 DBGMCU->CR |= DBGMCU_CR_DBG_* and HAL_DBGMCU_EnableDBGSleepMode/StopMode/StandbyMode() (and the LL_DBGMCU_ and older HAL_EnableDBG* spellings), Cortex-M CoreDebug->DHCSR written with C_DEBUGEN set (0xA05F0001-style keys or |= CoreDebug_DHCSR_C_DEBUGEN_Msk), __HAL_AFIO_REMAP_SWJ_ENABLE(), AVR MCUCR &= ~(1 << JTD) (clearing the JTAG-disable bit), nRF APPROTECT set to HwDisabled/SwDisable, and assignments of 1/true to a JTAG/SWD enable flag. A production device that ships with its debug port open lets anyone with physical access read flash, keys and RAM. Not reported: the same code inside #ifdef DEBUG, #if defined(DEBUG...), #if DEBUG or #ifndef NDEBUG blocks; code that disables debug access (&= ~, Disable* calls, DHCSR written without C_DEBUGEN, JTD set); CoreDebug->DEMCR TRCENA used for the DWT cycle counter; macro definitions, prototypes, comments and strings. Option bytes, fuses and linker-level configuration are not examined.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1324/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1324/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-666",
 	"name": "HTTP response written after it was already sent",
 	"description": "An Express, Koa-style or Fastify handler finishes the response (res/response/reply .send, .json, .jsonp, .end, .redirect, .render, .sendFile, .sendStatus or .download, also at the end of a .status(...)/.code(...) chain) and does not return, so the next statement writes to the same response again: either the very next statement, or the first response write at the same level after the closing brace of the if- or catch-block the response was sent in, before any return/throw/else/case boundary or the end of the enclosing block (the missing 'return' after an error reply), including after a braceless one-line `if (...) res.send(...)`; the second write may itself be 'return res.json(...)'. The second write runs in the wrong phase of the response's lifetime: it throws ERR_HTTP_HEADERS_SENT or is silently lost, and the code after the error reply (the success path) still executes. The finding is on the first, unreturned send. Not reported: a send preceded by 'return' or followed by a return/break statement, if/else branches, a send whose block is followed by '} else', '});' (a callback) or '},' (an object of handlers), res.write() streaming followed by res.end(), sends in comments and string literals. Python and other languages are not covered.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-666/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-666/",
 	"languages": ["node"],
 	"severity": "low",
 	"level": "note",

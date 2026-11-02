@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-697",
 	"name": "Incorrect comparison: compareTo() against 1/-1, equals(null), or equality with NaN",
 	"description": "A Java comparison that cannot mean what it says, so a limit, ordering or validity check silently takes the wrong branch. Reported: the result of compareTo(), compareToIgnoreCase() or a compare() call (Comparator.compare, Integer/Long/Double.compare) tested with == or != against 1 or -1, in either operand order (the contract guarantees only the sign; BigDecimal, String and most comparators return other magnitudes, so amount.compareTo(limit) == 1 is false for many amounts over the limit); x.equals(null), which is always false for a correct equals() and throws NullPointerException when x is null, so it never detects a null; and == or != against Double.NaN or Float.NaN, which is always false (or always true). Not reported: sign tests (> 0, < 0, == 0, >= 1), comparisons with other constants, Double.isNaN/Float.isNaN, x == null and Objects.equals(x, null), test files (where equals(null) checks the equals contract), comments and string literals. Timing-unsafe secret comparison is VNX-385/VNX-CRYPTO-008, String == is VNX-597, boxed == is VNX-595.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-697/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-697/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

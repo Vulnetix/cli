@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-349",
 	"name": "GoCardless sandbox access token (sandbox_)",
 	"description": "A GoCardless sandbox access token was found near a gocardless assignment using the sandbox_ prefix. It is scoped to sandbox but should not be committed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-349",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-349",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

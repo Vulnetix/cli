@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-541",
 	"name": "PostHog project API key (phc_)",
 	"description": "A PostHog project API key (phc_ prefix) was found. It is the client-side capture key used to send events to a PostHog project and is lower risk.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-541",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-541",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

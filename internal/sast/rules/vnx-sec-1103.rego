@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1103",
 	"name": "Steam publisher Web API key (partner)",
 	"description": "A Steam partner/publisher Web API key (32-character uppercase hex) was found. It grants access to publisher-only Steamworks Web API methods including player data and economy operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1103",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1103",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

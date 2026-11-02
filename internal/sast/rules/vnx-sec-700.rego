@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-700",
 	"name": "Ethereum keystore JSON (V3 wallet)",
 	"description": "An Ethereum V3 keystore JSON (crypto + ciphertext + kdf fields) assigned to a keystore context was found. It is an encrypted wallet file; brute-forcing the password recovers the private key.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-700",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-700",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

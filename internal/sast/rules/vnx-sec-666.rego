@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-666",
 	"name": "Coinbase Wallet API secret",
 	"description": "A Coinbase Wallet / Coinbase Cloud API secret assigned to a coinbase context was found. It authorises trading and wallet operations on the Coinbase account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-666",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-666",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

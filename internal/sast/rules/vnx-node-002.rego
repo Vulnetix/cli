@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-002",
 	"name": "eval() or new Function() in JavaScript",
 	"description": "Dynamic code evaluation in JavaScript/TypeScript with an argument that is not a constant: eval(x) (also window./globalThis./global.eval), new Function(...) or Function(...) whose parameter or body list contains anything other than string literals, vm.runInNewContext/runInThisContext/runInContext/compileFunction and new vm.Script with a non-literal source, and setTimeout/setInterval given a code string built by concatenation or template-literal interpolation. If any part of the code is user-controlled this is remote code execution. Not reported: eval or Function over string literals only (bundler escape hatches such as eval(\"require('x')\")), a method that happens to be called eval or evaluate (redis.eval, page.evaluate, mathjs evaluate), the pattern inside a string literal or comment, declarations (declare function eval), timers given a function, minified files and lines longer than 400 characters, and evaluators whose argument carries Express/Koa request data (directly or through a variable assigned or destructured from it), which are reported by VNX-94.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-002/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

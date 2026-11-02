@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-135",
 	"name": "DigitalOcean Spaces access key",
 	"description": "A DigitalOcean Spaces access key (DO00 prefix, S3-compatible) was found. Paired with its secret, it grants access to the account's Spaces object storage.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-135",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-135",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

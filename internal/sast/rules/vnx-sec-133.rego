@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-133",
 	"name": "Firebase Cloud Messaging server key (AAAA)",
 	"description": "A Firebase Cloud Messaging (legacy) server key beginning with AAAA was found. The FCM server key authorizes sending push notifications to all of an app's devices.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-133",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-133",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

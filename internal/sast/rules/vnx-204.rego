@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-204",
 	"name": "Observable Response Discrepancy",
 	"description": "A login path answers an unknown account differently from a wrong password, so the response tells an attacker which usernames or email addresses exist (account enumeration). Reported: a string literal saying the user, username, account, email or login does not exist, is not found, unknown, invalid or not registered, or that no account was found (\"User not found\", \"no such user\", \"Invalid username\", \"#{email} doesn't exist\", \"That email is not registered\") within 20 lines of, and in the same function as, a distinct literal saying the password is wrong, invalid, incorrect or not valid. The user-not-found line is reported, in Python, JavaScript/TypeScript, Go, Java, PHP, Ruby and C#. Not reported: log statements (console, logger, logging, slog), messages about the current, old, new or repeated password of a signed-in user (change-password forms), test code, one combined message (\"Invalid username or password\"), a not-found message with no password message beside it (an admin lookup returning 404), messages in comments, and messages in different functions of the file. Timing differences between the two branches are VNX-205's subject, not this rule's.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-204/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-204/",
 	"languages": ["go", "java", "node", "python", "php", "ruby", "csharp"],
 	"severity": "low",
 	"level": "note",

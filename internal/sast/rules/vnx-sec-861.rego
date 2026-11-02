@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-861",
 	"name": "Omnisend API key",
 	"description": "An Omnisend email/SMS marketing API key was found. It grants access to the account's contacts, campaigns and events in the Omnisend API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-861",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-861",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

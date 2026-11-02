@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-609",
 	"name": "Rollbar project access token",
 	"description": "A Rollbar project access token (post_*_item) assigned to a context keyword was found. It authorises sending error occurrences to the Rollbar project's items API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-609",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-609",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

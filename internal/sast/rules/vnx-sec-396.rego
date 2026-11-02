@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-396",
 	"name": "Authorize.net public client key",
 	"description": "An Authorize.Net public client key used for Accept.js client-side tokenization was found near an authorize.net assignment. Public client keys are lower risk but flag integration code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-396",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-396",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-217",
 	"name": "Bitrise access token",
 	"description": "A Bitrise personal access token was found. It grants access to the Bitrise API for triggering and configuring mobile CI/CD builds.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-217",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-217",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

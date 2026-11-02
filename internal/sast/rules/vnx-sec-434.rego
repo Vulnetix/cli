@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-434",
 	"name": "Braze REST API key",
 	"description": "A Braze REST API key was found near a braze assignment. It is a UUID-format token sent as a Bearer credential to the Braze REST API for messaging and user operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-434",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-434",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

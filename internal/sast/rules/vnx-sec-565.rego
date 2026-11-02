@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-565",
 	"name": "PlanetScale database password",
 	"description": "A PlanetScale database password using the pscale_pw_ prefix was found. It authenticates to a specific PlanetScale database branch over MySQL.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-565",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-565",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

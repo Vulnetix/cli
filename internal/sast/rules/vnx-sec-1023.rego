@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1023",
 	"name": "Doppler CLI token (dp.ct.)",
 	"description": "A Doppler CLI token (dp.ct. prefix) was found. It authenticates the Doppler CLI to a user account and can read and manage secrets across authorized projects.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1023",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1023",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

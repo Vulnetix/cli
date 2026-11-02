@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-041",
 	"name": "Atlassian API token",
 	"description": "Reports an Atlassian Cloud API token written into a file: the current ATATT3-prefixed token (about 190 characters of base64url with its checksum) anywhere in a line, and a legacy 24-character alphanumeric token quoted as the value of an Atlassian-, Jira- or Confluence-named token, key, secret or password field, or assigned unquoted to such a field as the whole of a dotenv, properties or shell line (JIRA_API_TOKEN=...). These tokens act as the issuing user on Jira, Confluence and Bitbucket Cloud. The snippet is redacted. Not reported: ATATT3 inside a longer identifier, truncated or placeholder tokens (xxxx, EXAMPLE, REPLACE), a legacy-shaped value with low entropy or no digits, tokens read from the environment, and test, fixture and vendored paths. Atlassian OAuth tokens and Connect shared secrets are VNX-SEC-788 and VNX-SEC-789.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-041/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-041/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

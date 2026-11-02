@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1091",
 	"name": "StackPath client secret",
 	"description": "A StackPath API client secret was found. Combined with the client id it mints OAuth tokens for the StackPath CDN, WAF and edge compute APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1091",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1091",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

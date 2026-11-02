@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1304",
 	"name": "Security state restored from unprotected saved state",
 	"description": "CWE-1304 (Improperly Preserved Integrity of Hardware Configuration State During a Power Save/Restore Operation) is a hardware weakness: configuration saved before a low-power state is restored afterwards without an integrity check. Its nearest statically recognisable software form is reported: Android Java/Kotlin code that restores a security decision (logged in, authenticated, admin, role, PIN or biometric verified, unlocked, premium/licensed, access level) from state saved across a process stop, with no integrity protection, instead of re-establishing it. Reported: getBoolean/getString/getInt with such a key (a literal, or a constant of this file whose value is one) on plain SharedPreferences (a variable typed SharedPreferences or assigned from getSharedPreferences/getDefaultSharedPreferences, or a call chained onto one, on the same or the next line), which any rooted device or backup restore can edit, and on a saved-instance Bundle (savedInstanceState, a variable typed Bundle) restored after process death, which skips re-authentication. Not reported: EncryptedSharedPreferences (authenticated encryption), keys that are not security decisions (theme, language, scroll position), the same getters on JSON responses or Intents, test code and comments. Hardware save/restore integrity itself is not observable in source and is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1304/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1304/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

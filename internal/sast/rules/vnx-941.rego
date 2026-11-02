@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-941",
 	"name": "Message sent without specifying its intended recipient",
 	"description": "Data is sent over a channel whose destination is left open, so whoever is listening receives it. Reported: in JavaScript/TypeScript (and inline scripts of HTML/Vue pages), postMessage(data, '*') or postMessage(data, { targetOrigin: '*' }) sent to another window (window.opener, parent, top, an iframe's contentWindow, a popup or any other window reference), which delivers the data to whatever origin that window now shows; in Android Java/Kotlin, sendBroadcast/sendOrderedBroadcast/sendStickyBroadcast of an implicit Intent (created with only an action, or no arguments) that carries extras (putExtra) and is sent (on any Context receiver: context, mContext, context?., requireActivity()) without a receiver permission and without setPackage/setComponent/setClass, so any installed app can register for the action and read the extras. Not reported: postMessage with an explicit target origin, postMessage to the page's own window (window.postMessage / self.postMessage / bare postMessage) and Worker/MessagePort postMessage (which take no target origin), explicit Intents (new Intent(ctx, X.class), X::class.java), broadcasts with a permission argument, LocalBroadcastManager, intents without extras, comments and string literals. VNX-NODE-024 also reports the wildcard postMessage shape.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-941/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-941/",
 	"languages": ["node", "java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

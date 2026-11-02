@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-010",
 	"name": "Node.js path traversal",
 	"description": "A file-system path built from the incoming request: the path (first argument) of an fs/fs.promises/fs-extra call that reads, writes, streams, lists, stats or deletes (readFile, readFileSync, createReadStream, createWriteStream, writeFile, appendFile, unlink, rm, readdir, stat, access, open, copyFile, rename, mkdir, existsSync, outputFile, remove, readJson; also the bare names imported from fs or fs/promises), or of res.sendFile/res.download, is a req/request query, params, body, headers, cookies, url, originalUrl or path value, a Koa ctx.query/ctx.params/ctx.request.body value, a params/query/body/headers/cookies member of a handler that destructures its request in the signature (({ params }: Request, res) => ...), or a variable assigned (or destructured) from one in the 25 lines above, directly or through one intermediate assignment such as path.join(dir, name). Not reported: a path passed through path.basename, checked with startsWith against a base directory, checked for '..' or '/', matched against an anchored regex or a sanitize/isValid function in the lines above; res.sendFile/res.download with a root option (send rejects paths that climb out of root); request values written as file data rather than used as the path; constant paths; comments and string literals. Flows through helper functions or across files are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-010/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-010/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

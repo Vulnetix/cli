@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1080",
 	"name": "OMDb API key",
 	"description": "An OMDb API key (8-character hex) was found. It authorizes movie metadata lookups under the OMDb account daily quota.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1080",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1080",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-247",
 	"name": "Pulumi config passphrase",
 	"description": "A Pulumi config passphrase (PULUMI_CONFIG_PASSPHRASE) used to encrypt stack secrets was found. It can decrypt secret config values in Pulumi state.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-247",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-247",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

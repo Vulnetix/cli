@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-930",
 	"name": "Android app runs commands as root through su",
 	"description": "CWE-930 is an OWASP Top Ten 2013 category (broken authentication and session management) with no code shape of its own; this rule reports the concrete device-level authorization signal it was generated for: Java or Kotlin code that launches the su binary to run commands as root, through Runtime.getRuntime().exec(\"su\"), exec(\"su -c ...\"), exec(new String[]{\"su\", ...}) or exec(arrayOf(\"su\", ...)), new ProcessBuilder(\"su\", ...), ProcessBuilder(listOf/Arrays.asList(\"su\", ...)) or processBuilder.command(\"su\", ...), with su named bare or by an absolute path (/system/xbin/su, /su/bin/su) and the argument list possibly starting on the next line; a command array whose first element is su assigned a few lines before the exec; and the libsuperuser Shell.SU.run(...) and early libsu Shell.su(...) root-shell helpers. Whatever the root shell runs bypasses the Android permission model. Not reported: root detection (which su, ls /system/xbin/su, File(\"/system/xbin/su\").exists(), Shell.SU.available(), Superuser.apk checks), non-root shells (Shell.SH.run), other commands, comments and strings, and test code (src/test, src/androidTest, *Test.java).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-930/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-930/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

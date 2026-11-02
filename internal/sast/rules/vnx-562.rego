@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-562",
 	"name": "Return of Stack Variable Address",
 	"description": "A C or C++ function returns the address of storage that lives on its own stack frame, so the caller receives a dangling pointer or reference the moment the function returns. Reported: in a function whose return type is a pointer, `return buf;`, `return (buf);`, `return (char *)buf;`, `return buf + n;` or `return &buf[0];` where buf is a local array declared in the function; in a function returning std::string_view or std::span, `return s;` where s is a local std::string, std::vector or std::array; `return &x;` where x is a local variable or a by-value parameter; `return s.c_str();` or `return v.data();` where s/v is a local std::string, std::vector or other local object; and, in a function returning a reference, `return x;` where x is a local object. Inline class methods are bounded by their own header, and old-style (K&R) definitions with the return type on the line above are read. Not reported: static, extern and thread_local locals, heap pointers (malloc/new) returned by value, globals and class members, references and pointers declared with & or * and returned by value, pointer parameters and array parameters (char buf[]), &p->field and &p[i] on a pointer, functions returning std::string or another value type (the returned array or c_str() is copied), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-562/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-562/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

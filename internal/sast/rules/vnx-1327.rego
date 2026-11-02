@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1327",
 	"name": "Binding to an Unrestricted IP Address",
 	"description": "A server socket is bound to a hard-coded wildcard address (0.0.0.0, ::, [::], or Python's empty host ''), so it accepts connections on every network interface, including public ones the service was never meant to face. Reported: Python socket.bind/create_server/HTTPServer/make_server/wsgi Server with a wildcard address tuple or argument, a gunicorn-style module-level bind = \"0.0.0.0:port\" setting, and host='0.0.0.0' passed to app.run, uvicorn.run, web.run_app, waitress serve and similar server calls; Node .listen(port, '0.0.0.0'), .bind(port, '::') and { host: '0.0.0.0' } listen options; Go net.Listen/ListenPacket, http.ListenAndServe[TLS], framework Listen/Run and http.Server{Addr:} with a \"0.0.0.0:port\" or \"[::]:port\" address; and the same through a constant or variable assigned the wildcard a few lines above. Not reported: loopback and named hosts, an address read from configuration or the environment (even with a wildcard default), Go's \":port\" form (the language default, used by nearly every server, which would bury the deliberate wildcards), CIDR strings and IP comparisons, comments, strings that are not a bind argument, and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1327/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1327/",
 	"languages": ["go", "node", "python"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1269",
 	"name": "Product Released in Non-Release Configuration",
 	"description": "A Python debugger hook is left in production code, so the shipped program stops at an interactive debugger prompt (hanging the worker, or handing a shell to whoever owns the terminal) or opens a remote-debug port that executes arbitrary code for anyone who connects. Reported, unconditionally reached (not inside an if that tests a debug, pdb, environment, settings, config, args or flag value): pdb/ipdb/pudb/rpdb/remote_pdb/web_pdb.set_trace(), pdb.post_mortem()/pm(), the built-in breakpoint(), a bare set_trace() or embed() imported from one of those debuggers or from IPython, __import__(\"pdb\").set_trace(), IPython.embed(), debugpy.listen()/wait_for_client()/breakpoint(), ptvsd.enable_attach()/wait_for_attach(), pydevd/pydevd_pycharm.settrace() and code.interact(). Not reported: a debugger behind a debug flag or environment check, a method or function of the program's own named set_trace or breakpoint (obj.set_trace(), self.breakpoint()), test files, an interactive console that is the program's own feature (code.interact() or embed() inside a function named for a shell, repl or console, as flask shell is), and the names in comments and strings. DEBUG = True framework settings are reported by VNX-215.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1269/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1269/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

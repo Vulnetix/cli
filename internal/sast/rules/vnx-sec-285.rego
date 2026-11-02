@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-285",
 	"name": "Hugging Face fine-grained token (hf_oauth/api)",
 	"description": "A Hugging Face fine-grained or OAuth access token was found using an extended hf_ form. It grants scoped access to Hugging Face repos and inference.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-285",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-285",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

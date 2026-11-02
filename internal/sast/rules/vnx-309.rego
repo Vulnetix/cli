@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-309",
 	"name": "Use of Password System for Primary Authentication",
 	"description": "Authentication is decided by comparing a submitted password directly with a stored or configured one: the password is the sole secret, it is held in a recoverable form, and the comparison is not constant-time. This is the concrete code-level form of CWE-309 that a line-oriented rule can see; whether a deployment adds a second factor elsewhere is not visible. Reported: an equality test (==, ===, !=, !==, .equals(), .equalsIgnoreCase(), Objects.equals(), PHP strcmp/strcasecmp/hash_equals) in Python, JavaScript/TypeScript, Java or PHP whose two operands both name a password (password, passwd, pwd, passphrase), such as user.password == request.form[\"password\"], password === user.password, user.getPassword().equals(password) or $row['password'] == $_POST['password']. Not reported: password-hash verification (check_password_hash, bcrypt.compare, passlib verify, password_verify), operands that hash or measure the password (hash(), md5, digest, length), confirmation checks (password == confirm_password, password1 != password2, new vs old password, matching password), comparisons with null, empty strings or other literals, enum and format comparisons, test files and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-309/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-309/",
 	"languages": ["java", "node", "php", "python"],
 	"severity": "medium",
 	"level": "warning",

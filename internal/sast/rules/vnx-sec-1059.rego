@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1059",
 	"name": "Probely API token (assignment)",
 	"description": "A Probely API token assigned to a probely field was found. It grants programmatic access to Probely web-application security scans and targets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1059",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1059",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

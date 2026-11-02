@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1050",
 	"name": "Sysdig Secure API token (assignment)",
 	"description": "A Sysdig Secure/Monitor API token (UUID) assigned to a sysdig field was found. It grants programmatic access to Sysdig runtime-security, scanning and monitoring data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1050",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1050",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

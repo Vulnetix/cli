@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-599",
 	"name": "Oracle DB connection string with password",
 	"description": "An Oracle database connection string embedding the user password (user/password@host or oracle:// URL) was found. It authenticates to the Oracle instance via the listener.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-599",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-599",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

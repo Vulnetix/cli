@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-745",
 	"name": "SAP Concur OAuth access token",
 	"description": "An SAP Concur OAuth2 access token was found. It grants API access to the company's Concur expense, travel and invoice data until it expires.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-745",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-745",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

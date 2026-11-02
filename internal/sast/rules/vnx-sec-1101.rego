@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1101",
 	"name": "Umami API key/token",
 	"description": "A Umami Analytics API key or token was found. It authorizes the Umami API to read website analytics and manage the account's sites.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1101",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1101",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

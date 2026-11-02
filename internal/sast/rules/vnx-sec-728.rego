@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-728",
 	"name": "Telegram bot token",
 	"description": "A Telegram Bot API token (numeric id : alphanumeric) was found. It grants full control of the Telegram bot including reading and sending messages.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-728",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-728",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

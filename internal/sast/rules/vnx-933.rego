@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-933",
 	"name": "Script loaded over plain HTTP",
 	"description": "CWE-933 is the OWASP Top Ten 2013 Security Misconfiguration category with no code shape of its own; this rule reports the concrete misconfiguration it was generated for, a page that loads executable script over plain http://, which anyone on the network path can replace with their own code. Reported: a <script> tag whose src is an http:// URL in HTML and server-side template files (.html, .htm, .php, .jsp, .erb, .ejs, .cshtml, .aspx, .vue, .svelte, .jsx, .tsx, Jinja, Twig, Handlebars and similar), with any quoting or letter case and with the src attribute on a later line of the start tag; and in JavaScript/TypeScript, an element made by document.createElement(\"script\") whose src is set to an http:// URL a few lines later (el.src = or el.setAttribute(\"src\", ...)), and $.getScript/jQuery.getScript or a worker's importScripts called with an http:// URL. Not reported: https:// and protocol-relative or relative src values, loopback development servers (localhost, 127.0.0.1, 0.0.0.0, [::1]), http:// URLs on links, images or inside inline script code, HTML comments (single-line or multi-line), test files, and script URLs assembled at run time. A tag with an integrity attribute is still reported: on an HTTPS page the browser blocks the script as mixed content, and on an HTTP page the attacker can rewrite the tag itself.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-933/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-933/",
 	"languages": ["html", "javascript", "typescript", "php", "java", "csharp", "ruby"],
 	"severity": "medium",
 	"level": "warning",

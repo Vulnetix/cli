@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-909",
 	"name": "Visual Crossing weather API key",
 	"description": "A Visual Crossing Weather API key was found near a visualcrossing assignment. It is a 25-character uppercase-alphanumeric string authorizing timeline weather queries.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-909",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-909",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-857",
 	"name": "ActiveCampaign API key",
 	"description": "An ActiveCampaign API key was found. Paired with the account API URL it grants access to the account's contacts, automations and campaigns.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-857",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-857",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

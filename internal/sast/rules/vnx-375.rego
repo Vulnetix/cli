@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-375",
 	"name": "Returning a Mutable Object to an Untrusted Caller",
 	"description": "A public or protected Java method returns a reference to one of the object's own mutable fields, so any caller can change the object's internal state without going through its methods (an exposed internal representation). Reported: `return field;` or `return this.field;` in a public or protected method (also a one-line getter) where the field is declared in the same file as an array or as a mutable collection or date type (List, ArrayList, LinkedList, Map, HashMap, TreeMap, LinkedHashMap, Set, HashSet, TreeSet, LinkedHashSet, Collection, Deque, Queue, Date, Calendar, StringBuilder). Not reported: a returned copy or view (Collections.unmodifiableList, List.copyOf, new ArrayList<>(x), clone(), new Date(d.getTime())), fields initialised with an immutable value (List.of, Set.of, Map.of, Collections.unmodifiable*, Collections.empty*, Immutable*, copyOf), immutable field types (String, primitives, ImmutableList), package-private and private methods, a local variable that shadows the field, JPA/document entity classes (@Entity, @Embeddable, @MappedSuperclass, @Document) and JAXB-bound classes (@XmlRootElement, @XmlType), whose collection getters the framework requires to be live, test sources, comments and the pattern inside a string literal. A public method with an array return type that returns a private, non-empty array field is reported by VNX-495 (the array form of this weakness), not here.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-375/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-375/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

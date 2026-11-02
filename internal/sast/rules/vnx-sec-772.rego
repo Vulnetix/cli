@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-772",
 	"name": "Gong API access key secret",
 	"description": "A Gong API access key secret was found. Combined with the access key it forms the HTTP basic-auth credential granting API access to Gong call recordings and conversation analytics.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-772",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-772",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

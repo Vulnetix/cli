@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1068",
 	"name": "Inconsistency Between Implementation and Documented Design",
 	"description": "Java: a method or constructor whose Javadoc contradicts its signature. Reported on the declaration line: a `@param name` tag naming a parameter the declaration does not have (a renamed or removed parameter whose documentation was not updated), and a `@return` tag on a method declared `void` or on a constructor. Only block tags at the start of a Javadoc line count. The declaration is read across line breaks after the Javadoc, past annotations (including ones whose arguments span several lines) and line comments, with generic type arguments and annotations removed before parameters are named. Not reported: type-parameter tags (`@param <T>`), class and record Javadoc (record components are documented with @param), parameters that are declared but not documented, matching documentation, inline mentions such as `{@code @param x}` and the inline `{@return ...}` tag, and `@param` text inside string literals. This is the one statically checkable form of the CWE: whether the behaviour matches the prose is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1068/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1068/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

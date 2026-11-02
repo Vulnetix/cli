@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-783",
 	"name": "Salesforce session ID (00D)",
 	"description": "A Salesforce session ID (00D org-prefixed access token) was found. It grants API and UI access to the Salesforce org for the session's user and lifetime.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-783",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-783",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

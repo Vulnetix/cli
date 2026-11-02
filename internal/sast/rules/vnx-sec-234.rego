@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-234",
 	"name": "Argo CD admin password",
 	"description": "An Argo CD admin password assigned in configuration or a bootstrap secret was found. It grants full administrative access to the Argo CD instance.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-234",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-234",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

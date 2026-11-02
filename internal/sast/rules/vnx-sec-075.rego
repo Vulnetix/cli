@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-075",
 	"name": "WireGuard private key",
 	"description": "Reports a literal WireGuard private or preshared key: a 32-byte key in base64 (43 characters and a closing '=') written as PrivateKey = or PresharedKey = in a wg-quick/INI configuration in any file, and, in a file that mentions WireGuard (wireguard, wg-quick, wgtypes), the same key assigned to a private_key/private-key/preshared_key-style name in YAML, JSON, Nix, HCL, .env or compose environment entries (WIREGUARD_PRIVATE_KEY=...), NetworkManager keyfiles (private-key=), RouterOS scripts (private-key=, quoted) and OpenWrt UCI (option private_key '...'), or passed to wgtypes.ParseKey(). Not reported: PublicKey lines, key references (${WG_PRIVATE_KEY}, wg set ... private-key <file>), values that are not a well-formed 32-byte base64 key (variable names, <placeholders>, AAAA... or xxxx... runs, low-entropy values), key-shaped values under other names in files unrelated to WireGuard, *.example/*.sample/*.template files, Markdown, and test, fixture, vendored and generated files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-075/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-075/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

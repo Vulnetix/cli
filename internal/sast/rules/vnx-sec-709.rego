@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-709",
 	"name": "LinkedIn access token (AQ...)",
 	"description": "A LinkedIn OAuth access token (AQ prefix, long token) assigned to a linkedin context was found. It authenticates LinkedIn API requests on behalf of a member.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-709",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-709",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

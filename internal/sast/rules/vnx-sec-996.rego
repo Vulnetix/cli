@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-996",
 	"name": "MEXC API key",
 	"description": "A MEXC access key assigned to a mexc key field was found. With the matching secret it authenticates spot and futures trading requests on the MEXC API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-996",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-996",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

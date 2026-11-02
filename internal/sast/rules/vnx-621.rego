@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-621",
 	"name": "Variable extraction from request data (PHP extract/parse_str/variable variables)",
 	"description": "Reports PHP code that turns request data into local variables, letting a client define or overwrite any variable in scope (an $is_admin flag, a $price, a $file path): extract() whose argument contains a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, $_FILES, $_SERVER, $_ENV), directly or wrapped (array_merge($_GET, $_POST), array_map('trim', $_REQUEST)), on a framework's request array ($request->all(), $request->input(), $this->input->post(), Input::all()) or on a variable assigned from one a few lines above; parse_str() and mb_parse_str() with a single argument (which write into the current scope); import_request_variables(); and $$key / ${$key} / $GLOBALS[$key] assignments inside (or on the same line as) a foreach over a superglobal. Not reported: extract() with EXTR_PREFIX_ALL, extract() of array_intersect_key(...)/->only([...])/Arr::only() (a fixed key set) or of $request->validated(), extract() on a trusted array (template data, a database row, a constant array), parse_str() with a result array, method calls named extract (->extract, ::extract) and SQL/JSON extract functions, variable-variable reads, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-621/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-621/",
 	"languages": ["php"],
 	"severity": "medium",
 	"level": "warning",

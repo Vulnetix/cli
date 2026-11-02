@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-839",
 	"name": "EasyPost production API key (EZAK)",
 	"description": "An EasyPost production API key (EZAK prefix) was found. It creates live shipping labels and tracking and charges the EasyPost account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-839",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-839",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

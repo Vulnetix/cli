@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-414",
 	"name": "Missing Lock Check",
 	"description": "A lock attempt that can fail without blocking is made and its result thrown away, so the code goes on to touch the shared resource whether or not the lock is held. Reported when the call is a whole statement (its result is not assigned, returned, tested or passed on): C/C++ pthread_mutex_trylock, pthread_rwlock_tryrdlock/trywrlock, pthread_spin_trylock, mtx_trylock, sem_trywait, pthread_mutex_timedlock, sem_timedwait, flock(fd, LOCK_EX or LOCK_SH with LOCK_NB), lockf(fd, F_TLOCK, ...), fcntl(fd, F_SETLK, ...); C++ mutex try_lock(), try_lock_for(), try_lock_until(), std::try_lock(a, b), and a std::unique_lock constructed with std::try_to_lock whose owns_lock() (or the lock object itself) is never tested in the next 10 lines; Go sync.Mutex/RWMutex TryLock()/TryRLock(); Java Lock.tryLock(...) and FileChannel.tryLock(...); Python threading Lock/RLock/Semaphore/Condition and multiprocessing locks .acquire(False), .acquire(blocking=False), .acquire(block=False) and .acquire with a finite timeout (timeout=..., or True plus a timeout). Not reported: a negative or None timeout (it waits forever), results that are assigned, returned or tested (if, while, ternary, &&), an explicit discard ((void) cast in C, _ = in Go), blocking lock calls (pthread_mutex_lock, flock without LOCK_NB, Lock()), unlocks (LOCK_UN), test files, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-414/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-414/",
 	"languages": ["c", "cpp", "go", "java", "python"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-575",
 	"name": "MongoDB Atlas API private key",
 	"description": "A MongoDB Atlas Programmatic API private key (UUID-shaped) assigned to a context keyword was found. Paired with the public key it authenticates to the Atlas Administration API and can manage clusters and access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-575",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-575",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

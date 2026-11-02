@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-607",
 	"name": "Splunk HEC token",
 	"description": "A Splunk HTTP Event Collector token (UUID) assigned to an HEC context keyword was found. It authenticates event ingestion to the Splunk HEC endpoint.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-607",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-607",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

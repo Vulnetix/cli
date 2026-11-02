@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-95",
 	"name": "Template Injection (Eval Injection)",
 	"description": "HTTP request data becomes the SOURCE of a server-side template, whose directives the engine then evaluates (Jinja2/Mako/ERB reach arbitrary code execution). Reported: the template-source (first) argument of Python Flask render_template_string, Jinja2 env.from_string, and jinja2/mako/django Template (bare only when imported from those packages, or an alias of that import); Node ejs render/compile, pug/jade render/compile/compileClient, Handlebars/hbs precompile/compile, nunjucks renderString/compile, lodash _.template, doT template, Mustache render, swig render/compile and Eta render/renderString; Ruby ERB.new, Erubi::Engine.new, Erubis::Eruby.new, Haml::Engine.new, Slim::Template.new, Tilt templates and Rails render inline:. The argument must be request data (Flask/Django request.args/form/values/json/data/GET/POST/cookies/headers, Express/Koa req or ctx query/body/params/headers/cookies, Rails params/cookies/request.body) directly, interpolated, concatenated, or through a variable assigned from it, or from such a variable, in the 25 lines above. Not reported: request data passed as template context (render_template(name, x=...), ejs.render(layout, {name}), ERB with binding over a constant template), templates loaded from files, Python string.Template (substitution only), names in comments or string literals. Flows through helper functions, collections or other files are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-95/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-95/",
 	"languages": ["node", "python", "ruby"],
 	"severity": "critical",
 	"level": "error",

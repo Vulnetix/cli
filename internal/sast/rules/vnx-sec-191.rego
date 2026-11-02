@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-191",
 	"name": "Jenkins crumb (CSRF token)",
 	"description": "A Jenkins CSRF crumb value was found embedded in source. While short-lived, leaked crumbs combined with a session can enable CSRF-protected API calls.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-191",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-191",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

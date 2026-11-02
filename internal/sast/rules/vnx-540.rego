@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-540",
 	"name": "Inclusion of Sensitive Information in Source Code",
 	"description": "A production front-end build is configured to publish its source maps, so the original, unminified source (comments, internal API routes, feature flags and any value an author left in it) is served to every visitor beside the bundle. Reported: webpack devtool set to a source-map variant that embeds or links the source ('source-map', 'inline-source-map', 'eval-source-map', 'cheap-module-source-map'...) in a config whose mode is 'production' (also inside webpack-merge or a ternary) or whose file name says prod, including devtool: isProduction ? 'source-map' : ... where the production branch publishes maps; Vue CLI productionSourceMap: true; Vite build.sourcemap: true or 'inline' (nested or in a one-line build object); Next.js productionBrowserSourceMaps: true; an Angular angular.json production configuration with \"sourceMap\": true; and GENERATE_SOURCEMAP=true in .env.production. Not reported: hidden-source-map and nosources-source-map (no link or no source shipped), devtool false, development configs, sourcemap: 'hidden', CSS dev source maps, values computed at run time, comments and string literals. Secrets written directly into source code are reported by the secrets rules, not here.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-540/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-540/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

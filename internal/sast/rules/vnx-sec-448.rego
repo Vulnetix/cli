@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-448",
 	"name": "Resend API key (re_)",
 	"description": "A Resend API key (re_) was found. Resend keys authorize transactional and broadcast email sends and domain management.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-448",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-448",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

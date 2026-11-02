@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-990",
 	"name": "Gate.io API key",
 	"description": "A Gate.io API key assigned to a gate.io key field was found. Paired with the secret it authenticates spot, futures and withdrawal calls on the Gate.io API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-990",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-990",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

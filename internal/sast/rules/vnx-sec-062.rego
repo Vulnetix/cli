@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-062",
 	"name": "MySQL connection string with credentials",
 	"description": "Reports a MySQL or MariaDB connection URL that embeds a literal password: mysql:// or mariadb://user:password@host, with an optional driver suffix (mysql+pymysql, mysql+mysqldb) or jdbc: prefix, and a jdbc:mysql or jdbc:mariadb URL carrying a password= parameter, in code, config, .env (including Prisma) and compose files. The password is masked in the snippet. Not reported: a password that is interpolated or templated (${VAR}, $VAR, {{ }}, %s, <password>, f-string or template-literal fields, string concatenation), a default or placeholder word (password, root, changeme, mysql, the user name itself...), a server on localhost/127.0.0.1/::1 or a documentation host (example.com, *.test, *.invalid, a bare host or hostname), URLs without a password, Markdown/reStructuredText/AsciiDoc and *.example/*.sample/*.template files, and test, fixture, vendored and generated files. VNX-SEC-008 reports the same URLs for every database scheme.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-062/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-062/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

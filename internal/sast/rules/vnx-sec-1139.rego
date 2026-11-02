@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1139",
 	"name": "api.video sandbox key context",
 	"description": "An api.video sandbox API key paired with an apivideo sandbox context was found. It authorizes sandbox uploads and management on the api.video account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1139",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1139",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

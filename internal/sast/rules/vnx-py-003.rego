@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-003",
 	"name": "Insecure deserialization with pickle",
 	"description": "A pickle-format deserializer is called in a .py file: load(), loads() or Unpickler() of pickle, cPickle, _pickle, dill or cloudpickle, through the module, an `import pickle as x` alias (including a dotted path such as six.moves.cPickle) or a name imported with `from pickle import loads [as y]`, plus jsonpickle.decode() without safe=True. Unpickling runs whatever callable the data names (__reduce__), so any byte string that an attacker can influence (a cookie, an upload, a cache or queue entry) is code execution. Not reported: pickle.dump()/dumps() (serialising is safe), a round trip of data the same expression just serialised (pickle.loads(pickle.dumps(obj))), json/msgpack and other data-only formats, jsonpickle.decode(..., safe=True), methods of other objects named loads (serializer.loads), and the names in comments or string literals. Where the bytes come from is not judged: this rule is the one finding for a pickle call, including one fed from a request, a socket or a download (VNX-345 and VNX-PY-013 do not report it again); ML model loaders (torch.load, joblib.load, pandas.read_pickle) are VNX-PY-013.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-003/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

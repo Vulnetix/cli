@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-037",
 	"name": "Missing security headers in HTTP response",
 	"description": "A Go web application serves pages to browsers and nothing in the project sets browser security headers (X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security, Content-Security-Policy, Referrer-Policy, Permissions-Policy, Cross-Origin-*), directly or through a security-headers middleware (unrolled/secure, gin-contrib/secure, echo middleware.Secure, helmet-style SecureHeaders). A page is a response a browser renders: an html/template Execute/ExecuteTemplate into the response writer, a Content-Type of text/html, gin/echo c.HTML(status, ...), echo c.Render(status, ...) or fiber c.Render(\"name\", ...), an http.FileServer/ServeFile, a gin/echo/fiber Static/StaticFS/StaticFile directory, or markup written with fmt.Fprint(w, \"<...\"). Reported once per file, at the first such line, and only when the project is an application (a non-test file declares func main). Not reported: JSON or status-only responses (no page to frame or sniff), libraries and frameworks that only provide a renderer, test servers and mocks, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-037/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-037/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

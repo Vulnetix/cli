@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-477",
 	"name": "Resend webhook signing secret (whsec_)",
 	"description": "A Resend (Svix-backed) webhook signing secret using the whsec_ prefix was found near a resend webhook assignment. It verifies inbound webhook authenticity.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-477",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-477",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

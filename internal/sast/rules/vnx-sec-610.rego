@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-610",
 	"name": "Bugsnag API key",
 	"description": "A Bugsnag (SmartBear Insight Hub) notifier API key assigned to a context keyword was found. It identifies the Bugsnag project and authorises error event ingestion.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-610",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-610",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

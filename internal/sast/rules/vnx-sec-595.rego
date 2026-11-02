@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-595",
 	"name": "Neo4j Aura connection string with password",
 	"description": "A Neo4j connection URI (neo4j+s:// or bolt+s://) embedding the user password against a databases.neo4j.io host was found. It authenticates to the Neo4j Aura graph database.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-595",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-595",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-093",
 	"name": "HubSpot private app token (pat-)",
 	"description": "A HubSpot private app access token (pat-na1-/pat-eu1-) was found, granting API access to the HubSpot portal's CRM data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-093",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-093",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

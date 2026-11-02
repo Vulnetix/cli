@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-DOCKER-004",
 	"name": "Dockerfile ADD downloads a remote source without a checksum",
 	"description": "An ADD instruction fetches a remote source (an http:// or https:// URL, or a git repository given as https://...git, git://, ssh:// or git@host:) with no --checksum, so whatever the server returns at build time, or a tampered response over plain http, goes into the image unverified. Reported in every ADD form: flags before the source (--chown, --chmod, --link, --keep-git-dir), lowercase instructions, the JSON exec form, a source on a continuation line, ONBUILD ADD, and a ${VAR} source whose ARG default is such a URL. Not reported: ADD --checksum=sha256:... (BuildKit verifies the download), a git source pinned to a 40-character commit, local sources (VNX-DOCKER-006), a source held in a variable with no default (supplied at build time), RUN curl/wget downloads, ADD text inside comments, labels, strings and heredocs, test and .devcontainer images, and files that only mention Dockerfiles.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-docker-004/",
 	"languages": ["docker"],
 	"severity": "medium",
 	"level": "warning",

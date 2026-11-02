@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1066",
 	"name": "Missing Serialization Control Element",
 	"description": "Java: a class that declares `implements Serializable` (or `java.io.Serializable`, anywhere in its implements list, with the header split across lines) but declares no `serialVersionUID` field among its own members. Without it the stream identifier is computed from the class shape, so any recompilation or harmless change breaks deserialization of stored data, and the class has no explicit control over its serialized form. Nested classes are judged on their own members: an outer class's serialVersionUID does not cover a nested Serializable class. Not reported: interfaces, enums and records (whose serialization ignores the field), Externalizable classes, classes that only inherit Serializable through `extends` (the supertype is not resolved), lookalike names such as SerializableHelper, and comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1066/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1066/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

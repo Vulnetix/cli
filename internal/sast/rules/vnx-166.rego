@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-166",
 	"name": "Improper Handling of Missing Special Element",
 	"description": "Reports Python and JavaScript/TypeScript code that splits request data on a delimiter and assumes the delimiter was there: an index of 1 or more into the result of .split() or .rsplit() (request.headers.get('Authorization').split(' ')[1], req.headers.authorization.split(' ')[1]), Python tuple unpacking of a split (user, pw = decoded.split(':', 1), which raises ValueError when the ':' is missing), and parts = value.split(...) followed by parts[1] with no length check. The split value must be read from the request on the same line (Flask/Django/DRF request.headers/args/form/values/cookies/COOKIES/GET/POST/META/data/json, Express/Koa req/ctx headers/query/body/params/cookies, Lambda event headers/queryStringParameters/body), or assigned from it, directly or through one intermediate assignment, in the 8 lines above. A request without the delimiter then crashes the handler (IndexError/ValueError, a 500) or carries undefined forward as a token or value. Not reported: a membership or format check of the value in the 4 lines above (' ' in h, h.includes(' '), h.startswith('Bearer '), re.match), a len(parts)/parts.length check, code inside a try block, index [0] and .pop(), str.partition(), constants and non-request data, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-166/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-166/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

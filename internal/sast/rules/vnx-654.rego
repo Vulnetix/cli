@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-654",
 	"name": "Reliance on a Single Factor in a Security Decision",
 	"description": "Access is granted on the client's network origin alone (CWE-654): an if/elif condition that tests the client address or a client-supplied origin header, request.remote_addr, request.access_route, request.client.host, REMOTE_ADDR, HTTP_X_FORWARDED_FOR, HTTP_X_REAL_IP, HTTP_REFERER, request.referrer or an X-Forwarded-For/X-Real-IP/X-Client-IP/Referer header in Python, req.ip, req.ips, Koa ctx.ip/ctx.request.ip, socket/connection .remoteAddress or those headers in JavaScript/TypeScript, directly or through a variable assigned from one a few lines above, with ==, ===, in, includes, startswith/startsWith, indexOf or a regex test, and whose branch grants access: return next(), next() or await next(), login()/login_user(), a session admin/user/authenticated flag set, an is_admin/authenticated = True assignment, return True, or a decorator returning the wrapped view. An address or header is spoofable (X-Forwarded-For, Referer) or shared (NAT, proxies, SSRF from localhost) and is not proof of identity. Not reported: a condition that also checks an authenticated user, session, token or password, negated checks and blocklists that deny, logging, rate limiting and region lookups, test files, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-654/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-654/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-506",
 	"name": "Embedded Malicious Code: execution of decoded payload",
 	"description": "Code that decodes an encoded blob and executes the result, the loader shape of embedded malicious code (droppers in install scripts, backdoored packages). Python: exec()/eval() (bare or via builtins/__import__) whose argument decodes base64/base32/base85 (b64decode, decodebytes, a2b_base64), hex (bytes.fromhex, unhexlify), codecs.decode, zlib/bz2/lzma/gzip.decompress or marshal.loads, inline or through a variable assigned from such a decoder (one intermediate assignment allowed) within 15 lines above. JavaScript/TypeScript: eval(), new Function()/Function(), vm.runInThisContext/runInNewContext/runInContext/new vm.Script and child_process exec/execSync whose argument is atob(), Buffer.from(..., 'base64'|'hex'), String.fromCharCode() or a Base64.decode(), inline or through such a variable. Not reported: decoding data that is parsed, written or returned rather than executed (JSON.parse(atob(..)), ast.literal_eval), a regex's .exec(), executing a constant or an unrelated variable, a decoder applied to request data or to an encoder's output (an encode/decode round trip: the executed value is the program's own input, not an embedded payload; reported by VNX-94 or VNX-PY-002/VNX-NODE-002), and the pattern inside comments or string literals. On a Python exec/eval of a decoded blob this rule owns the line; VNX-PY-002 does not report it.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-506/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-506/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-109",
 	"name": "Scaleway access key (SCW prefix)",
 	"description": "A Scaleway API access key using the SCW prefix was found. The access key identifies the API caller and is paired with a secret key to authenticate Scaleway API requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-109",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-109",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

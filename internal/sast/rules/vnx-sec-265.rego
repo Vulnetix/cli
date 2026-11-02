@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-265",
 	"name": "Deepgram API key (Token)",
 	"description": "A Deepgram API key was found, typically used as an Authorization: Token header. It is a 40-character hex string granting access to Deepgram speech APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-265",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-265",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

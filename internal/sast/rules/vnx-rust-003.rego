@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUST-003",
 	"name": "Rust unsafe code without a safety justification",
 	"description": "An unsafe block or expression (unsafe { ... }, including let x = unsafe { ... } and match unsafe { ... }), an unsafe fn declaration (any visibility, const/async/extern \"C\" qualifiers) or an unsafe impl (Send, Sync or another unsafe trait) has no safety justification: neither a trailing comment on the same line, nor the comment block directly above it (doc comments and attributes included) or above the statement it continues (`let slice =` on one line, `unsafe { ... };` on the next), nor a comment on the first line inside an `unsafe {` block says why it is sound (SAFETY:, # Safety, safe, sound, invariant, guarantee, undefined behaviour). Unsafe Rust opts out of the compiler's memory-safety checks, and an undocumented unsafe region is one whose invariants nobody has written down, which is where buffer overflows and use-after-free enter Rust code. Not reported: unsafe regions that carry such a comment (the clippy undocumented_unsafe_blocks / missing_safety_doc convention), the word unsafe in a string literal (including the lines of a multi-line raw string r#\"...\"#, as code generators write), a comment, an identifier or a lint attribute such as #![forbid(unsafe_code)]. The rule does not judge whether the justification is correct.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-rust-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-rust-003/",
 	"languages": ["rust"],
 	"severity": "medium",
 	"level": "warning",

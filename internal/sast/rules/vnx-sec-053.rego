@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-053",
 	"name": "SonarQube / SonarCloud token",
 	"description": "Reports a SonarQube or SonarCloud token as a whole token in any file: a user token (squ_), project analysis token (sqp_) or global analysis token (sqa_) followed by exactly 40 lower-case hex characters, for example sonar.token in sonar-project.properties, SONAR_TOKEN in a workflow or -Dsonar.login on a Maven command line. The token can read source and findings and submit analyses. Not reported: identifiers that merely start with squ_/sqp_/sqa_, placeholder bodies, CI secret references, and test, fixture or vendored paths. Snyk tokens are UUIDs or snyk_-prefixed and are reported by VNX-SEC-1020 and VNX-SEC-1021, not here.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-053/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-053/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

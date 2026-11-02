@@ -11,7 +11,7 @@ metadata := {
 	"id": "VNX-122",
 	"name": "Heap-based buffer overflow from an undersized string allocation",
 	"description": "Reports two C/C++ shapes that overflow a heap buffer. (1) A string buffer allocated with malloc/xmalloc, calloc(n, 1) or new char[] (std:: forms included) sized by strlen() alone (or a sum of strlen() calls, or a variable assigned from strlen() just above) with no + 1 for the terminator, which a strcpy/strcat/sprintf/stpcpy into that buffer within the next lines then overruns by one byte; the allocation line is reported. (2) A heap buffer allocated with a fixed size (a number, an upper-case constant or a sizeof) that then receives an unbounded copy: strcpy/strcat from a non-literal source, gets(), or sprintf with an unbounded %s (also when the call breaks after the destination); the copy line is reported. Not reported: allocations with + 1, byte buffers filled with memcpy, strcpy/strcat of a string literal, copies preceded by a strlen()/strnlen() length check between the allocation and the copy, strncpy/snprintf/strdup, %.Ns precision, comments and string literals. Overflows of stack buffers, computed sizes and flows across functions are out of scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-122/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-122/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

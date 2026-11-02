@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-198",
 	"name": "Coveralls repo token",
 	"description": "A Coveralls repository token was found. It authorizes coverage submissions for a repository on coveralls.io.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-198",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-198",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

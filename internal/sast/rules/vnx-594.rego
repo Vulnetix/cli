@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-594",
 	"name": "Persisted or session-scoped Java class that is not Serializable",
 	"description": "A Java class that the container may write to disk or move between nodes is declared without implementing Serializable: a JPA @Entity, @Embeddable or @MappedSuperclass (javax or jakarta), or a CDI @SessionScoped or @ConversationScoped bean, whose declaration (which may span lines, or follow the annotation on the same line) neither implements Serializable or Externalizable nor extends another class. When the container passivates the session, replicates it across a cluster or detaches the entity for a remote call, serialisation fails or the state is silently lost. Reported on the class declaration. Not reported: classes that implement Serializable or Externalizable (or a Spring Security interface that extends it: UserDetails, GrantedAuthority, Authentication), classes that extend a superclass (which may be Serializable; superclasses are not resolved), interfaces, records and enums, other annotations that start with Entity (@EntityListeners), and annotations in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-594/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-594/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

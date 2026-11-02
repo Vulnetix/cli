@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1049",
 	"name": "Excessive Data Query Operations in a Large Data Table",
 	"description": "A single SQL SELECT statement written in Python, Java or JavaScript/TypeScript source combines five or more join and sub-query operations (JOIN clauses of any kind plus parenthesised SELECT sub-queries), the CWE-1049 shape of a query whose cost grows with every table it touches and degrades badly once those tables are large. The statement is read from the string literal it is written in: a triple-quoted Python string, a Java text block or a JavaScript template literal up to its closing delimiter, or adjacent/concatenated string literals up to the end of the statement or call. A literal holding a script of several statements separated by semicolons is judged statement by statement, and a statement counts only when it reads FROM a table, so a docstring that begins with \"Select\" and mentions joining is not SQL; an interpolated table name (join {table}, JOIN ${t}, join %s) counts as a join. The report is on the line where the query starts. Not reported: queries with four or fewer joins and sub-queries, several small queries in a row (each statement is counted on its own), str.join/path.join calls, SQL in comments, and query builders or ORM chains whose joins are not written as SQL text. Whether the tables really are large is not known to the rule; treat a finding as a prompt to check the query plan, add indexes or a materialised view, or split the query.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1049/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1049/",
 	"languages": ["python", "java", "node"],
 	"severity": "low",
 	"level": "note",

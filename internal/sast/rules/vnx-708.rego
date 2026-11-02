@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-708",
 	"name": "Incorrect Ownership Assignment",
 	"description": "A file's owner or group is set from a value the caller controls, so the resource can be handed to an account outside the program's control sphere (or, in a privileged program, an arbitrary path can be given to the caller). Reported in C and C++: chown(), lchown(), fchown() and fchownat() whose path, uid or gid argument is taken from the command line or the environment (argv[...], optarg, getenv()/secure_getenv()) directly in the call, through a variable assigned from such a source up to 20 lines above (atoi(argv[2]), strtoul(optarg, ...)), or through one further assignment from that variable (getpwnam(name) then pw->pw_uid). A call broken over several lines is read up to three lines on. Not reported: ownership set to constants, to getuid()/geteuid()/getgid() alone, to values read from the program's own configuration or computed from stat() of another file, the uid/gid -1 (unchanged), a tainted value tested by a condition other than a null check before the call (if (!uid_allowed(uid)) return, if (uid < 1000)), test code, comments and string literals. Flows through other functions or files are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-708/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-708/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

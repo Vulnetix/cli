@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-723",
 	"name": "Twitch refresh token (context)",
 	"description": "A Twitch OAuth refresh token assigned to a twitch refresh-token context was found. It can mint new access tokens for ongoing Twitch API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-723",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-723",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

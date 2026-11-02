@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-382",
 	"name": "Lemon Squeezy webhook signing secret",
 	"description": "A Lemon Squeezy webhook signing secret was found near a lemonsqueezy/webhook assignment. Exposure lets attackers forge webhook signatures.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-382",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-382",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

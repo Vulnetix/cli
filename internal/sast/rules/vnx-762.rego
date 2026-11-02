@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-762",
 	"name": "Memory released with a routine that does not match its allocator",
 	"description": "A pointer is released by a routine that does not pair with the one that allocated it, which is undefined behaviour and typically corrupts the heap or skips destructors. Reported, for a local pointer whose most recent assignment in the same function (within 100 lines, no column-0 closing brace in between) is the allocation: new T[n] released with free() or scalar delete; new T released with free() or delete[]; malloc, calloc, realloc, reallocarray, strdup or strndup memory (also through a C cast, static_cast/reinterpret_cast or std::) released with delete or delete[]; alloca stack memory passed to free(). Also reported: std::unique_ptr<T> or std::shared_ptr<T> (T not an array type) constructed from new T[n], which releases the array with scalar delete. Not reported: matching pairs, a pointer reassigned from another allocator before the release, a release in a different function (including a later method of a class body that takes a parameter of the same name), placement new, unique_ptr<T[]>, identifiers that merely contain 'new' (new_buf), comments and string literals. Offset pointers are VNX-761; addresses that never came from the heap are VNX-763.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-762/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-762/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

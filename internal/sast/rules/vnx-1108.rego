@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1108",
 	"name": "Excessive Reliance on Global Variables",
 	"description": "A Python or PHP module relies on mutable global state from inside its functions to an excessive degree: the file contains three or more `global` statements (Python `global name`, PHP `global $name`), or a single `global` statement that rebinds four or more names. Functions coupled through shared globals cannot be reasoned about or tested in isolation, and in a long-lived web worker the values leak between requests and users. Reported: each `global` statement in such a file. Not reported: a file with one or two narrow `global` statements (the lazy singleton or module cache), the word global in strings, docstrings and comments, identifiers such as global_counter or GLOBAL_TIMEOUT, nonlocal, $GLOBALS array access, PHP statements that name only WordPress core globals ($wpdb, $post, $wp_query and the like, which WordPress exposes only that way), global statements shown as examples inside Python docstrings, and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1108/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1108/",
 	"languages": ["python", "php"],
 	"severity": "low",
 	"level": "note",

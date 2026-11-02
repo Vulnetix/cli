@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-459",
 	"name": "Telnyx Messaging Profile secret",
 	"description": "A Telnyx messaging/connection secret was found near a telnyx secret assignment. It can authorize sending messages or SIP operations under the Telnyx account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-459",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-459",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

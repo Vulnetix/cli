@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-146",
 	"name": "IBM Cloud Object Storage HMAC secret access key",
 	"description": "An IBM Cloud Object Storage HMAC secret access key assigned to a context keyword was found. The HMAC secret signs S3-compatible requests to IBM COS buckets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-146",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-146",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-536",
 	"name": "Split.io API key",
 	"description": "A Split.io (Harness FME) API key was found. Server-side and admin keys grant access to evaluate splits and manage the Split.io environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-536",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-536",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-424",
 	"name": "Zendesk API token",
 	"description": "A Zendesk API token was found near a zendesk assignment. It is a 40-character token combined with an email/{token} to authenticate against the Zendesk Support API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-424",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-424",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

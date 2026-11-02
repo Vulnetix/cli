@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-849",
 	"name": "Amazon SP-API LWA refresh token (Atzr|)",
 	"description": "An Amazon Selling Partner API Login-with-Amazon refresh token (Atzr| prefix) was found. It mints long-lived access tokens to the seller's SP-API resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-849",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-849",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

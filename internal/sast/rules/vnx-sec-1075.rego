@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1075",
 	"name": "SoundCloud OAuth client secret",
 	"description": "A SoundCloud API client secret was found. Combined with the client id it authorizes the OAuth flow to act on SoundCloud accounts and access tracks and stats.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1075",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1075",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

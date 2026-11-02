@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-192",
 	"name": "Integer Coercion Error",
 	"description": "A number parsed from text is forced into a narrower or differently signed integer type without a range check, so an out-of-range input silently truncates or flips sign and a later size, index, port or limit check sees a different value from the one supplied. Reported: Go conversions int8/int16/int32/rune/uint8/byte/uint16/uint32/uint/uint64(v) of a value from strconv.Atoi, ParseInt or ParseUint whose bit size is wider than the target or whose sign the target drops; Java casts (byte)/(short)/(char)/(int) of Integer.parseInt/valueOf, Long.parseLong/valueOf or Short.parseShort, inline or through a variable, and a narrowing byteValue()/shortValue()/intValue() on the boxed result (Integer.valueOf(s).byteValue()); C and C++ declarations of a narrower or unsigned type (char, short, int8_t..uint32_t, unsigned, size_t) initialised from atoi/atol/atoll/strtol/strtoul/strtoll/strtoull, and casts of such a variable to a narrower or unsigned type. Not reported: a conversion preceded by a comparison of the value (limit > math.MaxInt32, level > Byte.MAX_VALUE, v > UCHAR_MAX), Math.toIntExact, conversions to the same or a wider type (int64(n), (long) parseInt, int i = atoi(s)), ParseInt/ParseUint whose bit size already fits the target, and comments. JavaScript, PHP, Python and Ruby were dropped: their integers do not coerce this way.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-192/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-192/",
 	"languages": ["go", "java", "c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

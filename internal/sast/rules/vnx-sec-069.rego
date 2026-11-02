@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-069",
 	"name": "age secret key",
 	"description": "Reports an age identity (secret key): AGE-SECRET-KEY-1 (X25519) or AGE-SECRET-KEY-PQ-1 (the post-quantum hybrid identity of age 1.3) followed by exactly 58 Bech32 characters, in any file, including key files, .env files, CI variables and SOPS_AGE_KEY settings, and in comments (a key in a comment is still leaked). The key is masked in the snippet. Not reported: age public recipients (age1...), the bare AGE-SECRET-KEY-1 prefix used in checks, plugin identities (AGE-PLUGIN-YUBIKEY-1..., which name a hardware key rather than hold one), keys of the wrong length or alphabet, placeholder runs (AGE-SECRET-KEY-1XXXX...), and generated, vendored and test-suffixed files (*_test.go, *.spec.ts...) and testdata/fixtures directories.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-069/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-069/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-283",
 	"name": "Unverified Ownership",
 	"description": "A file is trusted because of its permission bits alone: the code tests whether group or others may read or write it (st_mode & S_IWOTH/S_IWGRP/S_IRWXG/S_IRWXO/S_IROTH/S_IRGRP, or an octal mask such as 022, 077, 0002, in either operand order, across a line break after the &, or on a variable the mode was copied into a few lines above) or, in C++, std::filesystem permissions() against group_*/others_* bits, but never compares st_uid with the expected owner within 25 lines. A file with tight modes that belongs to another user still passes, so an attacker who owns a key, config or plugin file the program loads can control it. Reported in C and C++. Not reported: a check that also compares st_uid (against getuid()/geteuid()/0 or a looked-up user), an executable-bit or file-type test (S_IXUSR, S_ISREG), copying or clearing a mode (st_mode & 07777, st_mode & ~(S_IRWXG|S_IRWXO)), printing or logging the bits (printf, syslog, std::cout), setting permissions (std::filesystem::permissions(p, perms::others_all, perm_options::remove)), ls-style formatting of a mode string ((st_mode & S_IROTH) ? 'r' : '-') and comments or string literals. Ownership verified in a different function is not visible to this rule.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-283/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-283/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

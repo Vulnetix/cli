@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-924",
 	"name": "Plain TCP socket to a remote peer: no message integrity in transit",
 	"description": "Java code opens a raw TCP connection or listener with no TLS, so anyone on the path can alter (or read) the bytes undetected (CWE-924). Reported: new Socket(host, port) / new java.net.Socket(...) with a destination, new ServerSocket(port...), connect(new InetSocketAddress(...)) or bind(new InetSocketAddress(...)) on a socket or channel created in the file with new Socket(), new ServerSocket(), SocketChannel.open(), ServerSocketChannel.open() or the Asynchronous variants, ServerSocketChannel.open().bind(new InetSocketAddress(...)) chained, SocketChannel.open(new InetSocketAddress(...)), and createSocket/createServerSocket on the non-TLS SocketFactory.getDefault()/ServerSocketFactory.getDefault(); arguments on the next line of an open call are read. Not reported: SSLSocketFactory/SSLServerSocketFactory sockets, a plain socket the same file upgrades with createSocket(plain, host, port, true) (STARTTLS), loopback peers and bindings (\"localhost\", \"127.0.0.1\", \"::1\", InetAddress.getLoopbackAddress()), new Socket(proxy), Unix-domain channels, UDP DatagramSocket, Kotlin, the Socket type in declarations, test files, comments and strings. Whether the protocol on top adds its own MAC or signature is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-924/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-924/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

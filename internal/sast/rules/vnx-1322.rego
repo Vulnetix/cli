@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1322",
 	"name": "Use of Blocking Code in Single-threaded, Non-blocking Context",
 	"description": "A synchronous, event-loop-blocking Node.js API (fs.*Sync such as readFileSync/writeFileSync/readdirSync/statSync/existsSync, child_process execSync/execFileSync/spawnSync, crypto pbkdf2Sync/scryptSync/generateKeyPairSync, zlib gzipSync/inflateSync and friends, bcrypt hashSync/compareSync) is called inside an HTTP request handler: a function taking (req, res), (request, reply|response|h) or a Koa ctx, including http.createServer callbacks. While it runs, the single-threaded server answers no other request, so one slow disk, process or key derivation (or an attacker who triggers it repeatedly) stalls every client. Not reported: sync calls at module level or in helpers outside a handler (startup, cache warm-up), the asynchronous and promise APIs, build scripts and CLIs, test files, comments and string literals. A sync call reached from a handler through a helper function in another place is not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1322/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1322/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-553",
 	"name": "Command Shell in Externally Accessible Directory",
 	"description": "A command shell is reachable over HTTP. Three shapes are reported. A deployment step (Dockerfile, shell script, YAML pipeline, Makefile, Vagrantfile, PowerShell) that copies, links or installs a shell interpreter (/bin/sh, bash, dash, zsh, ksh, csh, cmd.exe, powershell.exe) into a web-served directory (cgi-bin, /var/www, htdocs, public_html, wwwroot, inetpub, nginx/html, webapps). An Apache ScriptAlias that maps a URL onto /bin, /usr/bin, /sbin or a shell binary. And a CGI program that runs its request as a command, which is a web shell: a shell script that evals, sh -c's or executes $QUERY_STRING (or a variable assigned from it), a Perl CGI that passes param() or $ENV{QUERY_STRING} to system/exec/qx/backticks/a piped open, and a Python CGI that passes cgi.FieldStorage values, parse_qs results or QUERY_STRING to os.system, os.popen, eval/exec or subprocess with a string command or shell=True. Not reported: copying a CGI script (not a shell) into cgi-bin, linking a shell outside the web root, CGI programs that only compare the query string against fixed cases or print it, subprocess calls with a fixed argument list, reading the SHELL environment variable, comments and quoted prose.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-553/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-553/",
 	"languages": ["bash", "docker", "perl", "python"],
 	"severity": "medium",
 	"level": "warning",

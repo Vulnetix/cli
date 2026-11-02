@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-028",
 	"name": "npm access token hardcoded",
 	"description": "Reports an npm access token: npm_ followed by exactly 36 letters or digits, delimited on both sides, in any file (.npmrc, .yarnrc.yml, workflows, Dockerfiles, scripts), and a legacy UUID token written literally as _authToken or npmAuthToken in .npmrc, .yarnrc or .yarnrc.yml, or as a registry-scoped //host/:_authToken=<uuid> in any file (a Dockerfile or script echoing it into .npmrc). ${NPM_TOKEN}-style references, npm_config_*/npm_package_* environment names and other identifiers, placeholders and low-entropy values, and test and fixture paths are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-028/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-028/",
 	"languages": ["generic"],
 	"severity": "high",
 	"level": "error",

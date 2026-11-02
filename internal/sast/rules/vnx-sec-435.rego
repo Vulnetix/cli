@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-435",
 	"name": "OneSignal REST API key (os_v2)",
 	"description": "A OneSignal REST API key using the os_v2_app_ prefix was found. It authorizes sending push notifications and managing users for a OneSignal app.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-435",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-435",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

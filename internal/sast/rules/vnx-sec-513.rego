@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-513",
 	"name": "Trello API token",
 	"description": "A Trello API token was found. Combined with an API key it grants delegated access to the user's Trello data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-513",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-513",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

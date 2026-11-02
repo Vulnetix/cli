@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-621",
 	"name": "Instana agent key",
 	"description": "An Instana agent key assigned to a context keyword was found. It authenticates Instana agents to the backend and authorises telemetry ingestion for the tenant unit.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-621",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-621",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

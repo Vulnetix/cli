@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-015",
 	"name": "WebSocket server without origin verification (CSWSH)",
 	"description": "A WebSocket server accepts connections from any origin. Reported: a ws server (new WebSocket.Server(...), new ws.Server(...), new WebSocketServer(...) in a file that imports ws) whose options carry no verifyClient callback, in a file whose code never reads the Origin header (no verifyClient, origin or headers.origin check anywhere, for example in an upgrade handler); and a Socket.IO server whose options (within the eight lines after new Server(...), io(...) or require('socket.io')(...)) set cors origin to '*' or true, or the v2 origins: '*:*', without an allowRequest callback. Browsers send cookies on a cross-site WebSocket handshake, so without an origin check a malicious page can open an authenticated socket in the victim's name (Cross-Site WebSocket Hijacking). Not reported: servers with verifyClient or an origin check in the same file, Socket.IO servers with a list of origins, Express cors({ origin: '*' }) middleware, browser WebSocket clients, test files, comments and string literals. An origin check in another file (shared middleware, a reverse proxy) is not seen.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-015/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-015/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
 	"level": "error",

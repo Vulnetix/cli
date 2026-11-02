@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-900",
 	"name": "Gelato API key (single uuid form)",
 	"description": "A Gelato API key in single-UUID form was found. It grants access to the account's product catalog and orders in the Gelato API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-900",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-900",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

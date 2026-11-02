@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-731",
 	"name": "Hardcoded session/cookie signing secret",
 	"description": "A hardcoded session or cookie signing secret assigned to a session-secret style variable was found. Anyone with it can forge or tamper with signed sessions/cookies.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-731",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-731",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

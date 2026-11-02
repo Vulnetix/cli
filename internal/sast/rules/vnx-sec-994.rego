@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-994",
 	"name": "Huobi/HTX API key",
 	"description": "A Huobi (HTX) Access Key assigned to a huobi/htx key field was found. Combined with the secret key it signs HMAC-SHA256 authentication for HTX trading and account APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-994",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-994",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

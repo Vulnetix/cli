@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-055",
 	"name": "New Relic API key",
 	"description": "Reports a New Relic credential as a whole token in any file: a user API key (NRAK- and 27 characters), an insert key (NRII- and 27 to 32 characters), an ingest license key (36 characters ending in NRAL), or a browser key (NRJS- and 19 hex characters) held in configuration. User keys query and change account data through NerdGraph; insert and license keys write telemetry. Not reported: the browser key inside the NREUM loader snippet (licenseKey in loader_config is public by design), prefixes on their own, placeholder bodies, template or environment references, and test, fixture or vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-055/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-055/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

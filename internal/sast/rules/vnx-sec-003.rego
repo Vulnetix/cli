@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-003",
 	"name": "AWS secret access key",
 	"description": "Reports a hard-coded AWS secret access key: a 40-character base64 value with high entropy assigned to an AWS secret-key name (aws_secret_access_key, AWS_SECRET_ACCESS_KEY, secret_access_key, secretAccessKey, SecretAccessKey, aws_secret_key, aws_secret) in code, config, .env, shell or the ~/.aws/credentials format, the secret_key argument of a Terraform/HCL file that configures AWS, the second argument of Go's credentials.NewStaticCredentials/NewStaticCredentialsProvider, a quoted 40-character value passed to an SDK credentials constructor on the call line or the next three (Java/.NET BasicAWSCredentials, BasicSessionCredentials, Java v2 AwsBasicCredentials.create, Ruby Aws::Credentials.new, PHP Credentials), and the 'secret' entry of a PHP SDK 'credentials' array. Not reported: the documented AWS example key (…EXAMPLEKEY) and placeholders, hex digests, environment and CI-secret references, a generic SECRET_KEY outside AWS Terraform, and test, fixture, vendored and generated files. The paired access key ID is VNX-SEC-001.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-003/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1063",
 	"name": "Creation of Class Instance within a Static Code Block",
 	"description": "Java: a `static { ... }` initializer constructs an object (`new Type(...)`) of an application or library class. The object is built when the class is first loaded, on whatever thread touches it first, before any configuration or dependency injection runs; a failure surfaces as ExceptionInInitializerError and leaves the class unusable, and the instance cannot be replaced in tests. Not reported: the JDK containers and value types a static block normally fills (HashMap, ArrayList, HashSet, StringBuilder, Object, boxed numbers, atomics, locks), exceptions being thrown, arrays, `new` in instance initializers, static methods or static field initializers outside a static block, and comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1063/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1063/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

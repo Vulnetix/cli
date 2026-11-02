@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-369",
 	"name": "BlueSnap API credential",
 	"description": "A BlueSnap API username/password credential was found near a bluesnap assignment. BlueSnap credentials authorize live payment and subscription operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-369",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-369",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

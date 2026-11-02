@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-636",
 	"name": "Aiven service connection string with password",
 	"description": "A database connection string embedding a password against an aivencloud.com host was found. It authenticates to the managed Aiven service (Postgres, MySQL, Redis, Kafka, etc.).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-636",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-636",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

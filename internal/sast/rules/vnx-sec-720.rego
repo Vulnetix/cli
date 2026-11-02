@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-720",
 	"name": "Twitch app access token (context)",
 	"description": "A Twitch app access token (30-char alphanumeric) assigned to a twitch access-token context was found. It authenticates Twitch API requests for the app.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-720",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-720",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

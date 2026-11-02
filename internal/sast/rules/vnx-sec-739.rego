@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-739",
 	"name": "Flagsmith / Unleash feature-flag server key",
 	"description": "A Flagsmith or Unleash feature-flag server-side environment key assigned to a flag context was found. Server keys can read flag state and identities and are not meant to be exposed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-739",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-739",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-250",
 	"name": "CircleCI context/environment token (assignment)",
 	"description": "A CircleCI API token assigned to a CIRCLE_TOKEN/CIRCLECI_TOKEN context variable was found. It grants API access to CircleCI pipelines and project settings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-250",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-250",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

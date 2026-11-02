@@ -1,6 +1,6 @@
 # Homebrew Installation
 
-This documentation has moved to **[docs.cli.vulnetix.com/docs/getting-started/homebrew](https://docs.cli.vulnetix.com/docs/getting-started/homebrew/)**.
+This documentation has moved to **[docs.vulnetix.com/cli/get-started/install](https://docs.vulnetix.com/cli/get-started/install/)**.
 
 ## Quick Start
 

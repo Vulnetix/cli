@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-444",
 	"name": "Stream (getstream) API key",
 	"description": "A Stream (getstream.io) API key was found near a stream/getstream assignment. It is a 12-character public app identifier paired with the API secret.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-444",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-444",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

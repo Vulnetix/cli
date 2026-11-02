@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-445",
 	"name": "Courier auth token (pk_prod_/pk_test_)",
 	"description": "A Courier API auth token (pk_prod_ or pk_test_) was found. Courier tokens authorize multi-channel notification sends.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-445",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-445",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

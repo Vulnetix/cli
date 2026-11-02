@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-453",
 	"name": "Insecure default: a security parameter defaults to its unsafe value",
 	"description": "Reports a Python or JavaScript/TypeScript function signature whose security-relevant parameter defaults to the weaker setting, so every caller that does not pass it gets the insecure behaviour: certificate or signature verification off by default (verify, verify_ssl, ssl_verify, check_hostname, validate_certs, verify_signature, rejectUnauthorized, strictSSL = False/false), cookie protection off (secure, httponly/httpOnly = False), template autoescape or CSRF protection off, authentication not required (require_auth, login_required = False), or an unsafe switch on (insecure, insecure_skip_verify, skip_verify, no_verify, skip_auth, allow_unsafe, allow_pickle, shell, debug = True/true). Python defs (single or multi-line signatures, with type annotations) and JS function declarations, arrow functions, methods, constructors and destructured option defaults are covered. Not reported: a call that passes the weak value explicitly (requests.get(url, verify=False) is a call-site concern for other rules), object literals ({ rejectUnauthorized: false }), ordinary variable assignments, safe defaults (verify=True, insecure=False), transport choices such as ssl=False or use_tls=False whose right value depends on the deployment, mutable default arguments (a correctness bug, not an insecure security default), comments, strings, docstrings and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-453/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-453/",
 	"languages": ["python", "node"],
 	"severity": "medium",
 	"level": "warning",

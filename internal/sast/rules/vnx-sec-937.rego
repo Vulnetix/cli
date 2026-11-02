@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-937",
 	"name": "Twilio Super SIM / IoT API key (SK)",
 	"description": "A Twilio API Key SID was found near a Super SIM / IoT context. Twilio API Keys begin with SK followed by 32 hex characters and, paired with their secret, authorize Super SIM fleet and IoT commands.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-937",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-937",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

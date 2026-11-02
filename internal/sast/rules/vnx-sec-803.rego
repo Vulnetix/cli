@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-803",
 	"name": "Intercom OAuth access token",
 	"description": "An Intercom OAuth access token was found. It grants API access to the workspace's conversations, contacts and articles in Intercom. This is distinct from the public app_id.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-803",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-803",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

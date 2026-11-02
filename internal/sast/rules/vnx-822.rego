@@ -10,7 +10,7 @@ metadata := {
 	"id": "VNX-822",
 	"name": "Untrusted Pointer Dereference",
 	"description": "A C/C++ pointer is built from data an attacker controls, so dereferencing it reads or writes an attacker-chosen address. Reported: (1) a cast to a pointer type (C-style, including function-pointer casts and (T *)(uintptr_t), or reinterpret_cast<T *>) applied directly to a text-to-integer conversion (strtoul, strtoull, strtol, strtoll, atoi, atol, atoll, std::stoul/stoull/stol/stoll/stoi); (2) the same cast, possibly through an integer cast ((T *)(uintptr_t)v) and including a dereferenced store (*(T *)v = x), applied to a variable assigned from such a conversion or filled by sscanf/fscanf/scanf (any conversion, such as %lx or SCNxPTR) in the ten lines above; (3) sscanf/fscanf/scanf reading a %p conversion; (4) a pointer read out of a buffer received from recv, recvfrom, read or fread in the 30 lines above through a pointer-to-pointer cast (*(T **)(buf + n)); (5) in a Linux ioctl handler (a function taking struct file * and unsigned long arg, the signature possibly spread over three lines), arg cast to a pointer type without __user, which dereferences a user-space address directly instead of copying it with copy_from_user. Not reported: integer conversions that stay integers, (void __user *)arg, an integer passed through a void * to pthread_create/thrd_create/g_idle_add-style callbacks, thread or callback arguments cast back to their context type, pointers to a validated table entry (&table[idx]), printf %p, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-822/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-822/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

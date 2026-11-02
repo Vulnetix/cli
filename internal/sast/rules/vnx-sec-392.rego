@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-392",
 	"name": "Adyen merchant account + key combo (live URL prefix key)",
 	"description": "An Adyen live-prefix API key URL token (AdyenLivePrefix style) was found near an adyen live endpoint assignment. It identifies the live API endpoint binding for the merchant.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-392",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-392",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

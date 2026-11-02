@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-279",
 	"name": "OctoAI API token",
 	"description": "An OctoAI API token was found. OctoAI tokens are JWTs granting access to OctoAI model endpoints billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-279",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-279",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-500",
 	"name": "Algolia admin API key",
 	"description": "An Algolia admin API key was found. It grants full control over Algolia indices including the ability to read, write, delete records and manage other keys.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-500",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-500",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

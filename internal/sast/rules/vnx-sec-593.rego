@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-593",
 	"name": "DataStax Astra DB token",
 	"description": "A DataStax Astra DB application token using the AstraCS: prefix was found. It authenticates to the Astra DB Data API and CQL and grants access per the token's assigned role.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-593",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-593",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

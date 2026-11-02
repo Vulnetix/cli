@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-276",
 	"name": "Scale AI API key",
 	"description": "A Scale AI API key was found. Scale uses a live_ prefixed secret granting access to data labeling and annotation projects billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-276",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-276",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

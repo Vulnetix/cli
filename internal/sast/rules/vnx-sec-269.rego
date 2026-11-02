@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-269",
 	"name": "Qdrant API key",
 	"description": "A Qdrant Cloud API key was found. It grants access to the Qdrant vector database cluster.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-269",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-269",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-343",
 	"name": "Flutterwave secret key (FLWSECK-)",
 	"description": "A Flutterwave live secret key using the FLWSECK- prefix was found. It authorizes live charges, transfers and balance operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-343",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-343",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

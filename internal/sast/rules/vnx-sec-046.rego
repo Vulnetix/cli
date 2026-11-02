@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-046",
 	"name": "Square access token",
 	"description": "Reports a Square access token written into a file: a production or sandbox access token (EAAA followed by 56 to 64 base64url characters) and a legacy OAuth access token (sq0atp- followed by 22 to 43 characters), each standing alone rather than inside a longer base64 run. The token grants access to the seller's payments, customers and inventory. The snippet is redacted. Not reported: EAAA inside a longer base64 blob (images, certificates, wasm), placeholders (xxxx, EXAMPLE, REPLACE), low-entropy values, tokens read from the environment, and test, fixture and vendored paths. The generated VNX-SEC-328, VNX-SEC-330 and VNX-SEC-377 report the same token families.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-046/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-046/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

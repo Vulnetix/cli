@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1023",
 	"name": "Secret compared by prefix, suffix or truncation",
 	"description": "A password, token, API key, signature, digest, HMAC, OTP or PIN is checked against another value by comparing only part of it, so the comparison is missing factors: an empty or short guess matches. Reported in Python and Java: X.startswith(Y)/endswith(Y) (Python) and X.startsWith(Y)/endsWith(Y)/regionMatches(...) (Java) where one side is named as a secret (password, passwd, pwd, secret, token, api_key, signature, sig, digest, hmac, otp, pin, passcode) and the other is a stored, expected or user-supplied value (expected, stored, actual, valid, provided, supplied, submitted, given, candidate, attempt, user_..., request..., a second secret name); and equality on truncated values: Python a[:n] == b, hmac.compare_digest(a[:n], ...), Java a.substring(0, n).equals(b) or a.equals(b.substring(0, n)), when either side is named as a secret. Not reported: a prefix check against a string literal or a name that says it is a prefix/scheme/type (token.startswith(\"Bearer \"), sig.startsWith(SHA256_PREFIX)), tokenizer code comparing a token with a delimiter, full-length comparisons, comments and string literals. Abstract CWE-1023 cases (comparisons that omit a non-secret factor such as a tenant or user id) are not statically recognisable and are not attempted.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1023/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1023/",
 	"languages": ["java", "python"],
 	"severity": "low",
 	"level": "note",

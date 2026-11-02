@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-356",
 	"name": "Chargebee API key",
 	"description": "A Chargebee API key was found near a chargebee assignment using the live_/test_ prefix. It authorizes subscription and billing operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-356",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-356",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

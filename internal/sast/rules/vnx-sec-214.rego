@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-214",
 	"name": "GitHub Actions runner registration token (BBBB)",
 	"description": "A GitHub Actions self-hosted runner registration token was found. These short-lived AAA-style tokens allow registering a runner against a repo/org and can be abused to run workflows.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-214",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-214",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

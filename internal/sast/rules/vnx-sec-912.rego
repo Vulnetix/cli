@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-912",
 	"name": "IPinfo access token",
 	"description": "An IPinfo access token was found near an ipinfo assignment. It is a 14-character lowercase hexadecimal token used as a bearer credential for IP geolocation, ASN, and privacy data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-912",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-912",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-760",
 	"name": "Password hash or KDF uses a constant or predictable salt",
 	"description": "A password hash or key derivation is salted with a value an attacker already knows, so one precomputed table covers every account. Reported: (1) a string, byte-string, template, []byte(\"...\"), \"...\".getBytes(), Buffer.from('...') or literal byte-array constant written in the salt position of hashlib.pbkdf2_hmac, hashlib.scrypt(salt=...), PBKDF2HMAC(salt=...) (also with salt=b\"...\" on its own line inside a call opened up to six lines above), Java new PBEKeySpec(pw, <salt>, ...)/PBEParameterSpec, Go pbkdf2.Key/scrypt.Key/argon2.Key/argon2.IDKey, Node crypto.pbkdf2/pbkdf2Sync/scrypt/scryptSync, and a literal \"$2...\" bcrypt salt given to bcrypt.hashpw/BCrypt.hashpw/bcrypt.hash; (2) a variable whose name says salt, assigned such a constant, that is then used on a line calling a password hash, KDF or digest (anywhere in the file for a top-level or static constant, within the next 30 lines and before any reassignment for a local); (3) the user's own username, email or id used as the pbkdf2_hmac salt. Not reported: salts from os.urandom, secrets, SecureRandom, crypto/rand, crypto.randomBytes or gensalt(), a stored hash passed back to hashpw to verify, salt constants used for something else (itsdangerous/signing namespaces, column names, lengths, a key in dict.update({SALT_FIELD: ...})), comments and test files. Constant IVs and nonces are VNX-CRYPTO-010.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-760/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-760/",
 	"languages": ["go", "java", "node", "python"],
 	"severity": "high",
 	"level": "error",

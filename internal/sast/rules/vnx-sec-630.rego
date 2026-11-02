@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-630",
 	"name": "Snowflake account locator + region",
 	"description": "A Snowflake account identifier assigned to a context keyword was found. While not secret alone, the account locator is paired with credentials to target a specific Snowflake account and aids attackers correlating leaked credentials.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-630",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-630",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

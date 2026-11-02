@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-364",
 	"name": "Authorize.net transaction key",
 	"description": "An Authorize.Net API login id transaction key was found near an authorize.net/anet assignment. It authorizes live charge, refund and void operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-364",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-364",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

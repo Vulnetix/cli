@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-982",
 	"name": "Coinbase CDP EC private key (PEM, assignment)",
 	"description": "A Coinbase Developer Platform EC private key (PEM body) assigned to a CDP secret field was found. It signs JWTs that authenticate every CDP API call and grants full programmatic trading access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-982",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-982",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-408",
 	"name": "MessageBird/Bird access key",
 	"description": "A MessageBird (Bird) API access key was found near a messagebird assignment. It is a 25-character alphanumeric key that authorizes SMS and messaging operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-408",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-408",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

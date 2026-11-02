@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-005",
 	"name": "innerHTML or dangerouslySetInnerHTML usage",
 	"description": "HTML is written into the DOM of a JavaScript or TypeScript file from a value that is not a constant: insertAdjacentHTML(position, html) (also with its arguments on the following lines), document.write/writeln(html), or a React dangerouslySetInnerHTML={{ __html: value }} (also across line breaks), where the value is a variable, a call, concatenation or a template literal with ${...} interpolation (including one spanning several lines). If any part of it is user-controlled this is cross-site scripting. A value that encodes one part and splices the raw value into another (encodeURIComponent(q) + q) is still reported, and unescape() is not an encoder. Not reported: string literals without interpolation, null/number/boolean literals, ALL_CAPS constants, copying another element's innerHTML, values passed whole through DOMPurify.sanitize, sanitize-html or an escape/encode function, textContent/innerText, comments and string literals, minified and vendored files. An assignment to innerHTML/outerHTML (also el[\"innerHTML\"]) is reported by VNX-NODE-027, not here; these sinks in HTML pages, Vue and Svelte components are VNX-NODE-012's.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-005/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

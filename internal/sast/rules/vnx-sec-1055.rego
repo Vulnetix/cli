@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1055",
 	"name": "Tenable.io access/secret key (assignment)",
 	"description": "A Tenable.io API key (64-hex access or secret key) assigned to a tenable field was found. The access and secret key pair authenticates to the Tenable.io vulnerability-management API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1055",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1055",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

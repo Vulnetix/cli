@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1060",
 	"name": "StackHawk API key (hawk.)",
 	"description": "A StackHawk API key (hawk. prefix) was found. It authenticates the HawkScan CLI and API to the StackHawk application-security platform.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1060",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1060",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

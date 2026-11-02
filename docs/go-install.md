@@ -1,6 +1,6 @@
 # Go Install
 
-This documentation has moved to **[docs.cli.vulnetix.com/docs/getting-started/go-install](https://docs.cli.vulnetix.com/docs/getting-started/go-install/)**.
+This documentation has moved to **[docs.vulnetix.com/cli/get-started/install](https://docs.vulnetix.com/cli/get-started/install/)**.
 
 ## Quick Start
 

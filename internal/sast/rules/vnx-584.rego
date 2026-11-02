@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-584",
 	"name": "Return Inside Finally Block",
 	"description": "A return statement inside a finally block (Java, JavaScript/TypeScript and Python), at any nesting depth within the block, including the one-line form finally { return x; }, a guarded return on one line (if (c) return x; else return y; in Java/JS, if c: return x in Python) and a return in a Java switch rule (case X -> { return 0; }). A return in finally silently discards any exception thrown in the try or catch block and overrides the try block's own return value. The finally block is bounded by brace depth (indentation for Python) within 80 lines. Not reported: a return in a lambda, arrow function, anonymous class or nested def/function opened inside the finally block, a return after the block closes, a return in the try or catch block, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-584/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-584/",
 	"languages": ["java", "node", "python"],
 	"severity": "low",
 	"level": "note",

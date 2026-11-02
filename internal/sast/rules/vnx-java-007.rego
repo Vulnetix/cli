@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JAVA-007",
 	"name": "Java open redirect",
 	"description": "Reports a redirect whose target comes from the request: HttpServletResponse.sendRedirect(), a Spring \"redirect:\" + value view name (returned or passed to ModelAndView), new RedirectView(), and a Location header (setHeader/addHeader(\"Location\" | HttpHeaders.LOCATION) or ResponseEntity .location(URI.create(...))) whose argument reads getParameter/getHeader/getQueryString/getCookies, is a @RequestParam/@PathVariable/@RequestHeader/@CookieValue parameter, or is a variable assigned from one (directly or through one intermediate assignment such as URLDecoder.decode) within the 40 lines above. Attackers use it to send users to phishing pages from a trusted domain. Not reported: a target that starts with a fixed local path (\"/account?next=\" + v) or fixed absolute URL, a value looked up in a map of allowed destinations (DESTINATIONS.get(id)), a value checked by an if guard (startsWith, matches, an allowlist contains/isAllowed/isSafe/isValid, getHost comparison) before the redirect, on the value itself or on a value parsed from it (URI uri = URI.create(v)), values from configuration, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-007/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-007/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

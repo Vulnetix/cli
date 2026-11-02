@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-771",
 	"name": "Missing Reference to Active Allocated Resource",
 	"description": "Reports C and C++ code that loses the only reference to memory it still owns. (1) `p = realloc(p, n)`: when realloc fails it returns NULL and leaves the old block allocated, and the assignment overwrites the only pointer to it (also through a cast or std::realloc, and for struct members such as `v->items`). (2) A pointer initialised or assigned from malloc, calloc, realloc, strdup, strndup or new that is assigned a fresh allocation again within the same function, up to 40 lines later, with no free/delete of it, no return, no copy to another variable and no hand-off to a function in between: the first block can no longer be reached. Not reported: realloc into a temporary that is checked before replacing the original, a pointer freed, returned, stored or passed to another function (other than mem*/str* and printf-style calls) before reassignment, reassignment in an alternative branch (else, case, #else, #elif) or inside the body of a failed-allocation check (if (p == NULL) { p = malloc(...) }; a check that returns, as in if (!p) return -1;, does not excuse a later reassignment), a declaration repeated by a loop, comments and string literals. Allocations that are simply never freed (CWE-401) are not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-771/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-771/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

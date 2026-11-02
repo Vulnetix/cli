@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-740",
 	"name": "Statsig server secret key (secret-)",
 	"description": "A Statsig server secret key (secret- prefix) was found. It authorises server-side feature-flag and experimentation API access and must never be exposed client-side.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-740",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-740",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

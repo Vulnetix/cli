@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-863",
 	"name": "Mailmodo API key",
 	"description": "A Mailmodo interactive-email API key was found. It grants access to the account's contacts, campaigns and triggered sends in the Mailmodo API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-863",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-863",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

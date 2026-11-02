@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-584",
 	"name": "Bunny CDN API / storage key",
 	"description": "A Bunny.net (BunnyCDN) account or storage-zone API key assigned to a context keyword was found. It authenticates to the Bunny API and grants management of pull/storage zones and assets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-584",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-584",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

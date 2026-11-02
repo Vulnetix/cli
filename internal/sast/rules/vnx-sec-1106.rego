@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1106",
 	"name": "Unity Cloud Build organization secret",
 	"description": "A Unity organization-scoped API/secret value was found. It can authorize cross-project operations across the Unity organization.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1106",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1106",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-498",
 	"name": "Sanity API token (sk)",
 	"description": "A Sanity.io API token (sk prefix) was found. Depending on its role it grants read or write access to the Sanity content dataset.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-498",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-498",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

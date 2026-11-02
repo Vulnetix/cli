@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-039",
 	"name": "GitLab personal access token (legacy)",
 	"description": "Reports a GitLab personal, project or group access token: a standalone glpat- token followed by 20 or more base64url characters (the legacy 20-character form and the longer routable form). Placeholders, a body of lower-case words such as glpat-personal-access-token-here, and test or fixture paths are not reported; other GitLab token types are VNX-SEC-040.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-039/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-039/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

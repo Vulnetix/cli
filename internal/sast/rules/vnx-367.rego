@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-367",
 	"name": "Time-of-check Time-of-use (TOCTOU) Race Condition",
 	"description": "A file is checked by name and then opened or changed by the same name within ten lines, in C or C++, so another process can swap the file (typically for a symlink) between the check and the use. Reported: access(), eaccess() or euidaccess() on a path followed by any open, open64, fopen, freopen, creat, chmod, chown, lchown, truncate or exec* of that path (the access-then-open setuid race); and stat(), lstat(), stat64() or lstat64() on a path followed by a write or permission change on it: open with O_WRONLY/O_RDWR/O_CREAT/O_TRUNC/O_APPEND, fopen with a w/a/+ mode, creat, chmod, chown, lchown or truncate. The same check and use on one line count. The path may be a variable, a member, a std::string's c_str() or a literal. Flags are read from the call's own statement, including continuation lines. Not reported: open with O_EXCL or O_NOFOLLOW, a read after a stat (a write flag of a later call does not count), a check and a use in different functions (a closing brace at column 0 between them), fstat/fchmod on a descriptor (the safe form), a check and a use on different paths, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-367/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-367/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

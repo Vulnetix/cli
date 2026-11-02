@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-021",
 	"name": "Potential XSS via fmt.Fprintf with HTML tags",
 	"description": "HTML markup is written straight to an HTTP response with a non-constant value spliced in unescaped. Reported writes: fmt.Fprintf with a %s/%v/%q verb, and fmt.Fprint/Fprintln, io.WriteString, w.Write([]byte(...)) and w.WriteString with + concatenation, whose writer is an http.ResponseWriter parameter of the file (w, rw, res, out...) or gin/echo's c.Writer / c.Response(); gin c.Data(status, \"text/html...\", []byte(...)); and echo c.HTML(status, markup) built by concatenation or fmt.Sprintf. A string literal of the call must contain an HTML tag (<p>, </a>, <!doctype), and the value may be a request value, a variable, a parameter or a struct field (stored XSS is the same bug). Calls spanning several lines and raw-string pages are read whole; the finding is on the call's first line. Not reported: values escaped or sanitised (html.EscapeString, template.HTMLEscapeString, bluemonday) directly or through a variable, numbers (%d, %f, strconv, len), string literals and constants, http.StatusText, a handler that sets Content-Type to text/plain or application/json first, writes to builders, files, stdout and stderr (generated documentation is not a browser response), formats with no HTML tag (plain text, JSON, comparisons, Hugo shortcodes), string literals mentioning the call, comments and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-021/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-021/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

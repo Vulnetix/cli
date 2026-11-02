@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1072",
 	"name": "api.video API key",
 	"description": "An api.video API key (UUID format) was found. It authenticates against the api.video platform to upload, manage and deliver videos for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1072",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1072",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

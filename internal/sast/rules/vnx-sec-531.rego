@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-531",
 	"name": "Copper API key",
 	"description": "A Copper (formerly ProsperWorks) CRM API key was found. Combined with the user email it grants API access to the CRM's people, companies and opportunities.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-531",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-531",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-946",
 	"name": "100ms management token / secret",
 	"description": "A 100ms app secret or management token was found near a 100ms assignment. The app secret signs management JWTs; a leaked secret lets an attacker create rooms and mint auth tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-946",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-946",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

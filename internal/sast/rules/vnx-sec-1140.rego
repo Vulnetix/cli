@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1140",
 	"name": "ConfigCat SDK key (assignment context)",
 	"description": "A ConfigCat SDK key in a configcat sdk-key context was found. It authorizes the ConfigCat client to fetch feature-flag configuration for the environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1140",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1140",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

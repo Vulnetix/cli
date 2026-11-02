@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-011",
 	"name": "Go gob deserialization of an HTTP request body or accepted connection",
 	"description": "encoding/gob decodes data a client controls: gob.NewDecoder reads an HTTP request body (net/http's *http.Request.Body under any parameter name, gin's c.Request.Body, echo's c.Request().Body, fiber's c.Body(), fasthttp's ctx.PostBody()) or a connection returned by Listener.Accept, directly or through a variable assigned from it in the same function (io.ReadAll, bytes.NewReader, http.MaxBytesReader). The gob package is documented as not hardened against adversarial input: crafted streams exhaust memory and stack, and a size limit does not change that, so a MaxBytesReader-wrapped body is still reported. Not reported: json.NewDecoder, gob.NewEncoder, gob decoding of local files, in-memory data, an outbound client's response body or a dialled connection, comments and strings. net/rpc servers (which use gob internally) and connections passed in from another function are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-011/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-011/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

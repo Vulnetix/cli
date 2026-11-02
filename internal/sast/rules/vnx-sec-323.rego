@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-323",
 	"name": "Stripe publishable key (pk_live)",
 	"description": "A Stripe live publishable key (pk_live_) was found. Publishable keys are designed for client-side use and are lower risk, but committing them can aid reconnaissance of the live account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-323",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-323",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

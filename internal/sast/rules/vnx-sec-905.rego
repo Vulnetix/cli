@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-905",
 	"name": "Google Maps server API key (context)",
 	"description": "A Google Maps Platform API key was found assigned to a maps/server key variable. Server-side keys (AIza...) authorize geocoding, places, and routes APIs and allow billed usage if leaked.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-905",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-905",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

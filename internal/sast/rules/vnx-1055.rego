@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1055",
 	"name": "Multiple Inheritance from Concrete Classes",
 	"description": "A Python class inherits from two or more concrete classes defined in the same file (CWE-1055): each of those bases has its own state or behaviour (its body defines a method or assigns an attribute) and none of them is abstract, a mixin or an interface, so the subclass depends on the method resolution order to decide whose __init__, attributes and overrides win. The class header may span several lines. A base counts as abstract, and is ignored, when its name ends in Mixin, Base, ABC, Interface or Protocol, it derives from ABC/ABCMeta/Protocol/a Mixin, or its body uses @abstractmethod, raises NotImplementedError or declares a Django abstract model (class Meta: abstract = True). Not reported: a single concrete base combined with mixins or ABCs, bases imported from other modules (the rule cannot see whether they are concrete), empty marker classes (exception tag hierarchies such as class ConnectTimeout(ConnectionError, Timeout) whose bases only pass), Generic[...]/metaclass= arguments, test files and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1055/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1055/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

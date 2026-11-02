@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-454",
 	"name": "Mailgun sending API key (key-)",
 	"description": "A Mailgun private API key using the legacy key- prefix was found near a mailgun assignment. It authorizes message sending and domain management.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-454",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-454",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

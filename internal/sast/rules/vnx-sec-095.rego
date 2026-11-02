@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-095",
 	"name": "PagerDuty API token",
 	"description": "A PagerDuty REST API token was found, granting access to incidents, schedules and escalation policies.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-095",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-095",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

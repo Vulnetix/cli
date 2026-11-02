@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-580",
 	"name": "Confluent Cloud API secret",
 	"description": "A Confluent Cloud / Kafka API secret assigned to a context keyword was found. Paired with the API key it grants full authenticated access to the Confluent Cloud cluster and Kafka topics.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-580",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-580",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

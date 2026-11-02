@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-027",
 	"name": "Hugging Face API token hardcoded",
 	"description": "Reports a Hugging Face user access token: hf_ followed by 34 to 40 letters or digits, delimited on both sides (so a longer snake_case identifier is not one), in any file including notebooks and .env files. Placeholders and low-entropy values, CamelCase and lowerCamelCase identifiers that merely start with hf_ (hf_TokenizerFastLoader..., hf_parseModelCard...), regular expressions for the token, environment lookups, and test and fixture paths are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-027/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-027/",
 	"languages": ["generic"],
 	"severity": "high",
 	"level": "error",

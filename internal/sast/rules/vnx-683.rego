@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-683",
 	"name": "Function Call With Incorrect Order of Arguments",
 	"description": "A C or C++ library call whose arguments are visibly in the wrong order. Reported: memset()/wmemset() with the fill value and the length transposed (a literal 0 or '\\0' length after a non-zero value, so nothing is cleared); memcpy, memmove, strcpy, strncpy, strcat, strncat, strlcpy, stpcpy, wcscpy and wmemcpy whose first (destination) argument is named like a source (src, source, from, input, in, orig, with an optional _buf/_ptr/_str/_data suffix) and whose second argument is named like a destination (dst, dest, destination, to, target, out, output), so the copy runs backwards; and fputs, fputc, putc, fwrite, fread and fgets called with the stream (stdout, stderr, stdin, fp, fh, stream, or a name declared FILE * in the 40 lines above with no other declaration of it in view) as the first argument instead of the last. Not reported: correctly ordered calls, memset(p, 0, 0), copies where only one argument has a telling name, calls in comments or string literals, and files of other languages.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-683/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-683/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

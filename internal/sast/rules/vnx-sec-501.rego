@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-501",
 	"name": "Typesense API key",
 	"description": "A Typesense API key was found. Admin-scoped keys grant full control over Typesense collections and documents.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-501",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-501",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

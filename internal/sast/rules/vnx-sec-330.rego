@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-330",
 	"name": "Square personal access token (EAAA)",
 	"description": "A Square personal/production access token beginning with EAAA was found. It grants full API access to the associated Square account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-330",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-330",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

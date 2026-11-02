@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-570",
 	"name": "Expression is Always False",
 	"description": "A comparison that can never be true, in C, C++, Go and Java, so the branch it guards is dead and the check it was meant to make (a bounds, error or range check) never happens. Four shapes are reported: a length or size compared below zero (len(x) < 0, s.length() < 0, a.length < 0, list.size() < 0, sizeof(x) < 0, strlen(s) < 0, and 0 > len(x)); an unsigned variable compared below zero (a C/C++ unsigned, size_t or uintN_t variable, or a Go uint variable, declared above in the same file with no later signed redeclaration); the same operand required to equal two different constants at once (x == 1 && x == 2, kind == A && kind == B); and an empty numeric range on one operand (x > 10 && x < 5). Not reported: a constant condition written on purpose (if (false), if (0), #if 0, do { } while (0)), a cast operand ((int)n < 0), a member of another object (p->n), comparisons inside string literals or comments, and test code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-570/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-570/",
 	"languages": ["c", "cpp", "go", "java"],
 	"severity": "low",
 	"level": "note",

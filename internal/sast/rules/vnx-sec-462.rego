@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-462",
 	"name": "Customer.io App API key (Bearer)",
 	"description": "A Customer.io App API key was found near a customerio app assignment. App keys authorize the transactional and broadcast App API as a Bearer token.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-462",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-462",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

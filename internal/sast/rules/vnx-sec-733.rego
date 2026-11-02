@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-733",
 	"name": "Bittrex/legacy exchange API secret",
 	"description": "A Bittrex or legacy exchange API secret (32 hex characters) assigned to a bittrex context was found. Paired with the key it authorises trading on the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-733",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-733",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

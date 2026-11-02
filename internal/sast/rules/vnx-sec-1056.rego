@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1056",
 	"name": "Qualys API credentials (basic auth, assignment)",
 	"description": "A Qualys API password assigned to a qualys field was found. With the username it authenticates HTTP-basic requests to the Qualys VMDR/cloud-security APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1056",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1056",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

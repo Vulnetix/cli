@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1288",
 	"name": "Improper Validation of Consistency within Input",
 	"description": "A server-side handler reads a password-confirmation field from the request (passwordRepeat, repeatPassword, confirmPassword, password_confirm(ation), confirm_password, password2, retypePassword, passwordAgain and their spellings) but nothing in the same file compares it with the password, so the two fields of one request are never checked for consistency and a typo or a forged request sets a password the user did not confirm (the OWASP Juice Shop 'Repetitive Registration' flaw). Reported in JavaScript/TypeScript (req/request.body, req.query, ctx.request.body: property, bracket and destructuring reads) and Python (Flask/Django/DRF request.form/POST/values/args/json/get_json()/data: subscript and .get() reads). The field counts as checked when the file compares it, or the variable assigned from it, with == / != / === / !== against something other than undefined, null, None, a number, a boolean or an empty string, or passes it to compare_digest/constant_time_compare/timingSafeEqual, or names it in a schema reference (Joi.ref, sameAs, equalTo). Not reported: client-side code that only sends the field, comments, and string literals. Other consistency rules (start before end, totals that match their items) are not detected.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1288/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1288/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

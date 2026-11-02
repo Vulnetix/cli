@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-485",
 	"name": "Clerk secret key (live)",
 	"description": "A Clerk live backend secret key (sk_live_ prefix) was found. It grants full server-side access to the Clerk instance including user and session management.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-485",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-485",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

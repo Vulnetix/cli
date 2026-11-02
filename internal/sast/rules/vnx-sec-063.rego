@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-063",
 	"name": "MongoDB connection string with credentials",
 	"description": "Reports a MongoDB connection URL that embeds a literal password: mongodb://user:password@host (including replica-set host lists) or mongodb+srv://user:password@cluster, in code, config, .env and compose files. The password is masked in the snippet. Not reported: a password that is interpolated or templated (${VAR}, $VAR, {{ }}, %s, <password>, f-string or template-literal fields, string concatenation), a default or placeholder word (password, root, changeme, mongo, example, the user name itself...), a server on localhost/127.0.0.1/::1 or a documentation host (example.com, *.test, *.invalid, a bare host or hostname), URLs without a password, Markdown/reStructuredText/AsciiDoc and *.example/*.sample/*.template files, and test, fixture, vendored and generated files. VNX-SEC-008 reports the same URLs for every database scheme.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-063/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-063/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

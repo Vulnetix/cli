@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1077",
 	"name": "Discogs personal access token",
 	"description": "A Discogs personal access token (40-character base62) was found. It authorizes API access to the Discogs user's collection, wantlist and marketplace data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1077",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1077",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

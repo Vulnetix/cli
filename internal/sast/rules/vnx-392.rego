@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-392",
 	"name": "Missing Report of Error Condition",
 	"description": "A Python web handler catches an exception and answers with an error body but no error status, so the client receives HTTP 200 OK for a failed request. Reported: inside an except block, a return of jsonify(...), JsonResponse(...), JSONResponse(...), HttpResponse(...), Response(...) or make_response(...), Sanic json(...) (in a module importing sanic), or (in a Flask, FastAPI, Django or Starlette module) a dict literal, whose content says the request failed (error, fail, invalid, not found, denied, unauthorized, forbidden, exception, missing, went wrong, unable to, could not, cannot, a success or ok key set to False, or str(e)/the exception variable), with no error status: no status=/status_code= argument and no (body, 4xx/5xx) or HTTPStatus tuple, or one that explicitly gives 200/2xx/HTTPStatus.OK, spanning a call broken across lines. Not reported: a response that sets a status, abort()/raise, a re-rendered HTML template (render/render_template, a form shown again with its error), a dict returned from a module that is not a web handler, test files, comments and strings. An 'error' key in a JSON body with status 200 is the exact failure this reports, including a 'status': '500' written into the body.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-392/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-392/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

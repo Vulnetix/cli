@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-798",
 	"name": "Hotjar API token",
 	"description": "A Hotjar API access token was found. It grants API access to the organisation's site recordings, heatmaps and survey data in Hotjar.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-798",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-798",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

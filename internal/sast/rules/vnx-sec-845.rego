@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-845",
 	"name": "Gelato API key",
 	"description": "A Gelato print-on-demand API key was found. It grants access to the account's product catalog, orders and shipping in the Gelato API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-845",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-845",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

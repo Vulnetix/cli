@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-012",
 	"name": "PHP reflected XSS via echo/print of user input",
 	"description": "Request input is written into the response without HTML encoding. Reported: echo, print, <?= ?>, printf()/vprintf() and die()/exit() whose output contains a $_GET/$_POST/$_REQUEST/$_COOKIE/$_SERVER element, or a variable assigned from one within the 30 lines above (through any function that is not an encoder, such as trim() or str_replace()); and an HTML fragment (a string literal containing a tag) assigned or appended (.=) to a variable together with such a value, which is how a page buffer like $html is built before it is printed; and a heredoc (<<<HTML, not a nowdoc <<<'X') echoed, printed or assigned whose body, up to 30 lines, interpolates such a value (reported on each body line that interpolates such a value). Not reported: values passed through htmlspecialchars(), htmlentities(), strip_tags(), intval()/(int)/floatval(), json_encode(), urlencode()/rawurlencode(), esc_html()/esc_attr() or e(); isset()/empty()/count() tests of input; user input inside a single-quoted literal (not interpolated); constant output; and the statement inside a comment or a string. A value that travels through a second variable before it is echoed, stored XSS read back from a database, and template engines (Blade, Twig) are not tracked.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-012/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-012/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

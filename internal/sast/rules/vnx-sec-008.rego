@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-008",
 	"name": "Database connection string with credentials",
 	"description": "Reports a database connection URL that embeds a literal password: scheme://user:password@host for PostgreSQL, MySQL/MariaDB, MongoDB (including mongodb+srv), Redis (redis/rediss, including an empty user), SQL Server (mssql/sqlserver) and CockroachDB, with an optional driver suffix (postgresql+psycopg2, mysql+pymysql) or jdbc: prefix, a JDBC URL with a password= parameter, and a Go go-sql-driver/mysql DSN (user:password@tcp(host:port)/db), in code, config, .env and compose files. Not reported: a password that is interpolated or templated (${VAR}, $VAR, {{ }}, %s, <password>), a default or placeholder word (password, postgres, root, changeme, the user name itself…), a database on localhost/127.0.0.1/::1, URLs without a password, Markdown/reStructuredText/AsciiDoc and *.example/*.sample/*.template files, and test, fixture, vendored and generated files. Key=value connection strings (Server=…;Password=…) are VNX-SEC-598.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-008/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-008/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

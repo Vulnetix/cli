@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-799",
 	"name": "Qualtrics API token",
 	"description": "A Qualtrics API token (X-API-TOKEN) was found. It grants API access to the organisation's surveys, responses and contacts in Qualtrics.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-799",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-799",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

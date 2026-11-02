@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-880",
 	"name": "WordPress.com OAuth access token",
 	"description": "A WordPress.com REST API OAuth access token was found. It grants delegated access to the user's WordPress.com and Jetpack-connected sites.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-880",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-880",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

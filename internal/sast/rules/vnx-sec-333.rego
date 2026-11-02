@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-333",
 	"name": "Plaid client id",
 	"description": "A Plaid client id was found near a plaid/client_id assignment. It identifies the Plaid application and is paired with a secret for API access to bank account data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-333",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-333",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

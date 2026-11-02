@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1076",
 	"name": "Last.fm API secret",
 	"description": "A Last.fm API shared secret (32-character hex) was found. It signs authenticated Last.fm API method calls such as scrobbling on behalf of users.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1076",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1076",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

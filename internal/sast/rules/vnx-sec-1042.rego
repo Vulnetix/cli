@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1042",
 	"name": "Checkmarx API key / refresh token (assignment)",
 	"description": "A Checkmarx One API key (refresh token) assigned to a checkmarx/cx field was found. It mints OAuth access tokens granting access to Checkmarx scan results and project configuration.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1042",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1042",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-712",
 	"name": "Mastodon application client secret",
 	"description": "A Mastodon application client secret (64 hex characters) assigned to a mastodon context was found. It authenticates the Mastodon OAuth application.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-712",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-712",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

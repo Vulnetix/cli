@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1064",
 	"name": "Invokable Control Element with Signature Containing an Excessive Number of Parameters",
 	"description": "Java: a method or constructor declaration (package-private constructors included) with more than seven parameters (the CISQ maintainability threshold). The declaration is read across line breaks, with annotations, string literals and generic type arguments removed before parameters are counted, so `Map<String, Integer> m` is one parameter. Such signatures are hard to call correctly (adjacent parameters of the same type are easily swapped) and usually mean a parameter object or builder is missing. Not reported: @Override methods, whose signature is imposed by the supertype or framework callback they implement (the supertype's own declaration is reported when it is scanned), @ParameterizedTest methods, whose parameters are the columns of their data source, calls and constructor invocations with many arguments, declarations of seven or fewer parameters, record headers (their components are fields), varargs counted as one parameter, and comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1064/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1064/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

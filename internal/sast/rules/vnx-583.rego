@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-583",
 	"name": "finalize() method declared public",
 	"description": "A Java override of Object.finalize() declared public (any modifier order, with or without an annotation or throws clause on the same line), and a Kotlin member fun finalize() with no visibility modifier (Kotlin members default to public) or declared public. Object.finalize() is protected; widening it lets any caller run the finaliser, releasing native resources or other cleanup while the object is still in use. Not reported: a protected or package-private Java finalize(), a protected, private or internal Kotlin finalize(), a Kotlin top-level fun finalize(), an overload that takes parameters, methods whose name only starts with finalize, calls to finalize(), comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-583/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-583/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

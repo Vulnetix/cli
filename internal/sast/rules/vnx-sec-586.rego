@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-586",
 	"name": "Filestack API key",
 	"description": "A Filestack API key assigned to a context keyword was found. It authenticates uploads and transformations against the Filestack media API for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-586",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-586",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

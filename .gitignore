@@ -68,11 +68,6 @@ coverage.out
 *.tmp
 *.temp
 
-# Hugo
-website/public/
-website/.hugo_build.lock
-website/resources/_gen/
-
 # Terraform
 **/.terraform/
 **/terraform.tfstate

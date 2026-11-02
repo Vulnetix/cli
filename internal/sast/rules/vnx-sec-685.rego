@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-685",
 	"name": "Twitter/X API secret (consumer secret)",
 	"description": "A Twitter/X API secret (consumer secret, 50-char alphanumeric) assigned to a twitter/x context was found. It authenticates the app and can mint access tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-685",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-685",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

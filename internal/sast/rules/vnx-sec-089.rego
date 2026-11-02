@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-089",
 	"name": "PayPal / Braintree access token",
 	"description": "A PayPal or Braintree access token was found, granting access to payment processing for the merchant account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-089",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-089",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

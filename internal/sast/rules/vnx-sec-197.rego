@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-197",
 	"name": "Codecov upload token",
 	"description": "A Codecov upload token (UUID format) was found. It authorizes coverage report uploads for a repository and can be abused to inject fake or malicious coverage data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-197",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-197",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

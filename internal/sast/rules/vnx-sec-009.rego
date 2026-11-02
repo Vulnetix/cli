@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-009",
 	"name": "SendGrid API key",
 	"description": "A SendGrid API key is written into a file: the full SG.<22 characters>.<43 characters> token, standing on its own (quoted, after = or :, in a header, URL or comment), in any file type. SendGrid keys send mail as the account's verified domains and read its contacts, so a leaked one is used for phishing and spam. Not reported: placeholder or low-entropy keys (SG.xxxx..., SG.your-key...), strings that are only SG.-prefixed lookalikes of the wrong length or embedded in a longer token, lock files, minified bundles, and test, fixture and vendored paths. VNX-SEC-453 reports the same token when it is assigned to a subuser key name.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-009/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-009/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

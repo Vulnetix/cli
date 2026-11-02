@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-432",
 	"name": "Klaviyo OAuth refresh token",
 	"description": "A Klaviyo OAuth client secret or refresh token was found near a klaviyo assignment. It can mint access tokens for the connected Klaviyo account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-432",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-432",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

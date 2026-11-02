@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1011",
 	"name": "Pinata API secret (legacy, assignment)",
 	"description": "A Pinata legacy API secret (64-hex) assigned to a pinata secret field was found. It pairs with the API key to authenticate IPFS operations on Pinata.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1011",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1011",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

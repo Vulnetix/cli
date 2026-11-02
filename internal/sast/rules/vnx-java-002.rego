@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JAVA-002",
 	"name": "Spring actuator endpoints exposed",
 	"description": "Reports Spring Boot configuration (application/bootstrap[-profile].properties|yml|yaml) that exposes sensitive actuator endpoints over HTTP: management.endpoints.web.exposure.include set to * or naming env, heapdump, threaddump, shutdown, jolokia, configprops, httptrace, logfile or restart (properties, flat YAML keys, nested and partly dotted YAML whose full key path is management.endpoints.web.exposure.include, inline and block YAML lists), management.endpoint.shutdown.enabled=true, and the Spring Boot 1.x switches management.security.enabled=false and endpoints.sensitive=false. These leak heap dumps, environment variables and credentials, or allow remote shutdown. Applies to Java and Kotlin projects. Not reported: an include of harmless endpoints (health, info, metrics, prometheus), exclude lists, JMX exposure, an include key under any other YAML mapping, commented lines, test resources, and projects whose Java or Kotlin code secures actuator endpoints with EndpointRequest (Spring Security).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-002/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

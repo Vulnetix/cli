@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-ANDROID-004",
 	"name": "Android credential stored in plaintext SharedPreferences",
 	"description": "A password, token, secret, API/private key, PIN, session id or similar credential is written with putString() to a plain SharedPreferences.Editor, which stores it as cleartext XML under shared_prefs/ (readable on a rooted device, from backups and from device-transfer copies). The editor must be recognisably SharedPreferences: X.edit().putString(...) (also chained across lines), an Editor variable assigned from .edit() or declared SharedPreferences.Editor, or a receiver-less putString inside a Kotlin edit { } / with(prefs.edit()) { } block. The key or the value expression must name the credential (\"auth_token\", KEY_PASSWORD, tokens.accessToken). Not reported: EncryptedSharedPreferences (the preferences object is created by EncryptedSharedPreferences.create, or is named secure/encrypted), values passed through an encrypt/cipher/hash/HMAC call on the same line or assigned from one a few lines above, constant values (\"\", null, literals, R.string resources, used to clear or label), keys that only describe a credential (token_type, token_expiry, password_hint, password_hash, remember_password), push/FCM registration tokens, Bundle/Intent/other key-value stores, comments and strings. Data written through a repository wrapper in another file is not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-android-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-android-004/",
 	"languages": ["java", "kotlin"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-862",
 	"name": "Yotpo API secret",
 	"description": "A Yotpo reviews/loyalty API secret was found. With the app key it lets an attacker obtain access tokens to the merchant's Yotpo account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-862",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-862",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

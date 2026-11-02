@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1119",
 	"name": "Imgur access token (bearer)",
 	"description": "An Imgur OAuth2 access token (40-character hex bearer) was found. It authorizes Imgur API actions on behalf of the authorized user account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1119",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1119",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

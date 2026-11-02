@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1050",
 	"name": "Excessive Platform Resource Consumption within a Loop",
 	"description": "Python code opens a new database connection, connection pool, SQLAlchemy engine, HTTP session/client, cloud SDK client, message-broker or SMTP/FTP connection on every iteration of a for or while loop, although nothing the constructor is given depends on the iteration, so the resource could be created once before the loop (CWE-1050). Reported constructors: sqlite3/psycopg2/psycopg/pymysql/MySQLdb/mysql.connector/pymssql/pyodbc/cx_Oracle/oracledb/asyncpg/aiomysql connect(), asyncpg/aiomysql create_pool(), create_engine/create_async_engine, MongoClient, redis.Redis/StrictRedis/from_url, requests.Session, httpx.Client/AsyncClient, aiohttp.ClientSession, urllib3.PoolManager, boto3.client/resource/Session, pika.BlockingConnection, smtplib.SMTP/SMTP_SSL and ftplib.FTP. Not reported: a constructor whose arguments use the loop variable or a name assigned inside the loop (a connection per host, shard or URI), retry and polling loops (the body breaks, sleeps or returns the resource, or the header names a retry/attempt counter), a resource created before the loop, open() of a file per iteration, loops written as examples inside a docstring, comments, string literals and test files. Deliberately not followed: modules imported under an alias (import psycopg2 as pg) or constructors imported by name (from sqlite3 import connect), and comprehensions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1050/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1050/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

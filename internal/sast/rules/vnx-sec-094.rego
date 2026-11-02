@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-094",
 	"name": "Canva client secret (cnvca)",
 	"description": "A Canva Connect API client secret (cnvca prefix) was found, allowing OAuth client impersonation.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-094",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-094",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

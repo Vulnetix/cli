@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-677",
 	"name": "Twitch OAuth access token (oauth:)",
 	"description": "A Twitch IRC/API OAuth token (oauth: prefix followed by 30 chars) was found. It authenticates as the associated Twitch user for chat and API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-677",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-677",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

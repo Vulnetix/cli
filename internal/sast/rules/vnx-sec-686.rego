@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-686",
 	"name": "Twitter/X bearer token (AAAAAAAA)",
 	"description": "A Twitter/X app-only bearer token (AAAAAAAAAA prefix) was found. It authenticates app-only Twitter API v2 requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-686",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-686",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-170",
 	"name": "Improper Null Termination",
 	"description": "A C/C++ buffer is filled in a way that can leave it without a terminating NUL and nothing terminates it: strncpy(dst, src, n) with any count other than n - 1 (the full buffer, strlen(src), a variable or a constant), or with n - 1 into a buffer that was not zeroed (memset/bzero/= {0}/calloc/static storage), with no dst[...] = '\\0' (or *p = 0) within the next four lines; memcpy(dst, src, strlen(src)), or memcpy(dst, src, len) with len = strlen(src) a few lines above and unchanged, without a terminator after it; and read/readlink/recv/recvfrom/fread that fills a char array with sizeof(buf) bytes, after which the buffer is used as a string (strlen, strcmp, strstr, atoi/strtol, sscanf, printf %s, std::string, std::string s(buf)) within eight lines without buf[n] = '\\0'. Not reported: a string-literal source (for strncpy and memcpy), a length of strlen(src) + 1, a length that is clamped before the copy or returned/stored beside the bytes (a counted buffer such as an OpenSSL password callback), an n - 1 strncpy whose last byte was terminated just before it, strlcpy/snprintf, a read of sizeof(buf) - 1, a buffer only used as bytes, strncpy wrapper functions, strncat (which always terminates), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-170/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-170/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

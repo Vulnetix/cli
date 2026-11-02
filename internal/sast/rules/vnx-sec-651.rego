@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-651",
 	"name": "JWT HS256 hardcoded signing secret",
 	"description": "A hardcoded JWT/HMAC signing secret assigned to a jwt-secret style variable was found. Anyone with this secret can forge valid HS256 JSON Web Tokens and impersonate any user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-651",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-651",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

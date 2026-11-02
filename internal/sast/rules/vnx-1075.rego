@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1075",
 	"name": "Unconditional Control Flow Transfer outside of Switch Block",
 	"description": "A C goto that jumps backwards (in .c and .h files): goto L; where the label L: is defined earlier in the same function (no column-zero closing brace between the label and the goto, at most 400 lines above). A backward goto is a loop built from an unconditional jump, with no loop header to show its condition or bound, so it is easy to make it spin forever or re-run setup it should not. A retry that jumps forward to an error handler which then jumps back (try_again: ... goto socket_err; ... socket_err: ... goto try_again;) is such a loop and is reported. Not reported: forward gotos to a cleanup or error label further down (the accepted C error-unwinding idiom), a backward goto into an error-handling tail section (code after the label returns, exits, continues, breaks or jumps away at the label's own nesting level before the goto, so the jump cannot loop), a goto whose same-name label also appears below it in the same function, a label with the same name in an earlier function, labels further than 400 lines above, computed gotos (goto *ptr), and goto text inside comments (including a /* */ block whose lines carry no leading *) or string literals. Backward gotos in C++ files (.cc, .cpp, .cxx, .hpp, .hh) are reported by VNX-1119.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1075/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1075/",
 	"languages": ["c"],
 	"severity": "low",
 	"level": "note",

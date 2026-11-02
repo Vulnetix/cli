@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-474",
 	"name": "Use of Function with Inconsistent Implementations",
 	"description": "C or C++ calls to library functions whose behaviour differs between platforms or C libraries in a way that changes correctness: signal() or std::signal() installing a handler function (System V resets the disposition to the default after the first delivery and does not restart interrupted calls, BSD does neither; reported once per file, at the first such install), strerror_r() (glibc's _GNU_SOURCE version returns a char * and may leave the buffer untouched, the XSI version returns an int and fills it), realloc(p, 0) (frees and returns NULL on some libraries, returns a new minimal block on others), the Microsoft _snprintf/_vsnprintf/_snwprintf family including `#define snprintf _snprintf` (does not NUL-terminate on truncation, unlike C99 snprintf), and vfork() (shares the parent's memory on some systems and is a plain fork on others). Not reported: signal() with SIG_IGN, SIG_DFL or a SIG_ERR test, signal() restoring a disposition saved from an earlier signal() call, sigaction, strerror_r inside a preprocessor branch that selects the variant (__GLIBC__, _GNU_SOURCE, _POSIX_C_SOURCE, _XOPEN_SOURCE, STRERROR_R, an OS macro) within 15 lines above, realloc with a non-zero size, snprintf/vsnprintf, fork, member calls and lookalike names (queue->signal, xsignal, my_realloc), test sources, comments and string literals. Format-string argument-count mismatches belong to CWE-685, not here.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-474/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-474/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

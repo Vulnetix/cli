@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-DOCKER-008",
 	"name": "Dockerfile OS package install without version pinning",
 	"description": "A RUN step installs operating-system packages without pinning their versions, so each build silently takes whatever the mirror serves that day: builds are not reproducible and a changed or compromised package version enters the image unreviewed. Reported per install command, wherever it sits in the RUN (after &&, after DEBIAN_FRONTEND=..., inside if/then, on a continuation line, inside a RUN heredoc, ONBUILD RUN), when at least one named package has no version: apt-get/apt/aptitude install (pin pkg=version), apk add (pkg=, pkg~, pkg>, pkg<), yum/dnf/microdnf/tdnf install (pkg-1.2.3 or pkg=), and zypper install/in (pkg=, pkg>=). Options are understood, including those that take a value (-o Dpkg::Options::=..., -t release, --virtual name, --setopt, --enablerepo), so an = inside an option is not mistaken for a pin. Not reported: commands whose every package is pinned, local package files (./x.deb, /tmp/x.rpm), package lists held in a variable or produced by $(...)/xargs, apt-get update/upgrade/remove and install -f, yum localinstall and rpm -i, language package managers (pip, npm, gem; other rules), install text in comments, labels and COPY heredocs, test and .devcontainer images, and files that only mention Dockerfiles.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-008/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-docker-008/",
 	"languages": ["docker"],
 	"severity": "low",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-735",
 	"name": "CoinMarketCap API key",
 	"description": "A CoinMarketCap API key (UUID format) assigned to a coinmarketcap context was found. It authorises access to CoinMarketCap's market-data API billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-735",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-735",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

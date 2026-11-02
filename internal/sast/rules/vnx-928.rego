@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-928",
 	"name": "Broken or obsolete cipher (DES, 3DES, RC4, RC2, Blowfish) in Kotlin",
 	"description": "CWE-928 is the OWASP Top Ten 2013 view; this rule reports its most concrete Kotlin manifestation, a broken or obsolete symmetric cipher (A6 Sensitive Data Exposure). Java is reported by VNX-CRYPTO-004 (Broken or obsolete cipher, CWE-327), which reads the same JCA and Bouncy Castle forms, so a weak cipher in a .java file is one finding rather than two; this rule reads .kt files only. Reported in Kotlin: Cipher, SecretKeyFactory or KeyGenerator .getInstance with DES, DESede/TripleDES/3DES, RC4/ARCFOUR, RC2 or Blowfish (any mode and padding, the argument possibly on the next line) or a password-based scheme built on one (PBEWithMD5AndDES, PBEWithSHA1AndDESede, PBEWithSHAAnd40BitRC4), Bouncy Castle new DESEngine/DESedeEngine/RC4Engine/RC2Engine/BlowfishEngine(), the same algorithm passed through a String constant assigned in the same file, new SecretKeySpec(key, \"DES\"/\"RC4\"/...), and new DESKeySpec/DESedeKeySpec. Not reported: AES, ChaCha20 and RSA transformations, algorithm names in comments, log messages or other string literals not passed to a crypto API, and identifiers that only start with DES (DESCRIPTOR, DESIGN). A constant defined in another file is not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-928/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-928/",
 	"languages": ["kotlin"],
 	"severity": "medium",
 	"level": "warning",

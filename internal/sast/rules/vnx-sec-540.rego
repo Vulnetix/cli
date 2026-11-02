@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-540",
 	"name": "PostHog personal API key (phx_)",
 	"description": "A PostHog personal API key (phx_ prefix) was found. It grants account-level access to query and manage PostHog projects, dashboards and data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-540",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-540",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

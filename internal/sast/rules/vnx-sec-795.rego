@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-795",
 	"name": "LogRocket API key",
 	"description": "A LogRocket API key was found. It grants API access to the organisation's session-replay and front-end monitoring data in LogRocket.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-795",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-795",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-613",
 	"name": "Loggly customer token",
 	"description": "A Loggly customer token (UUID) assigned to a context keyword was found. It authorises log ingestion to the Loggly account's bulk/inputs endpoint.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-613",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-613",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

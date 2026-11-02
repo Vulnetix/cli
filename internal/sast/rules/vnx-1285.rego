@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1285",
 	"name": "Improper Validation of Specified Index, Position, or Offset in Input",
 	"description": "A position the client chose is used to index a list or array with no bounds check, so a negative value silently selects from the end (Python), an out-of-range value raises or yields undefined, and the client can read or remove an element it was never offered. Reported in Python: int(...) of a Flask/Django/DRF request value (request.args/form/values/json/GET/POST/data/query_params/view_args) used as a subscript x[v], or as the position of .pop(v)/.insert(v, ...), inline or through a variable assigned from it in the 15 lines above. JavaScript/TypeScript: parseInt/Number/parseFloat/unary + of req.body/query/params, or a req field named index, idx, pos, position, offset, slot, choice, row or column, used as a subscript x[v] or as the position of .splice(v, ...)/.at(v)/.charAt(v), inline, through a variable assigned in the 15 lines above, or through a position-named field destructured from the request (const { index } = req.body). Not reported: a comparison of the value (<, <=, >, >=, or a check against len()/.length) between the read and the use, slices (rows[offset:offset+20], .slice()), lookups keyed by a string (users[req.params.id], THEMES[name]), and text in comments and strings. Upper-bound-only checks are reported by VNX-839.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1285/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1285/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

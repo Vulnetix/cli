@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-772",
 	"name": "Missing Release of Resource after Effective Lifetime",
 	"description": "Reports a Java method that acquires an operating-system resource into a local variable and never releases it: a Socket, DatagramSocket, ServerSocket, FileInputStream, FileOutputStream, FileReader, FileWriter, RandomAccessFile, ZipFile or JarFile; a reader, writer, Scanner or object stream constructed directly around a new File stream; a JDBC Connection from DriverManager or a DataSource (including getDataSource().getConnection()); or a stream from Files.lines/list/walk/find/newInputStream/newOutputStream/newBufferedReader/newBufferedWriter. A declaration broken after `=` is read with its next line. It is reported when the declaration is not in a try-with-resources header and the rest of the method has no close() of the variable, no closeQuietly/close helper call with it, no return of it, no assignment of it elsewhere and no hand-off as a call argument. Also reported: a file stream created inline and passed straight to a consumer that does not close it (`props.load(new FileInputStream(p))`, `new Scanner(new File(p)).next()`). Each leaked descriptor or connection stays open until garbage collection, if ever. Not reported: try-with-resources (single- or multi-line headers), close in finally, resources returned to the caller, stored in a field or handed to another object, a ServerSocket serving an accept() loop, in-memory streams (ByteArrayInputStream, StringReader, Scanner(System.in)), comments, string literals and test sources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-772/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-772/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

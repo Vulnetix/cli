@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-TF-005",
 	"name": "Terraform AWS EBS volume unencrypted",
 	"description": "An EBS volume is created without encryption at rest: encrypted = false (or \"false\") inside an aws_ebs_volume or aws_ebs_snapshot_copy, inside a root_block_device or ebs_block_device of aws_instance, aws_spot_instance_request or aws_launch_configuration, or inside the ebs block of an aws_launch_template; or an aws_ebs_volume that sets neither encrypted nor snapshot_id as its own attribute (EBS volumes default to unencrypted; a commented-out encrypted line or a tag named encrypted does not count). Not reported: encrypted = true, a value taken from a variable, a volume restored from a snapshot (it inherits the snapshot's encryption), any volume in a project that declares aws_ebs_encryption_by_default with enabled = true (AWS then encrypts every new volume), storage_encrypted on databases, EFS file systems, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-tf-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-tf-005/",
 	"languages": ["terraform"],
 	"severity": "high",
 	"level": "error",

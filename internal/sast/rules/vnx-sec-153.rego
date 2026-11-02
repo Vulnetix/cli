@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-153",
 	"name": "GCP Firebase web API config apiKey (AIza, firebase context)",
 	"description": "A Firebase web app configuration apiKey (AIza prefix) in a firebase config context was found. While intended to be public, exposure with weak security rules can enable abuse of Firebase services.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-153",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-153",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

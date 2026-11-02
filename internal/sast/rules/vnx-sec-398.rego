@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-398",
 	"name": "Mollie OAuth access token (access_)",
 	"description": "A Mollie OAuth access token using the access_ prefix was found near a mollie assignment. It authorizes API access on behalf of a connected Mollie organization.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-398",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-398",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

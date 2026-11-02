@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-906",
 	"name": "OpenWeatherMap API key",
 	"description": "An OpenWeatherMap API key was found near an openweather assignment. It is a 32-character hex string (appid) authorizing weather and forecast API calls.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-906",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-906",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

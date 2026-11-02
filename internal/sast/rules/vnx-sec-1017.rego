@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1017",
 	"name": "Bitfinex API secret (assignment, alt context)",
 	"description": "A Bitfinex API secret captured via a bitfinex-secret assignment was found. It signs HMAC-SHA384 authentication for Bitfinex trading, funding and withdrawal endpoints.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1017",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1017",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

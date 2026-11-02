@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-142",
 	"name": "Cloudflare Stream signing key context",
 	"description": "A Cloudflare Stream signing key (PEM/JWK key material) assigned to a context keyword was found. Stream signing keys mint signed tokens that authorize playback of protected videos.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-142",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-142",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

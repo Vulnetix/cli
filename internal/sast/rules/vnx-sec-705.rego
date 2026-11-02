@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-705",
 	"name": "Discourse API key",
 	"description": "A Discourse forum API key (64 hex characters) assigned to a discourse context was found. It authorises admin/user actions on the Discourse instance.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-705",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-705",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

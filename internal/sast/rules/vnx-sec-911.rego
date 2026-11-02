@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-911",
 	"name": "IPstack API access key",
 	"description": "An ipstack API access key was found near an ipstack assignment. It is a 32-character hex string authorizing IP geolocation lookups.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-911",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-911",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

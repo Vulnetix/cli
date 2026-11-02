@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-806",
 	"name": "Buffer Access Using Size of Source Buffer",
 	"description": "A C/C++ copy into a destination buffer is bounded by the size of the SOURCE instead of the destination, so a long source overruns the destination: memcpy, memmove, strncpy, strncat, strlcpy, strlcat, wcsncpy, wcsncat, wmemcpy or wmemmove whose count is strlen(src), wcslen(src) or sizeof(src) of the same expression passed as the source (optionally + 1), a variable assigned from one of those in the ten lines above, or, for a C++ string, s.size()/s.length() with s.c_str()/s.data() as the source. Calls broken across up to three lines are read whole. Not reported: a destination allocated in the twelve lines above (malloc/calloc/realloc/alloca/strdup/new[]/kmalloc, sized from the source), a destination that is itself a container's buffer (v.data(), &s[0]), a length compared with something (a <, >, <= or >= on strlen(src), the length variable or sizeof(dst)) in the twelve lines above or on the call line, a count wrapped in MIN/min, a string-literal or address-of (&x) source, calls spelled inside string literals, and comments. Reading from a source pointer, an unknown destination capacity and cross-function flows are out of scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-806/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-806/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

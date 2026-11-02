@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-470",
 	"name": "Help Scout OAuth2 app id/secret pair",
 	"description": "A Help Scout OAuth2 application secret was found near a helpscout oauth assignment. It can mint access tokens for the Help Scout Mailbox API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-470",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-470",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

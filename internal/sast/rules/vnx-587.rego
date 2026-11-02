@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-587",
 	"name": "Assignment of a Fixed Address to a Pointer",
 	"description": "An integer literal cast to a pointer type and assigned to a pointer, returned, bound by a #define, or dereferenced as a statement in C or C++: T *p = (T *)0x40020000; *(volatile uint32_t *)0x40021018 |= 4; p = (volatile uint32_t *)0x8000u; #define REG (*(volatile unsigned *)0x4000C000); reinterpret_cast<T *>(0x1F000000), including a cast whose literal continues on the next line. A hard-coded address ties the code to one memory layout and breaks (or becomes exploitable) when that layout changes. Only addresses of 0x1000 or above count. Not reported: null and sentinel values below the first page (0, -1, 0x100 list poison), all-ones values, well-known poison patterns (0xdeadbeef, 0xdeadc0de), casts to integer types, address arithmetic on a base pointer, casts compared with == or passed as arguments, comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-587/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-587/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

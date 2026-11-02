@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-850",
 	"name": "Amazon LWA client secret (amzn1)",
 	"description": "An Amazon Login-with-Amazon client secret (amzn1.oa2-cs prefix) was found. Combined with the client id it lets an attacker exchange refresh tokens for SP-API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-850",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-850",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

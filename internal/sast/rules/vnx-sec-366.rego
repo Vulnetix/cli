@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-366",
 	"name": "Braintree tokenization key",
 	"description": "A Braintree tokenization key was found near a braintree assignment using the production_/sandbox_ form. It authorizes client-side tokenization scoped to a merchant.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-366",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-366",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

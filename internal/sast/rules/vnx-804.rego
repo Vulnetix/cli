@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-804",
 	"name": "Guessable CAPTCHA",
 	"description": "Reports home-grown CAPTCHA code in JavaScript/TypeScript and Python that an automated client can solve without solving the challenge: (1) the challenge text or digits come from a predictable generator (Math.random(), or random.choice/choices/randint/randrange/random/sample/getrandbits) on a line that names a captcha, inside a function or class whose name contains captcha, or in a file whose name contains captcha; (2) the expected answer is sent to the client: res.json/res.send/ctx.body/jsonify/JsonResponse with an answer or solution key (including the shorthand { answer }), with a captcha object's .text/.answer/.solution/.code, or with a variable built a few lines above as an object holding an answer/solution key or returned by svgCaptcha.create; (3) verification fails open, so a request naming an unknown CAPTCHA id passes: an accept condition `if (!stored || given === stored.answer)` / `if not stored or ...` / `if stored is None or ... == ...`, or a reject condition that only fires when the stored CAPTCHA exists, `if (stored && stored.answer !== given)` / `if stored is not None and stored.answer != given`. Not reported: fail-closed checks (`if (!stored || stored.answer !== given)` rejecting), crypto.randomInt/randomBytes, secrets, random.SystemRandom, randomness outside captcha code, responses that omit the answer (svgCaptcha's .data), answers stored server side, third-party services (reCAPTCHA, hCaptcha, Turnstile), comments and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-804/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-804/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-024",
 	"name": "PHP mb_ereg_replace with variable options enabling eval modifier",
 	"description": "mb_ereg_replace() or mb_eregi_replace() is called with the 'e' (evaluate) modifier in its options argument (the fourth), given as a literal that contains e ('e', 'msre', also across line breaks), or with options taken from the request ($_GET, $_POST, $_REQUEST, $_COOKIE, a Laravel/Symfony request accessor) inline or through a variable assigned from one in the 25 lines above, or mb_regex_set_options() sets a default option string containing e. With e, PHP (before 8.0) evaluates the replacement as PHP code, so a replacement built from input or back-references is code execution. Not reported: calls with three arguments (no options), literal options without e ('msr', 'i', 'x'), options from a constant, property or configuration variable, mb_ereg_replace_callback(), the pattern or subject containing the letter e, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-024/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-024/",
 	"languages": ["php"],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1093",
 	"name": "CDN77 API token",
 	"description": "A CDN77 API login token (32-character hex) was found. It authorizes management of CDN resources, purges and reports on the CDN77 account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1093",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1093",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

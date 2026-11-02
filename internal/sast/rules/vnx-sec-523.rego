@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-523",
 	"name": "Adobe IMS client secret",
 	"description": "An Adobe IMS (Identity Management System) OAuth client secret was found. Combined with the client ID it grants access to Adobe APIs such as Creative Cloud and Document Services.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-523",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-523",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

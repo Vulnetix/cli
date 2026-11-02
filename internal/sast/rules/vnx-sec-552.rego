@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-552",
 	"name": "Okta client secret",
 	"description": "An Okta OIDC application client secret was found. Combined with the client ID it grants OAuth access against the Okta application.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-552",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-552",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

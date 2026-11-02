@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-026",
 	"name": "DigitalOcean personal access token hardcoded",
 	"description": "Reports a DigitalOcean personal access token: dop_v1_ followed by exactly 64 lowercase hex characters, delimited on both sides, in any file. Placeholder and low-entropy values (all zeros, x runs), the bare dop_v1_ prefix or a regular expression for it, and test and fixture paths are not reported. OAuth (doo_v1_) and refresh (dor_v1_) tokens are left to VNX-SEC-035.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-026/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-026/",
 	"languages": ["generic"],
 	"severity": "critical",
 	"level": "error",

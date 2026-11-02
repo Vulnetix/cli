@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-007",
 	"name": "Node.js SQL injection",
 	"description": "An SQL statement built at run time is passed to a Node.js database call: .query/.execute (mysql, mysql2, pg, sequelize), .raw/.whereRaw/.orWhereRaw/.havingRaw/.orderByRaw/.joinRaw (knex), .where/.andWhere/.orWhere/.having query-builder conditions (TypeORM, MikroORM; a comparison fragment counts as SQL there), $queryRawUnsafe/$executeRawUnsafe (Prisma), .unsafe (postgres.js), or run/all/get/exec/each/prepare on a db/database/sqlite/conn/connection/client/pool/tx/trx receiver (sqlite3, better-sqlite3). The first argument (or the text/sql member of a query config object) is a template literal containing SQL (SELECT, INSERT INTO, UPDATE ... SET, DELETE FROM, WHERE, ORDER BY, VALUES) with a ${...} interpolation (also across line breaks), a string literal containing SQL joined with + to a value, or a variable assigned such a string within the previous 15 lines. Not reported: parameterised queries ($1, ?, :name with a values array), SQL without interpolation, tagged templates that parameterise (sql`...`, Prisma.sql`...`, prisma.$queryRaw`...`), interpolations that are numeric conversions (Number(), parseInt()), hashes (hash()), escapes (escape(), escapeId(), format()) or placeholder lists built with $${...} or '?' (also inline, ${ids.map(() => '?')}), and non-SQL strings, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-007/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-007/",
 	"languages": ["node"],
 	"severity": "critical",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-080",
 	"name": "GitHub OAuth / App / Refresh token",
 	"description": "Reports a GitHub OAuth access token (gho_), GitHub App user-to-server token (ghu_), App installation (server-to-server) token (ghs_) or refresh token (ghr_, 36 or 76 characters) as a whole token in any file: quoted, assigned, in an Authorization header or inside a clone URL (https://x-access-token:ghs_...@github.com). Not reported: classic personal access tokens (ghp_) and fine-grained tokens (github_pat_), which VNX-SEC-004 and VNX-SEC-079 report, bare prefixes and prefix checks, truncated tokens, placeholder or low-entropy bodies, environment and CI-secret references, and test, fixture, Jest __mocks__, vendored and generated files. VNX-SEC-004 also reports these tokens as part of its wider set.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-080/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-080/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1014",
 	"name": "Binance API secret (assignment, alt context)",
 	"description": "A Binance API secret captured via a binance-secret-key assignment was found. It is the HMAC signing key for Binance spot, margin and withdrawal endpoints. Loss enables unauthorized trades and asset transfers.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1014",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1014",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

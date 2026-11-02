@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-027",
 	"name": "Potential path traversal via file path construction",
 	"description": "A file is opened, read, written, created, removed or served using a path that contains a value from the request (r.FormValue, r.URL.Query(), r.Form.Get, r.URL.Path, r.Header.Get, mux.Vars, chi.URLParam, r.PathValue, httprouter ps.ByName, gin c.Query/Param/PostForm, echo c.QueryParam/Param, fiber c.Params/Query): the value is passed inline, through the variable it was assigned to, or through one path built from it (filepath.Join, path.Join, fmt.Sprintf, concatenation), to os.Open/OpenFile/ReadFile/WriteFile/Create/Remove/RemoveAll/Mkdir/MkdirAll/ReadDir/Rename/Chmod, ioutil.ReadFile/WriteFile/ReadDir, http.ServeFile, http.Dir, gin c.File/FileAttachment, echo c.File/Attachment/Inline or fiber c.SendFile/Download. Not reported: a value checked or reduced first (filepath.Base, filepath.IsLocal, filepath.Rel, strings.HasPrefix on the joined path, a '..' test, fs.ValidPath, SecureJoin, a Clean of a rooted \"/\"+value, strconv number parsing, a helper named validate/sanitize/safe), files opened through os.Root, r.URL.Path given to http.ServeFile (which itself rejects '..' in the URL path), os.Args and environment values (the operator, not a requester), comments and strings. A bare filepath.Clean of a relative value is not a check: it keeps leading '../'. os.Stat existence probes and flows across functions are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-027/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-027/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-362",
 	"name": "Brex API token",
 	"description": "A Brex API token using the bxt_ prefix was found. Brex tokens authorize card, expense and payment operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-362",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-362",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

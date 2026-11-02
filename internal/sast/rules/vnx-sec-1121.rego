@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1121",
 	"name": "StackPath client ID",
 	"description": "A StackPath API client ID (UUID format) was found. It identifies the API application and pairs with the client secret for OAuth token minting.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1121",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1121",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

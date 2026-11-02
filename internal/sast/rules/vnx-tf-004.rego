@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-TF-004",
 	"name": "Terraform IAM policy with wildcard Action (*)",
 	"description": "An IAM policy statement allows every action: Action = \"*\" or a list containing \"*\" in a jsonencode() policy, \"Action\": \"*\" or [\"*\"] (also spread over several lines) in a heredoc JSON policy, or the escaped form \\\"Action\\\":\\\"*\\\" in a one-line JSON string policy, or actions = [\"*\"] in a data \"aws_iam_policy_document\" statement (or the permissions block of an azurerm_role_definition), whose own effect is Allow or unset (the default). This grants administrator rights over the resources it names, against least privilege. Not reported: a statement whose Effect is Deny (service control and guard policies deny everything on purpose), service-scoped wildcards such as \"s3:*\" or \"ec2:Describe*\", NotAction, principals and resources of \"*\", text in descriptions, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-tf-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-tf-004/",
 	"languages": ["terraform"],
 	"severity": "high",
 	"level": "error",

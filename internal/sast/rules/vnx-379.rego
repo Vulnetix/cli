@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-379",
 	"name": "Creation of Temporary File in Directory with Insecure Permissions",
 	"description": "Python code puts temporary files where other local users can see, replace or pre-create them. Reported: os.mkdir()/os.makedirs() with a mode that lets other users write (0o777, 0o1777, 0o773, 511 and the like, or stat.S_IRWXO/S_IWOTH), and os.chmod() granting other users write to a temporary directory (a /tmp/, /var/tmp/ or /dev/shm/ literal, or a variable assigned from tempfile.mkdtemp()/gettempdir() or such a literal in the 10 lines above); a fixed, predictable file name in a shared temporary directory opened for writing (open()/io.open() with a w, a or + mode and no x, given as a literal, an f-string, or a variable assigned one in the 10 lines above, and pathlib Path(...).write_text/write_bytes/touch), os.path.join(tempfile.gettempdir(), \"literal\") or os.path.join(\"/tmp\", \"literal\"), Path(tempfile.gettempdir()) / \"literal\", and logging.FileHandler (also Rotating/TimedRotating/Watched) given such a fixed path. Calls that span lines are joined (up to 5 lines for mkdir/makedirs). Not reported: owner-only or group-only modes (0o700, 0o750, 0o755), chmod of a path that is not a temporary directory, tempfile.mkstemp/NamedTemporaryFile/TemporaryDirectory (which create private, unpredictable entries even inside /tmp), reads, writes outside shared temporary directories, comments and the pattern inside a string literal. The fixed-name writes overlap VNX-59, which reports them as symlink attacks.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-379/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-379/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",

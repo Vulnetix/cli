@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-331",
 	"name": "Insufficient Entropy",
 	"description": "A secret value is generated with too little randomness to resist guessing: fewer than 16 random bytes (128 bits) from a cryptographic generator, or a time-based or truncated UUID, for a value named as a token, secret, key, password, salt, session id, CSRF, API key, reset or invite value. Reported: Python secrets.token_bytes/token_hex/token_urlsafe(n) and os.urandom(n) with n < 16, uuid.uuid1() (timestamp and MAC address, not random) and uuid4().hex[:n] with n < 32 and str(uuid4())[:n] with n < 36; Node.js crypto.randomBytes(n) with n < 16; PHP random_bytes(n) and openssl_random_pseudo_bytes(n) with n < 16; Ruby SecureRandom.hex/base64/urlsafe_base64/random_bytes(n) with n < 16 (alphanumeric(n) counts characters and is not judged); Java a byte[] and Kotlin a ByteArray of fewer than 16 bytes named as a salt, key, token or secret and filled with nextBytes(). The security name must be on the same line (an assignment, keyword or dict key). Not reported: 16 bytes or more, the secrets defaults (32 bytes), short random values with no security name (file names, colours, trace ids), nonces and IVs (12-byte GCM nonces are correct), uuid4() in full, comments and test files. Weak (non-cryptographic) generators are reported by VNX-PY-005, VNX-JAVA-016 and VNX-338; small numeric ranges by VNX-334.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-331/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-331/",
 	"languages": ["java", "kotlin", "node", "php", "python", "ruby"],
 	"severity": "medium",
 	"level": "warning",

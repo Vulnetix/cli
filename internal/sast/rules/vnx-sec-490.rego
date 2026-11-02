@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-490",
 	"name": "Stytch secret (live)",
 	"description": "A Stytch live project secret (secret-live- prefix) was found. Combined with a project ID it grants full server-side access to the Stytch authentication project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-490",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-490",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

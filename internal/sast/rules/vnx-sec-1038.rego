@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1038",
 	"name": "Infisical machine identity client secret (ssk-/st- assignment)",
 	"description": "An Infisical machine identity client secret assigned to an infisical secret field was found. With the client ID it authenticates a machine identity to retrieve Infisical secrets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1038",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1038",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

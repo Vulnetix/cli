@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-009",
 	"name": "Node.js server-side request forgery",
 	"description": "A server-side HTTP request whose destination comes from the incoming request: the URL (first argument, or the url/uri/host/hostname/baseURL member of an options object) of fetch, axios/axios.get/post/put/patch/delete/head/request, http(s).get/request, got, needle, superagent, undici, or the request library is a req/request query, body, params, headers or cookies value, a Koa ctx.query/ctx.request.body value, or a variable assigned (or destructured) from one in the 25 lines above, directly or through one intermediate assignment such as 'http://' + host + '/x'. Also reported: curl or wget run through spawn/spawnSync/execFile with such a value among its arguments. Not reported: a URL whose host is fixed by a constant prefix (API_BASE + '/items/' + id, `${config.apiUrl}/users/${id}`, 'https://api.example.com/...'), request values passed only as headers, query params or a body, a destination checked against an allowlist (ALLOWED_HOSTS, isAllowed..., ssrf filter agents) in the lines above, method calls named fetch/request on other objects (cache.fetch), browser code without a server request object, comments and string literals. Flows through helper functions or across files are not followed. A request whose response is sent back to the client (res.send/json/write/end of it, a pipe to res, ctx.body) is reported by VNX-441 instead, the open-proxy form of SSRF, so one request is one finding; Python SSRF is VNX-918.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-009/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-009/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

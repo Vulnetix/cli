@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-538",
 	"name": "Insertion of Sensitive Information into Externally-Accessible File or Directory",
 	"description": "A secret is written into a file that other parties can read: a JavaScript/TypeScript fs.writeFile/writeFileSync/appendFile/appendFileSync/createWriteStream call, or a Python open(..., 'w'/'a'/'x').write(), Path(...).write_text()/write_bytes(), or a write/json.dump on the handle of a `with open(..., 'w') as fh:` block, whose target is a web-served directory (public/, static/, www/, htdocs/, wwwroot/, public_html/, /var/www/, or a STATIC_DIR/PUBLIC_DIR/publicDir-style name) or a fixed path under /tmp/, named on the call line or through a variable assigned from such a path up to ten lines above, and whose data names a password, secret, token, API key, private key or credential, or dumps the whole environment (process.env, os.environ). Anything in those directories is served to, or readable by, people who should never see it. Not reported: non-sensitive data written to public directories, secrets written to private paths (a home or config directory), reads, names that only contain the words (tokenizer, secretary), the pattern in comments or string literals, and test files. Whether a custom directory is web-served cannot be known and is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-538/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-538/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

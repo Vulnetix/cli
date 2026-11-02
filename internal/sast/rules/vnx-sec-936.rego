@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-936",
 	"name": "Soracom auth/API key",
 	"description": "A Soracom API auth key was found. Soracom keys are prefixed with keyId-/secret- or appear as an apiKey/token assignment authorizing SIM and resource management via the Soracom API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-936",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-936",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-446",
 	"name": "Knock API key (sk_/sk_test_)",
 	"description": "A Knock secret API key (sk_ or sk_test_) was found. Knock secret keys authorize server-side notification workflow triggers and user management.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-446",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-446",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-868",
 	"name": "Constant Contact access token (JWT)",
 	"description": "A Constant Contact OAuth access token (JWT) was found. It grants delegated access to the account's contacts, lists and email campaigns until it expires.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-868",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-868",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

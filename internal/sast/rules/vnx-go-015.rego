@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-015",
 	"name": "sync.WaitGroup.Add() called inside goroutine",
 	"description": "WaitGroup.Add with a positive delta is called inside the go func literal it is meant to count, so the parent's Wait can run before the goroutine has executed Add and return early (or race with a reused WaitGroup). The WaitGroup is one declared as sync.WaitGroup in the file (variable, struct field or parameter) or named like one (wg, fooWg, waitGroup). Not reported: an Add in the parent before the go statement (including Add calls that follow an already-closed goroutine), a WaitGroup declared inside the goroutine and waited on there, a goroutine the parent already counted with an Add just before starting it, or with an Add(len(items)) immediately before the loop that starts it (its own Add calls happen while the counter is above zero), negative deltas, other Add methods (atomic counters, time.Time, big.Int, sets), and comments. A named function started with go that calls Add itself is not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-015/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-015/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

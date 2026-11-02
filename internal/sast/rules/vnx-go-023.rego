@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-023",
 	"name": "SQL injection via string concatenation",
 	"description": "A value is concatenated onto SQL text where SQL expects a literal: after an opening single quote (name = '\" + name + \"', LIKE '%\" + term + \"%', IN ('\" + strings.Join(ids, \"','\") + \"')) or straight after a comparison (id = \" + id). Reported when the concatenation is inside the query argument of a database call (Exec, Query, QueryRow, Prepare and their Context variants, sqlx, GORM Raw and the string-condition builders Where, Having, Joins, Order, Group); when the statement is assigned (:=, =, +=) to a variable a later line of the function passes to such a call; or when it is a complete statement (SELECT ... FROM, INSERT INTO, UPDATE ... SET, DELETE FROM) assigned or returned. Statements split over several lines with + and raw strings that span lines are read whole, and the finding is on the line of the concatenation. A value in any other position (ORDER BY \" + col, FROM \" + table) is reported only when it is an HTTP request value or a variable assigned from one. Not reported: fragments the function built itself (\" WHERE \" + strings.Join(clauses, \" AND \"), a constant column list, a FROM clause), bind-parameter numbers ($\" + strconv.Itoa(n)), values converted or quoted for SQL (strconv, QuoteLiteral), concatenations in messages, URLs, log lines and command arguments that are never run as a query, string literals, comments and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-023/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-023/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

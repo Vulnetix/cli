@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-836",
 	"name": "Use of Password Hash Instead of Password for Authentication",
 	"description": "Pass-the-hash authentication: a stored password hash (a field or getter named password_hash, passwordHash, hashed_password, pwd_hash, getPasswordHash() and similar) is compared, with ==, !=, ===, .equals(), compare_digest(), MessageDigest.isEqual() or crypto.timingSafeEqual(), directly against a value taken from the request (request.form/args/json/POST/GET/getParameter/getHeader, req.body/query/params/headers, a variable assigned from one a few lines above, a name destructured from req.body, or a Spring @RequestParam/@RequestHeader String parameter) without hashing it on the server. The comparison is judged per clause of the condition (split at &&, ||, and, or), so the hash and the request value must meet in the same comparison; a call left open at the end of the line is read with its next line. Anyone who obtains the hash database can then log in without knowing a single password. Python, Java and JavaScript/TypeScript. Not reported: the request password hashed on the server first (hashlib, pbkdf2, bcrypt, hash_password() and similar on the line or in the assignment), bcrypt.compare/check_password_hash/verify style checks, comparisons of two stored hashes, a hash tested against null/None/undefined/empty, a user looked up by a request value (only the request value itself, or one conversion call around it, taints a variable), and comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-836/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-836/",
 	"languages": ["java", "node", "python"],
 	"severity": "medium",
 	"level": "warning",

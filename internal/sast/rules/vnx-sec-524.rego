@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-524",
 	"name": "Salesforce consumer key (3MVG9)",
 	"description": "A Salesforce connected app consumer key (3MVG9 prefix) was found. Combined with the consumer secret it enables OAuth access to the Salesforce org.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-524",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-524",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

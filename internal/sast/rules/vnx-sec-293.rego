@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-293",
 	"name": "Voyage AI API key (assignment context)",
 	"description": "A Voyage AI API key referenced via a VOYAGE_API_KEY assignment was found, confirming a live Voyage credential in source.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-293",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-293",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-067",
 	"name": "Curl command with embedded credentials",
 	"description": "Reports a curl invocation that passes a literal credential with -u/--user: -u user:password, -uuser:password, --user user:password and --user=user:password (quoted or bare), on the curl line itself, on a backslash-continued line of the same curl command, or as the argument after \"-u\" in an argv list (subprocess.run([\"curl\", \"-u\", \"user:pw\", ...]), exec.Command(\"curl\", \"-u\", ...), including a list split over lines up to 6 lines below its \"curl\" element); also an API key passed as the user with an empty password (-u sk_xxx:) when the key is long and high-entropy. Scripts, Dockerfiles, CI workflows, Makefiles and code strings are covered. The password is masked in the snippet. Not reported: credentials that reference a variable or command ($VAR, ${VAR}, $(...), {{ }}, %s, <password>), a user with no password (curl prompts for it) and --negotiate -u :, default or placeholder pairs (user:password, admin:admin, changeme, a password equal to the user), -u of another command (sudo -u, docker run -u, a command after a pipe or &&), comment lines, Markdown/reStructuredText/AsciiDoc and *.example/*.sample files, and test, fixture, vendored and generated files. VNX-BASH-005 also reports curl -u user:VALUE in shell scripts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-067/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-067/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

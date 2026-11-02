@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-514",
 	"name": "Covert Channel: data encoded in sleep timing or DNS lookups",
 	"description": "Python code that signals data through a channel not meant for it. Timing channel: time.sleep()/sleep()/asyncio.sleep() whose duration depends on one bit of data, either a loop variable iterating a binary representation (format(x, '08b'), bin(x), an f-string :08b, a bits variable assigned from one) or a shift-and-mask ((v >> i) & 1, v & (1 << i)) inline or assigned to a variable up to four lines above; a sleep call broken across lines is read with its two continuation lines. Files that drive hardware (importing RPi.GPIO, gpiozero, machine, board, digitalio, spidev, smbus, pigpio) are skipped for timing, since bit-banged pulse widths are their protocol. Storage channel: socket.gethostbyname()/gethostbyname_ex()/getaddrinfo() or dns.resolver.resolve()/query() (also on a resolver object) on a host name built (f-string, %, +, .format or \".\".join) from hex/base32/base64/hexlify-encoded data, inline or from a variable assigned such an encoding within 10 lines above. Not reported: random jitter and exponential backoff sleeps, sleeps that depend on ordinary values (priority, retry count), lookups of fixed or service host names, and the patterns in comments or string literals. Covert channels in other media (packet timing, file metadata) are not detected.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-514/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-514/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

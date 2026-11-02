@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-014",
 	"name": "NoSQL injection in MongoDB",
 	"description": "A MongoDB query filter (the first argument of find, findOne, findOneAndUpdate/Delete/Replace, updateOne/updateMany/update, replaceOne, deleteOne/deleteMany, remove, count/countDocuments, distinct or aggregate) is taken from the incoming request: the whole filter is a req/request query or body value (find(req.query)), a filter member's value is one ({ username: req.body.username }, shorthand { email } after const { email } = req.body), or a $where clause concatenates or interpolates one; the request value may also come through a variable assigned (or destructured) from it in the 25 lines above, directly or through one intermediate assignment such as const filter = { owner: req.query.owner }. Express and Koa parse a[$ne]=x into an object, so a member value can carry query operators ($ne, $gt, $regex) that bypass authentication or match every document, and $where runs JavaScript on the server. Not reported: values cast to a primitive or an ObjectId (String(), Number(), parseInt(), .toString(), new ObjectId()), wrapped in { $eq: ... }, passed through mongo-sanitize/sanitize, findById, SQL ORMs whose filters sit under a where: key (Sequelize, TypeORM, Prisma), Array.prototype.find with a callback, constant filters, request values used only in the update document, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-014/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-014/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

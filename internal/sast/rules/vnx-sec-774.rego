@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-774",
 	"name": "Clari API token",
 	"description": "A Clari API token was found. It grants API access to the organisation's revenue forecasting and pipeline data in Clari.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-774",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-774",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

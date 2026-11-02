@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUST-007",
 	"name": "Rust integer arithmetic overflow without checked arithmetic",
 	"description": "Integer arithmetic (addition, subtraction, multiplication, left shift) is performed on a value that was just decoded from outside the program: parsed as an integer (parse::<u32>(), `let n: usize = s.parse()`, from_str_radix) or read from bytes (from_be_bytes, from_le_bytes, read_u32 and its siblings), including a let whose builder chain ends in .parse::<usize>()? a few lines below. In debug builds Rust panics on overflow, but in release builds the value wraps silently, so a decoded length plus a header, or a size product, can come out small and undersize an allocation or defeat a bounds check. Not reported: arithmetic on values that did not come from a decode, floats and strings, a value compared against a limit or clamped with min/clamp before the arithmetic, checked_*/saturating_*/wrapping_*/overflowing_* calls, arithmetic whose operands decoded as 32-bit or narrower are each widened first ((w as u64) * (h as u64)), and comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-rust-007/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-rust-007/",
 	"languages": ["rust"],
 	"severity": "medium",
 	"level": "warning",

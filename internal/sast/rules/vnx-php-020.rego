@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-020",
 	"name": "PHP curl SSL certificate verification disabled",
 	"description": "TLS certificate or hostname verification is switched off for an outgoing HTTPS request: curl_setopt() or a curl_setopt_array() entry setting CURLOPT_SSL_VERIFYPEER or CURLOPT_SSL_VERIFYHOST to false, 0, '0', '' or null (also when the value is on the next line of a multi-line call); a Guzzle option 'verify' => false or RequestOptions::VERIFY => false (new Client([...]), ->request(), Laravel Http::withOptions()) in a file that uses Guzzle or the Laravel HTTP client; Laravel Http::withoutVerifying(); or a stream context / Symfony HttpClient option 'verify_peer' or 'verify_peer_name' => false. Any network attacker can then present their own certificate and read or alter the traffic. Not reported: verification enabled (true, VERIFYHOST 2, a CA bundle path), a value taken from a variable or configuration, test files, comments and string literals. CURLOPT_SSL_VERIFYHOST 1 is not reported: current libcurl treats it as 2.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-020/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-020/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

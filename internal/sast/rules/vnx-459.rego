@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-459",
 	"name": "Incomplete Cleanup",
 	"description": "Python code that creates a temporary directory or file which is never removed: tempfile.mkdtemp(), tempfile.mkstemp() or tempfile.NamedTemporaryFile(..., delete=False) (any module alias or a from-import) whose result is assigned to a name, attribute or `with ... as` target that no shutil.rmtree / os.remove / os.unlink / os.rmdir / Path(...).unlink / .cleanup / atexit.register / addCleanup call in the same file ever receives, or that is created inline in a file with no removal call at all. The temporary data outlives the process and accumulates on disk with whatever it contained. Not reported: TemporaryDirectory() and NamedTemporaryFile() with the default delete=True, a result that is returned, yielded or stored into a collection or attribute (the caller owns the cleanup), cleanup in a finally block, close() or tearDown method of the same file, test files, comments and string literals. Cleanup in another file is not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-459/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-459/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

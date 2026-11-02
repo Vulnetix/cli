@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-397",
 	"name": "Stripe Connect account id (acct_)",
 	"description": "A Stripe Connect account id using the acct_ prefix was found. Account ids are not secret on their own but reveal connected accounts and flag Stripe Connect code for review.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-397",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-397",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-468",
 	"name": "Incorrect Pointer Scaling",
 	"description": "Pointer arithmetic in C or C++ that scales an offset by sizeof() a second time on a pointer whose element is wider than one byte: `p + i * sizeof(int)`, `p += sizeof(struct hdr)`, `*(p + n * sizeof *p)`, `arr[i * sizeof(int)]`, where p or arr is declared in the file (nearest declaration above the line, parameter or local) as a pointer to, or array of, int, long, short, float, double, a fixed-width or other *_t integer, or a struct/union, and the same through a cast such as `(uint32_t *)buf + n * sizeof(uint32_t)`. The compiler already multiplies by the element size, so the offset lands sizeof(T) times too far, past the end of the buffer. Pointers to pointers (char **argv, void **slots) and std:: fixed-width types count as wide. Not reported: the same arithmetic on char, signed/unsigned char, int8_t/uint8_t, u_char or void pointers (byte offsets, where sizeof scaling is correct), casts to such a byte pointer, sizeof inside an allocation or length argument (malloc(n * sizeof(int)), memset(p, 0, n * sizeof *p)), member expressions whose type cannot be read from the line (s->buf + sizeof x), typedef'd pointer types the file does not spell out, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-468/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-468/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

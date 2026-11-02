@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-776",
 	"name": "Freshsales CRM API key",
 	"description": "A Freshsales (Freshworks CRM) API key was found. Used in the Authorization: Token header it grants API access to the CRM's leads, contacts and deals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-776",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-776",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

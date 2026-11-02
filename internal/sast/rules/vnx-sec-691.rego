@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-691",
 	"name": "Mastodon access token",
 	"description": "A Mastodon API access token assigned to a mastodon context was found. It authenticates Mastodon API requests on behalf of the associated account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-691",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-691",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

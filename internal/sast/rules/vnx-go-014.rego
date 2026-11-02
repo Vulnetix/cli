@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-014",
 	"name": "sync.Mutex or sync.RWMutex held across an exit without Unlock",
 	"description": "A sync.Mutex.Lock() or sync.RWMutex.RLock() statement is left held: the function returns or panics (or, for a lock taken inside a loop, continues to the next iteration) between the lock and its first Unlock/RUnlock, or before the Unlock at the lock's own level on a path that no earlier Unlock in an enclosing block releases (one error branch unlocks, a later one forgets), or never unlocks at all, and no defer releases it. The mutex then stays locked, deadlocking the next caller. Not reported: an Unlock deferred anywhere in the function (or a defer func() whose body unlocks or releases; a deferred recover or log does not count), a short critical section with no exit before the Unlock, a return inside a func literal or a continue of a loop opened inside the critical section, a lock re-acquired after the function released it (sync.Cond-style unlock/wait/lock), a lock wrapper (a function named Lock/RLock/Acquire/Enter/Begin), a lock whose release lives in another function of the same file that unlocks without locking (Begin/Commit, start/end pairs), test files and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-014/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-014/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

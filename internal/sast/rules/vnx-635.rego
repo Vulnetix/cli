@@ -14,7 +14,7 @@ metadata := {
 	"id": "VNX-635",
 	"name": "Unresolved security TODO/FIXME in production code",
 	"description": "CWE-635 is a view of weaknesses rather than one weakness, so this rule reports its most concrete code-level signal: a TODO, FIXME, XXX or HACK marker in a comment (//, #, /* or a block-comment line) whose text admits an unresolved security gap, such as calling the code insecure or vulnerable, naming an injection, XSS, SSRF, open-redirect or path-traversal risk, asking to verify a signature, certificate, HMAC or JWT, asking to add or implement authentication, authorization, CSRF protection, access control, permission checks, input validation, sanitising, escaping, encryption, rate limiting or signature/certificate verification, saying input is not validated, sanitised, escaped, authenticated, authorised, encrypted or verified, admitting a hard-coded (API) password/secret/key/token, or disabling or bypassing SSL/TLS, certificate, hostname, CSRF, auth or signature checks (either word order). Not reported: ordinary work markers (refactor, performance, tests, error messages, authors or authorship), comments that describe a control as present, the words inside string literals, test code, and documentation files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-635/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-635/",
 	"languages": ["go", "java", "kotlin", "node", "php", "python", "ruby"],
 	"severity": "medium",
 	"level": "warning",

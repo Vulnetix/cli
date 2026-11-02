@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-687",
 	"name": "Twitter/X access token",
 	"description": "A Twitter/X user access token (numeric ID, hyphen, then token) assigned to a twitter/x context was found. It authenticates API requests on behalf of a user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-687",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-687",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

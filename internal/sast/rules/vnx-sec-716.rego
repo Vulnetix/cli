@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-716",
 	"name": "Bybit API secret",
 	"description": "A Bybit exchange API secret (36-char alphanumeric) assigned to a bybit context was found. Paired with the key it authorises trading and withdrawals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-716",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-716",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

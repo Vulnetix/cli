@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-051",
 	"name": "RubyGems API token",
 	"description": "Reports a RubyGems.org API key: rubygems_ followed by exactly 48 lower-case hex characters as a whole token, in any file (~/.gem/credentials, GEM_HOST_API_KEY in a workflow, Rakefile or shell script). The key can push and yank gems, so a leak is a supply-chain compromise of every gem the owner publishes. Not reported: the bare prefix, shorter or longer hex runs (an identifier such as rubygems_<64 hex>_label), placeholder bodies, CI secret references (${{ secrets.X }}), and test, fixture or vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-051/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-051/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-896",
 	"name": "Printful store API key (legacy basic)",
 	"description": "A legacy Printful store API key (base64 basic-auth value) was found. It grants access to the print-on-demand store's orders and products.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-896",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-896",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

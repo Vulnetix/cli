@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-200",
 	"name": "Sourcegraph access token (sgp_)",
 	"description": "A Sourcegraph access token using the sgp_ prefix was found. It grants authenticated access to the Sourcegraph API and code search across connected repositories.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-200",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-200",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

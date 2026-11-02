@@ -406,7 +406,7 @@ main() {
   echo ""
   echo "run:  $BINARY_NAME --help"
   echo ""
-  echo "docs: https://docs.cli.vulnetix.com/"
+  echo "docs: https://docs.vulnetix.com/cli/get-started/overview/"
   echo "      agentic use cases: https://www.vulnetix.com/articles/bypassing-scanners"
   echo ""
   echo "Thanks for installing Vulnetix CLI -- Vulnetix Team"

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-239",
 	"name": "JFrog Pipelines integration token",
 	"description": "A JFrog Pipelines integration/API token assigned to a context variable was found. It grants pipeline automation access to the JFrog platform.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-239",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-239",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

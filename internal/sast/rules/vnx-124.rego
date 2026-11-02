@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-124",
 	"name": "Buffer Underwrite ('Buffer Underflow')",
 	"description": "Reports C/C++ writes that land before the start of a buffer when a length is zero or negative: (1) buf[strlen(buf) - 1] = ... with no check that the string is non-empty (the fgets newline-strip idiom; an empty line writes buf[-1]); (2) buf[len - 1] = ... where len was assigned from strlen() a few lines above and is never compared before the write; (3) a terminator write buf[n] = '\\0' (or 0, NUL, '\\n', '\\r'; also buf[n - 1]) where n is the return value of read(), recv(), recvfrom(), recvmsg(), pread() or readlink(), which is -1 on error, and n is never compared before the write; (4) a write through a literal negative index into an array declared in the same function. Not reported: guarded writes (len > 0, *s &&, n < 0, n == -1, an assignment inside a while/if comparison), reads such as s[n - 1] == '\\n', negative indexes on pointers into the middle of an allocation (sds-style headers), strcspn()-based stripping, comments. Flows across functions are out of scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-124/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-124/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

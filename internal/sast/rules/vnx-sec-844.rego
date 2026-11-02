@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-844",
 	"name": "Printify API token (JWT)",
 	"description": "A Printify personal access token (JWT) was found. It grants access to the merchant's shops, products and orders via the Printify API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-844",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-844",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

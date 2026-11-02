@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-571",
 	"name": "InfluxDB v1 user:password connection",
 	"description": "An InfluxDB v1 HTTP URL embedding the user and password as query parameters was found. These credentials authenticate to the legacy InfluxDB v1 write/query API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-571",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-571",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

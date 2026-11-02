@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-016",
 	"name": "ReDoS via user-controlled regular expression",
 	"description": "A regular expression is compiled from the incoming request: the pattern (first argument) of new RegExp(...) or RegExp(...), or the argument of String.prototype.match/matchAll (which compile a string argument as a pattern), is a req/request query, body, params, headers or cookies value, a Koa ctx.query/ctx.request.body value, or a variable assigned (or destructured) from one in the 25 lines above, directly or through one intermediate assignment such as '^' + prefix. A client can then send a pattern with catastrophic backtracking ((a+)+$) that blocks the event loop for every user. Not reported: patterns passed through an escape function (lodash escapeRegExp, escape-string-regexp, a .replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') in the lines above), the linear-time RE2 engine, regex literals, patterns from configuration or constants, String.replace/split/includes (a string argument there is matched literally), .search() (too often a search-client method), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-016/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-016/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
 	"level": "error",

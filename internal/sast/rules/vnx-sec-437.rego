@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-437",
 	"name": "Pusher Channels app secret",
 	"description": "A Pusher Channels app secret was found near a pusher assignment. The secret signs API requests and authenticates private/presence channels; it is a 20-character hex string.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-437",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-437",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

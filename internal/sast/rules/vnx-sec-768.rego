@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-768",
 	"name": "ZoomInfo private key",
 	"description": "A ZoomInfo API username/clientId private key (used to sign the JWT auth request) was found. Combined with the username and client ID it grants API access to ZoomInfo contact and company intelligence.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-768",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-768",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1007",
 	"name": "Mixed-script homoglyph in source code",
 	"description": "A word in Python, JavaScript/TypeScript or Java source mixes ASCII Latin letters with a Cyrillic or Greek letter that renders like a Latin one (Cyrillic а е о р с у х і ј ѕ ԁ and capitals А В Е К М Н О Р С Т Х, Greek Α Β Ε Ζ Η Ι Κ Μ Ν Ο Ρ Τ Υ Χ ο ν ρ α), directly or as a \\uXXXX escape beside a Latin letter. Such a word reads as an ordinary name to a reviewer and a user but compares unequal to it: \"аdmin\" with a Cyrillic а passes a check against \"admin\", a spoofed domain such as \"pаypal.com\" looks genuine, and an identifier spelled that way shadows the real one (the homoglyph form of Trojan Source). Not reported: text written wholly in Cyrillic or Greek, Greek letters used as symbols (Δ, μ, Ω, π), comments, and test files (which legitimately hold homoglyph samples). The rule reads source text only; it does not judge whether a user interface renders IDN domains or usernames distinguishably.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1007/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1007/",
 	"languages": ["java", "node", "python"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-524",
 	"name": "Use of Cache Containing Sensitive Information: plaintext password cached",
 	"description": "A plaintext password is put into a cache, where it outlives the request, is shared with everything else that reads the cache (another tenant, a debug endpoint, a Redis or memcached dump) and, for a memoised check, keeps authenticating after the password is changed. Reported: Python functools.lru_cache/cache, cachetools @cached and @memoize decorators on a function with a password parameter; Java Spring @Cacheable on a method with a password parameter; lodash/memoizee memoize() of a function with a password parameter; and a cache write (cache/redis/memcache/lru receivers: set, setex, add, put, hset, set_many) whose key or value is a password variable (password, raw_password, pwd, passphrase) or a request's password field (request.POST['password'], request.form.get('password'), req.body.password). Not reported: password hashes and digests (password_hash, hashedPassword), tokens and other values, flags and messages about passwords (password_reset_sent, passwordChangedAt, 'password changed'), cached functions without a password parameter, comments and test code. Model attributes such as user.password are not followed (they usually hold the hash).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-524/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-524/",
 	"languages": ["java", "node", "python"],
 	"severity": "medium",
 	"level": "warning",

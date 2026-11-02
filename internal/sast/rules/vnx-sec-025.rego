@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-025",
 	"name": "Azure Storage Account key hardcoded",
 	"description": "Reports an 88-character Azure Storage account key (86 base64 characters and == padding) written literally in a file when the line names it as a storage key: an AccountKey= segment of a connection string, a variable or field such as AZURE_STORAGE_KEY, storage_account_access_key, primary_access_key, access_key (the azurerm backend) or ARM_ACCESS_KEY, the az CLI --account-key flag, or a StorageSharedKeyCredential/StorageCredentials/CloudStorageAccount or Blob/Queue/Table/Share/DataLake service-client call (also when the key is on the next lines of a multi-line call, as in BlobServiceClient(url, credential=...)). The public Azurite/storage-emulator key, placeholder and low-entropy values, environment or template references, and test and fixture paths are not reported; other 88-character base64 values (sha512 integrity hashes, signatures) without that context are not reported either.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-025/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-025/",
 	"languages": ["generic"],
 	"severity": "critical",
 	"level": "error",

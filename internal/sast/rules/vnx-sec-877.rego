@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-877",
 	"name": "Substack session cookie token",
 	"description": "A Substack connect.sid session cookie value was found. It authenticates as the logged-in Substack user and grants access to the publication dashboard.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-877",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-877",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

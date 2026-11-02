@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-082",
 	"name": "Cloudflare user/account token (cfut_/cfat_)",
 	"description": "A Cloudflare user (cfut_) or account (cfat_) API token was found. These grant programmatic access to Cloudflare resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-082",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-082",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

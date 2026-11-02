@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-643",
 	"name": "EC private key block",
 	"description": "A PEM elliptic-curve private key block (BEGIN EC PRIVATE KEY header) was found. It is the private half of an ECDSA/ECDH key pair usable for TLS, SSH or signing.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-643",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-643",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

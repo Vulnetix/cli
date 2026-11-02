@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-065",
 	"name": "HTTP basic authentication header",
 	"description": "Reports a literal HTTP Basic credential: the string \"Basic <base64>\" (an Authorization or Proxy-Authorization header in a request file, a curl -H argument, a headers dict/object, a Header.Set call, a constant, or the two-argument .NET AuthenticationHeaderValue(\"Basic\", \"...\")) whose base64 decodes to a printable user:password pair with a non-empty password, in code, scripts, config and .http/.rest files. The decoded password is never printed. Not reported: a header built from variables (\"Basic \" + token, f-strings, ${VAR}, $(...)), text that is not a decodable user:password pair (\"Basic authentication\", \"Basic realm\"), default or placeholder pairs (admin:password, user:pass, a password equal to the user, changeme, example...), comment lines, Markdown/reStructuredText/AsciiDoc and *.example/*.sample files, and test, fixture, vendored and generated files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-065/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-065/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-770",
 	"name": "Outreach OAuth access token",
 	"description": "An Outreach OAuth access token was found. It grants API access to the organisation's sales sequences, prospects and engagement data in Outreach.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-770",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-770",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

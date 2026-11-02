@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-158",
 	"name": "Linode Object Storage access key (context)",
 	"description": "A Linode Object Storage S3-compatible access key under a Linode storage context was found. With the matching secret it grants access to Linode object storage buckets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-158",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-158",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

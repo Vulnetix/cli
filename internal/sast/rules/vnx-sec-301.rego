@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-301",
 	"name": "DeepSeek API key (sk- standalone)",
 	"description": "A DeepSeek API key in the standalone sk- 32-hex form was found. It grants access to DeepSeek model inference billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-301",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-301",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

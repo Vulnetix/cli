@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-244",
 	"name": "Concourse fly target token",
 	"description": "A Concourse fly target bearer token persisted in a flyrc-style assignment was found. It authenticates the fly CLI to a Concourse target.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-244",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-244",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

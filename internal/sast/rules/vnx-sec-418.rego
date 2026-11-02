@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-418",
 	"name": "Discord client secret",
 	"description": "A Discord OAuth2 application client secret was found near a discord assignment. It is a 32-character token used to exchange OAuth codes for access tokens on behalf of the app.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-418",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-418",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-502",
 	"name": "Meilisearch master/API key",
 	"description": "A Meilisearch master or admin API key was found. The master key grants full administrative control over the Meilisearch instance and its indexes.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-502",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-502",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

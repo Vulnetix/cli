@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-161",
 	"name": "Alibaba Cloud secret access key (context)",
 	"description": "An Alibaba Cloud access key secret under an Alibaba/aliyun context keyword was found. Paired with the LTAI access key id, it grants full API access to the account's resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-161",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-161",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

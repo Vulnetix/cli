@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-568",
 	"name": "CockroachDB Cloud connection string",
 	"description": "A CockroachDB Cloud connection string embedding the SQL user password against a cockroachlabs.cloud host was found. It grants authenticated access to the CockroachDB cluster.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-568",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-568",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

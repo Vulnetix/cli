@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-036",
 	"name": "Use of ECB block mode",
 	"description": "Go code encrypts or decrypts in ECB (Electronic Codebook) mode, which encrypts equal plaintext blocks to equal ciphertext blocks and carries no integrity, so records leak their structure and blocks can be cut and pasted. Reported: a call to NewECBEncrypter/NewECBDecrypter (the crypt2go ecb package or a local implementation of the same name), and ECB written by hand: a cipher.Block's Encrypt/Decrypt called on slices of the data inside a loop, where the block came from aes/des/blowfish/twofish/cast5/sm4 NewCipher, des.NewTripleDESCipher or a cipher.Block parameter, and the loop body does no XOR chaining. Not reported: GCM, CBC, CTR and the other crypto/cipher modes, hand-written CBC/CTR loops (they XOR each block with the previous ciphertext or a keystream), a single-block Encrypt outside a loop (CMAC subkeys, key wrapping), the word ECB in identifiers, strings, error messages, comments or a guard that rejects it, and test files (known-answer vectors are ECB by definition).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-036/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-036/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

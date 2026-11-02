@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-TF-006",
 	"name": "Terraform AWS EC2 instance metadata service v1 (IMDSv1) enabled",
 	"description": "An EC2 instance or launch template leaves the token-less IMDSv1 enabled, so any SSRF in software on the instance can read its IAM role credentials from 169.254.169.254. Reported: http_tokens = \"optional\" in the metadata_options of aws_instance, aws_spot_instance_request, aws_launch_template or aws_launch_configuration, or in the metadata_options map of a terraform-aws-modules ec2-instance or autoscaling module; a metadata_options block of aws_instance, aws_spot_instance_request or aws_launch_template that sets no http_tokens (the default is optional); one of those resources with no metadata_options block at all. Not reported: http_tokens = \"required\", a value taken from a variable, http_endpoint = \"disabled\" in the same block (no metadata service, even beside http_tokens = \"optional\"), an aws_instance that takes its settings from a launch_template block, every instance in a project that declares aws_ec2_instance_metadata_defaults with http_tokens = \"required\", data sources, other modules, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-tf-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-tf-006/",
 	"languages": ["terraform"],
 	"severity": "high",
 	"level": "error",

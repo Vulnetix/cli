@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-765",
 	"name": "Box client secret",
 	"description": "A Box application client secret was found. Combined with the client ID it grants OAuth access to Box content and admin APIs for the app's scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-765",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-765",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

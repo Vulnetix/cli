@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-179",
 	"name": "Incorrect Behavior Order: Early Validation",
 	"description": "A value is checked for a dangerous sequence (\"..\", \"../\", \"/\", \"\\\\\", \"<\", \"<script\", a quote) in a condition, and then decoded or canonicalised within the next ten lines: URLDecoder.decode, urllib unquote/unquote_plus, decodeURI/decodeURIComponent, url.PathUnescape/QueryUnescape, urldecode/rawurldecode, html.unescape/html_entity_decode, Normalizer.normalize/unicodedata.normalize. A check on the raw query string, request URI or URL (Java getQueryString/getRequestURI, Python request.query_string/full_path, Express req.originalUrl/req.url, Go r.URL.RawQuery/RawPath, PHP $_SERVER['QUERY_STRING'/'REQUEST_URI']), directly or through a variable assigned from it, followed within ten lines by a decoded parameter read (getParameter, request.args, req.query/params, URL.Query().Get, FormValue, $_GET/$_REQUEST) is reported too. The encoded form (%2e%2e%2f) passes the check and becomes the sequence it rejected. Supported checks: contains/includes/indexOf/startsWith/matches, Python 'in', strings.Contains/HasPrefix/Index, strpos/stripos/str_contains/strstr, and a regular expression for '..' or '<script' (/\\.\\.\\//.test(x), re.search/re.match). Not reported: a check that also rejects '%', decoding before the check, a check on a different variable, a decoded value that is checked again within six lines, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-179/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-179/",
 	"languages": ["java", "python", "node", "go", "php"],
 	"severity": "medium",
 	"level": "warning",

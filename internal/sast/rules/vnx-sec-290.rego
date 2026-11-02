@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-290",
 	"name": "Lambda Labs Cloud API key",
 	"description": "A Lambda Labs Cloud API key was found. Lambda uses a secret_ prefixed key granting access to provision GPU cloud instances billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-290",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-290",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

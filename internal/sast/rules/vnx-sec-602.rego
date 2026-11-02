@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-602",
 	"name": "Databricks OAuth client secret",
 	"description": "A Databricks service-principal OAuth client secret using the dose prefix was found. It authenticates to Databricks via the OAuth client-credentials flow with the service principal's permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-602",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-602",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

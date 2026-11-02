@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-746",
 	"name": "SAP Concur OAuth refresh token",
 	"description": "An SAP Concur OAuth2 refresh token was found. It can be exchanged for access tokens granting persistent API access to Concur data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-746",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-746",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

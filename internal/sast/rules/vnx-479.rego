@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-479",
 	"name": "Signal Handler Use of a Non-reentrant Function",
 	"description": "Reports a call to a function that is not async-signal-safe (printf/fprintf/puts and the rest of stdio, malloc/calloc/realloc/free, syslog, exit, strtok, localtime/gmtime/ctime/asctime, perror, longjmp, operator new/delete, std::cout/cerr/clog, mutex locks via pthread_mutex_lock or std::lock_guard/unique_lock/scoped_lock) inside the body of a C/C++ crash handler: a function (defined as `void name(int ...)`, with the return type on the same line or, BSD style, the line above) that the same file installs only for synchronous fault signals (SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGABRT, SIGTRAP, SIGSYS) with signal(SIG..., handler), or with sa_handler/sa_sigaction = handler and sigaction(SIG..., &sa, ...) within thirty lines. A fault raised inside malloc, stdio or while a lock is held leaves that function's state half updated, and a crash handler that calls it again deadlocks or corrupts the heap instead of writing its report. Not reported: handlers installed for any asynchronous signal (SIGINT, SIGTERM, SIGHUP, SIGALRM, ...) and handlers whose signals cannot be read from the file, whose unsafe calls are reported by VNX-828; the async-signal-safe calls (write, _exit, sig_atomic_t flag stores, signal, kill, raise, abort); handlers registered in another file, SIG_IGN/SIG_DFL, functions not registered as handlers, and comments (whole-line and trailing).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-479/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-479/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

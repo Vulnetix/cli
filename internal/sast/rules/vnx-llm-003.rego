@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-LLM-003",
 	"name": "Hardcoded LLM API key",
 	"description": "Reports an LLM provider API key written into a file: an Anthropic key (sk-ant-api03-/sk-ant-admin01- with its full-length body), an OpenAI project, service-account or admin key (sk-proj-, sk-svcacct-, sk-admin-) or classic key (sk-...T3BlbkFJ...) and a Groq key (gsk_ with its 52-character body), anywhere in a line; and a high-entropy literal of 20+ characters assigned to a provider-named key variable (OPENAI_API_KEY, anthropicApiKey, COHERE_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY, GEMINI_API_KEY, ...) or passed as api_key/apiKey to a provider client constructor (OpenAI, Anthropic, Groq, Mistral, Cohere, ChatOpenAI, ...), on the constructor line or on its own line within the three lines after a constructor that opens `new OpenAI({`. The snippet is redacted. Not reported: keys read from the environment or a secrets manager, placeholders (your-key-here, xxxx, REPLACE, EXAMPLE), low-entropy strings, `sk-` inside longer identifiers (task-, desk-), Stripe sk_live_ keys, and test (including pytest test_*.py and conftest.py), fixture and vendored paths. Overlaps the generated provider rules VNX-SEC-018/048/049/251/252/299; this rule is the LLM-focused view.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-llm-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-llm-003/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

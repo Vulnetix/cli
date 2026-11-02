@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-097",
 	"name": "Postmark server API token",
 	"description": "A Postmark server token was found, allowing transactional email to be sent from the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-097",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-097",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

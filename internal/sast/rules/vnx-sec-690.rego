@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-690",
 	"name": "Snapchat client secret",
 	"description": "A Snapchat (Snap Kit / Marketing API) client secret assigned to a snapchat context was found. It authenticates the Snap app for OAuth and API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-690",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-690",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

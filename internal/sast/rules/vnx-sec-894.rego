@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-894",
 	"name": "ShipStation v2 API key (TEST/PROD)",
 	"description": "A ShipStation v2 (ShipEngine-style) API key was found. It grants access to the merchant's rates, labels and shipments in the ShipStation v2 API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-894",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-894",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-301",
 	"name": "Reflection Attack in an Authentication Protocol",
 	"description": "A symmetric challenge-response protocol answers a peer's challenge with exactly the computation it expects from the peer, so an attacker can open a second session, send our own challenge back to us as theirs, and replay our answer to authenticate. Reported in Python and Java when one file both answers and verifies with the same key: an HMAC over a bare challenge or nonce variable that came from the peer (a parameter of the enclosing function, or a value read with recv/read/readFully/readLine/getParameter/request in the 10 lines above) whose result is returned, sent or written (Python hmac.new/hmac.HMAC/hmac.digest(KEY, challenge[.encode()], ...); Java mac.doFinal(challenge[.getBytes(...)]) after mac.init(new SecretKeySpec(KEY, ...)) or mac.init(keyVar)), where the same key is used for another HMAC in the file and the file compares MACs (hmac.compare_digest, MessageDigest.isEqual, Arrays.equals, or == / != on an expected/digest/mac/tag value). Test code and key derivation (a MAC returned from a derive/kdf/session_key function) are not reported. Not reported: a MAC whose input binds more than the challenge (an identity or role concatenated in Python, a mac.update() before doFinal in Java), different keys for each direction, a file that only verifies or only answers, the comparison itself, and comments. Whether a bound label actually differs between the two directions is not checked.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-301/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-301/",
 	"languages": ["java", "python"],
 	"severity": "medium",
 	"level": "warning",

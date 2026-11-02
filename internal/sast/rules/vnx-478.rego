@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-478",
 	"name": "Missing Default Case in Multiple Condition Expression",
 	"description": "Reports a switch statement with no default label whose cases are the only thing that gives a variable its value, when that variable is read after the switch: in C/C++ a local declared without an initializer (or as NULL/nullptr), in Java a local initialised to null. An unhandled value then leaves the variable uninitialised (undefined behaviour in C/C++) or null, which is the concrete failure CWE-478 describes. Not reported: a switch with a default label, a variable given a real value before the switch (the author's own default: an initialiser, a later plain assignment, or its address passed to an initialising call such as init(&v)), a variable the code after the switch does not read, Java switch expressions (x = switch ..., return switch ..., whose exhaustiveness the compiler checks), Go (every variable has a defined zero value), and comments. A switch without default that assigns nothing is not reported: on its own it is a style choice, not a defect.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-478/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-478/",
 	"languages": ["c", "cpp", "java"],
 	"severity": "low",
 	"level": "note",

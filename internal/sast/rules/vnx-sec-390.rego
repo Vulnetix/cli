@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-390",
 	"name": "Razorpay webhook secret",
 	"description": "A Razorpay webhook secret was found near a razorpay/webhook assignment. Exposure lets attackers forge webhook signatures and spoof payment events.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-390",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-390",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-JAVA-022",
 	"name": "Java insecure temporary file creation",
 	"description": "A temporary file is created where other local users can read it or predict it. Reported: java.io.File.createTempFile() in the shared temp directory (two arguments, or a third argument of null or java.io.tmpdir), which creates the file with umask permissions (typically world-readable, CVE-2020-15250) and whose delete()/mkdir() idiom is racy, unless the next lines restrict it with setPosixFilePermissions/setReadable/setWritable; and fixed or user-derived names in a shared temp directory, which an attacker can pre-create or symlink: new File/FileOutputStream/FileWriter/RandomAccessFile/PrintWriter, Paths.get, Path.of and Files.write/createFile/newOutputStream on a \"/tmp/...\" or \"/var/tmp/...\" literal, and new File/Paths.get/Path.of joining System.getProperty(\"java.io.tmpdir\") (inline or through a variable) with a literal name. Not reported: Files.createTempFile/createTempDirectory (owner-only on POSIX), File.createTempFile in a caller-supplied directory, names built from UUID or SecureRandom, relative paths such as \"tmp/x\", test sources, and the pattern in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-022/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-022/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

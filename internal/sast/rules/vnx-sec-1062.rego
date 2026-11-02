@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1062",
 	"name": "Riot Games API key (RGAPI-)",
 	"description": "A Riot Games developer API key (RGAPI- prefix followed by a UUID) was found. It authenticates calls to the League of Legends, TFT and VALORANT APIs under the developer account rate limits.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1062",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1062",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

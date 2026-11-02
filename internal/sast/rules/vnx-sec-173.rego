@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-173",
 	"name": "Akamai EdgeGrid access token (context)",
 	"description": "An Akamai EdgeGrid access token (akab- prefix) under an Akamai context was found. It is part of the EdgeGrid credential set authorizing Akamai Open API calls.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-173",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-173",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

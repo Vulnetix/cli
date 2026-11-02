@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-034",
 	"name": "OAuth redirect URI without validation against allowlist",
 	"description": "An OAuth redirect URI taken from the request is used without being compared with the client's registered redirect URIs, so an attacker who controls it receives the authorization code or token. Reported: http.Redirect, gin/echo c.Redirect(code, url), fiber c.Redirect(url) or a Location header whose destination contains the value of a redirect_uri, redirect_url, post_logout_redirect_uri or callback_url request parameter (r.URL.Query().Get, q.Get, r.FormValue, r.PostFormValue, r.Form.Get, gin c.Query/DefaultQuery/PostForm, echo c.QueryParam/FormValue), inline or through a variable assigned from it in the 30 lines above or through one variable built from it (target := redirectURI + \"?code=\" + code), including after a ?code= or #access_token= suffix is appended; an oauth2.Config RedirectURL set from any request value; and oauth2.SetAuthURLParam(\"redirect_uri\", <request value>). Not reported: a value compared in between (==, !=, slices.Contains, strings.HasPrefix, url.Parse, a lookup keyed by the value (registered[uri]), a switch over it, a helper named allowed/registered/valid/allowlist), constant or configured redirect URLs, parameters with other names (generic open redirects are VNX-GO-005 and VNX-GO-025), comments and string literals. Cross-function flows are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-034/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-034/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

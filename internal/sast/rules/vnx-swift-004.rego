@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SWIFT-004",
 	"name": "Swift TLS certificate validation disabled in URLSession or AlamoFire",
 	"description": "Reports Swift code that accepts a server certificate without validating it: a URLCredential(trust:) built in a function that never evaluates or pins the trust before it (no SecTrustEvaluate/SecTrustEvaluateWithError, evaluator.evaluate(...), certificate or public-key comparison, or a call to a validate/verify/check/pin/evaluate helper above it), which is how a URLSession or NSURLConnection auth-challenge delegate trusts every certificate; an Alamofire DisabledTrustEvaluator()/DisabledEvaluator() or ServerTrustPolicy .disableEvaluation; kCFStreamSSLValidatesCertificateChain set to false; NSURLRequest.setAllowsAnyHTTPSCertificate; a Starscream WebSocket with disableSSLCertValidation = true or FoundationSecurity(allowSelfSigned: true); and a Network.framework sec_protocol_options_set_verify_block whose block completes with true without evaluating the trust. Not reported: URLCredential(trust:) after the trust was evaluated or pinned, URLCredential(user:password:) for HTTP authentication, .performDefaultHandling, pinned or default Alamofire evaluators, the class declarations themselves, string literals, comment lines and test files (where disabling evaluation against a test host is routine). A host-name comparison is not treated as validation, nor is a bare SecTrustEvaluateWithError(trust, nil) statement whose result is discarded. URLCredential( with trust: on the next line is read as one call.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-swift-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-swift-004/",
 	"languages": ["swift"],
 	"severity": "high",
 	"level": "error",

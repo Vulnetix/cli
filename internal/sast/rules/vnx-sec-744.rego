@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-744",
 	"name": "SAP SuccessFactors OAuth API key",
 	"description": "An SAP SuccessFactors OAuth client API key (registered OAuth client) was found. Combined with the SAML assertion private key it grants API access to SuccessFactors HCM data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-744",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-744",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

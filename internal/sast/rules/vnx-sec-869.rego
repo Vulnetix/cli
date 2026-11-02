@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-869",
 	"name": "Constant Contact client secret",
 	"description": "A Constant Contact application client secret was found. With the API key it lets an attacker obtain OAuth access tokens for authorized accounts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-869",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-869",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

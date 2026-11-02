@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-529",
 	"name": "Pipedrive API token",
 	"description": "A Pipedrive API token was found. It grants API access to the user's Pipedrive CRM deals, contacts and pipelines.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-529",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-529",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

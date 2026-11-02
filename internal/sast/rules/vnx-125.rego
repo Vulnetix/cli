@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-125",
 	"name": "Out-of-bounds Read",
 	"description": "Reports two C/C++ out-of-bounds reads. (1) An off-by-one loop: for (...; i <= BOUND; ...) whose body reads ARR[i], where BOUND is the declared length of ARR (an array declared ARR[BOUND] in the same file) or sizeof(ARR), sizeof(ARR)/sizeof(ARR[0]), ARRAY_SIZE(ARR), countof/_countof/nitems(ARR); the last iteration reads one element past the end. The for line is reported. (2) A char array filled to its full size by read(), recv(), pread() or fread(..., 1, sizeof(buf), ...), so it holds no terminating NUL, and then passed to a string function (strlen, strdup, strcmp, strstr, strchr, atoi, strtol, puts, printf %s, std::string(...)) within the next lines without buf[n] = '\\0' in between; the string function reads past the buffer. Not reported: i < BOUND, i <= BOUND - 1, loops over a bound unrelated to the indexed array, writes, reads sized sizeof(buf) - 1, buffers terminated before use, binary buffers handled with memcpy, comments. The former rule reported every strcpy/memcpy call; those are not reads past a buffer by themselves and are no longer reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-125/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-125/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

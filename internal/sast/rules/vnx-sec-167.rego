@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-167",
 	"name": "Tencent Cloud SCF / API gateway secret (context)",
 	"description": "A Tencent Cloud secret key under a generic tencent/qcloud secret context was found. It signs Tencent Cloud API and serverless requests granting account resource access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-167",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-167",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

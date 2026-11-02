@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-827",
 	"name": "Wix API key",
 	"description": "A Wix API key was found. It authenticates against the Wix REST APIs and grants access to the account's sites, stores and bookings depending on the key's permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-827",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-827",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

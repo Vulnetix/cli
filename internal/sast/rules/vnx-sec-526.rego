@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-526",
 	"name": "ServiceNow credentials",
 	"description": "A ServiceNow instance password or OAuth secret used for API/basic auth was found. It grants access to the ServiceNow instance records and workflows.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-526",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-526",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-886",
 	"name": "Medusa API token (JWT)",
 	"description": "A Medusa commerce admin API token (JWT) was found. It grants administrative access to the Medusa store's orders, products and customers.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-886",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-886",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1115",
 	"name": "Discogs consumer secret",
 	"description": "A Discogs OAuth consumer secret was found. Combined with the consumer key it authorizes the Discogs OAuth flow to act on user accounts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1115",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1115",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

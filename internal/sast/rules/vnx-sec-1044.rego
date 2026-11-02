@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1044",
 	"name": "SonarCloud project analysis token (sqp_)",
 	"description": "A SonarQube/SonarCloud project-analysis token (sqp_ prefix) was found. It is scoped to submit analyses for a single project in CI.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1044",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1044",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

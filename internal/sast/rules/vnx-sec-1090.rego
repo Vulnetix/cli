@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1090",
 	"name": "KeyCDN API key",
 	"description": "A KeyCDN REST API key (RESTAPIKEY label or assignment) was found. It authorizes management of zones, certificates and purges on the KeyCDN account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1090",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1090",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-887",
 	"name": "Saleor app auth token",
 	"description": "A Saleor GraphQL API app auth token was found. It grants the configured app permissions over the Saleor store's orders, products and checkouts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-887",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-887",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

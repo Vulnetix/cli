@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-508",
 	"name": "Asana personal access token (1/)",
 	"description": "An Asana legacy personal access token (1/ prefix) was found. It grants full API access to the user's Asana workspaces, projects and tasks.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-508",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-508",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

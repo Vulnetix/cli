@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-003",
 	"name": "SQL injection via fmt.Sprintf",
 	"description": "A SQL statement given to database/sql, sqlx, pgx or GORM (Query, QueryRow, Exec, Prepare and their Context variants, Raw, Queryx, MustExec, NamedExec, sqlx Select/Get, and GORM Where/Or/Not/Having/Joins/Order/Group) is built with fmt.Sprintf or + concatenation so that a value lands where a bind parameter belongs: inside quotes ('%s', '\" + v + \"'), after a comparison (= %s, LIKE, IN (...), VALUES (...), LIMIT/OFFSET), or anywhere when the value is read from the HTTP request (net/http, gin, echo, fiber, gorilla/mux, chi). The query may be built inline, in a variable assigned in the 40 lines above (including multi-line raw-string formats and += clauses), or split over several lines of the call. Not reported: parameterised queries ($1, ?, @name), integer verbs (%d), an identifier slot (table, column, index or database name, ORDER BY) filled from anything other than the request, placeholder lists (strings.Repeat(\"?,\"), a variable named placeholders), values quoted with pq.QuoteIdentifier/QuoteLiteral or pgx Identifier.Sanitize, query strings passed in from a caller (no builder in view), SQL-looking text that never reaches a database call, string literals and comments, and _test.go/testdata code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-003/",
 	"languages": ["go"],
 	"severity": "critical",
 	"level": "error",

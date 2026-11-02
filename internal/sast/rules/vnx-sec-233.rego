@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-233",
 	"name": "Codecov global upload token (legacy)",
 	"description": "A Codecov global/legacy upload token assigned to a CODECOV_TOKEN variable was found. It authorizes coverage uploads and can inject false coverage.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-233",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-233",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

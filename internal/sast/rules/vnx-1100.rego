@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1100",
 	"name": "Insufficient Isolation of System-Dependent Functions",
 	"description": "Java or Python code launches a process through a hard-coded, operating-system-specific shell or command (cmd, cmd.exe, cmd /c, powershell, pwsh, /bin/sh, /bin/bash, sh -c, bash -c, zsh, os.system(\"cls\"/\"clear\")) and the file never checks which platform it runs on (os.name, sys.platform, platform.system(), System.getProperty(\"os.name\"), SystemUtils.IS_OS_*, an isWindows flag). The system-dependent call is not isolated behind a platform check or adapter, so on another OS the command fails or a different interpreter parses it with different quoting and escaping rules. Reported: the line holding the shell literal when a process launch (Runtime.exec, ProcessBuilder, .command(), subprocess.run/call/Popen/check_output/check_call, os.system, os.popen, os.exec*/spawn*, asyncio.create_subprocess_exec) is on that line or within three lines of it. Not reported: files that branch on the platform anywhere, shell=True without a named shell, a SHELL environment value given to the child (env={\"SHELL\": \"/bin/bash\"}), shebang lines, the literal outside a process launch, test files and comments. Whether the launched command is itself injectable is judged by the command-injection rules, not this one.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1100/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1100/",
 	"languages": ["java", "python"],
 	"severity": "low",
 	"level": "note",

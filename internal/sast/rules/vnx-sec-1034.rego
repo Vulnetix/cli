@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1034",
 	"name": "Akeyless access key (assignment)",
 	"description": "An Akeyless access key assigned to an akeyless secret field was found. Combined with the access ID it grants programmatic access to Akeyless-managed secrets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1034",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1034",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

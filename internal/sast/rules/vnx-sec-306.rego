@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-306",
 	"name": "Stability AI API key (assignment context)",
 	"description": "A Stability AI API key referenced via a STABILITY_API_KEY assignment was found, confirming a live Stability credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-306",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-306",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

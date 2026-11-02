@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-274",
 	"name": "CometML API key",
 	"description": "A Comet ML API key was found. It grants access to Comet experiment tracking, models and artifacts billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-274",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-274",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-032",
 	"name": "JWT missing expiration validation",
 	"description": "A JWT's expiry is never enforced, so a leaked token works for ever. Reported on the verifying side: golang-jwt jwt.WithoutClaimsValidation() and the v3/v4 Parser field SkipClaimsValidation: true (exp, nbf and iat are then not checked), lestrrat-go/jwx jwt.WithValidate(false), and a go-jose tok.Claims(key, &c) whose function never calls Validate/ValidateWithLeeway (go-jose verifies only the signature in Claims; expiry is checked by Validate). Reported on the issuing side: golang-jwt jwt.NewWithClaims with a claims composite literal (inline, or a variable assigned one in the same function) and jwt.New followed by token.Claims.(jwt.MapClaims) edits, go-jose jwt.Signed(...) with a jwt.Claims or map literal, and a lestrrat-go/jwx jwt.NewBuilder() chain with no Expiration(...), when the function sets no \"exp\", ExpiresAt or Expiry. Not reported: claims built by a helper or passed in as a parameter (the expiry may be set there), default parsing (golang-jwt v4+ checks exp when present), WithExpirationRequired/WithLeeway/WithValidate(true), test files, comments and strings. Tokens that omit exp are accepted by golang-jwt unless WithExpirationRequired is set; that default is not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-032/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-032/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

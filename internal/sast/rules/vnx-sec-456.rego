@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-456",
 	"name": "Telnyx public key (TKEY/v2 public)",
 	"description": "A Telnyx public key was found near a telnyx assignment. Public keys verify Telnyx webhook signatures and are paired with the secret API key.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-456",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-456",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

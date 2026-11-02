@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-CRYPTO-009",
 	"name": "Use of cryptographically weak PRNG (rand/srand/random in C/C++)",
 	"description": "A value from a non-cryptographic C/C++ PRNG (rand(), random(), rand_r(), the drand48/lrand48/mrand48/erand48/nrand48/jrand48 family, std::rand(), or a <random> engine such as std::mt19937, minstd_rand or default_random_engine) becomes a security value: it is assigned to (or snprintf'd into, also across a line break) a token, nonce, salt, IV, secret, password, session id, CSRF token, OTP, PIN, challenge, cookie, ticket or crypto key, including through a pointer (*pin = ...), directly or through a variable (not one named as a count or size) assigned a few lines before, or it is produced inside a function whose name pairs a making verb with one (generate_token, make_nonce, new_otp, make_session_id; fuzz_tokens and parse_token are not makers). Not reported: rand() used for sampling, shuffling, jitter, hashing seeds, dictionary keys, counts, sizes and timeouts (the overwhelming majority of rand() calls); srand()/srand48()/seed48() on their own; arc4random(), getrandom(), RAND_bytes(), randombytes_buf() and std::random_device; calls inside comments or string literals; and test files. Flows through more than one intermediate variable, or across functions, are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-009/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-crypto-009/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

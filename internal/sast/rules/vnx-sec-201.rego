@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-201",
 	"name": "Sourcegraph dotcom token (sgph_)",
 	"description": "A Sourcegraph instance/dotcom access token using the sgph_ prefix was found. It authenticates to a specific Sourcegraph instance.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-201",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-201",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

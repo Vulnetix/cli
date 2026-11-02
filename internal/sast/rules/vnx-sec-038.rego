@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-038",
 	"name": "HashiCorp Terraform Cloud token",
 	"description": "Reports a Terraform Cloud / Terraform Enterprise API token: a standalone token of 14 letters and digits, .atlasv1., and 60 or more base64url characters, in any file including .tfvars and .terraformrc. Placeholders and test or fixture paths are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-038/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-038/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

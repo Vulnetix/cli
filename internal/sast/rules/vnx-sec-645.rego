@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-645",
 	"name": "PKCS8 private key block",
 	"description": "A PEM PKCS#8 private key block (BEGIN PRIVATE KEY header) was found. This generic container holds an unencrypted private key (RSA, EC, Ed25519, etc).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-645",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-645",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-183",
 	"name": "Bitbucket OAuth client secret",
 	"description": "A Bitbucket OAuth consumer client secret was found. It is used together with the client key to obtain access tokens for the Bitbucket API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-183",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-183",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

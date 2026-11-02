@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-667",
 	"name": "Improper locking: shared String/boxed monitor or Lock released outside finally",
 	"description": "Java locking that does not protect what it claims to. Reported: (1) a synchronized block whose monitor is a String literal, an .intern()ed string, Boolean.TRUE/FALSE, a boxed valueOf(...) value, or a field, variable or method parameter this file declares as String, Boolean, Integer, Long, Short, Byte or Character (a String parameter used for per-key locking excludes nothing: equal keys are different objects unless interned, and then shared JVM-wide); interned strings and cached boxes are shared across the whole JVM (unrelated code contends on, or deadlocks with, the same monitor) and a boxed field reassigned inside the block changes the monitor under the lock; (2) a statement lock.lock() / lockInterruptibly() (including rw.readLock().lock()) on a java.util.concurrent Lock with no finally block that calls the same receiver's unlock() in the following 60 lines, so an exception thrown in the critical section leaves the lock held forever. Not reported: synchronized on this, a class literal or a private Object/other field, try { lock.lock(); ... } finally { lock.unlock(); } in either order, tryLock(), FileChannel.lock() assignments, methods that are themselves named lock/acquire (wrappers), test files for the Lock shape, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-667/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-667/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

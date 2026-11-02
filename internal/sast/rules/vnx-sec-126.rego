@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-126",
 	"name": "Azure Cosmos DB account key",
 	"description": "An Azure Cosmos DB account key embedded in an AccountKey connection string was found. The key grants full read/write access to the Cosmos DB account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-126",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-126",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

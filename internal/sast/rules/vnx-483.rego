@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-483",
 	"name": "Incorrect Block Delimitation",
 	"description": "Reports two shapes where the braces do not say what the indentation says, in C, C++ and Java. (1) Misleading indentation: an if/else if/else/for/while without braces whose single guarded statement is immediately followed by a second statement at the same indentation, which looks guarded but always runs (the 'goto fail' bug). (2) An if whose condition is followed directly by a semicolon, if (x);, so the block below it runs unconditionally. Not reported: braced bodies, a braceless body followed by a dedented line, a blank line or a closing brace, else/case/default labels, preprocessor lines, conditions that span several lines, deliberate empty loops (while (*p++);, for (...);), the do { } while (x); terminator, and comments. A braceless if on its own is a style choice and is not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-483/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-483/",
 	"languages": ["c", "cpp", "java"],
 	"severity": "low",
 	"level": "note",

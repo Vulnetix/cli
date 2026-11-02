@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-642",
 	"name": "RSA private key block",
 	"description": "A PEM RSA private key block (BEGIN RSA PRIVATE KEY header) was found. It is the private half of an RSA key pair usable for TLS, SSH or signing.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-642",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-642",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

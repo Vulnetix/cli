@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-017",
 	"name": "PHP LDAP injection via user-controlled filter",
 	"description": "ldap_search(), ldap_list() or ldap_read() receives a request value in its filter or base DN: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys), filter_input() or a Laravel/Symfony request accessor, inline in the call or through a variable assigned from one in the 25 lines above (directly or via one intermediate variable, including sprintf() and .= concatenation). An attacker can then rewrite the filter ('*)(uid=*))(|(uid=*') to bypass a login or enumerate the directory. Not reported: values passed through ldap_escape(), intval()/(int), ctype_*(), filter_var() or is_numeric(), values checked with preg_match(), ctype_*(), in_array() or filter_var() before the call, constant or configuration filters, values whose origin is not visible in the file (no cross-function dataflow), and calls in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-017/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-017/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

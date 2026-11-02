@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-703",
 	"name": "Optional value read with get() without checking that it is present",
 	"description": "An empty Optional is an expected outcome (no row with this id, no element matching the filter), but get()/getAsInt()/getAsLong()/getAsDouble() turns it into an unchecked NoSuchElementException, so a request for an unknown id becomes an HTTP 500 with a stack trace instead of a 404. Reported in production .java files: Spring Data findById(...).get() and derived finders (findByUsername(...).get(), findOneBy...(...).get(), findFirstBy/findTop...(...).get(), which only an Optional-returning repository method makes callable with no argument), Stream findFirst()/findAny() followed by .get() (also with .get() on the next line of a split chain), stream max(...)/min(...).get(), reduce(X::y).get(), IntStream/LongStream/DoubleStream max()/min()/average()/findFirst() followed by getAsInt/getAsLong/getAsDouble, Optional.ofNullable(...).get(), and a variable declared Optional<T> (or OptionalInt/Long/Double), or declared var and assigned from one of those finders or Optional.ofNullable, whose get() is called within the next 15 lines with no isPresent()/isEmpty()/ifPresent()/null test of it in between or on the same line. Not reported: a variable assigned Optional.of(...), which is never empty; orElse/orElseGet/orElseThrow/ifPresent, a presence test before the get(), Map.get, Future.get, List.get, Collections.max(...).get(...), test files, comments and string literals. Optionals passed between methods or stored in fields are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-703/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-703/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

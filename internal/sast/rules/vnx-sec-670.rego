@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-670",
 	"name": "Kraken private API key",
 	"description": "A Kraken API private key (base64, ~88 chars) assigned to a kraken context was found. It signs Kraken private API requests and authorises trading and withdrawals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-670",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-670",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

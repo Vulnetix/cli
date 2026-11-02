@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1321",
 	"name": "Prototype pollution through unguarded computed-key assignment",
 	"description": "JavaScript/TypeScript code that writes through a computed key an attacker can set to __proto__ or constructor, so the write lands on Object.prototype and every object in the process inherits it. Reported: (1) a hand-written recursive merge/extend: inside a for...in, for...of Object.keys/getOwnPropertyNames/entries/Reflect.ownKeys or Object.keys(...).forEach loop over a source object, a call that passes target[key] together with source[key] (deepMerge(target[key], source[key]), extend(dst[k] || {}, src[k]), Object.assign(t[k], s[k])); (2) a hand-written set-by-path: a loop that walks cur = cur[part] followed within a few lines by cur[...] = value; (3) a nested assignment obj[A][B] = v or obj[A].x = v whose first key A is request data (req.body/query/params/cookies/headers, ctx.query, ctx.request.body), directly or through a variable assigned from it in the 10 lines above. Not reported: code whose function window (15 lines above to the line) names __proto__, constructor or prototype, or uses Object.create(null), a Map, or a safe-key/forbidden-key check; a shallow one-level copy (dst[k] = src[k] only sets dst's own prototype); nested assignments whose keys are constants or loop indices; comments and string literals. Library merges called with request data (lodash merge/set, $.extend(true, ...)) are VNX-NODE-006.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1321/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1321/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-169",
 	"name": "Azure subscription / tenant credential bundle (context)",
 	"description": "An Azure service principal password (clientSecret) inside an az login / azure credentials JSON context was found. It authenticates the service principal for full Azure CLI/SDK access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-169",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-169",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

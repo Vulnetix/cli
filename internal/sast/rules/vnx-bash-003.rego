@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-BASH-003",
 	"name": "Failure ignored in a script without set -e / set -u",
 	"description": "In an executable shell script (one with a sh/bash/dash/ksh/zsh shebang) that does not enable errexit (set -e, set -o errexit, a -e shebang flag or an ERR trap), reports the three places where a silently ignored failure does damage: a bare cd or pushd that is not checked (no || exit, &&, if, or $? test) followed within ten lines by a delete that uses a relative path (rm ./*, rm -rf build, find . -delete, git clean -f, git reset --hard), so the delete runs in the wrong directory when the cd fails; an integrity check (sha256sum/shasum/md5sum -c, gpg --verify, gpgv, cosign verify, minisign -V, openssl dgst -verify) run as a bare statement whose result nothing reads, so a failed check still installs the artifact; and, when nounset (set -u) is also off, rm -r of \"$VAR/...\" where VAR can be empty (a positional parameter with no $# check, an environment variable the script never sets, or a command-substitution result) with no ${VAR:?}, default or -z/-n test, which deletes from / instead. Not reported: scripts that enable errexit (and nounset, for the rm case), checked cd and checks, cd followed by non-destructive commands or absolute paths, a check that is the last command or a function's return value, sourced libraries without a shebang, test paths and .bats files. The mere absence of set -euo pipefail is not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-bash-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-bash-003/",
 	"languages": ["bash", "shell"],
 	"severity": "medium",
 	"level": "warning",

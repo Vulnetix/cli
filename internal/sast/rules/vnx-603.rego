@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-603",
 	"name": "Authentication decided in browser code",
 	"description": "Browser JavaScript decides on its own that the user is authenticated or privileged, so anyone can pass the check by editing the page, the console or storage. Reported: a login or role flag written to localStorage/sessionStorage as a literal (setItem('isLoggedIn', 'true'), sessionStorage.isAdmin = true) or to document.cookie (loggedIn=true, role=admin); such a flag read back from storage and compared, negated or tested to gate the page (if (!localStorage.isLoggedIn)), including when it was first read into a variable that a condition tests within the next 10 lines; and a password, passcode or PIN (a variable so named, or the .value of an element whose id names one) compared with a non-empty string literal in a file that uses the DOM or is a React/Vue/Svelte component (.jsx, .tsx, .vue, .svelte). Flag names are isLoggedIn/loggedIn/logged_in, isAuthenticated/authenticated/auth, isAdmin/admin, role/userRole, isAuthorized/authorized. Not reported: a storage read used as a fallback value (props.role || localStorage.getItem('role')), tokens stored or sent to the server (the server verifies them), flags set from a server response rather than a literal, clearing a flag (removeItem, 'false'), unrelated preferences (theme, consent), empty-string checks, server-side password comparison (bcrypt.compare, req.body), comments and prose inside string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-603/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-603/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

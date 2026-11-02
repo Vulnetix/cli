@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-468",
 	"name": "Loops transactional API key (keyword)",
 	"description": "A Loops transactional API key was found near a loops transactional assignment. It authorizes transactional email sends via the Loops API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-468",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-468",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

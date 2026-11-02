@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-066",
 	"name": "HTTP bearer authentication header",
 	"description": "Reports a literal HTTP Bearer token: the string \"Bearer <token>\" (an Authorization header in a request file or YAML, a curl -H argument, a headers dict/object, a Header.Set call, a template literal, a constant, or the two-argument .NET AuthenticationHeaderValue(\"Bearer\", \"...\")) whose token is at least 20 characters of token alphabet, contains a digit or is a JWT, and has high entropy, in code, scripts, config and .http/.rest files. The token is masked in the snippet. Not reported: a header built from variables (\"Bearer \" + token, f-strings, ${VAR}, $(...), {{ }}), low-entropy or placeholder values (invalid_token_format, YOUR_ACCESS_TOKEN, xxxx..., the jwt.io sample token), comment lines, Markdown/reStructuredText/AsciiDoc and *.example/*.sample files, and test, fixture, vendored and generated files. Provider-specific token rules report many of the same tokens by their prefix.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-066/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-066/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

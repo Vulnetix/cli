@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-248",
 	"name": "Drone CI machine/user token (legacy)",
 	"description": "A Drone CI token assigned to a DRONE_TOKEN context variable was found. It authenticates to the Drone server API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-248",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-248",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

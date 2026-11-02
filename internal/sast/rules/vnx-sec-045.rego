@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-045",
 	"name": "Discord bot token",
 	"description": "Reports a Discord bot token written into a file: three dot-separated base64url segments whose first segment is the base64 encoding of a numeric Discord snowflake id (17 to 20 digits, which fixes the character at every position), a 6-character timestamp and a 27- or 38-character HMAC. The token grants full control of the bot account. The snippet is redacted. Not reported: dotted strings whose first segment cannot decode to digits (JWTs, hashes, other base64), segments inside a longer token, placeholders (xxxx, EXAMPLE), and test, fixture and vendored paths. Discord webhook URLs and client secrets are VNX-SEC-417, VNX-SEC-726 and VNX-SEC-418.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-045/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-045/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

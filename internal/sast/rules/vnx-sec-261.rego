@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-261",
 	"name": "Stability AI API key (sk-)",
 	"description": "A Stability AI API key (sk- prefix) was found. It grants access to Stable Diffusion image generation billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-261",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-261",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

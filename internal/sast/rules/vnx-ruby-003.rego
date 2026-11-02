@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUBY-003",
 	"name": "Insecure deserialization in Ruby",
 	"description": "Untrusted bytes reach a Ruby deserializer that instantiates arbitrary classes: Marshal.load/Marshal.restore, Oj.load in its default object mode (no mode: :strict/:compat/:json/:null/:rails/:wab) or Oj.object_load, JSON.load, and JSON.parse with create_additions: true. Untrusted means request input (params, request.params/body/raw_post/headers/cookies, cookies, Rack env request keys), a Base64-decoded blob, an HTTP or message body (.body) or a socket read (a read on a *sock* variable or on a connection assigned from accept, or recv/recvfrom/recv_nonblock/recvmsg on any receiver), used in the call or through a variable assigned from it (up to two assignments) in the 12 lines above. Not reported: data the process wrote itself or read from a local file (Marshal.load(File.binread(path)), the Marshal.load(Marshal.dump(obj)) deep copy, even of params), Oj with a non-object mode, JSON.parse without create_additions, comments and strings. YAML.load and its relatives are VNX-RUBY-007.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-ruby-003/",
 	"languages": ["ruby"],
 	"severity": "critical",
 	"level": "error",

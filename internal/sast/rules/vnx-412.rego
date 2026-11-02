@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-412",
 	"name": "Unrestricted Externally Accessible Lock",
 	"description": "Reports Java locks that code outside the class can take and hold, blocking the class indefinitely. (1) `synchronized` on a JVM-wide shared object: a string literal, a String constant initialised from a literal (literals are interned), `x.intern()` or any `(expr).intern()`, `Boolean.TRUE/FALSE` or a boxed `valueOf(...)` cache. (2) A public lock field: `public ... Lock/ReentrantLock/ReadWriteLock/ReentrantReadWriteLock/StampedLock/Semaphore name`, or a `public Object name` that the class synchronizes on. (3) A public getter that hands out the lock or monitor (`public Lock getLock()`, `public Object getMonitor()`), including one Lombok generates from `@Getter` on a lock field (unless AccessLevel.PRIVATE/NONE). Not reported: `synchronized (this)`, synchronized methods and `synchronized (Foo.class)` (an ordinary, widely accepted idiom whose exposure depends on who holds references), private or package-private lock fields, test files, comments and strings. Locks exposed through other paths (a protected field used by subclasses, a lock passed out as an argument) are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-412/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-412/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

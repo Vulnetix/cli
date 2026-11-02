@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-486",
 	"name": "Clerk secret key (test)",
 	"description": "A Clerk test backend secret key (sk_test_ prefix) was found. It grants server-side access to the Clerk development instance.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-486",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-486",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

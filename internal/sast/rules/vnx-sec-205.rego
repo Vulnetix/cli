@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-205",
 	"name": "Spacelift API token",
 	"description": "A Spacelift API token (JWT) was found. It grants access to the Spacelift IaC management API for stacks, runs and policies.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-205",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-205",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-017",
 	"name": "Deserialization of untrusted data via node-serialize or serialize-to-js",
 	"description": "A value that is not a constant is passed to unserialize() from node-serialize or deserialize() from serialize-to-js. Both libraries evaluate JavaScript embedded in the payload (node-serialize runs an _$$ND_FUNC$$_ IIFE, CVE-2017-5941; serialize-to-js before 2.0 evaluates the string), so whoever controls the input runs code in the server. Reported: a call through a name bound to either module (require, default or namespace import, import = require), a call of an unserialize/deserialize function imported from it by name (including an `as` alias), and require('node-serialize').unserialize(...) inline, in JavaScript and TypeScript files, with the argument on the same line or the next. Not reported: serialize() (the writing side), a string-literal argument, deserialize()/unserialize() from any other library (bson, avsc, php-serialize) or a class method of that name, and comments or string literals that mention the call. Use JSON.parse() for untrusted data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-017/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-017/",
 	"languages": ["javascript", "typescript"],
 	"severity": "critical",
 	"level": "error",

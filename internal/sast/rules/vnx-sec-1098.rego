@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1098",
 	"name": "Plausible Analytics API key",
 	"description": "A Plausible Analytics API key was found. It authorizes the Plausible Stats and Sites API for the account's analytics data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1098",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1098",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

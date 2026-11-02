@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-769",
 	"name": "Uncontrolled File Descriptor Consumption",
 	"description": "Reports Python code that opens a new file or socket handle on every iteration of a loop and keeps it open: a handle assigned to a name inside a for/while body (`fh = open(p)`, `io.open`, `codecs.open`, `gzip.open`, `bz2.open`, `lzma.open`, `tarfile.open`, `os.open`, `socket.socket(...)`, `socket.create_connection(...)`, a lowercase receiver's `.open()` such as pathlib's `path.open()`) that the loop body never closes (`fh.close()`, a deferred `fh.close` passed to atexit.register or stack.callback, `os.close(fd)`, `with fh`, `contextlib.closing(fh)`), handles appended to a collection inside a loop (`handles.append(open(p))`), and a list, set or dict comprehension that opens one handle per element (`[open(p) for p in paths]`); neither form is followed by a close within 30 lines. Each iteration consumes a descriptor, so input with enough elements exhausts the process limit (EMFILE). CWE-769 is deprecated in favour of CWE-774; the number is kept for rule identity. Not reported: `with` blocks, handles closed or yielded in the loop body, a loop that breaks or returns after the open (the first-openable-candidate idiom), handles chained straight into a read (`open(p).read()`), generator expressions, handles opened outside a loop (VNX-775 reports a missing close there), comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-769/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-769/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

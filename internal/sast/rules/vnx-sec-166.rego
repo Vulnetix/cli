@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-166",
 	"name": "Scaleway IAM API secret key (context)",
 	"description": "A Scaleway IAM API secret key under a Scaleway IAM context was found. It signs API requests for the associated IAM application/user and grants permitted resource access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-166",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-166",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

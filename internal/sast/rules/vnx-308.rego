@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-308",
 	"name": "Use of Single-factor Authentication",
 	"description": "A setting that enforces a second authentication factor is turned off, leaving the password as the only factor. Reported: a setting, property or keyword whose name says MFA/2FA/two-factor/multi-factor/OTP is required or enforced (require_mfa, mfaRequired, enforce2fa, SECURITY_TWO_FACTOR_REQUIRED, otp_enforced) assigned false, 0, \"off\", \"disabled\" or \"optional\" in Python, JavaScript/TypeScript or Java (including a .setMfaRequired(false)/.requireMfa(false) builder call); an upper-case settings constant that enables MFA (MFA_ENABLED, ENABLE_2FA, TWO_FACTOR_AUTH_ENABLED) set to false; and a Terraform aws_cognito_user_pool with mfa_configuration = \"OFF\". Not reported: a per-user flag such as user.mfaEnabled = false or a model column default (the user has not enrolled, which is not a policy), reads and comparisons (if not settings.MFA_REQUIRED), login-flow state rather than policy (a Redux/store field, initialState, a dispatched action, or a response body such as res.json({ mfaRequired: false }) telling the client this login needs no challenge), the setting turned on, test files and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-308/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-308/",
 	"languages": ["java", "node", "python", "terraform"],
 	"severity": "medium",
 	"level": "warning",

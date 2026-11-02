@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-663",
 	"name": "BscScan API key",
 	"description": "A BscScan API key (34-character alphanumeric) assigned to a bscscan context was found. It authorises access to BscScan's BNB Chain explorer API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-663",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-663",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

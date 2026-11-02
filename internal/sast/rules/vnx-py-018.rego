@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-018",
 	"name": "Insecure temporary file creation via tempfile.mktemp()",
 	"description": "A temporary file name is generated without creating the file, in a .py file: tempfile.mktemp() (also through `import tempfile as t` and `from tempfile import mktemp [as name]`), and the Python 2 os.tempnam()/os.tmpnam(). The name is free when it is returned, so another local user can create a file or symlink at that path before the program opens it (a TOCTOU race, CWE-377), and the program then writes into a file the attacker controls. Use tempfile.mkstemp(), NamedTemporaryFile(), TemporaryDirectory() or mkdtemp(), which create the file or directory atomically. Not reported: mkstemp/mkdtemp/NamedTemporaryFile/TemporaryFile, pytest's tmp_path_factory.mktemp() and other methods named mktemp (self.mktemp() in twisted.trial), a project function named mktemp, and the names in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-018/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-018/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",

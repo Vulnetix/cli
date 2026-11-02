@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-023",
 	"name": "GitHub Actions expression injection via event data",
 	"description": "Reports a GitHub Actions workflow (.github/workflows/*.yml) or composite action (action.yml) that expands attacker-controlled event data with ${{ }} inside a run: script, on the run: line itself or anywhere in its | or > block, or inside a script: block (actions/github-script, appleboy/ssh-action), on the script: line or in its block. The expression is substituted into the script text before the shell or JavaScript runs, so a crafted value runs commands with the job's token and secrets. Attacker-controlled contexts: github.head_ref; github.event.issue.title/body, pull_request.title/body/head.ref/head.label/head.repo.default_branch, comment.body, review.body, review_comment.body, discussion.title/body, head_commit.message/author/committer name and email, commits[*].message/author/committer, pages[*].page_name, workflow_run.head_branch/head_commit.message/display_title, and toJSON() of the whole event or of an issue, pull request, comment, review, discussion or commit. Not reported: the same expression passed through env: and read as $VAR or process.env (the fix), with: inputs to other actions, if: conditions and concurrency groups, safe contexts (pull_request.number, head.sha, github.sha, github.repository, base.ref), comment lines, and YAML outside a workflow or action file.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-023/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-023/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

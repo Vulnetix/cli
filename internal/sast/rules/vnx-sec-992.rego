@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-992",
 	"name": "Crypto.com Exchange API key",
 	"description": "A Crypto.com Exchange API key assigned to a crypto.com key field was found. With the matching secret it authenticates trading and withdrawal requests on the Crypto.com Exchange API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-992",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-992",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

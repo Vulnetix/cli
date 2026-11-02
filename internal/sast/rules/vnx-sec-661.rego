@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-661",
 	"name": "Moralis API key",
 	"description": "A Moralis Web3 Data API key assigned to a moralis context was found. It authorises access to Moralis blockchain data endpoints billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-661",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-661",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

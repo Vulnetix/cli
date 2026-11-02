@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-088",
 	"name": "Stripe webhook signing secret (whsec_)",
 	"description": "A Stripe webhook signing secret (whsec_) was found. It lets an attacker forge valid webhook signatures to your endpoint.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-088",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-088",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

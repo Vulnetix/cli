@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-539",
 	"name": "Optimizely SDK/API token",
 	"description": "An Optimizely SDK key or API token was found. API tokens grant access to manage Optimizely projects, experiments and feature flags.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-539",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-539",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

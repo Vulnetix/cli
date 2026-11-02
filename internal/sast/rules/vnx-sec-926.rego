@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-926",
 	"name": "Azure IoT Hub SharedAccessKey",
 	"description": "An Azure IoT Hub connection string containing a SharedAccessKey was found. The base64 key in HostName=...;SharedAccessKeyName=...;SharedAccessKey=... grants device or service access to the IoT Hub.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-926",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-926",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

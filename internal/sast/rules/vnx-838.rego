@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-838",
 	"name": "Inappropriate Encoding for Output Context",
 	"description": "A value encoded for one output context is written into another. JavaScript/TypeScript: URL encoding (encodeURIComponent, encodeURI, the global escape) used for text written to an HTML sink (innerHTML/outerHTML assignment, insertAdjacentHTML, document.write, jQuery .html(), dangerouslySetInnerHTML); URL encoding leaves ' unescaped and is not HTML encoding, so the markup is still injectable. Python: urllib.parse.quote/quote_plus used inside HTML markup (a string with a tag, or Markup()/mark_safe()), and html.escape(..., quote=False) or cgi.escape() (which does not escape quotes by default) used inside an HTML attribute value, where the attacker closes the quote. The encoder must sit inside what the sink writes (after innerHTML =, inside .html(...)); for a Python format operation ('...%s...' % quote(x), '...{}...'.format(...)) the first argument is judged at the template's first placeholder. Not reported: a URL-encoded request URL on the same line as an unrelated sink, URL encoding of a value placed in a URL attribute (href, src, action, formaction, poster, cite, data, background), URL encoding for a URL or textContent, HTML escapers (escapeHtml, _.escape, html.escape with quotes), html.escape(quote=False) in element text, and comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-838/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-838/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

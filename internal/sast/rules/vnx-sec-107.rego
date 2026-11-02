@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-107",
 	"name": "Yandex Cloud OAuth token",
 	"description": "A Yandex Cloud OAuth token (y0_ / y1_ / y2_ / y3_ prefix family) was found. Yandex OAuth tokens grant long-lived API access used to obtain IAM tokens and call Yandex services.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-107",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-107",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

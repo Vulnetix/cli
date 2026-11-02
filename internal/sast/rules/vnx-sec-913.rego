@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-913",
 	"name": "IPgeolocation API key",
 	"description": "An ipgeolocation.io API key was found near an ipgeolocation assignment. It is a 32-character hex string authorizing geolocation and timezone lookups.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-913",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-913",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

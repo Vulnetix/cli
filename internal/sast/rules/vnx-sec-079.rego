@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-079",
 	"name": "GitHub fine-grained personal access token",
 	"description": "Reports a GitHub fine-grained personal access token (github_pat_, 22 alphanumeric characters, an underscore and 59 more) as a whole token in any file: standalone, assigned, in an Authorization header or inside a clone URL. Not reported: the bare prefix, truncated tokens, placeholder or low-entropy bodies (github_pat_xxxx...), environment and CI-secret references, and test, fixture, vendored and generated files. VNX-SEC-004 reports the same token as part of its wider GitHub/GitLab set.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-079/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-079/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

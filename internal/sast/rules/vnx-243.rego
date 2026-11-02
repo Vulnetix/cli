@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-243",
 	"name": "Creation of chroot Jail Without Changing Working Directory",
 	"description": "A chroot() call is not followed, in the same function and within 20 lines, by a change of working directory, so the process keeps a working directory outside the jail and can reach the real file system through relative paths ('../../etc/shadow'). Reported: C/C++ chroot(), Python os.chroot() (or chroot imported from os), Go syscall.Chroot()/unix.Chroot(), Rust fs::chroot()/nix::unistd::chroot() and Ruby Dir.chroot(), with no chdir()/fchdir() (os.chdir, syscall/unix/os.Chdir, std::env::set_current_dir, Dir.chdir) after it. Not reported: a chdir after the chroot, the chdir(dir); chroot(\".\") idiom and chdir(dir); chroot(dir) with the same argument, method calls and wrappers (o->chroot(), my_chroot()), prototypes, comments and string literals. A chdir before the chroot to a different directory does not count, nor does a chdir after it to a relative literal path (chdir(\"work\") moves relative to the old directory, still outside the jail). A Go SysProcAttr Chroot field for a child process is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-243/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-243/",
 	"languages": ["c", "cpp", "go", "python", "ruby", "rust"],
 	"severity": "medium",
 	"level": "warning",

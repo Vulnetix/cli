@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-101",
 	"name": "Oracle Cloud (OCI) API private key",
 	"description": "An Oracle Cloud Infrastructure API signing private key (PEM RSA private key paired with an OCI user) was found. It authenticates as the OCI user and grants API access to all permitted tenancy resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-101",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-101",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

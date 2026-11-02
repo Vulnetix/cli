@@ -8,7 +8,7 @@ metadata := {
     "id": "VNX-PY-022",
     "name": "SQL injection via joined SQL pieces in Python",
     "description": "A SQL statement is assembled by joining a list of pieces and passed to a DB-API cursor/connection execute(), executemany() or executescript(), a Django Model.objects.raw() or pandas read_sql()/read_sql_query(), in a .py file: the call's first argument is `sep.join(parts)`, or a variable whose nearest assignment in the 20 lines above is `sep.join(parts)`. In the 20 lines above, the pieces put into the list (`parts = [...]`, `parts += [...]`, `parts.append/extend/insert(...)`, multi-line included) must contain SQL (SELECT, INSERT INTO, UPDATE ... SET, DELETE FROM, WHERE, FROM, VALUES, DROP/CREATE/ALTER TABLE, UNION), and one piece must be built from a variable by concatenation, %-formatting, str.format() or an f-string, or be a bare non-constant name (`parts.append(order)`). Use placeholders in the pieces and pass the values as a parameters argument. Not reported: SQL built in one expression (inline, through a variable, extended with +=, or a SQL template variable formatted inside the call), which is reported by VNX-PY-011; pieces with placeholders whose values are passed separately; pieces built only from UPPER_CASE constants; placeholder lists built with ','.join('?' ...); lists holding no SQL; and the calls in comments or string literals. Whether the joined variable is attacker-controlled is not judged, and a list built in another function is not traced.",
-    "help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-022/",
+    "help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-022/",
     "languages": ["python"],
     "severity": "high",
     "level": "error",

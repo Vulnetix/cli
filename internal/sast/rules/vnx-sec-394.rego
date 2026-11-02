@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-394",
 	"name": "Worldpay client/checkout key (live URL)",
 	"description": "A Worldpay client key (T_C_ prefix) used for client-side tokenization was found. Client keys are lower risk but flag Worldpay integration code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-394",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-394",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-756",
 	"name": "Framework traceback page served instead of a custom error page",
 	"description": "A Python web application is configured so that an unhandled exception is answered with the framework's own debug error page (stack trace, source lines, local variables, request and settings) rather than a custom error page. Reported: FastAPI(..., debug=True) and Starlette(..., debug=True); in a file that imports tornado, debug=True or serve_traceback=True as an Application keyword or a \"debug\"/\"serve_traceback\": True settings entry; in a file that imports bottle, bottle.debug(True), debug(True) and run(..., debug=True); in a file that imports cherrypy, a 'request.show_tracebacks': True config entry; in a file that imports sanic or quart, <app>.run(..., debug=True); and web.py's web.config.debug = True and app.internalerror = web.debugerror. A call broken over several lines is read up to eight lines on. Not reported: debug taken from an environment variable, a setting or a command-line flag, debug=False, test code, comments and string literals. Flask's debugger is VNX-PY-008 and Django's DEBUG = True is VNX-PY-006; whether an application registers its own 500 handler is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-756/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-756/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

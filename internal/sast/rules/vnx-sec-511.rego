@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-511",
 	"name": "ClickUp personal API token (pk_)",
 	"description": "A ClickUp personal API token (pk_ prefix) was found. It grants API access to the user's ClickUp workspaces, tasks and spaces.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-511",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-511",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-497",
 	"name": "Exposure of Sensitive System Information to an Unauthorized Control Sphere",
 	"description": "System information sent to an HTTP client. Sources: System.getProperty() of a platform key (os.name/version/arch, java.version/vendor/home/class.path/library.path/io.tmpdir/vm.*, user.home/dir/name, sun.*), System.getenv(), System.getProperties(), InetAddress.getLocalHost() and ManagementFactory MXBeans. Sinks: response.getWriter()/getOutputStream() print/println/write/append/printf/format, a writer variable (out, writer, pw) in a file that obtains the response writer, ResponseEntity.ok()/.body(), JAX-RS Response.ok()/.entity() (in a file importing javax/jakarta.ws.rs), a return from a @*Mapping handler in a @RestController/@ResponseBody class, Model.addAttribute()/ModelAndView.addObject(), and JSP <%= %> expressions and out.print. Reported when the source is in the sink's argument, or assigned within 25 lines above (one intermediate assignment allowed, unless it builds a File/Path or a boolean test from the value). Not reported: logging, console output (System.out), using the value to build paths or branch on the OS, application-defined properties (System.getProperty(\"acme.mode\")), and the patterns in comments or string literals. Stack traces and exception messages are a separate weakness (CWE-209).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-497/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-497/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

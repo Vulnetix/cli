@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-553",
 	"name": "Auth0 API key/token (generic)",
 	"description": "An Auth0 API credential (key or token) bound to an Auth0 domain was found. It may grant access to the Auth0 tenant's APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-553",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-553",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

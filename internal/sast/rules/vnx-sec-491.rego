@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-491",
 	"name": "Stytch secret (test)",
 	"description": "A Stytch test project secret (secret-test- prefix) was found. Combined with a project ID it grants server-side access to the Stytch test project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-491",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-491",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-219",
 	"name": "Woodpecker CI token",
 	"description": "A Woodpecker CI API token was found. It authenticates to the Woodpecker API for managing pipelines and repository configuration.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-219",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-219",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

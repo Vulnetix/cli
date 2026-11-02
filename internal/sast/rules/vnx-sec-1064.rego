@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1064",
 	"name": "Twitch EventSub webhook secret",
 	"description": "A Twitch EventSub subscription secret used to sign and verify webhook payloads was found. Disclosure lets an attacker forge valid EventSub notifications to the application's callback.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1064",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1064",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

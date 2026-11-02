@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-796",
 	"name": "Smartlook API token",
 	"description": "A Smartlook API access token was found. It grants API access to the organisation's session-recording and analytics data in Smartlook.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-796",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-796",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

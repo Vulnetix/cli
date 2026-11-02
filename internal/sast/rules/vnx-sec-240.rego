@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-240",
 	"name": "GitHub Actions runner token (config.sh)",
 	"description": "A GitHub Actions self-hosted runner configuration token passed to config.sh --token was found. It permits registering a runner against a repo/org.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-240",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-240",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

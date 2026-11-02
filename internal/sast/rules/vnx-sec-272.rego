@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-272",
 	"name": "LangChain/LangSmith legacy API key (ls__)",
 	"description": "A legacy LangChain/LangSmith API key (ls__ prefix) was found. It grants access to LangSmith tracing data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-272",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-272",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

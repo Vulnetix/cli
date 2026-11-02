@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-587",
 	"name": "Uploadcare secret key",
 	"description": "An Uploadcare secret key assigned to a context keyword was found. The secret key authenticates to the Uploadcare REST API and grants management of files, groups and project settings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-587",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-587",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

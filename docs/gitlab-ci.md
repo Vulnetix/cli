@@ -1,6 +1,6 @@
 # GitLab CI
 
-This documentation has moved to **[docs.cli.vulnetix.com/docs/ci-cd/gitlab-ci](https://docs.cli.vulnetix.com/docs/ci-cd/gitlab-ci/)**.
+This documentation has moved to **[docs.vulnetix.com/cli/ci-cd/gitlab-ci](https://docs.vulnetix.com/cli/ci-cd/gitlab-ci/)**.
 
 Runnable, schema-validated examples live in [`examples/gitlab/`](../examples/gitlab/).
 
@@ -25,4 +25,4 @@ vulnetix:
     - vulnetix scan --severity high
 ```
 
-See the [full documentation](https://docs.cli.vulnetix.com/docs/ci-cd/gitlab-ci/) for one job per scan subcommand, publishing artifacts, `parallel:matrix`, GitLab Releases, and the CI/CD Component every project can inherit.
+See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/gitlab-ci/) for one job per scan subcommand, publishing artifacts, `parallel:matrix`, GitLab Releases, and the CI/CD Component every project can inherit.

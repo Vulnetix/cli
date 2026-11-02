@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-014",
 	"name": "Python XML external entity injection",
 	"description": "An XML parser is configured, or used, so that it resolves external entities, letting a document read local files or make the server fetch URLs (XXE). Reported: a SAX parser whose external entity features are switched on (parser.setFeature(feature_external_ges or feature_external_pes, True/1), or the http://xml.org/sax/features/external-*-entities URI), which minidom and pulldom parsing then inherit; an lxml etree.XMLParser created with resolve_entities=True or no_network=False (also as a multi-line call); xmltodict.parse(..., disable_entities=False); and lxml etree.fromstring/XML/parse/iterparse (also imported by name, from lxml.etree import parse) given request data (directly, or a variable assigned from request data up to 25 lines above) with no parser argument, since older lxml releases resolve external entities with the default parser. Not reported: the standard library's xml.etree, minidom and sax parsers with their defaults (they do not fetch external entities on current Python), xml.etree imported under the name etree, defusedxml, lxml with an explicit parser or a constant/file-path argument, setFeature(..., False), and the pattern in comments and strings. Entity-expansion denial of service (billion laughs, huge_tree) is not covered.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-014/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-014/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

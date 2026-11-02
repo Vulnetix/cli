@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-021",
 	"name": "Weak or deprecated SSL/TLS protocol version",
 	"description": "A Python TLS context is made to use or allow SSLv2, SSLv3, TLS 1.0 or TLS 1.1. Reported, in code: the ssl constants PROTOCOL_SSLv2, PROTOCOL_SSLv3, PROTOCOL_TLSv1 and PROTOCOL_TLSv1_1 (SSLContext(), wrap_socket(ssl_version=...), a requests/urllib3 adapter), the pyOpenSSL methods SSLv2_METHOD, SSLv3_METHOD, TLSv1_METHOD and TLSv1_1_METHOD, set_min_proto_version()/set_max_proto_version() given SSL3_VERSION, TLS1_VERSION or TLS1_1_VERSION, a minimum_version or maximum_version (or urllib3's ssl_minimum_version/ssl_maximum_version) set (by assignment or keyword) to TLSVersion.SSLv3, TLSv1 or TLSv1_1, and an options &= ~OP_NO_SSLv2/SSLv3/TLSv1/TLSv1_1 that re-enables an old protocol. These versions have practical attacks (POODLE, BEAST) and no AEAD ciphers. Use PROTOCOL_TLS_CLIENT/PROTOCOL_TLS_SERVER (or TLS_METHOD) with minimum_version = TLSVersion.TLSv1_2 or higher. Not reported: PROTOCOL_TLSv1_2, PROTOCOL_TLS, PROTOCOL_SSLv23 and SSLv23_METHOD (which negotiate the highest version), OP_NO_* used to disable an old protocol, a comparison against a weak constant (a guard that rejects it), import lines, and the names in comments or string literals (hasattr/getattr probes).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-021/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-021/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

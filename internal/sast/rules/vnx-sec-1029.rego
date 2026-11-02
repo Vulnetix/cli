@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1029",
 	"name": "Vault AppRole role_id (assignment)",
 	"description": "A HashiCorp Vault AppRole role_id (UUID) assigned to a role_id field was found. Combined with a secret_id it authenticates an application to Vault via the AppRole method.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1029",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1029",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

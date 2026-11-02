@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1129",
 	"name": "Vimeo personal access token context",
 	"description": "A Vimeo personal access token referenced in a personal-token context was found. It authorizes Vimeo API actions on the account until revoked.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1129",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1129",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

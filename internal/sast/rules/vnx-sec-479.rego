@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-479",
 	"name": "Crisp plugin token (keyword)",
 	"description": "A Crisp plugin token/secret was found near a crisp token assignment. Crisp plugin tokens authorize REST API access to chat sessions and operator actions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-479",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-479",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

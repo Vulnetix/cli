@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-1113",
 	"name": "Inappropriate Comment Style",
 	"description": "A '/* ... */' block comment opened inside another block comment, in a language where block comments do not nest (C, C++, Java, JavaScript/TypeScript, Go, C#, PHP). The first '*/' closes both, so text the author believed was commented out (typically code disabled by wrapping it, inner comment and all, in '/* ... */') is compiled, and the outer '*/' is left stray. Reported at the nested '/*' line. Not reported: block comments that close before the next one opens, '/*' in the middle of a line (globs such as 'a/*.c', strings), Rust, Swift, Kotlin and Scala, whose block comments nest legally, and openers more than 50 lines apart.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1113/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1113/",
 	"languages": ["c", "cpp", "java", "javascript", "go", "csharp", "php"],
 	"severity": "low",
 	"level": "note",

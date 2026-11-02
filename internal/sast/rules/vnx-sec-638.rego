@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-638",
 	"name": "Sentry organization auth token (sntrys)",
 	"description": "A Sentry organization-level auth token using the sntrys_ prefix was found. It authenticates to the Sentry API for source-map upload and release management at organization scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-638",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-638",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

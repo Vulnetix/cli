@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-007",
 	"name": "Slack token or webhook",
 	"description": "Reports a hard-coded Slack credential in any file: a bot, user, workspace, refresh or legacy token (xoxb-, xoxp-, xoxa-, xoxo-, xoxr-, xoxs- followed by a numeric team/user id and a secret segment) and an incoming-webhook or workflow URL (https://hooks.slack.com/services/T…/B…/<secret>, /workflows/T…/A…/<id>/<secret>, /triggers/T…/<id>/<secret>). Not reported: Slack's documented example webhook (T00000000/B00000000/XXXX…) and other placeholder runs, tokens without a numeric id (xoxb-your-token), a webhook base URL built from configuration, prefix lists, environment references, and test, fixture, vendored and generated files. Configuration-refresh (xoxe-) and app-level (xapp-) tokens are VNX-SEC-419/420/421.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-007/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-007/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

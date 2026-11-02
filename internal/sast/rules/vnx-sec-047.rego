@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-047",
 	"name": "Shopify access token",
 	"description": "Reports a Shopify token written into a file: an Admin API access token (shpat_), a custom app access token (shpca_), a private app password (shppa_) or a shared secret (shpss_), each followed by exactly 32 hexadecimal characters and standing alone. These grant API access to the store's products, customers and orders. The snippet is redacted. Not reported: the prefix inside a longer identifier, a body longer or shorter than 32 hex characters, placeholders (shpat_xxxx..., shpat_000..., EXAMPLE), low-entropy values, tokens read from the environment, and test, fixture and vendored paths. Context-named Shopify secrets without a prefix are VNX-SEC-882 and VNX-SEC-883.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-047/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-047/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

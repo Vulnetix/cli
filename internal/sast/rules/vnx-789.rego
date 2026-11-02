@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-789",
 	"name": "Memory Allocation with Excessive Size Value",
 	"description": "Reports C/C++ allocations (malloc, calloc, realloc, reallocarray, alloca, valloc, new T[n], and the container calls v.resize(n), v.reserve(n) and std::vector<T> v(n)) whose size comes from an externally controlled number with no upper bound checked first: a value parsed with atoi/atol/strtol/strtoul/std::stoi and friends, read with scanf/fscanf/sscanf, or decoded from the wire with ntohl/ntohs/beNNtoh/leNNtoh within the ten lines above, or such a call written inline in the size argument. A comparison against an upper limit or a MIN()/min() clamp between the read and the allocation suppresses the report; a lower-bound check alone does not. Sizes derived from strlen(), sizeof or constants, and flows across functions, are deliberately not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-789/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-789/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

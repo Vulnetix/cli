@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GQL-003",
 	"name": "GraphQL query string injection via string concatenation",
 	"description": "A GraphQL operation document is built from request data: a template literal, f-string, str.format, %-format or + concatenation whose text is a GraphQL document (query/mutation/subscription with a selection set, a gql`...`/graphql`...` tag, or an anonymous { field(...) } document assigned to a query/gql/document name, passed straight to a client call such as client.request(`{ field(...) }`), or in Python a string opening with { field(arg: ...) interpolates a request value directly (req.body/query/params, ctx.params, event.queryStringParameters, resolver args, request.args/form/json/GET/POST) or a variable assigned from one within the previous 12 lines, including destructuring (const { id } = req.body). The attacker can then add fields, aliases or directives, or reach resolvers the caller should not. Covers JavaScript/TypeScript and Python, and multi-line documents up to 8 lines after their opening. Not reported: operations that pass request data through a variables map (variables: {...}, variable_values=), fragment or constant interpolation, values converted with parseInt/Number/JSON.stringify or a sanitiser, SQL strings and other non-GraphQL templates, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-gql-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-gql-003/",
 	"languages": ["javascript", "typescript", "python"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1083",
 	"name": "Unsplash access key (Client-ID)",
 	"description": "An Unsplash application access key (43-character base64url) used as a Client-ID was found. It authorizes Unsplash API photo search and download under the app rate limit.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1083",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1083",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

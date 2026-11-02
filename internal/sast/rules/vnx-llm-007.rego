@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-LLM-007",
 	"name": "torch.load() without weights_only=True (ML model deserialization)",
 	"description": "Reports a Python call to torch.load() (also through an `import torch as <alias>`, or as a bare `load(...)`/alias after `from torch import load [as name]`) whose argument list, including arguments on continuation lines of a multi-line call, does not pass weights_only=True, or passes weights_only=False explicitly. torch.load() unpickles the file, so loading an untrusted or attacker-supplied checkpoint executes arbitrary code; weights_only=True restricts it to tensors and primitive containers, and the safetensors format avoids pickle altogether. Not reported: calls passing weights_only=True or a non-literal weights_only value, torch.jit.load() and safetensors loaders, lookalike receivers (mytorch.load, json.load), and the call written inside a string literal, docstring or comment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-llm-007/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-llm-007/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

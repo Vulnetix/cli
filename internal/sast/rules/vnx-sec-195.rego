@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-195",
 	"name": "Gitea access token",
 	"description": "A Gitea personal access token (40-character SHA1-style hex) was found. It grants API access to the Gitea instance for the owning user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-195",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-195",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

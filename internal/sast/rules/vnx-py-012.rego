@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-012",
 	"name": "Python server-side template injection",
 	"description": "Request data becomes the source text of a server-side template, so an attacker writes template code ({{ ... }}, {% ... %}) that the engine evaluates, which in Jinja2 and Mako reaches arbitrary Python execution. Reported: the template-source argument of Flask render_template_string() (also as flask.render_template_string), a Jinja2 or Django env.from_string(), and jinja2/mako/django/tornado Template() is request data (request.args/form/values/GET/POST/json/get_json()/data/cookies/headers/..., Tornado self.get_argument()) directly, or a variable assigned from request data up to 30 lines above, or a parameter of the enclosing route handler (a def decorated with @app.route/@router.get or whose first parameter is request), or an f-string, % format, .format() or + concatenation of such a value (also through one intermediate template variable, and across the lines of a triple-quoted template). Not reported: a constant template with the user value passed as render context (render_template_string('<h1>{{ name }}</h1>', name=name)), render_template() with a template file, templates formatted only from untainted variables or ALL_CAPS constants, string.Template and other lookalikes (PromptTemplate), framework wrappers that forward their own parameter, and the pattern in comments and strings. Flows through helper functions or more than one intermediate variable are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-012/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-012/",
 	"languages": ["python"],
 	"severity": "critical",
 	"level": "error",

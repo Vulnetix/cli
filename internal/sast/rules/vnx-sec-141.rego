@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-141",
 	"name": "Cloudflare Origin CA key (v1.0-)",
 	"description": "A Cloudflare Origin CA key (v1.0- prefix) was found. This key authorizes issuing and managing Cloudflare Origin CA certificates for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-141",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-141",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

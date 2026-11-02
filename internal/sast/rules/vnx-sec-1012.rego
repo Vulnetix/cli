@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1012",
 	"name": "NFT.storage API token (JWT, assignment)",
 	"description": "An NFT.storage API token (JWT) assigned to an nft.storage field was found. It grants upload and management access to the linked NFT.storage / IPFS account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1012",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1012",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

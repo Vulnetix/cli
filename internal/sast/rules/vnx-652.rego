@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-652",
 	"name": "XQuery injection",
 	"description": "An XQuery expression built from a non-constant value and handed to an XQuery engine in Java, so whoever controls the value rewrites the query (CWE-652). Only files that use an XQuery API are read: XQJ (javax.xml.xquery), Saxon s9api (net.sf.saxon), BaseX (org.basex), XML:DB/eXist (org.xmldb, XQueryService) and MarkLogic XCC (com.marklogic.xcc). Reported sinks: executeQuery, prepareExpression, executeCommand, compile, query, execute, newAdhocQuery, new XQuery(...) and new QueryProcessor(...) whose argument concatenates a variable, a parameter or a method result into a string literal, uses String.format/formatted/MessageFormat.format, or is a variable (or StringBuilder.toString()) built that way in the ten lines above, including a concatenation broken across lines. Not reported: external variables bound with bindString/bindObject (declare variable ... external), constant queries and concatenation of literals or UPPER_CASE constants, SQL text passed to JDBC executeQuery (inline or through a variable built from SELECT/INSERT/UPDATE/DELETE text), Pattern.compile, a call whose argument is a new object other than XQuery/QueryProcessor (http.execute(new HttpGet(url + ...))), files that use no XQuery API, comments and the call written inside a string literal.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-652/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-652/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

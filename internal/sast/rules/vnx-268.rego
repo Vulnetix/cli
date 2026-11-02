@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-268",
 	"name": "Privilege Chaining",
 	"description": "The program runs sudo, doas or pkexec with a command line that includes a runtime value, chaining whatever controls that value to the root rights granted to the program's account in sudoers or polkit. Reported in Python for subprocess.run (also through `import subprocess as sp` or `from subprocess import ...`)/call/check_call/check_output/Popen/getoutput, os.system, os.popen, os.exec*/os.spawn* and asyncio.create_subprocess_exec/shell, and in C and C++ for system, popen, the exec family and posix_spawn, when the command begins with sudo/doas/pkexec (or its /usr/bin path) and an argument is not a literal: a variable list element or argv, an f-string, concatenation, %-formatting or .format(), a .c_str() of a built string, or a command variable assigned or snprintf/sprintf-ed from such a sudo template in the eight lines above. Not reported: a fully constant privileged command (sudo systemctl reload nginx, sudo -n true, or one whose only names are ALL_CAPS constants such as *REQUIRED_PACKAGES), a value checked against an allow-list in the six lines above (if x not in ALLOWED, if x in (...)), commands without sudo/doas/pkexec, sudo text in messages and help strings, and the calls in comments. Whether the sudoers entry itself is too broad is outside the code and is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-268/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-268/",
 	"languages": ["c", "cpp", "python"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-618",
 	"name": "New Relic REST API key (NRAA)",
 	"description": "A New Relic account/admin REST API key using the NRAA- prefix was found. It authenticates to the legacy New Relic REST API with account-level permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-618",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-618",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

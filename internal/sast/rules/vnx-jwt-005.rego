@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JWT-005",
 	"name": "Sensitive credential data stored in JWT payload",
 	"description": "A password, password hash, secret, API key, social security number or card number is put into a JWT's claims. A JWS payload is only base64url-encoded, so anyone holding the token can read it. Reported: such a key in the payload literal of jsonwebtoken jwt.sign / jose new SignJWT (JavaScript/TypeScript, including the { password } shorthand), PyJWT jwt.encode (Python), ruby-jwt JWT.encode (Ruby), firebase/php-jwt JWT::encode (PHP) and golang-jwt jwt.NewWithClaims (Go); in a payload variable defined or extended (payload[\"password\"] = ...) within 20 lines above the call; in a jjwt .claim(...) / Auth0 .withClaim(...) of a builder chain (Java); and a Go claims struct embedding jwt.RegisteredClaims/StandardClaims with such a json-tagged field. Not reported: lookalike keys (passwordChangedAt, hasPassword), credentials in request bodies, forms or login structs that never reach a token, comments and strings. Passing a whole user record as the payload is not detected.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-jwt-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-jwt-005/",
 	"languages": ["python", "javascript", "typescript", "java", "go", "ruby", "php"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-373",
 	"name": "Coinbase API secret",
 	"description": "A Coinbase API secret was found near a coinbase/api_secret assignment. Paired with the API key it authorizes reading and moving cryptocurrency balances.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-373",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-373",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

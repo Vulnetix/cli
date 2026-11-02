@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-421",
 	"name": "Slack config access token (xoxe.xoxp-/xoxb-)",
 	"description": "A Slack configuration access token (xoxe.xoxp- or xoxe.xoxb-) was found. It authorizes Slack app manifest and configuration management operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-421",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-421",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

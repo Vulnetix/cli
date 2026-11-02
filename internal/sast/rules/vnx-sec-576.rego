@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-576",
 	"name": "Upstash Redis REST token",
 	"description": "An Upstash Redis REST token assigned to a context keyword was found. It authenticates to the Upstash Redis HTTP REST API and grants read/write access to the database.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-576",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-576",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

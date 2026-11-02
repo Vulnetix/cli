@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-241",
 	"name": "Improper Handling of Unexpected Data Type",
 	"description": "A value of a JSON request body, whose type the client chooses, is used as a str with no type check: a number, list, object or null there raises AttributeError (a crash or a 500) instead of being rejected. Reported in Python: a str method (lower/upper/strip/lstrip/rstrip/split/rsplit/startswith/endswith/replace/encode/casefold/title/capitalize) applied to a field of a JSON body (Flask request.json and request.get_json(), DRF request.data, json.loads(request.body/data/get_data())), directly, through the dict assigned from it in the 15 lines above, or through a variable assigned from one of its fields in the 10 lines above. Not reported: Flask request.args/form/headers (always strings), a value checked with isinstance()/type() or coerced with str() in the ten lines above, comments and string literals. The same weakness in JavaScript/TypeScript (a string method or .length on a req.query/req.body/ctx.query field) is reported by VNX-1287.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-241/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-241/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

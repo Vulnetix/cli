@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-305",
 	"name": "LangChain endpoint API key (assignment context)",
 	"description": "A LangChain/LangSmith API key referenced via a LANGCHAIN_API_KEY assignment was found, confirming a live tracing credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-305",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-305",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

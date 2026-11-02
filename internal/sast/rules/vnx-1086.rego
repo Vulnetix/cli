@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1086",
 	"name": "Class with Excessive Number of Child Classes",
 	"description": "A Python class defined in the project that more than 20 classes in the project derive from directly (`class X(Base)`, `class X(Mixin, Base)`, `class X(pkg.Base)`, or a class head split over several lines). A base with that many children is a change amplifier: every edit to it, including a security fix to a method its children inherit or override, has to be checked against all of them. One finding per base class definition, with the child count. Children are counted across every non-test Python file by the last component of the base name; keyword arguments in the class head (`metaclass=...`) are ignored. Not reported: bases with 20 children or fewer, bases not defined in the project (`models.Model`, `Exception`, `object`), children of a framework class qualified by its module (`forms.Form`, `models.Model`, `db.Model`, `nn.Module`, `enum.Enum`, `serializers.*`, ...), which are not counted toward a project class of the same name, children in third-party trees and Django migrations, children declared in test files, and class heads in comments or doctests. Two unrelated classes with the same name are counted as one; the threshold is this rule's choice, as CWE-1086 does not fix one.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1086/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1086/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

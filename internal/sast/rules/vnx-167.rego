@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-167",
 	"name": "Improper Handling of Additional Special Element",
 	"description": "A key=value or name:secret string is split on every '=' or ':' and the pieces are unpacked into a fixed number of names, so an additional separator in the value is mishandled: Python 'k, v = s.split(\"=\")' (also through map(str.strip, ...) or a generator, 'for k, v in (p.split(\"=\") for p in ...)' and dict(x.split(\"=\") for x in ...)) raises ValueError on 'token=abc=', and JavaScript/TypeScript 'const [user, pass] = s.split(\":\")' (with or without a limit, an elided first element '[, pass]', or a trailing .map(...)) silently drops everything after the second separator, truncating a password, a base64 value or an IPv6 address. Not reported: a bounded split (split(sep, 1), maxsplit=1, rsplit(sep, 1)), str.partition, a regex split, a rest element ([k, ...rest]), a single destructured name, a split kept as a list, hours/minutes clock parsing, other separators, an unpack inside a try block, test files, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-167/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-167/",
 	"languages": ["python", "node"],
 	"severity": "low",
 	"level": "note",

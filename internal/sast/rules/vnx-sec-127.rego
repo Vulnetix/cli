@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-127",
 	"name": "Azure Cognitive Search admin key",
 	"description": "An Azure AI Search (Cognitive Search) admin API key assigned to a context keyword was found. Admin keys grant full management of the search service, indexes and documents.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-127",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-127",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

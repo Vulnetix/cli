@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-016",
 	"name": "Integer downcast or sign-change after strconv.Atoi/ParseInt/ParseUint",
 	"description": "The value parsed by strconv.Atoi (int), strconv.ParseInt or strconv.ParseUint (their bitSize argument gives the range, read across a call broken over lines; 0 means 64) is converted, later in the same function, to a type that cannot hold every value of that range, with no range check in between: a narrower integer (int8, int16, int32, rune, uint8, byte, uint16, uint32, os.FileMode/fs.FileMode, or a type the file declares over one of these, such as type Port uint16) truncates, a signed value converted to an unsigned type (uint, uint64...) turns negatives into huge values, and an unsigned value converted to a signed type of the same or smaller size overflows to negative. Silent wrap-around breaks limits, ports, lengths and permission checks. Not reported: a bitSize no wider than the target (strconv.ParseUint(s, 10, 16) into uint16 is already range-checked), widening conversions (int64, float64, time.Duration), a comparison of the variable against a bound other than 0 or 1 before the conversion (math.MaxUint16, 65535, 1<<16-1 and 0xffff are bounds; for truncation and overflow), any comparison for a sign change, a clamp/validation helper applied to it, int(...) of a 64-bit parse (int is 64-bit on the platforms Go servers run on), and comments or strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-016/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-016/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

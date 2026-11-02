@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-872",
 	"name": "MailerLite API token (JWT)",
 	"description": "A MailerLite API token (JWT) was found. It grants access to the account's subscribers, groups and campaigns in the MailerLite API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-872",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-872",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

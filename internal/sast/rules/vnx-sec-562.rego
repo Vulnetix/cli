@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-562",
 	"name": "Snowflake programmatic access token",
 	"description": "A Snowflake programmatic access token (PAT) assigned to a context keyword was found. PATs authenticate to the Snowflake REST and SQL APIs with the privileges of the bound role.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-562",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-562",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-942",
 	"name": "Agora App ID",
 	"description": "An Agora App ID was found near an agora assignment. It is a 32-character hex project identifier; combined with a leaked App Certificate it enables unauthorized token generation.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-942",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-942",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

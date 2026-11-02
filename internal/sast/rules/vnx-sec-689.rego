@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-689",
 	"name": "Pinterest access token",
 	"description": "A Pinterest API access token assigned to a pinterest context was found. It authenticates Pinterest API requests on behalf of a user or app.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-689",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-689",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

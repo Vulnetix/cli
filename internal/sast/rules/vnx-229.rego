@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-229",
 	"name": "Improper Handling of Values",
 	"description": "A request value is converted to a number with no handling of a missing or malformed value. Python: int() or float() applied to a Flask/Django/DRF request value (request.args, form, values, GET, POST, json, get_json(), data, cookies, headers, query_params), inline or through a variable assigned from one in the eight lines above, outside any try block or with contextlib.suppress(...) block, so a missing or non-numeric value raises an unhandled TypeError/ValueError (a 500, and for float() the strings 'nan' and 'inf' are accepted as values). Node.js/TypeScript: parseInt(), parseFloat() or Number() of req.query or req.body (inline, through an assigned or destructured variable) whose NaN result is neither defaulted on the same line (|| or ??) nor tested with isNaN/Number.isNaN/isFinite/Number.isInteger in the next six lines. Not reported: Flask's get(..., type=int), a conversion inside try, a value guarded by isdigit()/isnumeric()/isdecimal() or a regex match just above, route parameters (req.params, which the route pattern constrains), constants and environment values, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-229/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-229/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

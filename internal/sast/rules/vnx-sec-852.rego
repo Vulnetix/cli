@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-852",
 	"name": "Rakuten API secret",
 	"description": "A Rakuten Marketing/Advertising API secret was found. With the client id it lets an attacker obtain access tokens to the Rakuten partner APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-852",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-852",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

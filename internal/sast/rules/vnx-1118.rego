@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1118",
 	"name": "Insufficient Documentation of Error Handling Techniques",
 	"description": "A Python function whose docstring documents its interface in sections (Google style Args:/Returns:, NumPy style Parameters/Returns underlined, or Sphinx :param/:returns: fields) but leaves out the exceptions: the function raises a named exception itself (raise ValueError(...), raise errors.AuthError) and its docstring has no Raises section, :raises: field or mention of that exception. Reported once per function, on the first such raise. Not reported: a bare re-raise (raise) or re-raise of a caught exception value (raise exc, raise last_error), raise SystemExit/KeyboardInterrupt/GeneratorExit, raise NotImplementedError (an abstract method), functions with no docstring or a one-line summary only (the project does not document arguments, so a missing Raises section is not an omission from a documented contract), raises inside a nested function, test files, and comments. CWE-1118 is a maintainability weakness: callers of the function are not told which errors to handle.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1118/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1118/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

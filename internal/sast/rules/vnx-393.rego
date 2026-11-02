@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-393",
 	"name": "Return of Wrong Status Code",
 	"description": "A Java catch block reports success for an operation that just failed. Reported, inside the body of a catch: an HTTP success response (return ResponseEntity.ok(...), ResponseEntity.status(HttpStatus.OK), new ResponseEntity<>(..., HttpStatus.OK), JAX-RS Response.ok(...) or Response.status(Response.Status.OK), or HttpServletResponse.setStatus(200 / SC_OK)), and return true; in a boolean or Boolean method whose name makes a security or validity decision (verify*, validate*, authenticate*, authorize*, checkPermission/Access/Signature/Token/Password*, hasPermission/hasAccess/canAccess, isValid/isAuthorized/isAuthenticated/isAllowed/isPermitted/isTrusted/isVerified/isSecure/isSafe*, and is*Valid/is*Authorized/is*Allowed/is*Verified names such as isTokenValid), which fails open. A return broken after ResponseEntity or Response (return ResponseEntity\n.ok()) is joined. Not reported: a catch that returns an error status (badRequest, status(INTERNAL_SERVER_ERROR), sendError, 4xx/5xx), return false, return true from a method whose name is not such a decision (isRetryable, deleteQuietly) or is negated (isNotAllowed, which fails closed), success statuses outside a catch, test files and comments. Exceptions whose success answer is intended (an idempotent delete returning 204/200) need a review rather than a rule.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-393/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-393/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

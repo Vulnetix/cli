@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-594",
 	"name": "Couchbase connection string with password",
 	"description": "A Couchbase connection URL (couchbase:// or couchbases://) embedding the user password was found. It authenticates to the Couchbase cluster and grants bucket access per the user's roles.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-594",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-594",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-347",
 	"name": "Mollie test API key (test_)",
 	"description": "A Mollie test API key was found near a mollie assignment using the test_ prefix. It is scoped to test mode but should not be committed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-347",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-347",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

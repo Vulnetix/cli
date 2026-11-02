@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-328",
 	"name": "Square OAuth access token (sq0atp-)",
 	"description": "A Square OAuth production application access token (sq0atp-) was found. It grants API access to a Square seller account on behalf of the application.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-328",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-328",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

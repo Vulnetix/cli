@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-701",
 	"name": "Spotify access token (BQ...)",
 	"description": "A Spotify OAuth access token (BQ prefix, long base64url) assigned to a spotify context was found. It authenticates Spotify Web API requests on behalf of a user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-701",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-701",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

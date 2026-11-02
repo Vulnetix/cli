@@ -162,10 +162,10 @@ func TestRESTGetterLeavesOtherForbiddenAlone(t *testing.T) {
 	}
 }
 
-// The website's GitHub rule pages are generated from the engine; a rule added
-// or reworded there must be regenerated here.
+// The GitHub rule pages the platform docs are built from are generated from
+// the engine; a rule added or reworded there must be regenerated here.
 func TestGitHubRuleDocs(t *testing.T) {
-	dir := filepath.Join("..", "..", "website", "content", "docs", "github-rules")
+	dir := filepath.Join("..", "..", "docs", "generated", "github-rules")
 	pages := RuleDocs()
 	if os.Getenv("GHRULES_UPDATE") != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {

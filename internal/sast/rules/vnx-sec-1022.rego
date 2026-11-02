@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1022",
 	"name": "Doppler service token (dp.st.)",
 	"description": "A Doppler service token (dp.st. prefix) was found. It grants read access to the secrets of a specific Doppler config and is commonly embedded in deployment environments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1022",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1022",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

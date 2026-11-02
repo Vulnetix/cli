@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-761",
 	"name": "SmartRecruiters SmartToken",
 	"description": "A SmartRecruiters SmartToken (X-SmartToken API key) was found. It grants API access to the company's job postings, candidates and hiring data in SmartRecruiters.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-761",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-761",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

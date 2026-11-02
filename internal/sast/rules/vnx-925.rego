@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-925",
 	"name": "Broadcast receiver acts on an intent without verifying its action or sender",
 	"description": "An Android BroadcastReceiver.onReceive(Context, Intent) (a named or anonymous receiver, Java or Kotlin) reads data from the intent it was handed (getStringExtra and the other get*Extra calls, getExtras/extras, getData/data, getDataString) without ever checking which action it carries (getAction()/intent.action, hasAction, on a line that is not only a log statement: Log.d(TAG, \"got \" + intent.getAction()) checks nothing) or who sent it (getSentFromPackage/getSentFromUid), so any app that can reach the receiver can forge the broadcast and drive it with its own values (CWE-925). Reported on the onReceive declaration. Not reported: receivers that check the action or the sender, receivers that never read the intent's data, an onReceive whose second parameter is not an Intent, test files, comments and string literals. The receiver's manifest export and permission are not read here (exported receivers are VNX-926); a receiver protected by a signature permission or registered RECEIVER_NOT_EXPORTED or through LocalBroadcastManager is a false positive to suppress.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-925/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-925/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

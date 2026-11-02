@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-588",
 	"name": "Attempt to access child of a non-structure pointer",
 	"description": "The address of a scalar variable (int, long, short, char, float, double, bool, size_t, the fixed-width integer types) cast to a structure pointer in C or C++: (struct header *)&flags, ((struct node *)&count)->next, (msg_hdr_t *)&word or (Packet *)&value or reinterpret_cast<Packet *>(&value) where the type is a struct or class, or a typedef of a struct or union, declared in the same file. The nearest declaration of the variable within the 60 lines above the cast (a local, a parameter or a global) must declare it as a scalar, so a structure of the same name declared nearer shadows a scalar further up. Accessing a member through such a pointer reads or writes memory outside the scalar. Not reported: casts of the address of a structure (the (struct sockaddr *)&addr socket idiom), of an array or array element, casts of a pointer value (void *, char *), scalars declared further away or in another file, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-588/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-588/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1019",
 	"name": "GitGuardian service account token (gg_)",
 	"description": "A GitGuardian service account token (gg_ prefix) was found. It grants automated API access to GitGuardian scanning and incident-management endpoints.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1019",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1019",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

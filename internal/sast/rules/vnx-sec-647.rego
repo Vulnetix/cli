@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-647",
 	"name": "PuTTY private key file (.ppk)",
 	"description": "A PuTTY private key file header (PuTTY-User-Key-File) was found. The .ppk file holds an SSH private key in PuTTY's format and grants login to hosts trusting the public half.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-647",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-647",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

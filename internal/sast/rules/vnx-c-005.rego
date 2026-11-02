@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-C-005",
 	"name": "Integer overflow in malloc/calloc size arithmetic",
 	"description": "Reports a C or C++ allocation whose size is a multiplication or addition involving a count read from outside the program, with no overflow check: malloc, xmalloc, g_malloc, kmalloc, kzalloc, valloc, realloc, xrealloc, g_realloc, calloc, aligned_alloc and memalign (std:: forms included) whose size argument, or the variable it was computed into a few lines above, combines with * or + a value parsed or received in the 30 lines above (atoi/atol/strtol/strtoul family, std::stoi/stoul, ntohl/ntohs/be32toh family, getenv, or an &out argument of scanf/fscanf/sscanf/fread/read/recv/recvfrom), or such a call written directly in the size. A wrapped product or sum makes the buffer smaller than the code that fills it assumes. Not reported: a count compared with < or > (or checked against SIZE_MAX, INT_MAX, __builtin_mul_overflow, ckd_mul) or reassigned between the read and the allocation, calloc(n, size) with plain arguments (calloc checks that product itself), reallocarray, sizes from constants, sizeof or internal lengths such as strlen(s) + 1 or a doubled capacity, and string literals and comments. Deliberately out of scope: counts that arrive through struct fields, function parameters or other files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-c-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-c-005/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1095",
 	"name": "Flagsmith server-side environment key (ser.)",
 	"description": "A Flagsmith server-side environment key (ser. prefixed) was found. It grants the Flagsmith SDK admin-level read of all flags including server-side-only flags for the environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1095",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1095",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

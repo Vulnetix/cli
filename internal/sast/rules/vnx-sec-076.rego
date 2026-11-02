@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-076",
 	"name": "Telegram bot API token",
 	"description": "Reports a Telegram Bot API token as a whole token in any file: the bot's numeric id (8 to 10 digits), a colon, and the 35-character secret that begins AA, whether quoted, assigned, in an api.telegram.org/bot<token>/ URL or in a .env file. Not reported: a bot id alone, a placeholder body (AAxxxx..., AAAA...), a low-entropy body, environment references, and test, fixture, vendored and generated files. The generated rule VNX-SEC-728 reports the same token.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-076/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-076/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1106",
 	"name": "Insufficient Use of Symbolic Constants",
 	"description": "A Java source file repeats the same non-trivial numeric literal (three or more digits, or a hexadecimal literal of three or more digits, such as 15000, 5242880, 413 or 0xCAFEBABE) in three or more separate statements instead of naming it once as a constant. Timeouts, size limits, status codes and magic values written out at each use drift apart when one copy is changed and the others are not, which is how a limit enforced in one place is forgotten in another. Reported: every statement that repeats the literal. Not reported: a literal used once or twice, a literal on a final/static final constant declaration (the symbolic constant itself), serialVersionUID, annotation arguments, lines that are tables of three or more numbers (array initialisers, lookup tables), round and bit-width values (powers of ten, 128 to 65536 and their masks 255/0xFF/0xFFFF/0xFFFFFFFF), decimals, numbers inside strings, Java text blocks and comments, generated sources (a generator header before the first type declaration, or @Generated), and test files. Literals that are each used only once are not judged: a single magic number is a style choice this line-oriented rule cannot weigh.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1106/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1106/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

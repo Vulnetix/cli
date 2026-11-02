@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-275",
 	"name": "Clarifai personal access token",
 	"description": "A Clarifai personal access token (PAT) was found. It grants access to Clarifai models and applications billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-275",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-275",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

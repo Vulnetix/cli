@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-779",
 	"name": "Insightly API key",
 	"description": "An Insightly CRM API key was found. Used as the HTTP basic-auth username it grants API access to the organisation's contacts, opportunities and projects in Insightly.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-779",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-779",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

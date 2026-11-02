@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-CRYPTO-005",
 	"name": "TLS certificate validation disabled",
 	"description": "A TLS client is configured to accept any certificate or any host name. Reported: Python verify=False passed to a call (requests, httpx and anything else taking the keyword) or assigned to .verify, ssl._create_unverified_context, check_hostname = False, verify_mode/cert_reqs set to CERT_NONE (also urllib3's 'CERT_NONE' string), urllib3 assert_hostname=False, aiohttp TCPConnector(ssl=False) and verify_ssl=False; Node.js rejectUnauthorized: false (object literal or assignment), process.env.NODE_TLS_REJECT_UNAUTHORIZED set to 0, request's strictSSL: false and a checkServerIdentity callback that returns nothing; Go InsecureSkipVerify: true or = true. Java (trust-all X509TrustManager, HostnameVerifier returning true, NoopHostnameVerifier, TrustAllStrategy/TrustSelfSignedStrategy, InsecureTrustManagerFactory and the rest) is reported by VNX-JAVA-006, not here. Not reported: a value taken from configuration (verify=self.verify, InsecureSkipVerify: opts.Insecure, rejectUnauthorized: isProd), an assignment made only inside an if/else branch (a library honouring its caller's verify option or an --insecure flag), a Go config that also installs VerifyPeerCertificate/VerifyConnection (custom pinning), a Node server that sets requestCert (optional client certificates), reading or comparing NODE_TLS_REJECT_UNAUTHORIZED, import lines, the text inside string literals and comments, documentation, and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-crypto-005/",
 	"languages": ["python", "node", "go"],
 	"severity": "high",
 	"level": "error",

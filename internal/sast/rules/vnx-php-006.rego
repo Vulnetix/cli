@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PHP-006",
 	"name": "PHP object injection via unserialize",
 	"description": "unserialize() or WordPress maybe_unserialize() is called on a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys), php://input, filter_input() or a Laravel/Symfony request accessor, inline (also wrapped in base64_decode(), urldecode() or similar) or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable), without an allowed_classes option that disables or restricts object creation. A crafted payload instantiates arbitrary classes and runs their magic methods (__wakeup, __destruct), which gadget chains turn into code execution. CodeIgniter's $this->input->cookie()/post() and strtr()-decoded values count as request values. Not reported: unserialize() with ['allowed_classes' => false] or an explicit class list (inline, or as an options variable assigned that array in the 30 lines above), json_decode(), data whose origin is not visible in the file (cache, queue and session payloads the application wrote itself, function parameters; no cross-function dataflow), methods named unserialize on an object, and the call in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-006/",
 	"languages": ["php"],
 	"severity": "critical",
 	"level": "error",

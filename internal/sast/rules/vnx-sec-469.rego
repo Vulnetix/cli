@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-469",
 	"name": "Sinch service plan ID + token (Bearer)",
 	"description": "A Sinch SMS API bearer token was found near a sinch authorization assignment. It authorizes Sinch SMS messaging operations for the service plan.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-469",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-469",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

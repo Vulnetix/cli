@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-890",
 	"name": "Recharge API token (legacy hex)",
 	"description": "A legacy Recharge API token (32-char hex, used before the sk_ prefix format) was found. It grants access to the merchant's subscription data in Recharge.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-890",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-890",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

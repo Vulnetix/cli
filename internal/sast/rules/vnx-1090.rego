@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1090",
 	"name": "Method Containing Access of a Member Element from Another Class",
 	"description": "Python code reaches into another class's private member through its name-mangled form: an attribute access obj._Owner__attr (read or write) or getattr/setattr/hasattr/delattr(obj, \"_Owner__attr\"), where Owner is not the class the code is written in. A double-underscore attribute is the owning class's private state; touching it from elsewhere couples the caller to that class's internals and bypasses whatever invariants (validation, locking, auditing) its own methods enforce. Reported: the line holding the access, including a subclass reaching its parent's private member (self._Base__token). Not reported: a class using its own mangled name, ordinary single-underscore (protected) attributes, dunder names (__class__, __dict__), the mangled name inside a plain string or comment, and test files (white-box tests). Access to another class's protected or public members is not judged: without types it cannot be told apart from ordinary use.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1090/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1090/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

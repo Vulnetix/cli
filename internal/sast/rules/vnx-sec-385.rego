@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-385",
 	"name": "Stripe webhook signing secret (Connect)",
 	"description": "A Stripe Connect endpoint webhook secret was found near a stripe connect webhook assignment. Exposure lets attackers forge Connect webhook signatures.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-385",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-385",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-194",
 	"name": "TeamCity access token (generic)",
 	"description": "A JetBrains TeamCity access token assigned to a teamcity context word was found. It grants REST API access to the CI server.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-194",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-194",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

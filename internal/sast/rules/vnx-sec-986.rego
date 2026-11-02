@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-986",
 	"name": "KuCoin API secret (UUID)",
 	"description": "A KuCoin API secret (UUID form) assigned to a KuCoin secret field was found. It signs HMAC authentication for KuCoin trading and account endpoints.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-986",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-986",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

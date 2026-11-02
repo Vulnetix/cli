@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-878",
 	"name": "Ghost Admin API key (id:secret)",
 	"description": "A Ghost Admin API key (id:hex-secret) was found. It mints short-lived JWTs that grant administrative control over the Ghost site's content and members.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-878",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-878",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

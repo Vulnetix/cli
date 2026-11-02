@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-617",
 	"name": "Reachable Assertion",
 	"description": "Reports a Python assert statement in application code that validates request data or enforces an access decision: the asserted expression reads the request (request.form/args/values/json/data/GET/POST/FILES/headers/cookies/user/META/query_params/session/method, Flask, Django, FastAPI and Starlette alike), a variable assigned from one in the 10 lines above, a FastAPI parameter bound with Header/Query/Cookie/Form/Body/Path/File(...) or Annotated[..., Header()] in the 10 lines above, or a permission predicate (.is_authenticated, .is_superuser, .is_staff, .is_admin, .has_perm(s), .has_permission, .has_role, check_password/verify_password, can_<view|edit|delete|access|manage|...>(...) or any can_*(user|request|current_user, ...), is_authorized/is_allowed/check_permission/verify_token). A caller can reach the assertion and crash the request with AssertionError, and under python -O the check is removed entirely, so the validation or authorisation silently disappears. Multi-line assert ( ... ) expressions are read. Not reported: can_* helpers that are not about a user (can_connect(host), can_retry(n)), test files and conftest.py (assert is how tests check), internal invariants (isinstance(request, ...), x is not None, len(x) > 0), checks that raise an exception, assert text inside comments, strings and docstrings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-617/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-617/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",

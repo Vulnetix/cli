@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-765",
 	"name": "Lock released twice for one acquisition",
 	"description": "A lock is released a second time without being re-acquired in between. Java's ReentrantLock and ReentrantReadWriteLock throw IllegalMonitorStateException; Go's sync.Mutex and RWMutex crash the program with a fatal 'unlock of unlocked mutex'. Reported: (1) two unlock()/Unlock()/RUnlock() statements on the same lock in one block (or the second in a block nested inside the first's) with no lock()/Lock()/RLock() of it in between; (2) Java: an unlock() inside a try block (including one on an early-return branch) whose finally block, multi-line or a one-line `} finally { lock.unlock(); }`, unlocks the same lock again; (3) Go: an explicit Unlock()/RUnlock() in the block that already defers the same release (or a block nested in it), when the function does not re-acquire the lock after it. Not reported: an unlock on an early-exit branch followed by the main unlock outside that branch, a release followed by re-acquisition (unlock, wait, lock), switch cases and if/else branches that each release once, different locks, a release inside a goroutine, lambda or anonymous class, a defer inside a func literal followed by an explicit release after the literal, releases in different functions, comments and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-765/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-765/",
 	"languages": ["java", "go"],
 	"severity": "low",
 	"level": "note",

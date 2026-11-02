@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-754",
 	"name": "Class resource used without checking for null",
 	"description": "Java's Class/ClassLoader.getResourceAsStream() and ServletContext.getResourceAsStream() return null, rather than throwing, when the resource is missing (a packaging change, a renamed file, a different class loader), and Class/ClassLoader.getResource() does the same; using the result unchecked turns that unusual condition into a NullPointerException far from its cause. Reported: the call's result dereferenced in the same expression (getResourceAsStream(...).readAllBytes(), getClass().getResource(...).toURI()/getFile()/getPath()/openStream()); passed straight into a consumer that dereferences it (Properties.load(...), new InputStreamReader/BufferedInputStream/Scanner/ObjectInputStream(...), IOUtils.toString/toByteArray/copy, ImageIO.read, Files.copy, a parser's parse/readTree/readValue), on the same line or with the consumer opening on the line above; and the result assigned to a variable that one of the next 15 lines dereferences or passes to such a consumer before any null check of it. Not reported: a result checked with == null/!= null, Objects.requireNonNull, Optional.ofNullable, Preconditions.checkNotNull or Assert.notNull before use; Spring ResourceLoader.getResource(), which never returns null; test code, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-754/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-754/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

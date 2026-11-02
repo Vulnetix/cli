@@ -17,7 +17,7 @@ metadata := {
 	"id": "VNX-1087",
 	"name": "Class with Virtual Method without a Virtual Destructor",
 	"description": "A C++ class or struct declares at least one virtual member function of its own but no virtual destructor (`virtual ~T()`, possibly split over two lines, or `~T() override/final`). Deleting an instance through a base-class pointer will not run the derived destructor, leaking whatever it owns. Declare the destructor virtual, or make it protected and non-virtual to forbid deletion through the base. One finding per class, at its head. Not reported: final classes, classes with a protected or private destructor, forward declarations, virtual base classes (`: virtual public B`), virtual members of a nested class (that class is judged on its own), class heads inside comments, and derived classes whose destructor may be virtual through their base: a derived class is judged only when one of its bases is a root class defined in the same file and no base declares a virtual destructor there, and never when it marks members override or final. A class body ends at the `};` at the class's own indentation and is analysed up to 400 lines.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1087/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1087/",
 	"languages": ["cpp"],
 	"severity": "medium",
 	"level": "warning",

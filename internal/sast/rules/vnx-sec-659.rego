@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-659",
 	"name": "Alchemy API key",
 	"description": "An Alchemy API key (32-character alphanumeric path key) assigned to an alchemy context was found. It authorises access to Alchemy's blockchain APIs billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-659",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-659",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

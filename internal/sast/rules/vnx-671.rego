@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-671",
 	"name": "Application overrides an operator-controlled security switch in the environment",
 	"description": "Production Python or Node.js code unconditionally writes a process-wide security switch into its own environment, taking a decision that belongs to whoever deploys it and making it impossible to turn back on without changing code: OAUTHLIB_INSECURE_TRANSPORT / AUTHLIB_INSECURE_TRANSPORT set to a true value (OAuth over plain HTTP), GIT_SSL_NO_VERIFY set to a true value, PYTHONHTTPSVERIFY or NODE_TLS_REJECT_UNAUTHORIZED set to 0, and CURL_CA_BUNDLE / REQUESTS_CA_BUNDLE set to an empty string (requests then skips certificate verification). Recognised writes: os.environ[...] = / environ[...] =, os.putenv(...), os.environ.update({...}) and os.environ.update(NAME=...), process.env.NAME = and process.env['NAME'] =. Only a literal value is reported. Not reported: a value read from another environment variable, a config object or a ternary (the operator still decides), a write inside an if/elif/else block or on a one-line if (a debug or development switch the operator controls), os.environ.setdefault (the operator's value still wins), safe values (1, a CA bundle path, 0 for the insecure-transport flags), reading or removing the variable, test files, comments and string literals. The NODE_TLS_REJECT_UNAUTHORIZED case is also reported by VNX-CRYPTO-005; shell and Dockerfile settings of these variables belong to VNX-SEC-016.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-671/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-671/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

@@ -10,7 +10,7 @@ metadata := {
 	"id": "VNX-824",
 	"name": "Access of Uninitialized Pointer",
 	"description": "Reports a C or C++ local pointer declared without an initialiser (char *p; struct node *n; std::string *s;) whose first mention in the same function, within 40 lines, dereferences it before anything stores an address in it: *p, p->field, p[i], a destination or source argument of strcpy/strncpy/strcat/memcpy/memmove/memset/sprintf/snprintf/fgets/gets/read/recv/fread/strlen/strcmp/printf/puts/free, or delete p. The pointer holds whatever was on the stack, so the access reads or writes an arbitrary address. Not reported: a first mention that assigns it (p = malloc(...), for (p = head; ...), if ((p = f()) == NULL)), takes its address (getaddrinfo(..., &res), getline(&line, ...)), or only tests it; pointers with an initialiser, static, extern and file-scope pointers (zero-initialised), struct, union and class members, K&R parameter declarations, a line that continues an expression from the line above (rate * count;), declarations listing several pointers, uses after the first mention, flow through other functions, comments and string literals. Uninitialised scalars and arrays are VNX-457.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-824/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-824/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

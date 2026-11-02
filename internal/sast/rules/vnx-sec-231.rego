@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-231",
 	"name": "Sourcegraph dotcom token (sgd_)",
 	"description": "A Sourcegraph dotcom access token using the sgd_ prefix was found. It authenticates to sourcegraph.com.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-231",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-231",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

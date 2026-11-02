@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-891",
 	"name": "Klaviyo company id (public key)",
 	"description": "A Klaviyo public company id was found. It is used in client-side tracking and, while not a private secret, identifies the account and should not be relied on for access control.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-891",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-891",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

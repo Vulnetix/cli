@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-449",
 	"name": "Brevo/Sendinblue API key (xkeysib-)",
 	"description": "A Brevo (formerly Sendinblue) API key (xkeysib-) was found. Brevo keys authorize email, SMS, and contact operations across the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-449",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-449",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

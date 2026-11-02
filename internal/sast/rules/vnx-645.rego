@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-645",
 	"name": "Overly Restrictive Account Lockout Mechanism",
 	"description": "An account is locked permanently after a number of failed logins, so anyone who knows a username can lock its owner out for good by guessing wrong passwords (CWE-645). Reported in Python and JavaScript/TypeScript login code (a file that mentions passwords, login, sign-in or authentication): a statement that locks or disables the account (x.is_locked/locked/blocked/disabled = True, x.is_active/active/enabled = False, x.status = 'locked'/'blocked'/'disabled'/'suspended', or an update object { locked: true } / { active: false } / { status: 'locked' }) on the line of, or up to four lines after, a comparison of a failed-attempt counter (fail*, *attempt*, retries, tries) with a threshold, in a file that sets no expiry for the lock (no locked_until/lockUntil/lockout end, unlock_at, cool-off or cool-down, timedelta, LOCK_TIME/lockout duration, Date.now() + ..., Redis expire/setex, expires_at or ttl); and a django-axes AXES_COOLOFF_TIME = None setting, which never releases a lockout. Not reported: a lock with an expiry, an administrator deactivating a user, a one-time code, token, reset link or session invalidated after too many tries (a receiver named otp/token/code/challenge/reset/session...), counters that are not compared with a threshold, test code, comments and string literals. A lock that expires after a very long time is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-645/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-645/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

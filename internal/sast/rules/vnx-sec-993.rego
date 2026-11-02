@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-993",
 	"name": "Crypto.com Exchange API secret",
 	"description": "A Crypto.com Exchange API secret assigned to a crypto.com secret field was found. It is the HMAC signing key for authenticated Crypto.com Exchange endpoints.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-993",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-993",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

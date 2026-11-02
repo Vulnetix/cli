@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-487",
 	"name": "Clerk publishable key (live)",
 	"description": "A Clerk live publishable key (pk_live_ prefix) was found. It is client-side and lower risk but identifies the production Clerk instance.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-487",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-487",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

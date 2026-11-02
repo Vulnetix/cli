@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-833",
 	"name": "Gorgias API key",
 	"description": "A Gorgias helpdesk API key was found. Combined with the account username it grants access to customer tickets, messages and integrations in Gorgias.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-833",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-833",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

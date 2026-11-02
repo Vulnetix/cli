@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-544",
 	"name": "Missing Standardized Error Handling Mechanism",
 	"description": "An Express application is created (const app = express(), or require('express')()) and served or exported (app.listen, module.exports = app, export default app), but no JavaScript or TypeScript file of the project registers an error-handling middleware: no four-argument (err, req, res, next) function (typed or not, its parameters on one line or several; the second parameter must be the request, so browser handlers such as window.onerror do not count), no function or variable named errorHandler/handleErrors-style passed to app.use, and no errorhandler() package. Every failure then falls through to Express's built-in handler, which answers with the stack trace whenever NODE_ENV is not 'production', and each route improvises its own error responses. Reported once, at the express() call. Not reported: an error middleware anywhere in the project (another file counts), express.Router() modules, test and example code, comments and string literals. Python's broad except: pass is reported by VNX-391, not here.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-544/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-544/",
 	"languages": ["node"],
 	"severity": "low",
 	"level": "note",

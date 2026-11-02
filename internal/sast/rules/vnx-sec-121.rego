@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-121",
 	"name": "AWS Amplify app deploy/webhook ID",
 	"description": "An AWS Amplify app ID or webhook URL was found. Amplify webhook URLs can trigger builds and deployments without further authentication.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-121",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-121",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

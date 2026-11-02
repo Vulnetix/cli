@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-280",
 	"name": "Voyage AI API key (pa-)",
 	"description": "A Voyage AI API key (pa- prefix) was found. It grants access to Voyage embedding and reranking models billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-280",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-280",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

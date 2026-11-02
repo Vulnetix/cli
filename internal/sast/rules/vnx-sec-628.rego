@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-628",
 	"name": "Upstash Kafka REST password",
 	"description": "An Upstash Kafka REST password assigned to a context keyword was found. It authenticates to the Upstash Kafka REST API and grants produce/consume access to the cluster's topics.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-628",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-628",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

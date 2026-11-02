@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-383",
 	"name": "Klarna API username (PK)",
 	"description": "A Klarna API username using the PK... merchant-id form was found near a klarna assignment. It is paired with an API password for HTTP Basic auth.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-383",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-383",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

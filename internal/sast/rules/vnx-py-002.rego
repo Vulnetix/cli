@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-002",
 	"name": "eval()/exec() usage in Python",
 	"description": "A call to the eval() or exec() builtin (bare, or as builtins.eval/builtins.exec), or to Pillow ImageMath.eval()/ImageMath.unsafe_eval() (which hand their expression to eval), in a .py file whose code argument is not a constant string: a variable, a request value, an f-string, a concatenation, a %-format or a .format() call, on the call line or on the next line of a call broken across lines. Whatever reaches that argument runs as Python with the process's privileges, and restricting globals (an empty __builtins__) does not sandbox it. Not reported: ast.literal_eval and other functions whose names merely contain eval, methods and definitions named eval/exec (model.eval(), app.exec(), def eval(self)), eval/exec of a constant string literal, executing the source of a file the code opens itself (exec(compile(f.read(), ...)), exec(open(path).read()), how config and startup files are loaded), and the names in comments or string literals. Whether the argument is attacker-controlled is not otherwise judged. Lines another rule says more about are reported there, not here: eval/exec of Flask/Django request data (directly or through one or two assignments in the 25 lines above) is reported by VNX-94, and exec/eval of an embedded blob decoded on the spot (base64/hex/zlib/marshal decoders, inline or through a variable) is reported by VNX-506. A decode of request data or of an encode/decode round trip is still reported here when VNX-94 does not follow it.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-002/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

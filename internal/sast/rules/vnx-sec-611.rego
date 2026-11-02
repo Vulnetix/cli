@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-611",
 	"name": "Honeybadger API key",
 	"description": "A Honeybadger API key assigned to a context keyword was found. It authorises error/uptime event ingestion and project API access for the Honeybadger account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-611",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-611",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-908",
 	"name": "AccuWeather API key",
 	"description": "An AccuWeather API key was found near an accuweather assignment. It is a high-entropy URL-safe string authorizing locations and forecast API requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-908",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-908",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

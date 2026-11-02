@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1099",
 	"name": "Fathom Analytics API token",
 	"description": "A Fathom Analytics API token was found. It authorizes the Fathom API for reading account site analytics and managing sites.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1099",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1099",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

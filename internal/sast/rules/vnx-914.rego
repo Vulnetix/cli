@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-914",
 	"name": "Attribute name chosen by the request in setattr()",
 	"description": "Python setattr() whose attribute-NAME argument comes from the HTTP request, so the client picks which attribute of the object it overwrites (is_admin, password_hash, a method). Reported: setattr(obj, name, value) where the name is Flask/Django/DRF request data (request.args/form/values/json/data/GET/POST/cookies/headers/query_params/body, get_json(), json.loads(request.body)) inline, a variable assigned from such a value in the 15 lines above, or the key of a for loop (up to 10 lines above) over such a mapping, a variable holding it, one subscript of it, or its .items()/.keys(), including a call split across lines. Not reported: a constant attribute name with a request value, a loop over a constant tuple, serializer validated_data or form cleaned_data (also of a form built from request.POST), getattr() reads, a loop whose key is checked against an allow-list (key in ALLOWED, key not in ALLOWED: continue) before the setattr, comments and string literals. Overlaps VNX-PY-016 (setattr loops) and VNX-627 (globals()/vars() writes).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-914/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-914/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1094",
 	"name": "Excessive Index Range Scan for a Data Resource",
 	"description": "Python DB-API code runs a SELECT whose WHERE clause is an open range over caller-supplied bounds (BETWEEN %s AND %s, or a column compared with <, <=, > or >= against a placeholder: %s, ?, :name, %(name)s, $1) with no LIMIT, TOP, FETCH FIRST or aggregate, and then loads the whole result with fetchall(). The number of rows the index range scan covers, and the memory the result takes, is decided by whoever chooses the bounds, so a wide range turns one request into a scan of the table. Reported: the cursor.execute(...) line when the SQL text (inline, in the five lines above, or, when execute's first argument is a variable, from that variable's assignment up to 30 lines above, which covers long triple-quoted SQL) has that shape and fetchall() follows within eight lines. Not reported: queries with LIMIT/TOP/FETCH FIRST or COUNT/SUM/MIN/MAX/AVG, equality predicates, results read with fetchone(), fetchmany() or iterated in batches, ORM queries, test files and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1094/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1094/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

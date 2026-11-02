@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-888",
 	"name": "commercetools client secret",
 	"description": "A commercetools API client secret was found. With the client id and project key it lets an attacker obtain OAuth tokens to the commercetools project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-888",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-888",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

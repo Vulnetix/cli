@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-515",
 	"name": "Covert Storage Channel: secret placed in the process environment",
 	"description": "A Python program stores a secret in its own process environment, a storage area every child process inherits and that other processes of the same user (and root) can read through /proc/<pid>/environ, ps e and crash dumps, so the value reaches parties it was never sent to. This is the one statically recognisable form of a covert storage channel that ordinary application code creates. Reported: os.environ[KEY] = value, os.putenv(KEY, value), os.environ.setdefault(KEY, value) and os.environ.update({KEY: value} | KEY=value) (also through 'from os import environ', and update calls broken across lines) where KEY names a password, secret, token, API key, private or access key or credential, or where the key is a variable and the value is a variable named as one. Not reported: a copy of the environment passed to one child (env = os.environ.copy(); env['PGPASSWORD'] = pw, dict(os.environ, ...)), a value re-exported from the environment itself (os.environ.get, os.getenv), constants and empty strings, keys naming a file, path or id (SECRET_KEY_FILE), reads, deletes and pops, comments, strings and test code. Channels through file metadata, timing or other shared state are not decidable line by line and are not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-515/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-515/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

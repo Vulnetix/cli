@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-073",
 	"name": "URL with embedded credentials",
 	"description": "Reports a web or file-transfer URL that embeds a literal password: http://, https://, ws://, wss://, ftp://, ftps:// or sftp://user:password@host (also git+https:// and an empty user, https://:token@host), in code, config (pip.conf, .npmrc, YAML, .env) and scripts. Credentials in a URL end up in proxy, server and CDN logs, shell history and process listings. The password is masked in the snippet. Not reported: a password that is interpolated or templated (${VAR}, $VAR, %VAR%, {{ }}, %s, <password>, f-string or template-literal fields, string concatenation), a default or placeholder word (password, changeme, admin, the user name itself, an upper-case name such as API_KEY...), *** masks, a host on localhost/127.0.0.1/::1 or a placeholder host (example.com, host, hostname), URLs with no password, database and message-broker schemes (postgres://, mysql://, mongodb://, redis://, amqp://), which VNX-SEC-008, VNX-SEC-061 to VNX-SEC-064 and VNX-SEC-578 report, Markdown/reStructuredText/AsciiDoc and *.example/*.sample/*.template files, and test, fixture, vendored and generated files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-073/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-073/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

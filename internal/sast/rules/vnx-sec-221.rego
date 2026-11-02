@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-221",
 	"name": "GoCD access token",
 	"description": "A GoCD personal access token was found. It authenticates to the GoCD API for pipelines, agents and configuration.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-221",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-221",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

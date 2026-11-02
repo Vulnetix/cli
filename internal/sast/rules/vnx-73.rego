@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-73",
 	"name": "External Control of File Name or Path",
 	"description": "The path argument of a Python or PHP file-system call is taken from the HTTP request, so the caller chooses which file is read, written, deleted or included. Sources: Flask/Django request.args/form/values/json/GET/POST/cookies/headers and Flask route <name> parameters; PHP $_GET/$_POST/$_REQUEST/$_COOKIE. Sinks (first argument only): Python open/io.open/send_file/FileResponse/os.remove/unlink/rename/listdir/makedirs/rmdir/shutil.*/Path(); PHP fopen/file_get_contents/file_put_contents/readfile/file/unlink/copy/rename/scandir/include/require(_once)/highlight_file/parse_ini_file. The request value is in that argument directly or through a variable assigned from the request (os.path.join, concatenation, a template) in the 20 lines above, or through one further variable built from such a name (name = request.POST[...]; target = os.path.join(base, name); open(target)). Not reported: send_from_directory, a value passed through basename/secure_filename/an integer conversion, an allow-list, key-existence (array_key_exists, has) or pattern check of the variable before the call, request data written into a fixed file (a non-path argument), comments and strings. Java path traversal is reported by VNX-JAVA-009, Node.js path traversal by VNX-NODE-010, and Go by VNX-GO-007/VNX-GO-018.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-73/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-73/",
 	"languages": ["php", "python"],
 	"severity": "high",
 	"level": "error",

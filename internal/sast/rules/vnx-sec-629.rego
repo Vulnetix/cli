@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-629",
 	"name": "MongoDB Atlas SRV connection with password",
 	"description": "A MongoDB Atlas SRV connection string (mongodb+srv://) embedding the user password against a mongodb.net host was found. It grants authenticated access to the Atlas cluster.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-629",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-629",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

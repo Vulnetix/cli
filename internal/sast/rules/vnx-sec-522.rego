@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-522",
 	"name": "Dropbox Sign (HelloSign) API key",
 	"description": "A Dropbox Sign (formerly HelloSign) API key was found. It grants API access to send and manage e-signature requests on the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-522",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-522",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

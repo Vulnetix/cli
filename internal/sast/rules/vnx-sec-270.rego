@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-270",
 	"name": "LangSmith personal API key (lsv2_pt_)",
 	"description": "A LangSmith personal access token (lsv2_pt_ prefix) was found. It grants access to LangSmith tracing and project data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-270",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-270",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-369",
 	"name": "Divide By Zero",
 	"description": "A division or modulo (/, %, /=, %=, also with a cast of the divisor) whose divisor is a variable assigned, within the 25 lines above, from outside the program, in C, C++, Go and Java: strconv.Atoi/ParseInt/ParseUint, FormValue/PostFormValue, URL.Query(), Header.Get, os.Args, flag.Int/Uint, atoi/atol/strtol/strtoul, argv[], Integer.parseInt, Long.parseLong or getParameter, and in C and C++ a variable read by scanf, sscanf or fscanf into &v. Not reported: a Java division inside a try whose catch takes ArithmeticException, a divisor compared with 0 (or bounded by 1: n < 1, n >= 1) or tested as a condition in the twelve lines above, a divisor clamped with max(1, ...) or Math.max(1, ...), constant and computed divisors, test files, and a slash in a URL, path, string literal or comment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-369/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-369/",
 	"languages": ["c", "cpp", "go", "java"],
 	"severity": "medium",
 	"level": "warning",

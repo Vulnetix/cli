@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GQL-004",
 	"name": "GraphQL field suggestion disclosure enabled",
 	"description": "A JavaScript/TypeScript GraphQL server is constructed (new ApolloServer(...) or new ApolloServer<Context>(...), createYoga(...), GraphQLModule.forRoot(...), graphqlHTTP(...), register(mercurius, ...)) in a project that nowhere suppresses graphql-js field suggestions. These servers return validation errors such as 'Cannot query field \"pasword\". Did you mean \"password\"?' by default, which lets an attacker enumerate the schema even with introspection disabled. A project counts as mitigated when any of its files sets hideSchemaDetailsFromClientErrors: true (Apollo Server), uses GraphQL Armor (ApolloArmor, EnvelopArmor, blockFieldSuggestions), a disable-suggestions plugin, or a formatError/maskError that rewrites 'Did you mean' messages. Reported once per constructor call; test files, comments and string literals are not reported. Servers in other languages are not covered.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-gql-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-gql-004/",
 	"languages": ["javascript", "typescript"],
 	"severity": "low",
 	"level": "warning",

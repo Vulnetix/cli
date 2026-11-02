@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1096",
 	"name": "GrowthBook SDK secret key",
 	"description": "A GrowthBook secret API key (secret_ prefixed) was found. It grants read/write access to the GrowthBook organization's feature flags and experiments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1096",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1096",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

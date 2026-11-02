@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-058",
 	"name": "Notion API token",
 	"description": "Reports a Notion integration token written into a file: the current format ntn_ + 11 digits + 35 alphanumerics, and the legacy internal-integration format secret_ + 43 alphanumerics when the file mentions Notion (secret_ alone is too common a prefix to report without it). Each token must stand alone rather than inside a longer identifier. Notion tokens read and write every page and database shared with the integration. The snippet is redacted. Not reported: bare prefixes in a prefix check, placeholder or low-entropy bodies (xxxx, 0000, YOUR_TOKEN), tokens read from the environment, and test, fixture and vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-058/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-058/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

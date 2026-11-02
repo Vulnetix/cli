@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-395",
 	"name": "Use of NullPointerException Catch to Detect NULL Pointer Dereference",
 	"description": "A catch clause catches the null-dereference exception itself, using it in place of a null check: Java catch (NullPointerException e), including final, the fully qualified java.lang name and a multi-catch (A | NullPointerException e); Kotlin catch (e: NullPointerException) and catch (e: KotlinNullPointerException); C# catch (NullReferenceException) with or without a variable, including System.NullReferenceException, with or without a when filter, and catch (Exception ex) when (ex is NullReferenceException); a Java catch clause whose parenthesis opens at the end of the line is joined with the next two lines. Catching it hides which reference was null and also swallows NPEs thrown by unrelated bugs deeper in the call. Not reported: throwing NullPointerException, Objects.requireNonNull, assertThrows(NullPointerException.class, ...), instanceof tests, class names that merely contain the word (NullPointerExceptionMapper), test files, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-395/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-395/",
 	"languages": ["java", "kotlin", "csharp"],
 	"severity": "medium",
 	"level": "warning",

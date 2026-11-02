@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1043",
 	"name": "SonarQube/SonarCloud user token (squ_)",
 	"description": "A SonarQube/SonarCloud user token (squ_ prefix) was found. It grants API access to analysis, quality gates and project administration for the user's permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1043",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1043",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

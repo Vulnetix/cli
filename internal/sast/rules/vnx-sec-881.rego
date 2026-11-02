@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-881",
 	"name": "Webflow API token (site/v2 Bearer)",
 	"description": "A Webflow API access token was found. It grants access to the workspace's sites, CMS collections and ecommerce data in the Webflow API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-881",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-881",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

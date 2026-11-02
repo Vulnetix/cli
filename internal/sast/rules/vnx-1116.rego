@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1116",
 	"name": "Inaccurate Source Code Comments",
 	"description": "A Python docstring that documents a parameter the function does not have: a Google-style 'Args:'/'Parameters:' entry (each name of a shared entry such as 'w, h: the size' is checked) or a Sphinx ':param name:' line naming something absent from the signature, usually left behind when a parameter was renamed or removed. Reported at the docstring line that names the stale parameter. Not reported: functions that take '**kwargs' (their keyword arguments are legitimately documented by name), '*args'/'**kwargs' entries themselves, description continuation lines, Returns/Raises/Yields sections, NumPy-style dashed sections (not parsed), and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1116/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1116/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

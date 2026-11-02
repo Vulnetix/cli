@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-074",
 	"name": "Kubernetes Secret manifest with credential data",
 	"description": "Reports each credential entry with a literal value in the data: or stringData: block of a committed Kubernetes Secret manifest (a .yaml/.yml document whose top-level kind is Secret, including multi-document files): an entry whose key names a credential (password, token, secret, key, auth, credentials, private, cert key, connection string or URL, .dockerconfigjson) and whose value is a literal, a base64 string in data: or a block scalar. Base64 in data: is encoding, not encryption, so anyone with read access to the repository has the value. Not reported: non-credential entries (host, port, username, database), empty values, Helm and other templated values ({{ }}), envsubst and shell references (${VAR}, $(VAR)), release-pipeline token substitutions (#{Name}#, __NAME__, %%NAME%%), SOPS-encrypted ENC[...] values, <placeholder> and argocd-vault-plugin <path:...> values, default or placeholder words (password, changeme, admin, xxxx), including base64 of them, SealedSecret, ExternalSecret and other kinds, ConfigMap data, secretKeyRef references, and test, fixture and testdata files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-074/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-074/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-409",
 	"name": "Improper Handling of Highly Compressed Data (Data Amplification)",
 	"description": "Reports decompression whose output size is not bounded, so a small compressed input (a zip or gzip bomb) expands until memory or disk runs out. Python: `extractall()` or a per-member `extract()` on a zipfile.ZipFile (bound with `with ... as zf`, assigned, or chained) in a file that never reads a member's `file_size`; `extractall()` on a tarfile.open(...) archive in a file that never reads a member `.size`; `shutil.unpack_archive(...)`; and gzip/zlib/bz2/lzma `.decompress(x)` (module aliases included) where x is read from the request (Flask/Django request.data/body/files/get_data/stream), a socket recv or an HTTP response, on the line or assigned in the 15 lines above. Node/TypeScript: zlib `gunzip`, `inflate`, `inflateRaw`, `unzip`, `brotliDecompress` and their Sync forms called without `maxOutputLength` in the call (up to 5 lines), `req/res.pipe(zlib.createGunzip())`-style streams from a request or response, adm-zip `extractAllTo` in a file that never reads `header.size`, `unzipper.Extract(...)`, and `unzipper.Open.buffer/file/url(...)` in a file whose entries are streamed out and that never reads `uncompressedSize`. Not reported: `zlib.decompressobj().decompress(data, max)`, decompression of local or constant data in Python, string-literal arguments, compression calls, test files, comments and strings. Ratio checks written in other ways and limits enforced in another file are not recognised.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-409/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-409/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

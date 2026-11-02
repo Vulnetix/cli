@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-641",
 	"name": "OpenSSH private key block",
 	"description": "An OpenSSH-format private key block (BEGIN OPENSSH PRIVATE KEY header) was found. This is the private half of an SSH key pair and grants login access to any host trusting the corresponding public key.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-641",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-641",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

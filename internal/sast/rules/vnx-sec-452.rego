@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-452",
 	"name": "SMTP2GO API key (api-)",
 	"description": "An SMTP2GO API key (api- prefix) was found. It authorizes email sends and account operations via the SMTP2GO API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-452",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-452",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

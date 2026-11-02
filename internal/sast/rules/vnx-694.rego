@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-694",
 	"name": "Two route handlers registered under the same identifier",
 	"description": "Two handlers are registered for the same route in one Python file, so the URL dispatcher only ever reaches one of them and the other (often the version that adds an authorisation check) is dead code that reviewers believe is live. Reported, at the second and later registration: a Flask/FastAPI/Starlette route decorator (@app.route, @bp.route, @router.get/post/put/patch/delete/head/options, @app.api_route, @app.websocket) on the same receiver with the same arguments (path, methods and options compared with quotes and spacing normalised) as an earlier one in the file, and a Django path()/re_path()/url() entry with the same route string as an earlier entry. Not reported: the same path with different methods (@app.route('/login', methods=['GET']) and methods=['POST'], @app.get and @app.post), the same path on different routers or blueprints, repeated include() prefixes in Django urlpatterns, registrations in different files, test files, comments and string literals. Django entries are compared within one pattern list (urlpatterns = [...] and urlpatterns += [...] are one list; api_patterns = [...] is another, since it is include()d under its own prefix). A trailing comment after a decorator is ignored. Decorators broken over several lines are not compared.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-694/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-694/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

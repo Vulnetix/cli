@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1265",
 	"name": "Unintended Reentrant Invocation of Non-reentrant Code Via Nested Calls",
 	"description": "strtok() keeps its position in hidden static state, so it is not reentrant: starting a second tokenization while one is in progress silently replaces the first, and the outer loop's next strtok(NULL, ...) continues through the wrong string or stops early. Reported, in C: inside the body of a for/while loop that iterates a strtok() tokenization (the loop begins on, or within three lines after, a strtok() call with a non-NULL string, and its header or body calls strtok(NULL, ...)), a line that starts another strtok() on a non-NULL string, or that calls a function defined in the same file whose body starts a strtok() tokenization (the nested call re-enters strtok). Not reported: strtok_r()/strtok_s(), a second tokenization that begins after the first loop has ended, a helper that does not call strtok(), a function calling itself, calls into other files (not visible to a line-oriented rule), text in comments and string literals. Signal handlers that call non-reentrant functions are reported by VNX-479 and VNX-828.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1265/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1265/",
 	"languages": ["c"],
 	"severity": "medium",
 	"level": "warning",

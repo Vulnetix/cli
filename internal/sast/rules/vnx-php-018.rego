@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-018",
 	"name": "PHP sensitive debug output disclosure",
 	"description": "A debug dump writes a whole sensitive superglobal to the response: var_dump(), print_r(), var_export(), debug_zval_dump() or the Laravel/Symfony dump()/dd() helpers called with $_SESSION, $_SERVER, $_ENV, $_COOKIE, $GLOBALS or getenv() with no argument as one of their direct arguments (also across line breaks), or print_r()/var_export() in return mode (second argument true) whose result is echoed, printed or emitted with <?= or die()/exit(), directly or through a variable assigned the result and echoed in the next 15 lines. Session tokens, cookies, server paths and every environment secret then reach the browser. Not reported: a single element ($_SESSION['cart'], getenv('APP_ENV')), the return-mode result passed to error_log(), a logger or a file, a method named dump() on an object ($dumper->dump()), lookalike variables ($_SESSION_DEFAULTS), test files, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-018/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-018/",
 	"languages": ["php"],
 	"severity": "medium",
 	"level": "warning",

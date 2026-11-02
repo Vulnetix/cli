@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-419",
 	"name": "Slack app-level token (xapp-)",
 	"description": "A Slack app-level token (xapp-) was found. App-level tokens authorize Socket Mode and span all installations of a Slack app.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-419",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-419",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

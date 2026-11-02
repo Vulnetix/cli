@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-212",
 	"name": "FluxCD git credentials",
 	"description": "FluxCD git provider credentials (token/password) configured for GitOps reconciliation were found. They grant write access to the repositories Flux syncs from.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-212",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-212",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

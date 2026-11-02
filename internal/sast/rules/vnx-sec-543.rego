@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-543",
 	"name": "Mixpanel service account secret",
 	"description": "A Mixpanel service account secret was found. It grants programmatic access to Mixpanel projects across the organisation per the account's role.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-543",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-543",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

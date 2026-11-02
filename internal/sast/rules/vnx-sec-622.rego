@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-622",
 	"name": "Sumo Logic collector access key",
 	"description": "A Sumo Logic collector access ID/key pair assigned to a context keyword was found. The access key authenticates a hosted collector or API client to the Sumo Logic account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-622",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-622",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

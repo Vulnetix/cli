@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-224",
 	"name": "Obscured Security-relevant Information by Alternate Name",
 	"description": "A log call (console.*, logger.*, log.*, logging.*, winston, pino) writes a credential under an alternate encoding: the argument is btoa(), Buffer.from(x).toString('base64'), base64.b64encode()/urlsafe_b64encode()/standard_b64encode()/b32encode()/b16encode()/encodebytes() of a value named as a secret (password, passwd, pwd, secret, api key, access/private key, token, credential, bearer), inline or through a variable assigned from such an encoding in the six lines above; a log call broken over several lines is judged as the whole call. The secret word must end the name, so passwordPolicy, tokenizer and apiKeyId are not credentials. Base64 is a reversible alternate name for the value, not a protection, so the log records the credential itself while reading as if it had been hidden. JavaScript, TypeScript and Python. Not reported: base64 of values not named as secrets (images, file names), an encoded credential that is built but not logged (a Basic auth header), the .length or len() of an encoded value, values hashed before encoding (hashlib, sha256, createHash, digest, bcrypt), the pattern inside a plain string literal or a comment, and test code. Whether a log records an entity under a non-canonical name in the wider CWE-224 sense is not decidable line by line and is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-224/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-224/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

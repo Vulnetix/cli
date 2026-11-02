@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-291",
 	"name": "Cerebras API key (csk-)",
 	"description": "A Cerebras Cloud API key (csk- prefix) was found. It grants access to Cerebras fast inference billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-291",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-291",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

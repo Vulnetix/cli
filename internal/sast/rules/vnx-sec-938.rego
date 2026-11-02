@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-938",
 	"name": "46elks API credential",
 	"description": "A 46elks API credential (username/password pair) was found near a 46elks assignment. The API password is a high-entropy hex string authorizing SMS and voice on the 46elks API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-938",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-938",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

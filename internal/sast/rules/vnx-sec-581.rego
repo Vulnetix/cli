@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-581",
 	"name": "Cloudinary URL with API secret",
 	"description": "A Cloudinary URL (cloudinary://) embedding the API key and secret was found. It grants full programmatic access to the Cloudinary account's media assets and admin API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-581",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-581",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

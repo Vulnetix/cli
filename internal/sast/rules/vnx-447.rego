@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-447",
 	"name": "Unimplemented or Unsupported Feature in UI",
 	"description": "Reports Java features that are offered to the user but do nothing: a security operation (a set/enable/disable/change/reset/revoke/verify method whose name names a password, MFA/2FA/OTP, encryption, SSL/TLS, audit, lockout, CAPTCHA, CSRF, session, permission, role, token, credential, signature or certificate) whose body is empty, only comments, or only 'return true' / 'return', so the UI reports a protection as on while nothing changed; and a request handler (Spring @*Mapping, JAX-RS @GET/@POST/..., servlet doGet/doPost/...) whose whole body is a throw of UnsupportedOperationException or NotImplementedException, an exposed endpoint for a feature that does not exist. Not reported: UnsupportedOperationException in ordinary methods (read-only collections, iterators, immutable setters fail loudly, which is correct), a throw inside a branch of an implemented handler, empty non-security methods (listeners, callbacks), dependency setters whose name only contains a security word (setSessionFactory, setTokenizer, setPasswordEncoder), comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-447/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-447/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-882",
 	"name": "Shopify Storefront API access token",
 	"description": "A Shopify Storefront API access token (32-char hex, distinct from the shpat_ admin token) was found. It grants unauthenticated client access to the store's products and checkout.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-882",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-882",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

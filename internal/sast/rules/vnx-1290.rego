@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1290",
 	"name": "Security identifier decoded from client data without verification",
 	"description": "CWE-1290 (Incorrect Decoding of Security Identifiers) is a hardware weakness: a bus decoder that maps an agent's identifier to the wrong agent. Its nearest statically recognisable software form is reported: Python code that derives a security identifier (who the user is, their role, a serialized user object) by merely decoding a value the client holds, so any client can encode a different identity. Reported: base64 b64decode/urlsafe_b64decode/standard_b64decode/b32decode/b16decode/decodebytes, binascii.a2b_base64 and bytes.fromhex applied to a cookie (Flask request.cookies, Django request.COOKIES, Bottle/Tornado get_cookie) or to an identity-bearing custom header (a name containing token, session, auth, identity, user, jwt or sid, e.g. X-Auth-Token), directly (an argument split onto the next line included) or through a variable assigned from one in the 10 lines above. Not reported: decoding with an HMAC/signature check, compare_digest, itsdangerous/django.core.signing or a .verify() call within 10 lines before or 3 after, the HTTP Authorization header (Basic credentials are checked against a store afterwards), form fields and other data that is not an identifier, constants, comments and string literals. Unverified JWT decoding is VNX-JWT-004.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1290/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1290/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",

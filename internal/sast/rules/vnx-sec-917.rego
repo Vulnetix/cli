@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-917",
 	"name": "Clearbit API key (sk_)",
 	"description": "A Clearbit API key was found. Clearbit secret keys are prefixed with sk_ followed by a 32-character hex string and authorize enrichment, prospector, and reveal APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-917",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-917",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

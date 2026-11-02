@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-119",
 	"name": "AWS Cognito identity/user pool ID",
 	"description": "An AWS Cognito user pool ID assigned to a context keyword was found. While not secret on its own, a hardcoded Cognito pool ID combined with app client config can enable unauthorized sign-up or enumeration.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-119",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-119",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

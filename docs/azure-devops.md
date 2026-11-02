@@ -1,6 +1,6 @@
 # Azure DevOps
 
-This documentation has moved to **[docs.cli.vulnetix.com/docs/ci-cd/azure-devops](https://docs.cli.vulnetix.com/docs/ci-cd/azure-devops/)**.
+This documentation has moved to **[docs.vulnetix.com/cli/ci-cd/azure-devops](https://docs.vulnetix.com/cli/ci-cd/azure-devops/)**.
 
 ## Quick Start
 
@@ -24,4 +24,4 @@ steps:
       VULNETIX_API_KEY: $(VULNETIX_API_KEY)
 ```
 
-See the [full documentation](https://docs.cli.vulnetix.com/docs/ci-cd/azure-devops/) for pipeline templates and advanced configuration.
+See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/azure-devops/) for pipeline templates and advanced configuration.

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-825",
 	"name": "Magento integration access token",
 	"description": "A Magento (Adobe Commerce) integration access token was found. It authenticates REST/SOAP calls and grants access to the configured integration scopes including orders and customers.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-825",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-825",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

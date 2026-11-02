@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-764",
 	"name": "Lock acquired again while it is already held",
 	"description": "The same lock is acquired a second time, in the same block or a block nested inside it, while the first acquisition is still held (no release of that lock in between). Go: <recv>.Lock() or <recv>.RLock() followed by another Lock() or RLock() on the same receiver deadlocks (sync.Mutex is not reentrant, an RWMutex cannot be upgraded, and recursive read locking is prohibited); a deferred Unlock does not release it in time. Java: ReentrantLock lock()/lockInterruptibly() twice leaves a hold count the single unlock() does not clear, and rw.readLock().lock() followed by rw.writeLock().lock() deadlocks because ReentrantReadWriteLock cannot upgrade. Not reported: an Unlock/RUnlock/unlock() of that lock between the two acquisitions (a Java one-line `} finally { lock.unlock(); }` counts), acquisitions in sibling branches (if/else), in a goroutine, lambda or anonymous class opened in between, a different lock, tryLock(), Java write-to-read downgrade, acquisitions in different functions, comments and test files. Locks reached through a helper call are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-764/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-764/",
 	"languages": ["java", "go"],
 	"severity": "low",
 	"level": "note",

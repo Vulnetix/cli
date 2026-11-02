@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-860",
 	"name": "Drip API token",
 	"description": "A Drip ECRM API token was found. It grants access to the account's subscribers, campaigns and events in the Drip API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-860",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-860",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

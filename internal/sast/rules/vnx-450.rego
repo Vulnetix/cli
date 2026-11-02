@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-450",
 	"name": "Multiple interpretations of input: a text flag read as a boolean by truthiness",
 	"description": "Reports a configuration or request flag that arrives as text and is turned into a boolean by truthiness, so every non-empty answer, including \"false\", \"0\" and \"no\", reads as on: Python bool() around os.environ/os.getenv, a Flask or Django request parameter (directly or through a variable assigned from one in the six lines above), sys.argv or input(); Python os.environ.get/os.getenv with a True/False default (set to anything, the value is a non-empty string and truthy); argparse add_argument(..., type=bool), under which --flag False is True; Node Boolean() or !! around process.env or req.query; and Node process.env.X || true/false or ?? true/false. bool()/Boolean()/!! are reported only when the line names a switch (debug, enable, disable, allow, skip, require, verify, enforce, strict, insecure, secure, tls, ssl, csrf, auth, admin, public, private, include, notify, verbose, force, dry-run, beta, feature, flag), because bool() of a token, URL or path is a deliberate is-it-set test; input() is always reported. Not reported: values parsed explicitly (strtobool, == / !=, in (...), .lower(), int()), string defaults, bool() of ordinary values, comments, string literals, docstrings and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-450/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-450/",
 	"languages": ["python", "node"],
 	"severity": "low",
 	"level": "note",

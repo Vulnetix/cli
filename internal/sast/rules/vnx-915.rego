@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-915",
 	"name": "Mass assignment: the whole request body is written onto a model",
 	"description": "The request body is copied wholesale onto a persistent object, so a client can set any field the model has (role, isAdmin, price, ownerId) (CWE-915). Reported in JavaScript/TypeScript: Object.assign(target, ..., req.body) onto a non-empty target; new Model(req.body); ORM writes create/build/insert/insertOne/insertMany/update/updateOne/updateMany/findByIdAndUpdate/findOneAndUpdate/upsert/set/merge given req.body, req.body.<member>, req.query or ctx.request.body as a direct argument or spread into an object literal ({...req.body, owner}); Prisma create/update/upsert with data: req.body; MongoDB update operators ({ $set: req.body }) in update*/findOneAndUpdate/findByIdAndUpdate; and the same through a variable assigned from the bare body in the 15 lines above. Not reported: explicit fields (create({ name: req.body.name })), bodies filtered through pick/omit or a validator, Object.assign({}, ...) copies, hash/HMAC/cipher update(), built-in constructors (URL, Error, Buffer), comments and strings. Ruby mass assignment (permit!, raw params hashes, params.to_unsafe_h, a permit list admitting admin/role) is reported by VNX-RUBY-006, not here. Overlaps VNX-349 (merges into trusted objects).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-915/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-915/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

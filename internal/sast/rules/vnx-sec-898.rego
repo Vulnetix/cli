@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-898",
 	"name": "Webflow site api token (legacy prefix)",
 	"description": "A legacy Webflow API token (base64-style value, distinct from the v2 64-hex token) was found. It grants access to the workspace's sites and CMS data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-898",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-898",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

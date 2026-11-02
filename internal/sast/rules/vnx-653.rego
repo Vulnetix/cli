@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-653",
 	"name": "Improper Isolation or Compartmentalization",
 	"description": "Untrusted content is given a boundary that does not isolate it (CWE-653). Python: exec() or eval() of a non-literal code argument whose globals replace __builtins__ with {}, None or a hand-picked dict, inline, as dict(__builtins__={...}), or through a globals name assigned that way in the same file, including a call broken after its parenthesis; stripping builtins is not a sandbox (object.__subclasses__() and frame walking reach everything), so the code runs with the interpreter's full privileges. JavaScript/TypeScript, in files that import electron: webPreferences that turn the renderer boundary off, contextIsolation: false, nodeIntegration: true, nodeIntegrationInSubFrames: true, nodeIntegrationInWorker: true or sandbox: false (quoted keys too), which give page script (and any XSS in it) Node.js and the preload's privileges. Not reported: exec/eval of a string literal, globals that keep the real __builtins__, code run in a separate process, the secure Electron values, sandbox: false outside an electron file (payment SDK modes), comments and string literals. Arbitrary exec/eval of non-constant code is VNX-PY-002 and vm.* is VNX-NODE-002.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-653/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-653/",
 	"languages": ["python", "node"],
 	"severity": "low",
 	"level": "note",

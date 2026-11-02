@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-582",
 	"name": "Mux access token ID",
 	"description": "A Mux access token ID assigned to a context keyword was found. The token ID is the Basic Auth username for the Mux Video/Data API and pairs with the token secret.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-582",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-582",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

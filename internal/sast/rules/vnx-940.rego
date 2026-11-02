@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-940",
 	"name": "Cross-window message handler does not verify the sender's origin",
 	"description": "Browser code accepts window messages without checking who sent them, so any page that frames or opens this one can drive it. Reported, in JavaScript/TypeScript and inline scripts of HTML/Vue pages: a window 'message' listener (window.addEventListener('message', ...), also split after its parenthesis with 'message' and the handler on the following lines, a bare top-level addEventListener('message', ...), window.onmessage = ..., $(window).on('message', ...)) whose handler, inline or a named function or const declared in the same file, never reads the event's origin or source. Not reported: a handler that reads origin (event.origin, a destructured { origin }) or compares event.source; a named handler the file does not define; message events of Workers, WebSockets, MessagePorts, BroadcastChannels, Node child processes and service/web-worker scripts (self.addEventListener); comments and string literals. VNX-NODE-024 reports the same listener shape alongside wildcard postMessage targets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-940/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-940/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

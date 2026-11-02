@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-025",
 	"name": "PHP deprecated mcrypt encryption functions",
 	"description": "A call to a PHP mcrypt function that performs or sets up encryption: mcrypt_encrypt(), mcrypt_decrypt(), the legacy mode functions mcrypt_cbc/cfb/ecb/ofb(), mcrypt_module_open(), mcrypt_generic(), mdecrypt_generic() and mcrypt_create_iv(), called directly (optionally as \\mcrypt_...) or by name through call_user_func()/call_user_func_array(), in .php, .php3-8, .phtml and .inc files. mcrypt was deprecated in PHP 7.1 and removed in 7.2; libmcrypt has been unmaintained since 2007, offers no authenticated mode and is usually used with DES, 3DES, Blowfish or ECB. Migrate to openssl_encrypt/decrypt with AES-256-GCM or to Sodium. Not reported: the mcrypt helper calls that only size or tear down a cipher (mcrypt_get_iv_size, mcrypt_enc_get_*, mcrypt_generic_init/deinit, mcrypt_module_close), so one encryption is one finding; methods or functions that merely share the name ($obj->mcrypt_encrypt(), Class::mcrypt_decrypt(), my_mcrypt_encrypt()); polyfill definitions (function mcrypt_encrypt(...)); function_exists/extension_loaded checks and other mentions inside string literals, heredoc/nowdoc bodies or comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-025/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-025/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

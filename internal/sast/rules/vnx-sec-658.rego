@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-658",
 	"name": "Alchemy auth token (alcht_)",
 	"description": "An Alchemy authentication token (alcht_ prefix) was found. It authenticates to Alchemy's blockchain JSON-RPC and data APIs billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-658",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-658",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

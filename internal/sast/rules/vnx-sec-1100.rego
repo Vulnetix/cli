@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1100",
 	"name": "Matomo API token_auth",
 	"description": "A Matomo API token_auth (32-character hex) was found. It grants full API access to the Matomo instance's analytics data for the associated user, including admin scope if the user is admin.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1100",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1100",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

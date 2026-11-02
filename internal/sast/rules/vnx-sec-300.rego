@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-300",
 	"name": "Perplexity API key (assignment context)",
 	"description": "A Perplexity API key referenced via a PERPLEXITY_API_KEY assignment was found, confirming a live Perplexity credential in source.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-300",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-300",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

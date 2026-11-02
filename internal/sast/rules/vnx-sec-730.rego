@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-730",
 	"name": "Twitch extension secret",
 	"description": "A Twitch extension client secret (base64, JWT signing secret) assigned to a twitch extension context was found. It signs JWTs for the Twitch extension backend.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-730",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-730",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

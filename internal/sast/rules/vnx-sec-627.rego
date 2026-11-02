@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-627",
 	"name": "Honeycomb ingest key (hcaik / hcxik)",
 	"description": "A Honeycomb ingest API key using the hcaik_/hcxik_ prefix was found. It authorises sending events to the Honeycomb environment over the ingest API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-627",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-627",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1107",
 	"name": "Insufficient Isolation of Symbolic Constant Definitions",
 	"description": "The same symbolic constant, with the same name and the same literal value, is defined separately in two or more Java source files (static final fields, or interface fields) instead of once in a shared constants class that the others reference. Each copy is changed on its own, so a timeout, retry limit, URL or key length that is meant to be one value drifts between classes. Reported: every duplicate definition, on the line that names the constant. Not reported: constants defined once and imported elsewhere, same names with different values (TAG, per-class limits), loggers and other non-literal initialisers, serialVersionUID, trivial values (true/false, 0, 1, -1, empty string, null), definitions repeated inside one file, generated sources (Android BuildConfig, protoc output and other files with a generator header before the first type declaration, or @Generated; an IDE's 'Auto-generated method stub' comment does not count), and test files. Only literal values are compared; constants computed from expressions are not.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1107/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1107/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

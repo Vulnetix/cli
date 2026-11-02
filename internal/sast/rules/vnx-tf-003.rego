@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-TF-003",
 	"name": "Terraform AWS RDS instance publicly accessible",
 	"description": "A managed database instance is given a public endpoint: publicly_accessible = true (or \"true\") anywhere inside an aws_db_instance, aws_rds_cluster_instance, aws_redshift_cluster, aws_redshiftserverless_workgroup or aws_dms_replication_instance resource, or a database module whose source names rds, redshift or dms as a word (so a source path such as ./modules/cards does not count). Not reported: publicly_accessible = false, a value taken from a variable (unknown statically, even when the variable defaults to true), the attribute on other resource types (MQ brokers, Neptune), and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-tf-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-tf-003/",
 	"languages": ["terraform"],
 	"severity": "high",
 	"level": "error",

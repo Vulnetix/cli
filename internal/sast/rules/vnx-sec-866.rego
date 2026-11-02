@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-866",
 	"name": "Klaviyo private API key (pk_)",
 	"description": "A Klaviyo private API key (pk_ prefix) was found. It grants full server-side access to the account's profiles, lists, events and campaigns.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-866",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-866",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

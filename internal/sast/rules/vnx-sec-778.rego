@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-778",
 	"name": "Keap/Infusionsoft legacy API key",
 	"description": "A Keap (Infusionsoft) legacy XML-RPC API key was found. It grants API access to the CRM application data and is used as a long-lived shared secret.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-778",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-778",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

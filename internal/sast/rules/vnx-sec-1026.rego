@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1026",
 	"name": "HashiCorp Vault service token (hvs.)",
 	"description": "A HashiCorp Vault service token (hvs. prefix) was found. It authenticates to Vault and can read any secret within the token's policy scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1026",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1026",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-381",
 	"name": "Paddle API key (pdl_)",
 	"description": "A Paddle Billing API key using the pdl_live_/pdl_sdbx_ prefix was found. It authorizes subscription, transaction and payout operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-381",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-381",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

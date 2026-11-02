@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1082",
 	"name": "Class Instance Self Destruction Control Element",
 	"description": "A C++ member function that destroys the object it is running on: `delete this;` (also `::delete this;`, `delete (this);` and `delete static_cast<D*>(this);`), `std::destroy_at(this)`, or an explicit call of the object's own destructor (`this->~T()`, `(*this).~T()`, including the placement-new reassignment idiom). Any use of the object after the call, by the method itself or by a caller still holding a pointer or reference, is a use after free, and `delete this` on an object that was not allocated with plain `new` (a stack, member, array or placement object) is undefined behaviour. Intrusive reference counting (`if (--refs == 0) delete this;`) is reported too, because it is the same construct; review that the object is always heap-allocated and never touched after the release. Not reported: deleting another object or a member (`delete this->buf_`, `delete other`), destroying a different object explicitly (`item->~Item()` in a pool), destructor definitions, and the text inside comments or string literals. Java, Python and other managed languages have no self-destruction construct, so only C++ is checked.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1082/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1082/",
 	"languages": ["cpp"],
 	"severity": "low",
 	"level": "note",

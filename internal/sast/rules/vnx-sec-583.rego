@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-583",
 	"name": "Mux access token secret",
 	"description": "A Mux access token secret assigned to a context keyword was found. The secret is the Basic Auth password for the Mux API and grants full access to the account's video assets and data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-583",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-583",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

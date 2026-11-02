@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-409",
 	"name": "Plivo Auth ID (MA)",
 	"description": "A Plivo Auth ID using the MA prefix was found. Plivo Auth IDs are 20-character identifiers paired with the Auth Token to authenticate voice and SMS API calls.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-409",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-409",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

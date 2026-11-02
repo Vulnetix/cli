@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-545",
 	"name": "Amplitude secret key",
 	"description": "An Amplitude project secret key was found. Combined with the API key it grants access to export and manage Amplitude project data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-545",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-545",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

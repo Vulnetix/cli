@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-460",
 	"name": "Mailchimp Transactional (Mandrill md- key)",
 	"description": "A Mailchimp Transactional / Mandrill key using the md- prefix was found. It sends transactional email on behalf of the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-460",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-460",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

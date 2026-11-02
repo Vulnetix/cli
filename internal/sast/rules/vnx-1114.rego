@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-1114",
 	"name": "Inappropriate Whitespace Style",
 	"description": "Python indentation that mixes tabs and spaces, where whitespace decides which block a statement belongs to: a statement whose own indentation contains both a tab and a space, and, in a file that indents statements with both characters, the first statement of the less-used one. Mixed indentation makes the block structure depend on the tab width the reader assumes and raises TabError under Python 3 when it is ambiguous. Not reported: continuation lines inside brackets or after a backslash (their alignment does not affect blocks), whitespace-only lines, tabs inside string literals, lines inside triple-quoted strings, and comment lines.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1114/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1114/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

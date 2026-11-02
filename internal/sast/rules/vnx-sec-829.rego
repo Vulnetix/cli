@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-829",
 	"name": "Ecwid secret token",
 	"description": "An Ecwid store secret access token (secret_ prefix) was found. It grants server-side API access to the Ecwid store's orders, products and customers.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-829",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-829",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-572",
 	"name": "Elastic Cloud API key (base64)",
 	"description": "An Elasticsearch / Elastic Cloud API key encoded as base64 id:api_key and assigned to a context keyword was found. It authenticates to Elasticsearch with the key's role descriptors.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-572",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-572",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-867",
 	"name": "Mailchimp Transactional (Mandrill) API key",
 	"description": "A Mailchimp Transactional (Mandrill) API key was found. It grants access to send transactional email and read message logs for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-867",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-867",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

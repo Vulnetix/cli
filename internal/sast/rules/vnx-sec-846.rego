@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-846",
 	"name": "eBay OAuth user access token (v^1.1)",
 	"description": "An eBay OAuth user access token (v^1.1 format) was found. It grants delegated access to the eBay user's selling and account APIs until it expires.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-846",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-846",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

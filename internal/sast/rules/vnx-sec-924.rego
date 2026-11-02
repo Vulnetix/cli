@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-924",
 	"name": "Apollo.io API key",
 	"description": "An Apollo.io API key was found near an apollo assignment. It is a 22-character URL-safe string authorizing the Apollo sales-intelligence and enrichment API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-924",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-924",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-616",
 	"name": "Grafana service account token",
 	"description": "A Grafana service account token using the glsa_ prefix was found. It authenticates to a Grafana instance's API with the service account's role and permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-616",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-616",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-001",
 	"name": "AWS access key ID",
 	"description": "Reports a hard-coded AWS access key ID: a standalone 20-character token with an AKIA (long-term user key), ASIA (STS session key), ABIA, ACCA or A3T prefix followed by 16 base32 characters, in any file. Not reported: the documented AWS example keys (ending in EXAMPLE), placeholder runs (AKIAXXXX..., AKIA0000...), a prefix embedded in a longer alphanumeric run, detector patterns and prefix lists, and test, fixture, vendored and generated files. The paired secret access key is VNX-SEC-003.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-001/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-360",
 	"name": "Klarna API credential",
 	"description": "A Klarna API username/password credential was found near a klarna assignment. Klarna credentials authorize order, capture and refund operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-360",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-360",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

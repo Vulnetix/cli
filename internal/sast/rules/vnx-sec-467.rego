@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-467",
 	"name": "Courier auth token (keyword context)",
 	"description": "A Courier API auth token was found near a courier assignment. Courier tokens authorize multi-channel notification sends and tenant management.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-467",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-467",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

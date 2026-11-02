@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1339",
 	"name": "Insufficient Precision or Accuracy of a Real Number",
 	"description": "A floating-point value is compared for exact equality or inequality (==, !=, ===, !==) with a decimal literal that binary floating point cannot represent exactly (0.1, 0.3, 19.99f, 8.99): the computed value is almost never bit-identical to the rounded literal, so the branch silently never (or always) runs, the classic 0.1 + 0.2 != 0.3 money and rate bug. Languages: Python, JavaScript/TypeScript, Java and Go. Not reported: literals that are exact in binary (0.5, 0.25, 1.0, 0.0, 2.75), exponent forms (1e-9), ordering comparisons (<, <=, >, >=), Python doctest lines (>>>), comparisons through a tolerance (math.isclose, pytest.approx, toBeCloseTo, assertAlmostEqual, abs(a - b) < eps), strings such as versions and IP addresses, comments and test files. The rule does not know operand types, so an integer variable compared with a fractional literal is also reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1339/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1339/",
 	"languages": ["python", "node", "java", "go"],
 	"severity": "low",
 	"level": "note",

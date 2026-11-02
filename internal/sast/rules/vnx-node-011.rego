@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-011",
 	"name": "Node.js server-side template injection",
 	"description": "A template engine compiles or renders a template SOURCE built from the incoming request: the first argument of ejs.render/compile, pug or jade render/compile/compileClient, Handlebars/hbs/Hogan compile/precompile, nunjucks renderString/compile (and Environment.renderString), lodash _.template, doT template/compile, Mustache.render, Eta/Squirrelly render/renderString/compile or swig render/compile is a req/request query, body, params, headers or cookies value, a Koa ctx.query/ctx.request.body value, or a variable assigned (or destructured) from one in the 25 lines above, directly or through one intermediate assignment such as 'Hello ' + name. Template directives in that source run on the server (RCE). Not reported: request values passed as the template's data or context (res.render('view', { q: req.query.q }), ejs.render(fileTemplate, { user: req.body })), renderFile and precompiled templates, constant template strings, comments and string literals. eval and new Function are VNX-NODE-002; a template source taken from the database (stored SSTI) or through helper functions is not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-011/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-011/",
 	"languages": ["node"],
 	"severity": "critical",
 	"level": "error",

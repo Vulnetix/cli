@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1060",
 	"name": "Excessive Number of Inefficient Server-Side Data Accesses",
 	"description": "Python N+1 query: a database query (DB-API cursor/connection .execute(), SQLAlchemy session.query()/Model.query.get(), Django Model.objects.get()/filter(), asyncpg conn.fetch()/fetchrow()/fetchval()) issued inside the body of a for/async for loop, or inside a list/dict/set comprehension, with the loop variable, or a name the loop body assigns from it, in the query's arguments. Each iteration makes one more round trip to the database where one batched query (WHERE id IN (...), select_related/joinedload, executemany) would do. Not reported: a query inside a loop that does not use the loop variable (a retry loop), a loop that hands each chunk to one IN/ANY/__in/in_() query, a loop whose variable is the statement being executed (a schema or migration runner), executemany(), a query after the loop has ended, queries built and run once from a list the loop collected, and the pattern in strings or comments. Loops are recognised by indentation within 25 lines above the query; queries reached through helper functions are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1060/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1060/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

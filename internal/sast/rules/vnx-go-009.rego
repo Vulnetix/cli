@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-009",
 	"name": "Go text/template used for HTML",
 	"description": "A template from text/template (which never HTML-escapes) is rendered into a web response or loaded from HTML files. Reported: Execute/ExecuteTemplate on a template built with text/template in the same file (text/template's local name, an alias included, is resolved from the import; a Lookup/Funcs chain such as t.Lookup(\"row\").Execute counts) whose writer is the handler's response: a parameter declared http.ResponseWriter, *fasthttp.RequestCtx or fiber.Ctx, gin's c.Writer, echo's c.Response(), the io.Writer of an echo Renderer, or a bufio/gzip writer wrapped around one of these in the same function; and ParseFiles/ParseGlob/ParseFS of .html, .htm, .gohtml or .xhtml files with text/template, including ParseFiles(files...) over a slice literal of such names. Not reported: html/template (including a file that imports both and renders the page with html/template), text/template rendering code, YAML, shell, config or JSON into files, buffers, stdout or HTTP request bodies, a response whose handler first sets a Content-Type that is not HTML or SVG (text/plain, a shell script, YAML, JSON), comments and strings that merely name the package. Templates defined in one file and executed in another are matched only through the ParseFiles/ParseGlob signal.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-009/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-009/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

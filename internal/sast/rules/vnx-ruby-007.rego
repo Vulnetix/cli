@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUBY-007",
 	"name": "YAML.load() insecure deserialization",
 	"description": "Untrusted YAML reaches a Psych loader that can instantiate arbitrary Ruby objects: YAML.load or Psych.load (unsafe before Psych 4 / Ruby 3.1), YAML.unsafe_load, YAML.load_stream and YAML.load_documents on a string, or YAML.load_file / YAML.unsafe_load_file on a path, also in the YAML::load spelling. Untrusted means request input (params, request.params/body/raw_post/headers/cookies, cookies, Rack env request keys, an upload), a Base64-decoded blob or an HTTP or message body (.body), used in the call or through a variable assigned from it (up to two assignments) in the 12 lines above. Not reported: YAML.safe_load and Psych.safe_load, a load given permitted_classes: or safe: true, YAML read from the application's own files (YAML.load_file(\"config/settings.yml\"), YAML.load(File.read(path)) with a local path), comments and strings. Marshal, Oj and JSON.load are VNX-RUBY-003.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-007/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-ruby-007/",
 	"languages": ["ruby"],
 	"severity": "critical",
 	"level": "error",

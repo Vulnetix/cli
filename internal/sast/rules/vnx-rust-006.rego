@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUST-006",
 	"name": "Integer truncation or sign-change cast after parsing",
 	"description": "An integer parsed or decoded from runtime data (str::parse::<T>() or let n: T = s.parse(), T::from_str_radix, T::from_str, T::from_be_bytes / from_le_bytes / from_ne_bytes, byteorder read_u32::<E>() and friends) is converted with a lossy `as` cast: to a narrower integer type (u64 as u16, i64 as i32), from signed to unsigned (i64 as usize, where a negative value becomes huge, e.g. vec![0; n as usize]), or from unsigned to a signed type of the same or smaller width (u64 as i64). The cast is reported on the same line as the parse or on a later line within 15 lines that casts the bound variable, unless a range check on that variable comes between: a comparison (n > u16::MAX), n.min(..)/n.max(..)/n.clamp(..), (a..=b).contains(&n), match n { range arms } or matches!(n, a..=b), or a checked TryFrom/try_into conversion. A let statement split across lines (a builder chain ending in .parse()) counts as one binding; a cast in a later function of a variable with the same name does not. `as` silently truncates or reinterprets the bits, so an out-of-range input becomes a different, attacker-chosen value (CWE-681, CWE-190). Not reported: widening casts (u32 as i64, u8 as u32), casts to floating point, casts of values that were not parsed or decoded (lengths, counters, constants), comments and string literals. Values that flow through a function call or a struct field are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-rust-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-rust-006/",
 	"languages": ["rust"],
 	"severity": "medium",
 	"level": "warning",

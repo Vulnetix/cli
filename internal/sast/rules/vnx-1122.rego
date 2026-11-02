@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1122",
 	"name": "Excessive Halstead Complexity",
 	"description": "A single Python statement line whose expression packs 16 or more operators (arithmetic + - * / // % ** @, bitwise & | ^ ~ << >>, comparisons == != < > <= >=, and boolean and/or/not): the Halstead difficulty of that one expression is too high to read or verify, which is where an operator-precedence mistake, an off-by-one bound or a wrong mask in a security check hides. String literals and trailing comments are removed before counting. Not reported: chains of | alone (type unions and flag sets), negative numeric literals in tables, docstring rule lines (=====, -----), expressions broken over several lines (each physical line is measured on its own), def signatures and decorators (*args, **kwargs, -> annotations), whole-line comments, and test files. A line-level proxy for Halstead complexity, not a full per-function Halstead volume.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1122/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1122/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

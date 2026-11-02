@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1024",
 	"name": "Doppler service-account token (dp.sa.)",
 	"description": "A Doppler service-account token (dp.sa. prefix) was found. It grants workplace-wide programmatic access scoped to a Doppler service account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1024",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1024",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

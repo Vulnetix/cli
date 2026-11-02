@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-138",
 	"name": "Railway API/project token",
 	"description": "A Railway API or project token assigned to a context keyword was found. Railway tokens grant programmatic access to deploy and manage projects, services and variables.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-138",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-138",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

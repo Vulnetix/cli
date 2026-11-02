@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-359",
 	"name": "Mercado Pago access token (APP_USR-)",
 	"description": "A Mercado Pago production access token using the APP_USR- prefix was found. It authorizes live payment, refund and payout operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-359",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-359",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

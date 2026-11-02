@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-461",
 	"name": "Knock public API key (pk_)",
 	"description": "A Knock publishable API key (pk_ / pk_test_) was found near a knock assignment. Public keys identify the Knock environment for client SDKs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-461",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-461",
 	"languages": [],
 	"severity": "low",
 	"level": "note",

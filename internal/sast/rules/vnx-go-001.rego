@@ -11,7 +11,7 @@ metadata := {
 	"id": "VNX-GO-001",
 	"name": "Missing go.sum",
 	"description": "A go.mod that requires at least one module fetched from outside the repository has no go.sum beside it, or a .gitignore between the repository root and the module excludes go.sum, so the checksums that pin each dependency are never committed and every build resolves whatever the module proxy serves. Reported once per go.mod, on its first require directive. Not reported: a go.sum present in the module directory, a module with no require directive (a standard-library-only module never gets a go.sum), a module whose every requirement is replaced by a local directory (directory replacements are not checksummed), a go.mod under testdata, fixture or test directories (inputs to tests, which the go command ignores), and a require directive that is only a comment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-001/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

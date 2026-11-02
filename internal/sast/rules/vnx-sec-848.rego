@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-848",
 	"name": "Etsy API keystring",
 	"description": "An Etsy Open API keystring was found. It identifies and authenticates the app against the Etsy v3 API and is required alongside OAuth tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-848",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-848",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

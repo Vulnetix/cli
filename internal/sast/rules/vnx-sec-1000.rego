@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1000",
 	"name": "dYdX API key (UUID)",
 	"description": "A dYdX v3 API key (UUID) assigned to a dydx field was found. Paired with the secret and passphrase it signs authenticated trading requests on the dYdX exchange.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1000",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1000",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

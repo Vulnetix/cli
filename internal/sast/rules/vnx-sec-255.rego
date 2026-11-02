@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-255",
 	"name": "Azure OpenAI API key",
 	"description": "An Azure OpenAI Service API key was found. These are 32-character hex keys that grant access to deployed OpenAI models on Azure billed to the subscription.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-255",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-255",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

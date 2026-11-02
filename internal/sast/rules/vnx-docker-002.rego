@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-DOCKER-002",
 	"name": "Dockerfile base image not pinned (:latest or no tag)",
 	"description": "A FROM instruction, or a COPY --from that pulls an external image, names an image by :latest or by no tag at all and without an @sha256 digest, so every build can silently receive a different (possibly broken or compromised) image. Reported: FROM node:latest, FROM ubuntu, FROM --platform=... python AS deps, FROM registry:5000/team/base (a port is not a tag), lowercase instructions, FROM ${BASE} when BASE resolves through its ARG default (or ${BASE:-default}) to such an image, COPY --from=composer:latest / --from=vendor/tool, and RUN --mount=from=ghcr.io/astral-sh/uv,... (a bind mount from an external image). Not reported: a tag other than latest (including a variable tag such as node:${NODE_VERSION}), any image pinned by digest (even :latest@sha256:...), scratch, a reference to an earlier stage (FROM build, COPY --from=build, COPY --from=0, RUN --mount=from=build), an image held in an ARG with no default (supplied at build time), FROM/COPY text inside comments, strings and heredocs, test and .devcontainer images, and files that only mention Dockerfiles.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-docker-002/",
 	"languages": ["docker"],
 	"severity": "medium",
 	"level": "warning",

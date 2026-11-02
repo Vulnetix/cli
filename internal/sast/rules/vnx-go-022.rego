@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-022",
 	"name": "Use of eval() or dynamic code execution",
 	"description": "Code supplied from outside the program is handed to an embedded interpreter, expression engine or template parser. Reported sinks, each only in a file importing its package: goja vm.RunString / RunScript / goja.Compile / goja.Parse, otto vm.Run / vm.Eval, yaegi i.Eval, gopher-lua L.DoString, govaluate NewEvaluableExpression, expr-lang expr.Compile / expr.Eval, gval.Evaluate, cel-go env.Compile / env.Parse, tengo NewScript, starlark ExecFile / Eval, and html/template or text/template template.New(...).Parse, also with .Funcs/.Delims/.Option chained before Parse (server-side template injection). The code argument must be an HTTP request value (r.FormValue, r.URL.Query().Get, gin/echo c.Query/c.PostForm), the request body (io.ReadAll(r.Body), a struct decoded from it, c.GetRawData), a variable assigned from one of those (one further assignment is followed), or a string parameter of the enclosing function passed straight through (a helper that runs whatever its caller passes). Not reported: fields of a parameter (rule.When: the caller loaded it, usually from configuration), scripts and expressions that are string literals, constants, embedded files or package variables, expressions read from configuration files or loop variables over configured rules, the compiled program passed to expr.Run, calls on the program's own types named Eval or Run in files importing no interpreter, the word eval( in strings and names, comments and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-022/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-022/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

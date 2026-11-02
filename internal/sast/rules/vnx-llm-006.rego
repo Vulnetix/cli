@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-LLM-006",
 	"name": "LLM output interpolated into SQL query",
 	"description": "Reports Python code that executes SQL built from model output: the text of an LLM response (`.choices[0].message.content`, `.choices[0].text`, Anthropic `.content[0].text`, `.output_text`, or the result of `llm/chain/model/agent/chat.invoke()/predict()/run()/generate()` and `generate_content()`), read directly or through up to two assignments within the preceding 25 lines, passed as the whole query or interpolated into it (f-string, `+` concatenation, `%` or `.format()`) at a DB-API `.execute()`/`.executemany()`/`.executescript()`, SQLAlchemy `.execute(text(...))`/`exec_driver_sql()`, Django `.raw()`, `pandas.read_sql()`/`read_sql_query()` or LangChain `SQLDatabase.run()` (`db.run()`). A prompt-injected model can then emit any statement (text-to-SQL with no allowlist, or a WHERE clause written by the model). Not reported: model output passed as a bound parameter, SQL built from values that do not come from a model response (VNX-89 covers ordinary SQL injection), and the pattern in a comment or string literal. Flows across functions or files are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-llm-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-llm-006/",
 	"languages": ["python"],
 	"severity": "critical",
 	"level": "error",

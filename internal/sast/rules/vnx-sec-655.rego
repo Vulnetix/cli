@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-655",
 	"name": "Tron (TRX) private key",
 	"description": "A Tron private key (64 hex characters) assigned to a tron/trx private-key context was found. It controls the spending of funds in the associated TRON wallet.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-655",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-655",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

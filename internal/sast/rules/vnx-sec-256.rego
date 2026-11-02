@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-256",
 	"name": "Replicate API token (r8_)",
 	"description": "A Replicate API token (r8_ prefix) was found. It grants access to run and manage models on Replicate billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-256",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-256",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

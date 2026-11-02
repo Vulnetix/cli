@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-480",
 	"name": "Iterable JWT-enabled API key",
 	"description": "An Iterable JWT-enabled API key was found near an iterable jwt assignment. These keys are used to sign JWT-authenticated client requests to Iterable.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-480",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-480",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

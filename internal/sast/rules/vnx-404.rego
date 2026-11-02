@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-404",
 	"name": "Improper Resource Shutdown or Release",
 	"description": "Reports a Java file or database handle bound to a local variable inside a method and never released on any path before the method ends: a local assigned `new FileInputStream/FileOutputStream/FileReader/FileWriter/RandomAccessFile/ZipFile/JarFile(...)` (possibly wrapped, `new BufferedReader(new FileReader(p))`) , `Files.newBufferedReader/newBufferedWriter/newInputStream/newOutputStream(...)` or `DriverManager.getConnection(...)`, outside try-with-resources, with no `x.close()`/`closeQuietly(x)` and not returned, stored in a field or handed to another constructor. Not reported: a release in finally, test files, comments and strings. A handle that is closed only on the success path (no try/finally) is not reported. Python file and socket handles that are never closed are reported by VNX-775.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-404/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-404/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

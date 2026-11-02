@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-557",
 	"name": "Meilisearch tenant token (JWT)",
 	"description": "A Meilisearch tenant token (JWT) was found. It grants scoped search access to specific indexes for a Meilisearch instance.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-557",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-557",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

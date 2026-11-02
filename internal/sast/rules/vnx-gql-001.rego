@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GQL-001",
 	"name": "GraphQL introspection enabled in production",
 	"description": "A GraphQL server configuration hard-codes schema exposure on: in JavaScript/TypeScript an object key introspection: true, graphiql: true or playground: true in a file that builds a GraphQL server (Apollo Server, express-graphql, graphql-http, graphql-yoga, Mercurius, NestJS GraphQLModule/GqlOptionsFactory); in Python graphiql=True or introspection=True in a file that mounts a GraphQL view (flask-graphql/graphene GraphQLView, Strawberry GraphQLRouter, Ariadne GraphQL). Introspection and the in-browser IDEs expose the whole schema for reconnaissance. Not reported: a value computed from the environment (introspection: isDev, graphiql: process.env.NODE_ENV === 'development'), a literal true that is itself conditional (the arm of a ternary or && spread such as ...(isDev ? { introspection: true } : {}), or Python True if DEBUG else False), a literal true inside an if a few lines above that tests the environment (if (process.env.NODE_ENV !== 'production') {, if settings.DEBUG:), false, the same key in a file that does not build a GraphQL server, comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-gql-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-gql-001/",
 	"languages": ["javascript", "typescript", "python"],
 	"severity": "medium",
 	"level": "warning",

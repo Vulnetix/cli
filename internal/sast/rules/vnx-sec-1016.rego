@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1016",
 	"name": "KuCoin API secret (passphrase-paired, alt context)",
 	"description": "A KuCoin API secret captured via a kucoin-secret assignment (non-UUID base64/alnum form) was found. It is one of the three KuCoin credentials (key, secret, passphrase) required to sign authenticated requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1016",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1016",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

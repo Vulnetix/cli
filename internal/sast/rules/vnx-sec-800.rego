@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-800",
 	"name": "SurveyMonkey access token",
 	"description": "A SurveyMonkey OAuth access token was found. It grants API access to the user's surveys, collectors and responses in SurveyMonkey.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-800",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-800",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

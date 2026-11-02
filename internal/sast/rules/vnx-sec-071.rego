@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-071",
 	"name": "GitLab session cookie",
 	"description": "Reports a captured GitLab session cookie value: _gitlab_session followed by = (a Cookie header, document.cookie, a curl -b/-H argument) by a quoted or symbol key and : / = / => (a cookies dict, hash or object), by a call argument pair (cookies.set(\"_gitlab_session\", \"...\")) or by a tab (Netscape cookies.txt), or a cookie object whose \"name\" is _gitlab_session and whose \"value\" (on the same line or up to 12 lines below, inside the same object, as browser cookie exports write it) is set, and then a 32-character lowercase hexadecimal session id, in any file. The value is masked in the snippet. Not reported: the cookie name on its own (Rails session_store key: \"_gitlab_session\"), a value read from a variable or the environment, placeholder values (all zeros, xxxx...), and generated, vendored and test-suffixed files and testdata/fixtures directories.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-071/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-071/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

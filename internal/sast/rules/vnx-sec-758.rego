@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-758",
 	"name": "Greenhouse Harvest API key",
 	"description": "A Greenhouse Harvest API key (32-character hex) was found. Used as the HTTP basic-auth username it grants API access to the company's candidate and job data in Greenhouse.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-758",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-758",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

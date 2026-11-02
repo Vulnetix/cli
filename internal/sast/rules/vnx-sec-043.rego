@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-043",
 	"name": "Twilio API key",
 	"description": "Reports a Twilio API key SID written into a file: SK followed by exactly 32 lowercase hexadecimal characters, standing alone (not inside a longer word or hex string). With its secret it grants access to Twilio SMS, voice and Verify APIs. The snippet is redacted. Not reported: SK inside a longer identifier (DISK..., TASK...), uppercase or over-long hex runs (hashes), placeholders (SKxxxx..., SK000..., EXAMPLE), low-entropy values, and test, fixture and vendored paths. Account SIDs (AC...) are identifiers, not credentials, and are not reported. The generated VNX-SEC-937 reports the same token shape beside Super SIM / IoT names.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-043/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-043/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

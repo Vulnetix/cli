@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-585",
 	"name": "ImageKit private key",
 	"description": "An ImageKit private key using the private_ prefix was found. It authenticates to the ImageKit media API and grants signed-upload and management access to the media library.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-585",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-585",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

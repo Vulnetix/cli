@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-614",
 	"name": "Better Stack / Logtail source token",
 	"description": "A Better Stack (Logtail) source token assigned to a context keyword was found. It authorises log ingestion to the Better Stack source over the Logtail endpoint.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-614",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-614",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

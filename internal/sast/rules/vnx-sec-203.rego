@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-203",
 	"name": "Harness personal access token (pat.)",
 	"description": "A Harness personal access token using the pat. prefix was found. It grants user-scoped access to the Harness platform API for pipelines and deployments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-203",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-203",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

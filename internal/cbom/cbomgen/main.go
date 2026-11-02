@@ -3,11 +3,13 @@
 //
 // It validates the catalog (every regex compiles, every CycloneDX enum value is
 // in range) and then writes:
-//   - website/content/docs/cbom/_index.md
-//   - website/content/docs/cbom/algorithms.md
-//   - website/content/docs/cbom/standards-matrix.md
-//   - website/content/docs/cbom/catalog-format.md
-//   - website/content/docs/cli-reference/cbom.md
+//   - docs/generated/cbom/algorithms.md
+//   - docs/generated/cbom/standards-matrix.md
+//   - docs/generated/cbom/catalog-format.md
+//
+// These pages are not published from this repository. The platform docs
+// (docs.vulnetix.com, Vulnetix/platform-docs) copy them from a cli checkout with
+// migration/generators/sbom-catalog-pages.py, so they must stay committed.
 //
 // Docs therefore can never drift from the detection rules. Run via:
 //
@@ -38,13 +40,11 @@ func main() {
 		fail(fmt.Errorf("catalog failed validation: %w", err))
 	}
 
-	docs := filepath.Join(root, "website", "content", "docs")
+	docs := filepath.Join(root, "docs", "generated")
 	writes := map[string]string{
-		filepath.Join(docs, "cbom", "_index.md"):           indexMD(cat),
 		filepath.Join(docs, "cbom", "algorithms.md"):       algorithmsMD(cat),
 		filepath.Join(docs, "cbom", "standards-matrix.md"): standardsMD(cat),
 		filepath.Join(docs, "cbom", "catalog-format.md"):   formatMD(),
-		filepath.Join(docs, "cli-reference", "cbom.md"):    commandMD(),
 	}
 	for path, body := range writes {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -96,36 +96,6 @@ func fail(err error) {
 }
 
 // ---- markdown builders ---------------------------------------------------
-
-func indexMD(cat *cbom.Catalog) string {
-	var b strings.Builder
-	b.WriteString(`---
-title: "CBOM"
-weight: 8
-description: "Discover cryptographic usage and emit a CycloneDX Cryptography Bill of Materials with post-quantum posture."
----
-
-`)
-	b.WriteString("The `vulnetix cbom` command discovers cryptographic algorithms, certificates and crypto libraries used in a project — in **source code and configuration** — and produces a **Cryptography Bill of Materials (CBOM)** in CycloneDX format, classifying each algorithm for **post-quantum** posture.\n\n")
-	b.WriteString("> **This page is generated** from the detection catalog (`internal/cbom/catalog/*.json`). Run `just gen-cbom` after editing the catalog.\n\n")
-	b.WriteString("## What it detects\n\n")
-	b.WriteString("Four passes, all driven by a maintainable catalog:\n\n")
-	b.WriteString("- **Source code** — per-language crypto API usage (Go `crypto/*`, Python `hashlib`/pyca, Java JCA, Node `crypto`, …) plus generic call extractors. Algorithm spellings are case/separator-insensitive: `SHA256`, `Sha256`, `sha256` and `SHA_256` all resolve to one canonical SPDX algorithm.\n")
-	b.WriteString("- **Config** — TLS cipher suites & versions, SSH `Ciphers`/`KexAlgorithms`/`MACs`, JWT `alg`, OpenSSL/IPsec settings.\n")
-	b.WriteString("- **Certificates** — X.509 certificates and keys on disk (signature algorithm, key type & size, validity). Only metadata is read — never key bytes.\n")
-	b.WriteString("- **Dependencies** — declared crypto libraries (OpenSSL, Bouncy Castle, libsodium, liboqs, ring, Tink, pyca/cryptography, …).\n\n")
-	b.WriteString("## Post-quantum posture\n\n")
-	b.WriteString("Every algorithm is tagged `quantum-safe`, `quantum-vulnerable`, `deprecated` or `hybrid`, carries its CycloneDX `nistQuantumSecurityLevel` (0–6) and `classicalSecurityLevel`, and an annotated per-country approval matrix. Use `--fail-on quantum-vulnerable` (or `deprecated`) to gate CI.\n\n")
-	fmt.Fprintf(&b, "The builtin catalog (version `%s`) covers **%d algorithms** and **%d crypto libraries**, including the NIST PQC standards (ML-KEM, ML-DSA, SLH-DSA), FN-DSA, HQC, FrodoKEM, Classic McEliece, LMS/HSS, XMSS, the regional KpqC selections (HAETAE, AIMer, SMAUG-T, NTRU+) and the de-facto hybrid groups (X25519MLKEM768, …).\n\n",
-		cat.Version, len(cat.Algorithms), len(cat.Libraries))
-	b.WriteString("{{< cards >}}\n")
-	b.WriteString("  {{< card link=\"algorithms\" title=\"Algorithms\" subtitle=\"Every algorithm the catalog detects and its PQC posture.\" icon=\"lock-closed\" >}}\n")
-	b.WriteString("  {{< card link=\"standards-matrix\" title=\"Standards Matrix\" subtitle=\"Per-country approval status for PQC algorithms.\" icon=\"globe\" >}}\n")
-	b.WriteString("  {{< card link=\"catalog-format\" title=\"Catalog Format\" subtitle=\"Extend or override detection with --catalog.\" icon=\"document-text\" >}}\n")
-	b.WriteString("  {{< card link=\"../cli-reference/cbom\" title=\"Command Reference\" subtitle=\"vulnetix cbom flags and examples.\" icon=\"terminal\" >}}\n")
-	b.WriteString("{{< /cards >}}\n")
-	return b.String()
-}
 
 func algorithmsMD(cat *cbom.Catalog) string {
 	algos := append([]cbom.AlgorithmDef(nil), cat.Algorithms...)
@@ -283,62 +253,5 @@ A call extractor captures an algorithm token from a generic crypto API; the toke
 ` + "```" + `
 
 Each extractor pattern must have **exactly one capture group**. All patterns are Go RE2 (no backreferences/lookaround).
-`
-}
-
-func commandMD() string {
-	return `---
-title: "CBOM Command Reference"
-weight: 9
-description: "Discover cryptographic usage and emit a CycloneDX Cryptography Bill of Materials with post-quantum posture."
----
-
-The ` + "`cbom`" + ` command discovers cryptographic algorithms, certificates and crypto libraries in a project and produces a **Cryptography Bill of Materials (CBOM)** in CycloneDX format. See [CBOM](../cbom/) for what is detected and the catalog format.
-
-## Usage
-
-` + "```bash" + `
-vulnetix cbom [path] [flags]
-` + "```" + `
-
-## Flags
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| ` + "`--path`" + ` | string | ` + "`.`" + ` | Directory to scan (a positional ` + "`[path]`" + ` argument overrides this) |
-| ` + "`--depth`" + ` | int | ` + "`25`" + ` | Maximum recursion depth for file discovery |
-| ` + "`--ignore`" + ` | stringArray | - | Exclude paths matching glob pattern (repeatable) |
-| ` + "`-o, --output`" + ` | string | ` + "`pretty`" + ` | Terminal output format: ` + "`pretty`, `json`, `cyclonedx-json`" + ` |
-| ` + "`--output-file`" + ` | string | - | Path to write the CBOM (default: ` + "`<path>/.vulnetix/cbom.cdx.json`" + `) |
-| ` + "`--spec-version`" + ` | string | ` + "`1.7`" + ` | CycloneDX spec version: ` + "`1.6`" + ` or ` + "`1.7`" + ` |
-| ` + "`--catalog`" + ` | string | - | Catalog file to merge over (or replace) the builtin catalog |
-| ` + "`--no-builtin-catalog`" + ` | bool | ` + "`false`" + ` | Do not load the embedded catalog (use only ` + "`--catalog`" + `) |
-| ` + "`--no-source`" + ` | bool | ` + "`false`" + ` | Skip the source-code crypto API detection pass |
-| ` + "`--no-config`" + ` | bool | ` + "`false`" + ` | Skip the config & protocol detection pass |
-| ` + "`--no-certs`" + ` | bool | ` + "`false`" + ` | Skip the certificate / key detection pass |
-| ` + "`--no-deps`" + ` | bool | ` + "`false`" + ` | Skip the crypto-library detection pass |
-| ` + "`--fail-on`" + ` | string | ` + "`none`" + ` | Exit non-zero when crypto of these PQC statuses is found (e.g. ` + "`quantum-vulnerable`, `deprecated`" + `) |
-| ` + "`--no-upload`" + ` | bool | ` + "`false`" + ` | Do not submit the CBOM to Vulnetix (submitted automatically when authenticated) |
-| ` + "`--cbom-include-ignored`" + ` | bool | ` + "`false`" + ` | Include files matched by ` + "`.gitignore`" + ` (default: gitignored paths are skipped) |
-
-## Output
-
-- ` + "`pretty`" + ` (default) — a human-readable summary with the PQC posture rollup and per-algorithm tables.
-- ` + "`cyclonedx-json`" + ` — the CycloneDX CBOM. Algorithms map to ` + "`cryptographic-asset`" + ` components (with ` + "`cryptoProperties`" + `), certificates to ` + "`cryptographic-asset`" + ` (` + "`assetType: certificate`" + `) plus a ` + "`related-crypto-material`" + ` key, and crypto libraries to ` + "`library`" + ` components. PQC posture and the standards matrix ride on ` + "`vulnetix:crypto/*`" + ` properties. The document is schema-validated before it is written.
-- ` + "`json`" + ` — the raw detection result.
-
-## Examples
-
-` + "```bash" + `
-vulnetix cbom                                   # pretty summary; writes .vulnetix/cbom.cdx.json
-vulnetix cbom ./service -o cyclonedx-json        # print CycloneDX to stdout
-vulnetix cbom --no-certs --no-deps              # source + config only
-vulnetix cbom --fail-on quantum-vulnerable      # gate CI on quantum-vulnerable crypto
-vulnetix cbom --catalog ./extra-algos.json      # extend the builtin catalog
-` + "```" + `
-
-## Privacy
-
-The certificate pass reads only certificate/key **metadata** (algorithm, size, validity) — never key material. No source content is uploaded.
 `
 }

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-287",
 	"name": "Modal token secret (as-)",
 	"description": "A Modal token secret (as- prefix) was found. It is the secret half of a Modal credential pair granting access to deploy and run Modal apps.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-287",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-287",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

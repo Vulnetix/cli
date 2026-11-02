@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-507",
 	"name": "Retool API token",
 	"description": "A Retool API access token was found. It grants programmatic access to manage Retool apps, resources and users in the organisation.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-507",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-507",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

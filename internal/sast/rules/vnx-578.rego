@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-578",
 	"name": "EJB Bad Practices: Use of Class Loader",
 	"description": "An Enterprise JavaBean obtains, creates, replaces or defines classes with a class loader, which the EJB specification forbids because it breaks the container's isolation and security model: the bean can load code the container never vetted or reach classes of other applications. A class counts as an EJB when its file imports javax.ejb or jakarta.ejb and declares @Stateless, @Stateful, @Singleton or @MessageDriven, or implements SessionBean, EntityBean or MessageDrivenBean. Reported in such a file: new URLClassLoader(...) or any new ...ClassLoader(...), instantiating a ClassLoader subclass declared in the file, getClassLoader(), Thread getContextClassLoader()/setContextClassLoader(...), ClassLoader.getSystemClassLoader()/getPlatformClassLoader(), and defineClass/defineHiddenClass calls. Not reported: the same calls in Spring beans, servlets and other non-EJB classes, Class.forName, a ClassLoader subclass declaration that is never instantiated, test code, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-578/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-578/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

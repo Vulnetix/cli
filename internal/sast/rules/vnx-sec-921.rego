@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-921",
 	"name": "Numverify API access key",
 	"description": "A numverify API access key was found near a numverify assignment. It is a 32-character hex string authorizing phone-number validation lookups.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-921",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-921",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

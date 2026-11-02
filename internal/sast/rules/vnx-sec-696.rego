@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-696",
 	"name": "PuTTY private key MAC line",
 	"description": "A PuTTY private key MAC line (Private-MAC) was found, indicating a committed .ppk private key file body. The .ppk holds an SSH private key.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-696",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-696",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

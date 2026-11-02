@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-390",
 	"name": "Detection of Error Condition Without Action",
 	"description": "A Java catch clause catches an exception and does nothing with it, so the failure is detected and then silently dropped and the program carries on with whatever partial state the try block left. Reported: a catch block whose body is empty (on one line, `catch (E e) {}`, or across lines with only blank lines before the closing brace, also with the opening brace on its own line), and a catch block whose only statement evaluates the exception and discards the result (`e.toString();`, `e.getMessage();`, on its own line or inline). Not reported: a catch block that logs, rethrows, returns, restores the interrupt flag or does anything else; an empty block that carries a comment explaining why (a documented decision); an exception variable named ignored, ignore, expected, unused or _ (Java's unnamed variable); test sources; and the pattern inside comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-390/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-390/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

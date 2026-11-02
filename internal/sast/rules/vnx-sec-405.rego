@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-405",
 	"name": "Mailjet secret key",
 	"description": "A Mailjet secret key (the private half of the Basic Auth pair) was found near a mailjet secret assignment. It is a 32-character hex string used as the password for the Mailjet API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-405",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-405",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

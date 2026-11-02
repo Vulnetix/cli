@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-607",
 	"name": "Public Static Final Field References Mutable Object",
 	"description": "Reports a Java field declared public, static and final (in any modifier order) whose initializer is a mutable object: a new HashMap/LinkedHashMap/TreeMap/ConcurrentHashMap/Hashtable/Properties/EnumMap, HashSet/TreeSet/LinkedHashSet, ArrayList/LinkedList/Vector/ArrayDeque/CopyOnWriteArrayList, Date, Calendar, SimpleDateFormat/DecimalFormat, StringBuilder/StringBuffer or BitSet, Arrays.asList(...), EnumSet.of/noneOf/allOf or Guava Lists/Maps/Sets.newXxx(...) (including an initializer on the line after the '='); also an UPPER_CASE constant of a file that declares only an interface, whose fields are implicitly public static final. final only fixes the reference: any code can still change the shared contents. Not reported: initializers wrapped in Collections.unmodifiable*, List.of/Set.of/Map.of, Guava Immutable*, Collections.empty*, a field assigned later in a static block, ThreadLocal holders, interface constants in a file that also declares a class or enum, private, protected or package-private fields, instance fields, strings, boxed numbers and plain Objects, arrays (VNX-582 covers public static final arrays), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-607/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-607/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

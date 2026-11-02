@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JWT-006",
 	"name": "JWT missing audience or issuer verification",
 	"description": "A JWT verifier does not check who the token was issued for, so a token minted for another application (by the same identity provider or signing key) is accepted here. Reported: audience or issuer validation switched off explicitly, by PyJWT/python-jose options {\"verify_aud\": False} or {\"verify_iss\": False} (Python) and TokenValidationParameters ValidateAudience = false or ValidateIssuer = false (C#); and a token verified against a shared identity provider's key set with no audience check anywhere in the file: jsonwebtoken jwt.verify, jose jwtVerify and express-jwt in a file that uses jwks-rsa or createRemoteJWKSet (JavaScript/TypeScript), Auth0 JWT.require() in a file using a JwkProvider and Spring Security NimbusJwtDecoder.withJwkSetUri/withIssuerLocation or JwtDecoders.fromIssuerLocation with no audience validator (Java), and golang-jwt jwt.Parse/ParseWithClaims with a keyfunc/JWKS key set (Go) without WithAudience. Not reported: verification with a private shared secret and no audience (PyJWT already rejects an aud claim it was not told to expect), verifiers that pass an audience, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-jwt-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-jwt-006/",
 	"languages": ["python", "javascript", "typescript", "csharp", "java", "go"],
 	"severity": "medium",
 	"level": "warning",

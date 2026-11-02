@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1086",
 	"name": "Pixabay API key",
 	"description": "A Pixabay API key (numeric id then a hex token, dash separated) was found. It authorizes Pixabay image and video search under the account rate limit.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1086",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1086",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

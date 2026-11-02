@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-472",
 	"name": "External Control of Assumed-Immutable Web Parameter",
 	"description": "A value the server should own is taken from the client. Reported in JavaScript/TypeScript server code: a price-like field (price, unitPrice, total, totalPrice, subtotal, cost, discount, fee, tax, shipping, shippingCost) or a privilege field (role, roles, isAdmin, admin, isStaff, isSuperuser, permissions, accessLevel, userType) read from req/request/ctx.request body, query, params or cookies (`req.body.price`, `req.query['discount']`, `const { unitPrice } = ctx.request.body`, `req.cookies.isAdmin === 'true'`), including a destructuring written over several lines (`const {` / `totalPrice,` / `} = req.body;`). In HTML and template files (html, ejs, hbs, handlebars, mustache, njk, pug, vue, jsx, tsx): a hidden form input whose name is one of those fields or userId/user_id/accountId/ownerId, the field the form assumes the user will not edit. Not reported: admin back-office handlers (a file under an admin/ directory, or a route whose path or middleware names admin, such as requireAdmin), where setting prices and roles is the job; a price-like field that is only compared (`req.body.price !== product.price` is validation), fields the user legitimately chooses (amount, quantity, productId), values read from a server-side lookup or a fetch response, hidden inputs carrying CSRF tokens, ids of the item being acted on or redirects, test sources, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-472/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-472/",
 	"languages": ["node", "html"],
 	"severity": "medium",
 	"level": "warning",

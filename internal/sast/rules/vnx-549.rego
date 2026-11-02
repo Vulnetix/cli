@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-549",
 	"name": "Missing Password Field Masking",
 	"description": "A password is collected in a field that shows what is typed. Reported: an HTML/JSX/template <input>, Blazor <InputText> or Material UI <TextField> (on one line or spread over several, attribute values quoted or not) whose name, id, formControlName, v-model, ng-model, @bind-Value or autocomplete names a password (password, passwd, pwd, passphrase, current-password, new-password, as the last word of the name) and whose type is text or absent (absent means text); a Rails f.text_field/text_field_tag for a password attribute; an ASP.NET MVC Html.TextBoxFor(m => m.Password) or Html.TextBox(\"Password\"); a Django forms.CharField for a password field with no PasswordInput widget, and a WTForms StringField/TextField for one; and an Android layout EditText whose id or hint names a password with android:inputType=\"text\" or \"textVisiblePassword\". Not reported: type=\"password\", hidden inputs, a type bound at run time (a show-password toggle such as :type or type={visible ? 'text' : 'password'}), password_field/PasswordField/PasswordInput, Django model fields (models.CharField), fields that only mention passwords (password_hint, password_strength, password_reset_token, an id such as password-storage-salt), Html.PasswordFor, labels and placeholders, HTML comments and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-549/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-549/",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

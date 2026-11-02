@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-947",
 	"name": "Vonage Video / OpenTok API secret",
 	"description": "A Vonage Video (OpenTok) API secret was found near an opentok/vonage-video assignment. It is a 40-character hex string paired with the API key to sign session tokens and authorize the Video API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-947",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-947",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

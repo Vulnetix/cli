@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-005",
 	"name": "Weak PRNG for security operations",
 	"description": "A value from Python's random module (Mersenne Twister, whose state is recoverable from 624 outputs) is used as a secret: a call to random.choice/choices/randint/randrange/random/getrandbits/sample/uniform/randbytes (through the module, an `import random as r` alias or a name imported with `from random import randint`) whose result is assigned to, passed as a keyword to, or stored under a dict key with a security name (password, token, secret, nonce, salt, otp, session id, api key, csrf, reset/verification/activation/invite code, pin, captcha), including an assignment that opens on the line above; or a choice/choices/randint/randrange/getrandbits/sample/randbytes call returned or assigned inside a function whose name is such a name (generate_api_key, make_reset_token). Not reported: secrets, random.SystemRandom() and os.urandom, numpy and other libraries' random modules, random values with no security name (sampling, shuffling, colours, and language-model token counts such as max_tokens, token_count or a plain tokens list), jitter and probability checks such as time.sleep(random.uniform(...)) inside a token function, test files (throwaway fixture values) and the names in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-005/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",

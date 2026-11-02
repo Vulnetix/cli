@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-362",
 	"name": "Check-then-use race on a file path (TOCTOU)",
 	"description": "A file path is checked and then used by name a few lines later, so another process can replace the file (typically with a symlink) between the check and the use. Reported in Python: os.path.exists/isfile/lexists(p) or a pathlib p.exists()/p.is_file() followed within eight lines by a write or permission change on the same path (open(p, 'w'/'a'/'r+'), os.open(p, ...O_CREAT/O_WRONLY/O_RDWR...) without O_EXCL, os.chmod/os.chown, p.write_text/p.write_bytes/p.open('w'), shutil.copy/copy2/copyfile/move with p as the destination), and os.access(p, ...) followed by any open of p (the access check is the classic setuid TOCTOU). Reported in Go: os.Stat/os.Lstat(p) followed by os.Create, os.WriteFile/ioutil.WriteFile, os.Chmod/os.Chown/os.Truncate or os.OpenFile with a write or create flag and no O_EXCL on the same path, and syscall/unix.Access(p) followed by any open of p. A use whose call wraps over lines is read as one statement, so a path or a flag on a continuation line counts. Not reported: exclusive creation (mode 'x', O_EXCL, also on a continuation line), a check and a use in different functions (a def or func line between them), an os.OpenFile read whose next statement creates another file, os.makedirs/os.MkdirAll, a plain read after an existence check, a check and a use on different paths, a Go Lstat that tests ModeSymlink (VNX-363 covers that), comments, strings and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-362/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-362/",
 	"languages": ["go", "python"],
 	"severity": "medium",
 	"level": "warning",

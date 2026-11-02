@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-627",
 	"name": "Dynamic Variable Evaluation",
 	"description": "A variable whose NAME comes from the request is read or written, so the client chooses which of the program's variables it reads or overwrites ($is_admin, a configuration global, an instance variable holding the current user). Reported: Python globals()/locals()/vars() indexed (or read with .get/.pop/.setdefault) by a request value (request.args/form/values/json/GET/POST/data/cookies/headers/query_params), or globals()/locals()/vars(x)/x.__dict__ .update() with request data; Ruby instance_variable_set/get, class_variable_set/get and binding.local_variable_set/get whose name argument interpolates params, cookies or request parameters; PHP variable variables ($$name, ${$name}, ${$_GET[...]}) whose name is a superglobal or a variable assigned from one; JavaScript global[...]/globalThis[...]/window[...] (the bare global object, not a property such as config.global) indexed by req.query/body/params/cookies/headers. The request value may be inline or reach the sink through a variable assigned (or a for/each loop variable bound) from it in the 10 lines above. Not reported: constant names, names from function parameters or configuration (no cross-function dataflow), ordinary dictionary or object lookups, PHP variable variables in a foreach over a superglobal and extract() (VNX-PHP-007 reports those), and the sinks inside comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-627/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-627/",
 	"languages": ["python", "ruby", "php", "node"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-884",
 	"name": "Snipcart API key (secret)",
 	"description": "A Snipcart secret API key was found. It grants server-side access to the merchant's orders, customers and subscriptions in Snipcart.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-884",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-884",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

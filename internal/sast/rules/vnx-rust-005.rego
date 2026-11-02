@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUST-005",
 	"name": "panic!() or unwrap()/expect() in function that returns Result",
 	"description": "Reports panic!(...), and .unwrap() / .expect(...) applied directly to a fallible operation whose error could be propagated with ? (file, network and process I/O, an awaited future, parse/deserialise/decode calls, database calls, env::var, try_into/try_from), in the body of the function that directly encloses them when that function's signature (single- or multi-line, free function, method or main) returns Result: Result<T, E>, a crate alias such as Result<T>, io::Result, anyhow::Result or std::result::Result. The function already has an error channel, so a panic there aborts the thread where the error could have been propagated with ? or returned as Err, and the caller cannot recover. Not reported: functions returning anything else (including Option and fmt::Result, whose fmt::Error cannot carry the failure), a nested fn item that does not itself return Result, Mutex/RwLock lock().unwrap() and read()/write().expect() (the lock-poisoning convention), Regex::new or parse on a string literal (a programmer-controlled constant), #[cfg(test)] modules, #[test] functions, files under tests/, examples/ and benches/, build.rs, comments and string literals. unreachable!, todo! and assert! are not reported, nor is unwrap on a value whose type the line does not show (an Option from get/first, a variable), because whether ? applies cannot be told. VNX-RUST-002 separately reports unwrap on parsing runtime input anywhere.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-rust-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-rust-005/",
 	"languages": ["rust"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-143",
 	"name": "OVH application secret / consumer key",
 	"description": "An OVH API application secret or consumer key assigned to a context keyword was found. These credentials authenticate against the OVH API and grant access to managed resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-143",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-143",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

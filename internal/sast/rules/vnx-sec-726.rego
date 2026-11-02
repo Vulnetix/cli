@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-726",
 	"name": "Discord webhook URL",
 	"description": "A Discord webhook URL (discord.com/api/webhooks/...) was found. Anyone with this URL can post messages to the target channel.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-726",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-726",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

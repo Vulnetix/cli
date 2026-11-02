@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-939",
 	"name": "BulkSMS token / credential",
 	"description": "A BulkSMS API token secret or password was found near a bulksms assignment. It is a high-entropy string authorizing SMS sending via the BulkSMS REST API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-939",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-939",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

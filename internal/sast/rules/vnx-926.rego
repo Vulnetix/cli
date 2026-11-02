@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-926",
 	"name": "Android component exported with no permission protecting it",
 	"description": "Reports an <activity>, <activity-alias>, <service>, <receiver> or <provider> in AndroidManifest.xml that declares android:exported=\"true\" and no android:permission (a provider without android:permission needs both android:readPermission and android:writePermission; with only one, its other side is open and it is reported): any app on the device can start, bind, broadcast to or query it (CWE-926). The finding is on the android:exported line, and the start tag may span several lines. Not reported: the launcher activity (an intent-filter with category LAUNCHER or LEANBACK_LAUNCHER, which must be exported), components that are not exported or protected by a permission, components of an <application> that declares android:permission (the default for every component), components the manifest merger removes (tools:node=\"remove\"), commented-out elements (single-line or inside a multi-line comment), and XML files other than AndroidManifest.xml. Components exported implicitly by an intent-filter on old target SDKs are not reported, because the target SDK is not known from the manifest line.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-926/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-926/",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

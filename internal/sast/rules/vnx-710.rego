@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-710",
 	"name": "Security-relevant compiler warning suppressed in source",
 	"description": "Source code switches off a compiler warning whose purpose is to catch a memory-safety or injection defect, so the code it covers can carry that defect without a diagnostic (CWE-710, improper adherence to coding standards, in its one statically recognisable form). Reported in C and C++: #pragma warning(disable: ...) or #pragma warning(suppress: ...) naming MSVC C4996 (unsafe CRT functions such as strcpy/sprintf/gets), C4789 (buffer overrun), C4700/C4701/C4703 (uninitialised variable or pointer), C6385/C6386 (buffer read/write overrun) or C6387/C6011 (null pointer); #pragma GCC/clang diagnostic ignored for -Wformat-security, -Wformat-nonliteral, -Wformat-overflow, -Wformat-truncation, -Wstringop-overflow, -Wstringop-truncation, -Wstringop-overread, -Warray-bounds, -Wuninitialized, -Wmaybe-uninitialized, -Wreturn-local-addr, -Wreturn-stack-address, -Wfree-nonheap-object, -Wuse-after-free and -Wdangling-pointer; and #define _CRT_SECURE_NO_WARNINGS or _CRT_SECURE_NO_DEPRECATE. Not reported: suppressions of style or portability warnings (unused parameters, sign comparison, deprecated declarations, conversions), #pragma warning(push/pop/default/error), #pragma GCC/clang diagnostic warning or error (the diagnostic is still emitted), compiler flags in build files (another rule's concern), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-710/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-710/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

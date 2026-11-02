@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-266",
 	"name": "Incorrect Privilege Assignment",
 	"description": "Root is assigned as a process's whole identity, or a file is given the set-user-ID or set-group-ID bit. Reported in C and C++: setuid(0), setgid(0), setreuid(0, 0), setregid(0, 0), setresuid(0, 0, 0) and setresgid(0, 0, 0) (also ::-qualified), which make root the real, effective and saved identity so nothing later in the process or its children runs unprivileged, in a function that never drops to another user; and chmod/fchmod/fchmodat with S_ISUID or S_ISGID or an octal mode with the 04000/02000 bit (04755, 06755, 02755), also when the mode is on the line after the call opens, and C++17 std::filesystem::permissions adding perms::set_uid or perms::set_gid. Reported in Python: os.setuid(0), os.setgid(0), os.setreuid(0, 0), os.setresuid(0, 0, 0) and the gid forms, and os.chmod/os.fchmod/os.lchmod (or a chmod imported from os, or pathlib Path.chmod) with stat.S_ISUID/S_ISGID or a 0o4xxx/0o2xxx/0o6xxx mode. Not reported: a temporary seteuid(0) (VNX-272 judges whether it is lowered again), a function that also drops to a non-root user (setuid(pw->pw_uid), including the `setuid(0) != -1` check that a drop is irreversible), testing or clearing the bits (st_mode & S_ISUID, mode & ~S_ISUID), ordinary modes (0755, 0644), the set-group-ID bit alone on a directory made by mkdir/makedirs in the six lines above (group inheritance for a shared directory), perm_options::remove, wrappers such as my_setuid(), and the calls in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-266/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-266/",
 	"languages": ["c", "cpp", "python"],
 	"severity": "high",
 	"level": "error",

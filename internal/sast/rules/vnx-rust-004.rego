@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUST-004",
 	"name": "Rust command injection via a shell or a request-controlled program in process::Command",
 	"description": "Reports std::process::Command / tokio::process::Command in two shapes. (1) A shell interpreter (sh, bash, zsh, dash, ksh, /bin/sh, cmd, powershell, pwsh) is given its command-string flag (-c, -lc, /C, /K, -Command) followed by a non-literal command string: format!(...), a variable, a concatenation such as \"git checkout \".to_owned() + branch, whether chained on one line, split across builder lines, passed through .args([\"-c\", x]) / vec![...] (other literal options such as -NoProfile or -e may come first), or applied as separate cmd.arg(...) statements. The shell re-parses that string, so any ;, |, && or $(...) in interpolated input runs as a command. (2) Command::new(program) where the program name comes from an axum or actix-web request extractor (Query, Json, Form, Path, web::Query<...>) directly or through one assignment. Not reported: a shell given a constant command string (a literal, raw string, ALL_CAPS constant, include_str! or concat!), a command string whose interpolated value is shell-quoted with shlex, shell-escape or shell-words nearby, a shell running a script file with arguments, a non-shell program given format!(...) or user input as a separate .arg() (no shell parsing happens), Command::new(format!(...)) for a program path, and patterns inside comments or string literals. Command strings built further away than about eight lines from Command::new are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-rust-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-rust-004/",
 	"languages": ["rust"],
 	"severity": "high",
 	"level": "error",

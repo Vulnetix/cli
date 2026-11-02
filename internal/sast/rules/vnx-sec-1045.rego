@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1045",
 	"name": "SonarQube global analysis token (sqa_)",
 	"description": "A SonarQube/SonarCloud global-analysis token (sqa_ prefix) was found. It can submit analyses across all projects the issuing user can administer.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1045",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1045",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

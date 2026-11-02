@@ -1,6 +1,6 @@
 # Binary Download
 
-This documentation has moved to **[docs.cli.vulnetix.com/docs/getting-started/curl](https://docs.cli.vulnetix.com/docs/getting-started/curl/)**.
+This documentation has moved to **[docs.vulnetix.com/cli/get-started/install](https://docs.vulnetix.com/cli/get-started/install/)**.
 
 ## Quick Start
 

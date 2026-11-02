@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-440",
 	"name": "PubNub publish key (pub-c-)",
 	"description": "A PubNub publish key (pub-c-) was found. It authorizes publishing messages to PubNub channels for the associated keyset.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-440",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-440",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

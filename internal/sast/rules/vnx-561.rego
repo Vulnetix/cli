@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-561",
 	"name": "Dead Code",
 	"description": "Code that can never run. Two shapes are reported. Unreachable statements in JavaScript/TypeScript and Python: the first statement after an unconditional return, throw/raise, break or continue at the same indentation in the same block, in semicolon-terminated and semicolon-free (standard style) JavaScript alike (a cleanup, audit or log call placed after the exit, so it silently never happens). And blocks guarded by a literal false condition in Java, JavaScript/TypeScript and Python: if (false), if (0), while (false), if False:, elif 0:, while False:. Not reported: a closing brace, else/elif/except/catch/finally, a case/default label or a dedent after the exit; JavaScript function declarations after a return (hoisted); multi-line return expressions; braceless if bodies; the generator idioms `return` followed by `yield` and `if False: yield`; `if False:` guarding type-only imports; named constants such as if (DEBUG) and TYPE_CHECKING; Java statements after an exit (javac already rejects them); comments and string literals. Conditions that are always false through a comparison are VNX-570.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-561/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-561/",
 	"languages": ["java", "node", "python"],
 	"severity": "low",
 	"level": "note",

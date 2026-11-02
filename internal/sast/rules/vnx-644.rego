@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-644",
 	"name": "HTTP response header set from request data without neutralisation",
 	"description": "A response header value is taken from the request (query string, form, path parameter, body, cookie or another request header) and written back without encoding, so script syntax or CR/LF in the value reaches every component that reads raw headers (CWE-644; the CR/LF case is also CWE-113). Reported in Python: Flask/Werkzeug resp.headers[...] = v and headers.add()/set()/setdefault(), Django response[...] = v, and a headers={...} dict passed to Response/make_response/HttpResponse/JSONResponse; in JavaScript/TypeScript: Express/Fastify res.setHeader()/set()/header()/append()/setHeaders(), Node res.writeHead() header objects, and Koa ctx.set()/ctx.response.set(). A call broken right after its opening parenthesis is read with its next three lines. The value must contain the request expression itself (request.args/form/GET/META/headers..., req.query/params/body/headers/cookies/url, ctx.query/request) or a variable assigned from one up to 10 lines above, including object destructuring. Not reported: constant header values, values passed through an encoder or sanitiser (encodeURIComponent, content-disposition, parseInt/Number/int/str(int()), urllib quote, a .replace()/re.sub() that strips characters, escape, an allow-list membership test such as ALLOWED.includes(v) or v in ALLOWED), writes to the request's own headers, other .set() receivers (Map, settings), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-644/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-644/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

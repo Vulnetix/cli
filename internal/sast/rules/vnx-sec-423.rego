@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-423",
 	"name": "Intercom access token",
 	"description": "An Intercom access token was found near an intercom assignment. Intercom tokens grant API access to conversations, contacts, and user data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-423",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-423",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

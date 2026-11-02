@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-475",
 	"name": "Stream getstream JWT server token",
 	"description": "A Stream (getstream.io) server-side JWT was found near a stream/getstream token assignment. It can grant elevated access to Stream Chat or Feeds.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-475",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-475",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

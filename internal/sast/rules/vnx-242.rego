@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-242",
 	"name": "Use of Inherently Dangerous Function",
 	"description": "A C or C++ function that cannot be called safely because it writes input of any length into a buffer it is given no size for: gets(), std::gets(), _getws(), getws(), _getts() and getwd(); and the C++ extraction of a stream (cin, wcin, or a variable declared as an istream, ifstream, istringstream, stringstream or fstream) into a char or wchar_t array with operator>> and no std::setw() before it, which is unbounded before C++20. Not reported: the bounded replacements (fgets, gets_s, fgetws, getcwd), method calls with the same name (conn.gets(), p->gets()), prototypes, #define/#undef lines, extraction into std::string or numbers, a shift expression, comments and string literals. atoi/atol/atof are not inherently dangerous (they are unsafe only on unvalidated input, CWE-676) and are not reported here.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-242/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-242/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

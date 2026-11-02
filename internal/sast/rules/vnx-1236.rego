@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1236",
 	"name": "Improper Neutralization of Formula Elements in a CSV File",
 	"description": "Reports a CSV export served to users (the file sets a text/csv content type, a .csv attachment or download name) that writes data rows through a CSV library without neutralising cells beginning with =, +, -, @, tab or carriage return, so a stored value such as =HYPERLINK(...) or =cmd|... runs as a formula when the download is opened in a spreadsheet. Reported: Python csv.writer/csv.DictWriter .writerow()/.writerows() and pandas .to_csv(); JavaScript json2csv (new Parser().parse, json2csv.parse), csv-stringify stringify(), fast-csv write/format, and papaparse Papa.unparse() without escapeFormulae; Java OpenCSV CSVWriter.writeNext()/writeAll() and Apache Commons CSV CSVPrinter.printRecord()/printRecords(). Not reported: header rows made only of string literals, files that neutralise formula cells (a sanitise/escape-formula helper, a check against the formula characters, defusedcsv, escapeFormulae: true), CSV written to local files with no HTTP download context, comments and test files. The download context and the neutralisation are judged on code with comment lines removed, so a Javadoc mentioning text/csv is not a download and a TODO saying sanitise is not a sanitiser. Building CSV lines by string concatenation from request data is VNX-140's finding.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1236/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1236/",
 	"languages": ["java", "node", "python"],
 	"severity": "medium",
 	"level": "warning",

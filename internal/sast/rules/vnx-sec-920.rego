@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-920",
 	"name": "FullContact API key",
 	"description": "A FullContact API key was found near a fullcontact assignment. It is a high-entropy alphanumeric string authorizing person and company enrichment APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-920",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-920",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

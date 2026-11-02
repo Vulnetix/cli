@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-253",
 	"name": "Incorrect Check of Function Return Value",
 	"description": "A C or C++ return value is tested against the wrong failure value, so the error path never runs and the failure goes unnoticed. Reported: a pointer-returning call (malloc, calloc, realloc, strdup, strndup, fopen, fdopen, popen, tmpfile, fgets, getenv, opendir, readdir) compared with < 0, <= -1 or == -1, directly or through the variable it was assigned to (they return NULL on failure); an mmap() result compared with NULL or tested with ! (mmap returns MAP_FAILED, not NULL); a file descriptor from open/openat/creat/socket/accept/accept4/dup/dup2/dup3/eventfd/epoll_create tested with !fd or == NULL (they return -1, and 0 is a valid descriptor); a pthread_* result compared with == -1 or < 0 (they return a positive error number); and the result of read/write/recv/recvfrom/recvmsg/send/sendto/sendmsg/pread/pwrite/readlink/getline/getdelim/snprintf stored in an unsigned variable (size_t, unsigned, uintN_t, DWORD), declared on the same line or up to 30 lines above, and then compared with < 0 or == -1, which can never be true. The variable is followed for six code lines after the assignment. Not reported: the correct checks (== NULL, == MAP_FAILED, < 0 on a signed descriptor or ssize_t, != 0 on a pthread result), tests of functions that cannot fail, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-253/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-253/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

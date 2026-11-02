@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-238",
 	"name": "TeamCity build agent authorization token",
 	"description": "A TeamCity build agent authorizationToken from buildAgent.properties was found. It authorizes a build agent to connect to the TeamCity server.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-238",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-238",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-734",
 	"name": "KuCoin API passphrase",
 	"description": "A KuCoin exchange API passphrase assigned to a kucoin context was found. Combined with the API key and secret it authorises trading and withdrawals on KuCoin.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-734",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-734",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

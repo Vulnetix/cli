@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-932",
 	"name": "Adafruit IO key (aio_)",
 	"description": "An Adafruit IO key was found. Modern AIO keys are prefixed with aio_ followed by a high-entropy alphanumeric string and authorize full read/write access to the account's feeds and dashboards.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-932",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-932",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

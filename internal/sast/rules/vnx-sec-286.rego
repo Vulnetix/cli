@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-286",
 	"name": "Modal token ID (ak-)",
 	"description": "A Modal token ID (ak- prefix) was found. Paired with a token secret it grants access to run and deploy Modal apps billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-286",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-286",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

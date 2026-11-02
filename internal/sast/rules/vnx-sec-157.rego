@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-157",
 	"name": "Render deploy hook URL",
 	"description": "A Render deploy hook URL was found. Anyone with the URL can trigger a deployment of the associated Render service without authentication.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-157",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-157",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

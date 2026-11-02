@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-123",
 	"name": "Azure AD client secret",
 	"description": "An Azure Active Directory (Entra ID) application client secret assigned to a context keyword was found. The client secret authenticates a service principal and grants the app's API permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-123",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-123",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

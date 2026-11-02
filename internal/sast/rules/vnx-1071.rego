@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1071",
 	"name": "Empty Code Block",
 	"description": "A Java control-flow block with nothing between its braces: an if, else, else if, for, while, synchronized, try, finally or do whose body is empty on one line (if (x) {}) or across lines (the brace on the next line, an empty line inside), and an if or for whose body is a stray semicolon (if (token == null); or for (Item i : items);), which makes the block that follows run unconditionally and once. A while (...); is not reported: spinning on a condition that does the work is a common idiom. An empty block usually marks unfinished or deleted logic: a check that no longer does anything. Not reported: a block holding any statement or a comment (a comment records an intentional no-op such as a documented busy-wait), empty method and constructor bodies and lambdas (no-op overrides are legitimate), empty catch blocks (VNX-1069 owns those), try-with-resources, array initialisers, test sources, and the pattern inside string literals or comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1071/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1071/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

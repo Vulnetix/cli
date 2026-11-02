@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-032",
 	"name": "Angular DomSanitizer bypass with a non-constant value",
 	"description": "Reports a call to an Angular DomSanitizer bypassSecurityTrustHtml, bypassSecurityTrustStyle, bypassSecurityTrustScript, bypassSecurityTrustUrl or bypassSecurityTrustResourceUrl whose argument is not a constant. These calls tell Angular to stop sanitising the value, so a value that carries user, API or database data becomes stored or DOM cross-site scripting. The argument may start on the line after the opening parenthesis. Not reported: a string literal or a template literal with no interpolation, an ALL_CAPS constant (or a dotted path of them), comments, and test and spec files (*.spec.ts, *.test.ts, __tests__, e2e directories). A value that was sanitised with sanitize() first is still reported, because the bypass call then re-trusts whatever remains.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-032/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-032/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

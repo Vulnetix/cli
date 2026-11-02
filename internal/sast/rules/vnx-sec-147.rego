@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-147",
 	"name": "Azure Storage connection string",
 	"description": "An Azure Storage account connection string with embedded AccountKey was found. It grants full access to the storage account's blobs, files, queues and tables.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-147",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-147",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

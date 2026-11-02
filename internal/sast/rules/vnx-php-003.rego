@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PHP-003",
 	"name": "PHP file inclusion with variable path",
 	"description": "An include, require, include_once or require_once statement whose path contains a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys), php://input, filter_input() or a Laravel/Symfony request accessor, inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable, so str_replace() blacklists of ../ or http:// still count). That is Local File Inclusion, and Remote File Inclusion where allow_url_include is on, both leading to code execution. The statement may span lines. Not reported: a path passed through basename(), intval() or a preg_replace() that deletes every character outside a letters/digits/_/- class, a file looked up in a map by the request value ($pages[$_GET['p']]; the map variable is still followed), a value checked with in_array(), array_key_exists(), isset($map[$v]) or preg_match() before the include, constant paths and __DIR__-relative paths built from constants, variables whose origin is not visible in the file (a value set in another included file or passed as a function parameter is a documented gap), and the keywords in comments (including trailing // and # comments) or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-003/",
 	"languages": ["php"],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-569",
 	"name": "FaunaDB secret key",
 	"description": "A Fauna database secret key using the fn prefix was found. Fauna admin and server keys grant broad read/write access to the database and its child databases.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-569",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-569",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

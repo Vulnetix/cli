@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-262",
 	"name": "ElevenLabs API key",
 	"description": "An ElevenLabs API key was found. It grants access to ElevenLabs text-to-speech and voice cloning billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-262",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-262",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

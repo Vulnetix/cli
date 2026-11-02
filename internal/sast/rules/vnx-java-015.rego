@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JAVA-015",
 	"name": "Java JPQL/HQL injection via string concatenation",
 	"description": "A JPQL, HQL or native SQL string passed to JPA EntityManager.createQuery/createNativeQuery or Hibernate Session.createQuery/createNativeQuery/createSelectionQuery/createMutationQuery/createNativeMutationQuery/createFilter is built from untrusted text. Reported when the query argument (the first argument) is, or names a local built from, a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies), a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier within 40 lines (concatenation, String.format, StringBuilder); and, for repository code, when the query concatenates a String parameter of the enclosing public/protected/private method into a quoted or compared value ('\" + email, LIKE '%\" + term, = \" + id, ORDER BY \" + sort) or passes it to String.format with %s, directly or through a local built a few lines above. A call that continues on the next lines is read to the end of its statement. Not reported: named (:name) and positional (?1) parameters bound with setParameter, createNamedQuery, CriteriaQuery objects, constant queries and UPPER_CASE constants, entity or table names concatenated outside a value position (generic DAOs using getSimpleName()), values converted to numbers, Session.createSQLQuery (VNX-JAVA-003 reports it with JDBC), and the pattern in comments or string literals. Flows into another method or file are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-015/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-015/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

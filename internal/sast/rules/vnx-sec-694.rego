@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-694",
 	"name": "WooCommerce consumer secret (cs_)",
 	"description": "A WooCommerce REST API consumer secret (cs_ prefix, 40 hex) was found. Paired with the consumer key it authorises read/write access to a WooCommerce store.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-694",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-694",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

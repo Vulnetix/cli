@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-767",
 	"name": "Smartsheet API access token",
 	"description": "A Smartsheet API access token was found. It grants API access to the user's sheets, reports and workspaces in Smartsheet.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-767",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-767",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

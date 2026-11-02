@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-785",
 	"name": "ServiceNow OAuth client secret",
 	"description": "A ServiceNow OAuth application client secret was found. Combined with the client ID it grants API access to the ServiceNow instance via the OAuth client credentials flow.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-785",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-785",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

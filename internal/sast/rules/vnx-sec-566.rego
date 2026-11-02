@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-566",
 	"name": "Neon database connection string",
 	"description": "A Neon Postgres connection string embedding the role password against a neon.tech host was found. It grants authenticated access to the serverless Postgres database.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-566",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-566",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

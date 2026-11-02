@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1118",
 	"name": "Flickr API key",
 	"description": "A Flickr API key (32-character hex) was found. It authorizes Flickr API photo search and read access under the app rate limits.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1118",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1118",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-652",
 	"name": "Bitcoin WIF private key",
 	"description": "A Bitcoin Wallet Import Format (WIF) private key was found. These Base58Check strings (51 chars starting 5, or 52 chars starting K/L on mainnet) directly control the spending of funds in a Bitcoin wallet.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-652",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-652",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

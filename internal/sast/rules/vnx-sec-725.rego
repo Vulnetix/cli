@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-725",
 	"name": "Ankr API key",
 	"description": "An Ankr RPC API key assigned to an ankr context was found. It authorises access to Ankr's multi-chain RPC endpoints billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-725",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-725",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

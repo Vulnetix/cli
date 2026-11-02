@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1235",
 	"name": "Incorrect Use of Autoboxing and Unboxing for Performance Critical Operations",
 	"description": "Reports Java arithmetic on a boxed numeric type inside a loop, where every iteration unboxes the value, computes, and allocates a new wrapper object: a for loop whose counter is declared as Integer, Long, Short, Byte, Double, Float or Character (for (Integer i = 0; i < n; i++)), and a local variable declared as one of those wrapper types with a numeric initial value (Long sum = 0L) that is then updated with ++, --, +=, -=, *=, /= or x = x + ... inside a for, while or do loop opened after it within the next 40 lines, including a single-statement loop body on the loop header line. Not reported: primitive counters and accumulators, enhanced-for loops over a List<Integer> (the element must be boxed anyway), wrapper variables that are only compared or reassigned, updates outside the loop, fields declared with an access modifier, comments and strings. This is a performance weakness: in a hot path the allocations raise GC pressure and latency, which is how it becomes a denial-of-service concern.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1235/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1235/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

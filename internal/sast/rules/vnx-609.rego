@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-609",
 	"name": "Double-Checked Locking",
 	"description": "Reports Java double-checked lazy initialisation on a field that is not volatile: a synchronized (...) block immediately preceded by `if (x == null)`, `if (null == x)` or `if (!flag)` and whose first statement repeats the same check, where x is a field of the same file (declared with private/protected/public/static, annotations such as @Nullable before the modifiers included) without the volatile modifier. Under the Java memory model another thread can see the reference before the constructor's writes, or the flag before the data it guards. Not reported: a volatile field, the local-variable idiom (Helper h = helper; if (h == null) ...) over a volatile field, a single check inside a synchronized method or block, AtomicReference checks, the holder-class idiom, fields declared in another file, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-609/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-609/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

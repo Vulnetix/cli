@@ -2,11 +2,14 @@
 // source of truth: the embedded catalog (internal/aibom/catalog/*.json).
 //
 // It validates the catalog (every regex/glob compiles) and then writes:
-//   - website/content/docs/aibom/_index.md
-//   - website/content/docs/aibom/supported-tools.md
-//   - website/content/docs/aibom/libraries.md
-//   - website/content/docs/aibom/catalog-format.md
-//   - website/content/docs/cli-reference/aibom.md
+//   - docs/generated/aibom/supported-tools.md
+//   - docs/generated/aibom/libraries.md
+//   - docs/generated/aibom/infrastructure.md
+//   - docs/generated/aibom/catalog-format.md
+//
+// These pages are not published from this repository. The platform docs
+// (docs.vulnetix.com, Vulnetix/platform-docs) copy them from a cli checkout with
+// migration/generators/sbom-catalog-pages.py, so they must stay committed.
 //
 // Docs therefore can never drift from the detection rules. Run via:
 //
@@ -36,14 +39,12 @@ func main() {
 		fail(fmt.Errorf("catalog failed validation: %w", err))
 	}
 
-	docs := filepath.Join(root, "website", "content", "docs")
+	docs := filepath.Join(root, "docs", "generated")
 	writes := map[string]string{
-		filepath.Join(docs, "aibom", "_index.md"):          indexMD(cat),
 		filepath.Join(docs, "aibom", "supported-tools.md"): toolsMD(cat),
 		filepath.Join(docs, "aibom", "libraries.md"):       librariesMD(cat),
 		filepath.Join(docs, "aibom", "infrastructure.md"):  infrastructureMD(cat),
 		filepath.Join(docs, "aibom", "catalog-format.md"):  formatMD(),
-		filepath.Join(docs, "cli-reference", "aibom.md"):   commandMD(),
 	}
 	for path, body := range writes {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -98,46 +99,6 @@ func fail(err error) {
 }
 
 // ---- markdown builders ---------------------------------------------------
-
-func indexMD(cat *aibom.Catalog) string {
-	agents, services, conventions := 0, 0, 0
-	for _, t := range cat.Tools {
-		switch t.Type {
-		case "service":
-			services++
-		case "convention":
-			conventions++
-		default:
-			agents++
-		}
-	}
-	var b strings.Builder
-	b.WriteString(`---
-title: "AIBOM"
-weight: 7
-description: "Discover AI coding agents and AI usage, and emit a CycloneDX AI Bill of Materials."
----
-
-`)
-	b.WriteString("The `vulnetix aibom` command discovers evidence of AI coding agents/assistants and AI usage in a project and produces an **AI Bill of Materials (AIBOM)** in CycloneDX 1.7 format.\n\n")
-	b.WriteString("> **This page is generated** from the detection catalog (`internal/aibom/catalog/*.json`). Run `just gen-aibom` after editing the catalog.\n\n")
-	b.WriteString("## What it detects\n\n")
-	b.WriteString("Three passes, all driven by a maintainable catalog:\n\n")
-	b.WriteString("- **Environment** — known AI tool / provider environment-variable *names*. Values are never read or emitted, so secrets never leak into the AIBOM.\n")
-	b.WriteString("- **Filesystem** — tool config directories, instruction files, ignore files, skills, hooks, plugins, steering, memory, prompts, agents, commands and marketplace manifests.\n")
-	b.WriteString("- **Source code** — AI SDK/framework usage per language, and the model-name literals passed to them. Model names are extracted by anchoring on the SDK parameter (`model=`, `modelId=`, `deployment_name=`), so **future / unknown model names are still captured**.\n")
-	b.WriteString("- **Commit history** — commits authored by an AI agent, identified by `Co-Authored-By` trailers, session markers (e.g. `Claude-Session:`), agent bot authors, or \"Generated with <tool>\" lines. Catches agent use that left no file/env/source trace.\n")
-	b.WriteString("- **IaC** — Kubernetes manifests (incl. KServe / Kubeflow / KubeRay CRDs), docker-compose files and Dockerfiles: AI serving runtimes, agent platforms, vector databases, training/eval frameworks, declared model identities, model-artifact volumes and GPU requests. Anything that cannot be verified from the file carries an explicit confidence gap.\n\n")
-	fmt.Fprintf(&b, "The builtin catalog (version `%s`) covers **%d AI coding agents**, **%d AI provider services**, **%d conventions**, and **%d AI SDKs** across many languages.\n\n",
-		cat.Version, agents, services, conventions, len(cat.Libraries))
-	b.WriteString("{{< cards >}}\n")
-	b.WriteString("  {{< card link=\"supported-tools\" title=\"Supported Agents\" subtitle=\"Every AI coding tool & provider the catalog detects.\" icon=\"chip\" >}}\n")
-	b.WriteString("  {{< card link=\"libraries\" title=\"AI SDKs\" subtitle=\"SDKs detected and the model parameters extracted.\" icon=\"code\" >}}\n")
-	b.WriteString("  {{< card link=\"catalog-format\" title=\"Catalog Format\" subtitle=\"Extend or override detection with --catalog.\" icon=\"document-text\" >}}\n")
-	b.WriteString("  {{< card link=\"../cli-reference/aibom\" title=\"Command Reference\" subtitle=\"vulnetix aibom flags and examples.\" icon=\"terminal\" >}}\n")
-	b.WriteString("{{< /cards >}}\n")
-	return b.String()
-}
 
 func toolsMD(cat *aibom.Catalog) string {
 	tools := append([]aibom.ToolDef(nil), cat.Tools...)
@@ -405,62 +366,6 @@ Family hints map a model-name prefix to a provider/family. They only enrich conf
 ` + "```" + `
 
 All patterns are Go RE2 (no backreferences/lookaround). The catalog is validated (every pattern compiles, every extractor has a capture group) at load time and by ` + "`just gen-aibom`" + `.
-`
-}
-
-func commandMD() string {
-	return `---
-title: "AIBOM Command Reference"
-weight: 8
-description: "Discover AI coding agents and AI usage, and emit a CycloneDX AI Bill of Materials."
----
-
-The ` + "`aibom`" + ` command discovers evidence of AI coding agents/assistants and AI usage in a project and produces an **AI Bill of Materials (AIBOM)** in CycloneDX 1.7 format. See [AIBOM](../aibom/) for what is detected and the catalog format.
-
-## Usage
-
-` + "```bash" + `
-vulnetix aibom [path] [flags]
-` + "```" + `
-
-## Flags
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| ` + "`--path`" + ` | string | ` + "`.`" + ` | Directory to scan (a positional ` + "`[path]`" + ` argument overrides this) |
-| ` + "`--depth`" + ` | int | ` + "`25`" + ` | Maximum recursion depth for file discovery |
-| ` + "`--ignore`" + ` | stringArray | - | Exclude paths matching glob pattern (repeatable) |
-| ` + "`-o, --output`" + ` | string | ` + "`cyclonedx-json`" + ` | Output format: ` + "`cyclonedx-json`, `json`, `table`" + ` |
-| ` + "`--output-file`" + ` | string | - | Write output to this file instead of stdout |
-| ` + "`--spec-version`" + ` | string | ` + "`1.7`" + ` | CycloneDX spec version: ` + "`1.6`" + ` or ` + "`1.7`" + ` |
-| ` + "`--catalog`" + ` | string | - | Catalog file to merge over (or replace) the builtin catalog |
-| ` + "`--no-builtin-catalog`" + ` | bool | ` + "`false`" + ` | Do not load the embedded catalog (use only ` + "`--catalog`" + `) |
-| ` + "`--no-env`" + ` | bool | ` + "`false`" + ` | Skip the environment-variable detection pass |
-| ` + "`--include-home`" + ` | bool | ` + "`false`" + ` | Also probe the user's home directory for tool config dirs |
-| ` + "`--no-source`" + ` | bool | ` + "`false`" + ` | Skip the source-code SDK / model detection pass |
-| ` + "`--no-commits`" + ` | bool | ` + "`false`" + ` | Skip the git commit-history detection pass |
-| ` + "`--commit-scan-max`" + ` | int | ` + "`2000`" + ` | Max commits (from HEAD) the commit-history pass inspects |
-| ` + "`--aibom-include-ignored`" + ` | bool | ` + "`false`" + ` | Include files matched by ` + "`.gitignore`" + ` (default: gitignored paths are skipped) |
-
-## Output
-
-- ` + "`cyclonedx-json`" + ` (default) — a CycloneDX AIBOM. AI coding tools map to ` + "`application`" + ` components, AI SDKs to ` + "`library`" + ` components, and model names to ` + "`machine-learning-model`" + ` components (each with a ` + "`modelCard`" + `). Evidence rides on component ` + "`properties`" + ` under the ` + "`vulnetix:ai/*`" + ` namespace. The document is schema-validated before it is written.
-- ` + "`table`" + ` — a human-readable summary.
-- ` + "`json`" + ` — the raw detection result.
-
-## Examples
-
-` + "```bash" + `
-vulnetix aibom                                  # scan ., emit CycloneDX AIBOM to stdout
-vulnetix aibom ./myproject -o table             # human-readable summary
-vulnetix aibom --output-file aibom.cdx.json     # write the AIBOM to a file
-vulnetix aibom --no-env --no-source             # filesystem evidence only
-vulnetix aibom --catalog ./extra-rules.json     # extend the builtin catalog
-` + "```" + `
-
-## Privacy
-
-The environment pass records only variable **names** and their presence — never their values. No source content is uploaded.
 `
 }
 

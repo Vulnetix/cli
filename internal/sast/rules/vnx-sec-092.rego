@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-092",
 	"name": "Netlify API token (nf*_)",
 	"description": "A Netlify API token using an nfp_/nfc_/nfo_/nfu_/nfb_ prefix was found, granting access to site deployments and account settings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-092",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-092",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

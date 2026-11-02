@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-289",
 	"name": "RunPod API key",
 	"description": "A RunPod API key was found. RunPod uses an rpa_ prefixed secret granting access to GPU pods and serverless endpoints billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-289",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-289",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

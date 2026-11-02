@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-615",
 	"name": "Grafana Cloud access policy token",
 	"description": "A Grafana Cloud access policy token using the glc_ prefix was found. It authenticates to Grafana Cloud APIs (metrics, logs, traces, stack management) per the access policy's scopes.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-615",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-615",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-236",
 	"name": "Spacelift API key secret",
 	"description": "A Spacelift API key secret paired with an API key ID was found. Together they exchange for a Spacelift API JWT granting IaC management access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-236",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-236",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

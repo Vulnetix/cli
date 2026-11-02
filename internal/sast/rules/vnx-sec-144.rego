@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-144",
 	"name": "UpCloud API credentials context",
 	"description": "An UpCloud API password assigned to a context keyword was found. UpCloud uses username/password API credentials that grant access to manage the account's cloud servers and storage.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-144",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-144",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

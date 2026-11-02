@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUBY-002",
 	"name": "eval() or system() in Ruby",
 	"description": "Request input reaches a Ruby code or shell evaluator: eval, instance_eval, class_eval or module_eval given a string, or a shell command run by system, exec, spawn, Kernel#open, IO.popen, backticks or %x() in its single-string (shell) form, or in the argument-list form that runs a shell anyway (system(\"sh\", \"-c\", cmd)). Request input is params, request.params/body/query_string/headers/cookies/env/path/url/referer/user_agent, cookies, Rack env request keys or an upload's original_filename, used on the call line or through a variable assigned from it (up to two assignments) in the 12 lines above. Not reported: constant commands and code strings, the argument-list form (system(\"ping\", \"-c\", \"1\", host), IO.popen([...])), input passed through Shellwords.escape/shellescape or converted with to_i/to_f, a variable assigned from a constant table keyed by the input (COMMANDS.fetch(params[:task])), block forms (instance_eval do ... end), receivers other than Kernel/Process (File.open, conn.exec), text inside string literals and comments. Metaprogramming that interpolates method names, ARGV and data read from local files are deliberately out of scope; Open3 calls are VNX-RUBY-008.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-ruby-002/",
 	"languages": ["ruby"],
 	"severity": "high",
 	"level": "error",

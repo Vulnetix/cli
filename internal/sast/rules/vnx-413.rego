@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-413",
 	"name": "Improper Resource Locking",
 	"description": "Reports Java code that believes it holds exclusive access but may not, or that cannot reliably give it up. (1) `x.tryLock(...)` as a bare statement: the result is discarded, so the code proceeds whether or not it got the lock (java.util.concurrent locks and FileChannel). (2) `synchronized (new ...)`: every thread locks a fresh object, so nothing is excluded. (3) `x.lock()` / `x.lockInterruptibly()` on a java.util.concurrent Lock (a field or local declared Lock/ReentrantLock/ReadWriteLock/ReentrantReadWriteLock, or `rw.readLock()`/`rw.writeLock()`) whose unlock in the same method is not in a finally block, or that is never unlocked anywhere in the file: an exception leaves the lock held and every later caller blocks. Not reported: lock() followed by try { ... } finally { x.unlock(); }, a checked or assigned tryLock result, a lock taken in one method and released in another (acquire/close pairs), lock() on types that are not concurrency locks, test files, comments and strings. Kotlin withLock and locks passed between objects are out of scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-413/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-413/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

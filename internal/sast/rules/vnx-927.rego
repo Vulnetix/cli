@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-927",
 	"name": "Implicit Intent broadcast that any app can receive",
 	"description": "Reports an Android broadcast that any installed app can receive (CWE-927) in Java and Kotlin: sendBroadcast(i), sendOrderedBroadcast(i, null[, resultReceiver, ...]) or sendBroadcastAsUser(i, user) with no receiver permission (the call's arguments may start on the next line), where i is built a few lines above as an implicit Intent (new Intent(), new Intent(\"action\") or new Intent(ACTION_CONSTANT), Kotlin Intent(...)) and no setPackage/setComponent/setClass/setClassName (or package/component assignment) makes it explicit before the send; the same call with the implicit Intent built inline; and every sendStickyBroadcast/sendStickyOrderedBroadcast, whose extras any app can read back. Not reported: a broadcast with a permission argument, explicit Intents (new Intent(context, Receiver.class) or one given a package or component), LocalBroadcastManager sends, comments and strings. Intents built in another method or passed in as a parameter are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-927/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-927/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

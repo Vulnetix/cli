@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-519",
 	"name": "Zoom Server-to-Server OAuth client secret",
 	"description": "A Zoom Server-to-Server OAuth app client secret was found. Combined with the account and client ID it grants API access to the Zoom account's meetings and users.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-519",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-519",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

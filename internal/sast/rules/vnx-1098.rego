@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-1098",
 	"name": "Data Element containing Pointer Item without Proper Copy Control Element",
 	"description": "A C++ class owns memory through a raw pointer (its destructor releases it with delete, delete[] or free()) but declares no copy constructor. The compiler then generates a shallow copy that duplicates the pointer, so the first copy destroyed frees memory the other still uses: a double free or use-after-free when the object is passed or returned by value or stored in a container (the rule of three). Reported: the destructor, inline (~Name() { delete p; }) or out of line (Name::~Name()). Not reported: classes that declare a copy constructor, including a deleted one (Name(const Name&) = delete) and a template one (Name(const Name<T>&)), classes deriving from QObject or another Qt QObject type (which deletes its copy), declare a move constructor or move assignment (which suppresses the implicit copy), are marked non-copyable (boost::noncopyable, DISALLOW_COPY_AND_ASSIGN, Q_DISABLE_COPY and similar), destructors that release nothing, and comments. A copy constructor declared in another file of the scan counts. Smart-pointer members need no destructor and are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1098/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1098/",
 	"languages": ["cpp"],
 	"severity": "low",
 	"level": "note",

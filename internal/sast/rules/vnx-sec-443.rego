@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-443",
 	"name": "Stream (getstream) API secret",
 	"description": "A Stream (getstream.io) API secret was found near a stream/getstream assignment. It is a long alphanumeric secret that signs Stream Chat and Feeds server tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-443",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-443",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

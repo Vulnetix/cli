@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-389",
 	"name": "Wise API token (raw UUID, no keyword)",
 	"description": "A Wise (TransferWise) personal API token in raw UUID form appearing in a wise context was found. It authorizes balance, transfer and recipient operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-389",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-389",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

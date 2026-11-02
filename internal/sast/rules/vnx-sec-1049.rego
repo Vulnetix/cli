@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1049",
 	"name": "Aqua Security API key (assignment)",
 	"description": "An Aqua Security API key assigned to an aqua field was found. Paired with the API secret it authenticates requests to the Aqua cloud-native security platform.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1049",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1049",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

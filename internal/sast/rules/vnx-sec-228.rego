@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-228",
 	"name": "Bitbucket Pipelines OIDC/step token",
 	"description": "A Bitbucket Pipelines step access token assigned to a context variable was found. It grants scoped repository access during a pipeline run and must not be persisted.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-228",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-228",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

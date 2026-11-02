@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1054",
 	"name": "Prisma Cloud access key secret (assignment)",
 	"description": "A Prisma Cloud (Palo Alto) access key secret assigned to a prisma field was found. With the access key ID it authenticates to the Prisma Cloud CSPM/CWP APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1054",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1054",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

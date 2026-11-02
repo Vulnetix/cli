@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-318",
 	"name": "OctoAI token (assignment context)",
 	"description": "An OctoAI API token referenced via an OCTOAI_TOKEN assignment was found, confirming a live OctoAI credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-318",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-318",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

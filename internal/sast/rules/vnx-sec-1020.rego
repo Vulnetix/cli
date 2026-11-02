@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1020",
 	"name": "Snyk API token (UUID, assignment)",
 	"description": "A Snyk API token (UUID) assigned to a snyk token field was found. It grants programmatic access to Snyk project scans, issues and organization settings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1020",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1020",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

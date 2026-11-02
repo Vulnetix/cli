@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-270",
 	"name": "Privilege Context Switching Error",
 	"description": "A program is started after only a temporary privilege drop: the effective user ID is lowered (seteuid(uid), setreuid(-1, uid), setresuid(-1, uid, -1), os.seteuid(uid), os.setreuid(-1, uid)) and then, in the same function and with no permanent drop in between, the process execs or spawns another program. The new program keeps root as its real user ID and can switch straight back to root, so the context switch into the less trusted program never happened. Reported in C and C++ for execl/execlp/execle/execv/execvp/execvpe/execve, system, popen and posix_spawn/posix_spawnp, and in Python for os.exec*, os.system, os.popen, os.spawn* and subprocess.run/call/check_call/check_output/Popen and asyncio.create_subprocess_exec/shell. A C/C++ function is bounded by a column-0 brace or a function header, so inline class methods are judged separately. Not reported: a permanent drop (setuid(uid), setresuid(uid, uid, uid), setreuid(uid, uid), os.setuid, or a drop_privileges()/drop_root()-style wrapper) before the exec, root restored with seteuid(0) before the exec (the program then runs as root deliberately; VNX-272 judges that), subprocess calls with user=, the two calls in different functions, and the names in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-270/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-270/",
 	"languages": ["c", "cpp", "python"],
 	"severity": "low",
 	"level": "note",

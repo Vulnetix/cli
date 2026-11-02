@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-006",
 	"name": "Django DEBUG=True",
 	"description": "A Django settings module turns DEBUG on for the deployment it configures: a top-level DEBUG = True, or DEBUG read from the environment with True as the default when the variable is unset (os.environ.get(\"DEBUG\", True), os.getenv(\"DEBUG\", \"True\") == \"True\", env.bool(\"DEBUG\", default=True), config(\"DEBUG\", default=True)). DEBUG pages expose tracebacks, local variables, settings and SQL to any visitor. A settings module is settings.py, settings_<name>.py / <name>_settings.py, or any module of a settings/ package; settings.py must look like Django (INSTALLED_APPS, ROOT_URLCONF, MIDDLEWARE, SECRET_KEY, ALLOWED_HOSTS, DATABASES or a django import). Not reported: development, local, test and CI settings modules (dev.py, local.py, settings_test.py), a base/common module of a settings package whose sibling module sets DEBUG to something other than True, DEBUG = True inside an if block, environment reads defaulting to False, other names such as DEBUG_TOOLBAR or TEMPLATE_DEBUG, test paths, and non-Django settings.py files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-006/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",

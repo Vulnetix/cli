@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-380",
 	"name": "Paddle webhook/notification secret",
 	"description": "A Paddle webhook signing secret using the pdl_ntfset_ form was found. Exposure lets attackers forge Paddle webhook signatures.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-380",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-380",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

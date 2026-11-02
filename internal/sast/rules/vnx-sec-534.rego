@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-534",
 	"name": "LaunchDarkly API access token (api-)",
 	"description": "A LaunchDarkly REST API access token (api- prefix) was found. It grants administrative control over LaunchDarkly projects, environments and flags.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-534",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-534",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

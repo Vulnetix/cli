@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-168",
 	"name": "Improper Handling of Inconsistent Special Elements",
 	"description": "CSV is parsed by splitting each line on every comma, which ignores CSV quoting: a comma inside a quoted field (\"Smith, John\") is treated the same as a field separator, so columns shift and a value lands in the wrong field (role, amount, email). Reported: Python/JavaScript/TypeScript/Java .split(\",\") (also the regex spellings /,/ and \"\\\\s*,\\\\s*\", re.split and a chained .split(\",\") on a continuation line), Go strings.Split/SplitN(x, \",\"), and PHP explode(\",\", ...) and preg_split('/,/', ...) within 25 code lines of a CSV reference (.csv, text/csv, a csv-named variable or upload field such as contacts_csv) in a file that uses no CSV parser (Python csv/pandas, papaparse/csv-parse/csv-parser/fast-csv/d3-dsv, OpenCSV/Commons CSV/Jackson CSV/univocity, Go encoding/csv, PHP fgetcsv/str_getcsv/League\\Csv). Not reported: comma-separated values that are not CSV (headers, environment variables, tag lists) away from any CSV reference, a comma list read from configuration (process.env, os.environ/getenv, System.getenv, config./settings. objects) or from a request parameter (req.query/req.body, request.args/form, $_GET/$_POST, FormValue, getParameter) even next to CSV code, a split of a string literal, files that parse CSV with a library, comments and string literals, test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-168/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-168/",
 	"languages": ["python", "node", "java", "go", "php"],
 	"severity": "low",
 	"level": "note",

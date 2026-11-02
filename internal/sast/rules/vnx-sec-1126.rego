@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1126",
 	"name": "Optimizely SDK datafile token",
 	"description": "An Optimizely SDK key / datafile access token was found. It authorizes fetching the Optimizely feature-flag datafile and experiment configuration for the environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1126",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1126",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-464",
 	"name": "Infobip Basic auth API key (App)",
 	"description": "An Infobip App-scheme API key was found near an infobip authorization header. The App {key} scheme authorizes Infobip omnichannel messaging.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-464",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-464",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

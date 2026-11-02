@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-052",
 	"name": "Artifactory / JFrog API key",
 	"description": "Reports a JFrog Artifactory credential as a whole token in any file: a legacy API key (AKCp followed by 69 letters and digits, 73 characters) or a reference/access token (cmVmd followed by 59 letters and digits, 64 characters), for example in .npmrc, gradle.properties, an X-JFrog-Art-Api header or a Bearer header. Either grants the owner's access to the Artifactory repositories, so artifacts can be read or replaced. Not reported: the prefix inside a longer alphanumeric run (base64 data), shorter lookalikes such as base64 of 'refund', placeholder bodies, environment references, and test, fixture or vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-052/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-052/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

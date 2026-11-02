@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-077",
 	"name": "Mapbox access token",
 	"description": "Reports a Mapbox public access token as a whole token in any file: pk. followed by its base64url payload (eyJ...), a dot and a 22-character signature, quoted, assigned (mapboxgl.accessToken = ...), in a tile or API URL (?access_token=pk...) or in a .env file. Public tokens are designed to ship in browser code, so a finding asks you to confirm the token is URL- and scope-restricted, and to rotate it if it is not. Not reported: secret (sk.) tokens, which VNX-SEC-904 reports, placeholder or low-entropy bodies, environment references, and test, fixture, Jest __mocks__, vendored, minified and generated files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-077/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-077/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

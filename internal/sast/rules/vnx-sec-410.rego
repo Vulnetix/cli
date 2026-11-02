@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-410",
 	"name": "Plivo Auth ID (SA subaccount)",
 	"description": "A Plivo subaccount Auth ID using the SA prefix was found. It is a 20-character identifier paired with a subaccount Auth Token.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-410",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-410",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

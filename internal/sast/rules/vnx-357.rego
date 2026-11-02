@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-357",
 	"name": "Destructive link or button without a confirmation step",
 	"description": "A link or button that issues a DELETE request in one click carries no confirmation, although the framework offers one on the same element, so a stray click or a click on a mis-rendered row destroys data without warning. Reported in Rails views and helpers (.erb, .haml, .slim, .rb): link_to / button_to with method: :delete (or :method => :delete, data: { turbo_method: :delete } or data: { \"turbo-method\": :delete }) whose call, followed across continuation lines, has no confirm:, data-confirm or turbo_confirm; and in HTML/templates (.html, .htm, .erb, .ejs, .hbs, .php, .twig, .jinja, .j2): an <a ... data-method=\"delete\"> (rails-ujs / jquery-ujs) or data-turbo-method=\"delete\" (Turbo) tag, read past ERB/PHP tags inside its attributes, with no data-confirm or data-turbo-confirm. Not reported: elements that ask for confirmation, GET/PATCH/POST links, sign-out links (a DELETE of the session: sign_out, logout, destroy_user_session_path, /session), prose, ERB and HTML comments, and buttons wired to a JavaScript handler (onclick=, (click)=, @click=), because whether that handler confirms is decided elsewhere.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-357/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-357/",
 	"languages": ["ruby", "html"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-192",
 	"name": "Drone CI token",
 	"description": "A Drone CI user token was found. It authenticates to the Drone API and can trigger builds and read secrets for the user's repositories.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-192",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-192",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

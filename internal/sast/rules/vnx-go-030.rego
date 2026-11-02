@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-030",
 	"name": "Missing Secure flag on cookie",
 	"description": "A cookie the server sends to the browser is not marked Secure, so the browser also sends it over plain HTTP where a network attacker can read it. Reported: an http.Cookie, fiber.Cookie or gorilla sessions.Options literal with no Secure field or with Secure: false that is passed to http.SetCookie/c.SetCookie/c.Cookie, returned to a caller, or assigned to a variable that is (session.Options = &sessions.Options{...} configures every session cookie); a new(http.Cookie) that is sent without .Secure being set; gin c.SetCookie(name, value, maxAge, path, domain, false, httpOnly); csrf.Secure(false); x.Secure = false / store.Options.Secure = false; a hand-written Set-Cookie header (w.Header().Set/Add(\"Set-Cookie\", ...)) whose attributes on that line include no Secure; and sessions.NewCookieStore/NewFilesystemStore in a project that never sets the store's Options (their default leaves Secure off). Not reported: Secure set to true or to any expression (Secure: !isLocal, r.TLS != nil, a config value), a deletion cookie (MaxAge negative, Expires at the Unix epoch), cookies a client sends (req.AddCookie, a cookie jar, a []*http.Cookie built to send), test files, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-030/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-030/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

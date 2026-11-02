@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-042",
 	"name": "Slack webhook URL",
 	"description": "Reports a complete Slack webhook URL written into a file: an incoming webhook (hooks.slack.com/services/T<team>/B<bot>/<24-character secret>) and a Workflow Builder or trigger webhook (hooks.slack.com/workflows/... or /triggers/... ending in a 32-character secret), including the JSON-escaped spelling (https:\\/\\/hooks.slack.com\\/services\\/...).Anyone holding the URL can post into the channel. The snippet is redacted. Not reported: a URL missing its secret segment, placeholder URLs (T00000000/B00000000/XXXXXXXX..., EXAMPLE), URLs built from the environment, and test, fixture and vendored paths. VNX-SEC-007 and the generated VNX-SEC-727 also report incoming webhook URLs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-042/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-042/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

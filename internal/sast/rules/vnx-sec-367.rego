@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-367",
 	"name": "Braintree private key",
 	"description": "A Braintree API private key was found near a braintree/private_key assignment. Combined with the public key and merchant id it authorizes full live API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-367",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-367",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

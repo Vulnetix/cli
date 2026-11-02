@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-354",
 	"name": "Lithic API key",
 	"description": "A Lithic API key was found near a lithic assignment. Lithic keys authorize virtual-card issuing and transaction operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-354",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-354",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-499",
 	"name": "Storyblok personal access token",
 	"description": "A Storyblok personal access token for the Management API was found. It grants write access across all spaces the user can manage.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-499",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-499",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

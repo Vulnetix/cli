@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1134",
 	"name": "GameAnalytics game key",
 	"description": "A GameAnalytics game key (32-character hex) was found. Paired with the secret key it identifies the game for analytics event submission.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1134",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1134",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

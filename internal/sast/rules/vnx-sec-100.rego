@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-100",
 	"name": "Linear API key (lin_api_)",
 	"description": "A Linear API key (lin_api_ prefix) was found, granting access to the workspace's issues and projects.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-100",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-100",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

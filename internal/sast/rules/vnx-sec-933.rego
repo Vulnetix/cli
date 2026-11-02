@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-933",
 	"name": "Ubidots API token",
 	"description": "A Ubidots IoT API token was found near a ubidots assignment. It is a high-entropy token (often prefixed BBFF-) authorizing device and variable access on Ubidots.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-933",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-933",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

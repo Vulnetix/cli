@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-688",
 	"name": "TikTok client secret",
 	"description": "A TikTok for Developers client secret assigned to a tiktok context was found. It authenticates the TikTok OAuth app for the Open API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-688",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-688",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-870",
 	"name": "Campaign Monitor API key",
 	"description": "A Campaign Monitor API key was found. It grants access to the account's subscriber lists, campaigns and transactional email in the Campaign Monitor API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-870",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-870",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

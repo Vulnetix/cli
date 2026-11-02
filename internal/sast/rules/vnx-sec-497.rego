@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-497",
 	"name": "Contentful Content Preview API token",
 	"description": "A Contentful Content Preview API access token was found. It grants read access to draft and published content in a Contentful space.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-497",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-497",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

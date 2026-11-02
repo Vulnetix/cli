@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-939",
 	"name": "Improper Authorization in Handler for Custom URL Scheme",
 	"description": "An Android deep-link handler acts on the incoming link without checking where it points. Any app or web page can open a custom-scheme (myapp://) or app link, so the URI is attacker-chosen. Reported, in Java and Kotlin: the launching Intent's data (getIntent().getData()/getDataString(), intent.data/intent.dataString, intent?.data) or a query parameter or path segment read from it, passed to a WebView loadUrl/postUrl/loadDataWithBaseURL, parsed into an Intent with Intent.parseUri, or used to pick a component (setClassName, new ComponentName, Class.forName), directly, through up to two variable assignments in the 25 lines above, or as the parameter of a let/also/run lambda opened on the link (intent?.data?.let { webView.loadUrl(it.toString()) }). Not reported: a link whose host, scheme or value is checked first (getHost/host, getScheme/scheme, startsWith, equals, an allowlist or validator call) between the read and the sink (a null or emptiness test is not such a check); constant URLs; intent string extras (VNX-ANDROID-002 covers those for JavaScript-enabled WebViews); test code, comments and strings. Flows across methods or files are not followed, and the manifest's intent-filter is not read.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-939/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-939/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

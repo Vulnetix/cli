@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-41",
 	"name": "Improper Resolution of Path Equivalence",
 	"description": "A directory-containment check (startsWith/startswith/is_relative_to/strings.HasPrefix against a base directory) is made on a path that was never canonicalised, so an equivalent spelling of an outside path (base/../etc/passwd, a doubled separator) passes the check. Reported: Java File.getAbsolutePath()/getAbsoluteFile()/getPath(), Path.resolve()/Paths.get()/Path.of()/toAbsolutePath() checked with startsWith, inline or through a variable assigned in the 15 lines above; Python os.path.join() or string concatenation checked with startswith, and a pathlib path checked with is_relative_to without resolve(); JavaScript/TypeScript paths built by concatenation or a template literal from a base directory and checked with startsWith; Go paths built by concatenation or fmt.Sprintf checked with strings.HasPrefix. Not reported: paths canonicalised before the check (getCanonicalPath, normalize(), toRealPath, os.path.realpath/abspath/normpath, Path.resolve(), path.resolve/normalize/join, fs.realpath, filepath.Join/Clean/Abs/EvalSymlinks, path.Join/Clean), including a later reassignment of the variable to its canonical form, prefix checks against a non-path literal such as \"https://\", and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-41/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-41/",
 	"languages": ["go", "java", "node", "python"],
 	"severity": "medium",
 	"level": "warning",

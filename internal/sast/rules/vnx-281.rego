@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-281",
 	"name": "Improper Preservation of Permissions",
 	"description": "A file is replaced through a temporary copy without carrying the original's permissions over, so a file the administrator restricted (0600 credentials, an ACL or key store) comes back readable by group or others. Reported in C and C++ (sources and headers): rename(), renameat(), std::rename() or std::filesystem::rename() of a temporary whose creation in the 60 lines above gives it a default or group/other-accessible mode (fopen(tmp, \"w\"),std::ofstream/fstream, open(tmp, ...O_CREAT..., 0644), creat(tmp, 0666)), or an owner-only temporary (mkstemp, open with 0600) widened by a literal chmod/fchmod such as fchmod(fd, 0644). Not reported: a temporary whose mode is taken from elsewhere (st_mode, or chmod/fchmod with any mode that is not a literal: a variable, macro, cast or call), a temporary created under umask(077), an owner-only temporary (including open() whose mode sits two lines below the call) that is never widened, a rename that moves an existing file (such as a log opened with fopen(path, \"a\") and rotated),creating a new file without replacing one, and comments or string literals. Whether the replaced file was ever more restrictive than the new mode is decided at run time and is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-281/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-281/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

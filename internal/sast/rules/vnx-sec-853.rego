@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-853",
 	"name": "Mercado Libre access token (APP_USR)",
 	"description": "A Mercado Libre access token (APP_USR prefix) was found. It grants delegated access to the seller's listings, orders and account on Mercado Libre.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-853",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-853",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

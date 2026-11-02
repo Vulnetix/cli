@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-837",
 	"name": "Improper Enforcement of a Single, Unique Action",
 	"description": "A Stripe call that moves money (Charge/PaymentIntent/Refund/Transfer/Payout/Topup create in Python, including the StripeClient payment_intents/charges/refunds/transfers/payouts services; stripe.charges/paymentIntents/refunds/transfers/payouts/topups.create in JavaScript/TypeScript, on any receiver named like stripe or bound by new Stripe(...) or require('stripe')(...)) made without an idempotency key. A retried request, a double-submitted form or a replayed webhook then charges, refunds or pays out twice, because nothing makes the action happen once. Not reported: a call whose arguments or the ten lines above it name an idempotency key in code (idempotency_key=, {idempotencyKey: ...}, an options dict built just before; a comment mentioning idempotency does not count), read calls (retrieve, list), creates that do not move money (customers, products), test code, and the call in comments or string literals. Other single-use actions (coupons, votes) have no recognisable API and are not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-837/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-837/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

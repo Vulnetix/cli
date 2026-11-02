@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-488",
 	"name": "WorkOS API key (live)",
 	"description": "A WorkOS live API secret key (sk_live_ prefix) was found. It grants server-side access to the WorkOS organisation including SSO, directory sync and audit logs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-488",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-488",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

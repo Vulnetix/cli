@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-781",
 	"name": "Improper Address Validation in IOCTL with METHOD_NEITHER I/O Control Code",
 	"description": "A Windows kernel driver reads the raw user-mode buffer pointer of a METHOD_NEITHER IOCTL without validating it, so a user process can pass a kernel address and make the driver read or write kernel memory. Reported, in C and C++ driver sources: a read of IO_STACK_LOCATION Parameters.DeviceIoControl.Type3InputBuffer or of Irp->UserBuffer, or a KMDF WdfRequestRetrieveUnsafeUserInputBuffer/OutputBuffer call, when no ProbeForRead, ProbeForWrite, MmProbeAndLockPages or WdfRequestProbeAndLockUserBufferForRead/ForWrite call appears in the 30 code lines above or 40 below it. Not reported: METHOD_BUFFERED and direct-I/O buffers (AssociatedIrp.SystemBuffer, MdlAddress), assignments to UserBuffer, user-mode code that only calls DeviceIoControl, comments and string literals. Whether the probe covers the same pointer and length, and runs inside __try, is not checked.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-781/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-781/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

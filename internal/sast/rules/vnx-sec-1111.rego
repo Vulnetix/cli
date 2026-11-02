@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1111",
 	"name": "Wistia OAuth access token",
 	"description": "A Wistia OAuth bearer access token (wsa_ prefixed) was found. It authorizes Wistia API actions on behalf of the authorized user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1111",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1111",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

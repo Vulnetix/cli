@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-925",
 	"name": "AWS IoT certificate private key (context)",
 	"description": "A PEM-encoded RSA/EC private key was found near AWS IoT device-certificate context. AWS IoT device private keys pair with X.509 certificates to authenticate things to the IoT Core MQTT broker.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-925",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-925",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-168",
 	"name": "Cloudflare R2 S3 secret access key (context)",
 	"description": "A Cloudflare R2 S3-compatible secret access key under an R2 context keyword was found. The 64-hex secret signs requests to R2 object storage buckets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-168",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-168",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

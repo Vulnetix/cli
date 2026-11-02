@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-605",
 	"name": "Multiple Binds to the Same Port",
 	"description": "Reports a socket option that lets a second socket bind the same port and steal or spoof the service's traffic: setsockopt(..., SO_REUSEPORT, ...) in C/C++ (including ::setsockopt and a call split over several lines), unix/syscall.SetsockoptInt(fd, ..., SO_REUSEPORT, <non-zero>) in Go (also with the arguments on the following lines), sock.setsockopt(..., SO_REUSEPORT, <non-zero>) and reuse_port=True in Python, and setsockopt(..., SO_REUSEADDR, ...) in a Winsock source file (winsock2.h/ws2tcpip.h/windows.h) that never sets SO_EXCLUSIVEADDRUSE, where SO_REUSEADDR lets any process bind over the listener. Not reported: SO_REUSEADDR on POSIX (it only permits reuse of TIME_WAIT addresses), Winsock files that also set SO_EXCLUSIVEADDRUSE, SO_REUSEPORT set to 0/False, getsockopt reads of the option, hasattr(socket, 'SO_REUSEPORT') probes, #ifdef SO_REUSEPORT and other preprocessor lines, the option name inside a string literal or a comment. An option value held in a variable that is zero is not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-605/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-605/",
 	"languages": ["c", "cpp", "go", "python"],
 	"severity": "medium",
 	"level": "warning",

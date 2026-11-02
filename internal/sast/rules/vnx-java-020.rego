@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-JAVA-020",
 	"name": "Java static IV reuse in block cipher",
 	"description": "A block-cipher IV or GCM nonce is fixed in the source, so every message encrypted under the same key reuses it: CBC leaks equal plaintext prefixes, and CTR and GCM leak the XOR of plaintexts (GCM also loses authentication). Reported: new IvParameterSpec(iv) and new GCMParameterSpec(tagLen, iv) where iv is a string literal (.getBytes()), a Base64/hex decode of a literal, a byte-array literal, or a zero-filled new byte[n] passed inline; a byte[]/String field or constant initialised with such a literal (including a multi-line byte-array initialiser), directly or through one .getBytes() assignment; a static final byte[] allocated with new byte[n] that the file never fills with nextBytes(); and a local new byte[n] handed to the spec within 15 lines with nothing touching it in between. Not reported: an IV filled by SecureRandom.nextBytes(), read from the ciphertext (ByteBuffer.get, Arrays.copyOfRange), taken from cipher.getIV() or passed in as a parameter; constants that are only sizes or names; and the pattern in comments or string literals. Hardcoded keys are VNX-JAVA-019's concern.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-020/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-020/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

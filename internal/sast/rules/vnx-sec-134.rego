@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-134",
 	"name": "Firebase Realtime Database URL",
 	"description": "A Firebase Realtime Database URL was found. An exposed database URL with permissive rules can allow unauthenticated read/write to the database.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-134",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-134",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-ANDROID-001",
 	"name": "Android app shipped debuggable or with unrestricted backup",
 	"description": "A production Android build is made debuggable, or lets the platform back up all of its private data. Reported: android:debuggable=\"true\" in an AndroidManifest.xml; debuggable true / isDebuggable = true inside the release build type of build.gradle or build.gradle.kts; and android:allowBackup=\"true\" on an <application> that declares neither android:fullBackupContent nor android:dataExtractionRules, so the token store and databases go into every backup. Not reported: false or ${placeholder} values, an allowBackup with backup rules (the rules decide what is excluded), the debug and other build types, manifests in debug/test source sets (src/debug, src/androidTest, src/test), test, sample, example and demo modules, XML comments, and the attribute text in Java/Kotlin strings. An omitted allowBackup (which defaults to true) is not reported. Exported components are VNX-ANDROID-003 and cleartext traffic is VNX-ANDROID-005.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-android-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-android-001/",
 	"languages": ["android"],
 	"severity": "high",
 	"level": "error",

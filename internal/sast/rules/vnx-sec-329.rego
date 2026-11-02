@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-329",
 	"name": "Square OAuth client secret (sq0csp-)",
 	"description": "A Square OAuth application client secret (sq0csp-) was found. It is used to exchange authorization codes for access tokens and must remain server-side.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-329",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-329",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

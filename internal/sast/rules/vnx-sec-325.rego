@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-325",
 	"name": "Stripe Connect OAuth refresh/access token (ca_)",
 	"description": "A Stripe Connect client/OAuth token using the ca_ prefix was found. Stripe Connect credentials let an application act on behalf of connected accounts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-325",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-325",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

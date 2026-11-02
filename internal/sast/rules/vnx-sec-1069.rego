@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1069",
 	"name": "Brightcove OAuth client secret",
 	"description": "A Brightcove API OAuth client secret was found. Paired with a client id it mints access tokens for the Brightcove CMS, Dynamic Ingest and Playback APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1069",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1069",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

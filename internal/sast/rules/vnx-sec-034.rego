@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-034",
 	"name": "Alibaba Cloud access key",
 	"description": "Reports an Alibaba Cloud RAM AccessKey ID: a standalone token of LTAI followed by 12 or 20 letters and digits (the 16- and 24-character ID formats), in either case. A token made of letters only in a single case, placeholder values and test or fixture paths are not reported; the AccessKey secret is covered by VNX-SEC-161 and STS keys by VNX-SEC-145.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-034/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-034/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

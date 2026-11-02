@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-377",
 	"name": "Square sandbox access token (EAAAl)",
 	"description": "A Square sandbox access token (EAAAl... form) was found. It is scoped to sandbox but should not be committed and flags Square integration code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-377",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-377",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

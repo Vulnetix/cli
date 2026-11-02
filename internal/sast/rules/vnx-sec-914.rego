@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-914",
 	"name": "ipdata API key",
 	"description": "An ipdata.co API key was found near an ipdata assignment. It is a 40-character lowercase hexadecimal string authorizing IP intelligence and threat lookups.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-914",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-914",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

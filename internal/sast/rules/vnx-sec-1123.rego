@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1123",
 	"name": "G-Core Labs permanent API token (gcore_)",
 	"description": "A G-Core Labs permanent API token (gcore_ prefixed) was found. It grants API access to G-Core CDN, storage and cloud resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1123",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1123",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

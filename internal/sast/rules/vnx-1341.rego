@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1341",
 	"name": "Multiple Releases of Same Resource or Handle",
 	"description": "The same pointer, descriptor or handle is released twice on one path in a C or C++ function: free, fclose, close, closedir, pclose, closesocket, CloseHandle, kfree, g_free, munmap, delete/delete[] and library releasers named *_free/*_destroy/*_close/*_cleanup (EVP_CIPHER_CTX_free, sqlite3_close, curl_easy_cleanup). Reported: a second release of the same expression later in the function with no reassignment (x = ..., &x passed out) and no exit (return, goto, break, continue, exit) of the first release's block between them, including a release inside an if that is followed by an unconditional release; and an error path that releases x and then jumps with goto to a cleanup label that releases x again. Not reported: a release followed by x = NULL or a new assignment, releases in exclusive branches (if/else, switch cases, #if/#else), an early release whose block returns, loops that release a different element each pass, releases in different functions, reference-count drops (*_unref, *_release), comments. Paths through other functions and aliases (q = p; free(p); free(q)) are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1341/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1341/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

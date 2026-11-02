@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-546",
 	"name": "Suspicious Comment",
 	"description": "A TODO, FIXME, HACK, XXX or BUG comment admits a security gap in the code beside it: the comment starts with the marker (TODO:, TODO(name):, @todo, FIXME ...) and its text names a security concern (authentication, authorization, permission, privilege, password, credential, secret, CSRF, XSS, injection, sanitising, escaping, validation, encryption, plain text, SSL/TLS, certificates, overflow, bounds checks, unsafe, insecure, vulnerable, hard-coded, rate limiting, access control, traversal, parameterized queries / prepared statements, verifying a signature). Whole-line, block-comment continuation and trailing comments are read, in Python, JavaScript/TypeScript, Java, Go, C and C++. Not reported: ordinary TODOs (refactoring, performance, naming), the vocabulary in a non-security sense (the Escape key, CSS text overflow, Go's unsafe.String/unsafe.Pointer named as an API), security prose without a marker, markers inside string literals or URLs, identifiers that contain the word (TODO_AUTH, todoSecurity), XXXXXX placeholders, and test files. A marker that admits a missing, disabled or broken control (insecure, vulnerable, an injection/XSS/SSRF risk, add/missing/no authorization, CSRF or validation, verify a signature, skip TLS verification, hard-coded password...) in Go, Java, JavaScript/TypeScript or Python is reported by VNX-635, not here; this rule keeps the rest of the security vocabulary in those languages, and C/C++.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-546/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-546/",
 	"languages": ["c", "cpp", "go", "java", "node", "python"],
 	"severity": "low",
 	"level": "note",

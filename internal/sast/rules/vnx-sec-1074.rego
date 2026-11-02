@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1074",
 	"name": "Spotify refresh token",
 	"description": "A Spotify OAuth refresh token was found. It can be exchanged indefinitely for new access tokens granting the user-authorized scopes on the Spotify account until revoked.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1074",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1074",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

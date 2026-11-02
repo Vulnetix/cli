@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-757",
 	"name": "Expensify partner user secret",
 	"description": "An Expensify Integration Server partnerUserSecret was found. Combined with the partnerUserID it grants API access to the company's Expensify expense reports and policies.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-757",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-757",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

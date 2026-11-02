@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-DOCKER-006",
 	"name": "Dockerfile uses ADD instead of COPY for local files",
 	"description": "An ADD instruction copies local files or directories that are not archives (ADD . /app, ADD Gemfile Gemfile.lock /app/, ADD --chown=app:app src/ /srv/, the JSON exec form, globs, a source on a continuation line, ONBUILD ADD). For local sources ADD differs from COPY only by its hidden behaviour: any source it recognises as a tar archive (by content, not name) is unpacked into the destination. Use COPY so the instruction does exactly what it says. Not reported: ADD whose local sources are all archives meant to be unpacked (.tar, .tar.gz, .tgz, .tar.bz2, .tar.xz, .tar.zst and similar), remote URL and git sources (VNX-DOCKER-004), a source held in a variable, heredoc sources, COPY, ADD text in comments, labels, strings and heredocs, test and .devcontainer images, and files that only mention Dockerfiles.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-docker-006/",
 	"languages": ["docker"],
 	"severity": "low",
 	"level": "warning",

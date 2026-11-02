@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SWIFT-003",
 	"name": "Swift credential stored in UserDefaults",
 	"description": "Reports a Swift write to UserDefaults/NSUserDefaults (set, setValue or setObject on UserDefaults.standard, UserDefaults(suiteName:), NSUserDefaults.standardUserDefaults(), or a variable or property of the file declared as UserDefaults) whose value or key names a credential (or whose value is a dictionary literal with a credential-named key, [\"password\": p]), a SwiftUI @AppStorage property (which is UserDefaults-backed) whose key or property name does, and a SwiftyUserDefaults or sindresorhus Defaults subscript write (Defaults[\\.authToken] = value). A credential is a name ending with password/passwd/pwd/passcode/passphrase, secret, token, apiKey, privateKey, credential(s), pinCode/pin, sessionId, creditCard/cardNumber/cvv or ssn, or a password text field's .text. UserDefaults is an unencrypted plist in the app container that device backups and forensic tools read; credentials belong in the Keychain. Arguments on up to three continuation lines are read. Not reported: booleans, numbers, dates and nil stored under any key, values passed through an encrypt/seal/hash/digest call first, keys that describe rather than hold a credential (hasSeenTokenPrompt, tokenExpiry, passwordAutofillEnabled), reads and removeObject, set(_:forKey:) on receivers that are not UserDefaults (caches, dictionaries), Keychain code, string literals, comment lines and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-swift-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-swift-003/",
 	"languages": ["swift"],
 	"severity": "high",
 	"level": "error",

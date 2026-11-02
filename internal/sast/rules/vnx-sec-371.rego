@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-371",
 	"name": "Checkout.com OAuth client secret",
 	"description": "A Checkout.com OAuth client secret was found near a checkout/cko assignment. It is used in the client-credentials grant to obtain access tokens for the Checkout.com API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-371",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-371",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

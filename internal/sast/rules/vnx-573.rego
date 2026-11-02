@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-573",
 	"name": "Remote URL read through an API that cannot set a timeout",
 	"description": "A remote java.net.URL read through a convenience API that gives the caller no way to set a connect or read timeout, in Java or Kotlin: URL.openStream() (on new URL(...), URL(...), uri.toURL(), or a name declared as a URL in the file), Kotlin URL.readText()/readBytes(), commons-io IOUtils.toString/toByteArray(url) and two-argument FileUtils.copyURLToFile(url, file), Guava Resources.toString/toByteArray(url), and javax.imageio ImageIO.read(url). The URLConnection these open uses the JDK default of no timeout, so a slow or unresponsive server holds the calling thread indefinitely (CWE-573: the caller does not meet the network API's contract to bound the call). Not reported: classpath and file URLs (getResource(...), file.toURI().toURL(), \"file:\"/\"jar:\" literals), openConnection() with setConnectTimeout/setReadTimeout, the four-argument copyURLToFile with timeouts, a file that sets sun.net.client.defaultReadTimeout, File.readText() and readers, and the calls in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-573/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-573/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

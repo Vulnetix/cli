@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-403",
 	"name": "SparkPost API key",
 	"description": "A SparkPost API key was found near a sparkpost assignment. SparkPost keys are 40-character hex strings that authorize transmission and account operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-403",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-403",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

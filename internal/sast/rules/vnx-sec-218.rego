@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-218",
 	"name": "Codefresh API token",
 	"description": "A Codefresh API token (JWT) was found. It grants access to the Codefresh CI/CD API for pipelines and runtime environments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-218",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-218",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

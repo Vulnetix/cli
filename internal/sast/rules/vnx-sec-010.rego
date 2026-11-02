@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-010",
 	"name": "Package registry token",
 	"description": "A package-registry publish credential is written into a file: an npm access token (npm_ followed by exactly 36 letters and digits) or a PyPI / TestPyPI API token (pypi-AgEIcHlwaS5vcmc... or pypi-AgENdGVzdC5weXBpLm9yZw... followed by its macaroon body) in any file, or a literal auth token in an .npmrc (_authToken= / _auth= / _password=) or .yarnrc.yml (npmAuthToken: / npmAuthIdent:, including under npmScopes), or a literal index password in .pypirc. A leaked publish token lets anyone release a malicious version of the package. Not reported: tokens read from the environment (${NPM_TOKEN}, $NPM_TOKEN), placeholder or low-entropy values, identifiers that merely begin with npm_ (npm_config_registry, npm_package_version), tokens embedded in a longer run of characters, lock files, minified bundles, and test, fixture and vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-010/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-010/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

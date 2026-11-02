@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1126",
 	"name": "Declaration of Variable with Unnecessarily Wide Scope",
 	"description": "Reports a Python global statement inside a function or method body (global counter, global a, b), which makes the function rebind a module-level variable: every caller, thread and request then shares and mutates that one binding, so state set for one caller leaks into the next. The finding is the global line itself. Not reported: a global statement at module level (it has no effect), nonlocal (closure scope), globals that are only module dunders such as __doc__ or __all__, the word 'global' in a comment, a string or prose, and test files (including conftest.py). A global line inside a triple-quoted string is not a statement and is not reported. Whether a particular module-level variable should be wider than its function is a design judgement; the rule reports the statement that widens it.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1126/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1126/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-786",
 	"name": "ClickUp OAuth access token",
 	"description": "A ClickUp OAuth2 access token was found. It grants API access to the workspaces, tasks and spaces authorised by the user. This is distinct from the pk_ personal token.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-786",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-786",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

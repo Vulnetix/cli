@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-355",
 	"name": "Recurly API key",
 	"description": "A Recurly private API key was found near a recurly assignment. It authorizes subscription, invoice and billing operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-355",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-355",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

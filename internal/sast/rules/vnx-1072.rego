@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1072",
 	"name": "Data Resource Access without Use of Connection Pooling",
 	"description": "Java production code that opens database connections without a pool: java.sql.DriverManager.getConnection(...) (also split across lines as DriverManager / .getConnection(...), and as a bare getConnection(...) after import static java.sql.DriverManager.getConnection), construction of Spring's non-pooling DataSources (new DriverManagerDataSource, new SimpleDriverDataSource), and construction of a vendor non-pooling DataSource (PGSimpleDataSource, MysqlDataSource, MariaDbDataSource, SQLServerDataSource, OracleDataSource, H2 JdbcDataSource) in a file that configures no pool. Each opens a new physical connection for every request; under load this exhausts database connection slots and makes every request pay the connection handshake. Not reported: a DataSource or pool (HikariCP, DBCP, c3p0, a container JNDI DataSource) handing out connections with getConnection(), a vendor DataSource handed to a pool in the same file (HikariConfig.setDataSource), other DriverManager calls (registerDriver, getDriver), other receivers named like a driver manager, test sources, comments (including a trailing comment on a code line) and string literals. A short-lived command-line tool that legitimately opens one connection is still reported; suppress it there.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1072/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1072/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

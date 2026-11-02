@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-676",
 	"name": "Use of Potentially Dangerous Function",
 	"description": "C and C++ calls to the classic unbounded string functions, in the forms that can actually overflow their destination: gets() and _getws() (always); strcpy, stpcpy, strcat, wcscpy and wcscat (also std::-qualified) when the source is not a string literal, an upper-case macro constant or a choice between literals, and its length was not measured (strlen/wcslen/strnlen of it) nor the destination's sizeof compared in an if/assert in the 15 lines above; sprintf whose literal format has a %s/%ls conversion with no precision, and vsprintf; scanf, fscanf, sscanf, vscanf, vfscanf, vsscanf and the wide forms whose literal format has a %s, %ls or %[ conversion with no field width. Calls that wrap over several lines are read across them; a format made of adjacent literals (with inttypes.h macros such as PRIu64 between them) is read as one, and literals of later arguments or lines are not part of it. Not reported: the bounded APIs (fgets, strncpy, strlcpy, strncat, snprintf, vsnprintf, the _s functions), %.Ns, %Ns, %*s and %ms conversions, sprintf with only numeric conversions or a non-literal format (a format-string issue, not this one), prototypes, #define lines, methods and other functions whose names merely contain these (b.strcpy, p->gets, my_strcpy, fgets), comments and string literals. VNX-C-001 reports the same unbounded copies with a wider set of Windows variants, and VNX-242 reports gets().",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-676/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-676/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

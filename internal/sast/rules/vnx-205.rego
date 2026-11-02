@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-205",
 	"name": "Observable Behavioral Discrepancy",
 	"description": "A login path skips the password hash when the account does not exist, so an unknown username answers measurably faster than a known one with a wrong password and the timing reveals which accounts exist. Reported in Python and JavaScript/TypeScript: a check that the looked-up account is missing (if user is None:, if not user:, if (!user), if (user == null)) whose branch returns, raises, aborts or throws without running a hash, followed within 12 lines by a password verification of that account (bcrypt.checkpw, check_password, check_password_hash, verify_password, pwd_context.verify, argon2/hasher .verify, bcrypt.compare/compareSync); and the short-circuit form if user is None or not check_password(...) / if (!user || !(await bcrypt.compare(...))) and its positive twin if user and checkpw(..., user.hash) / return user && bcrypt.compare(..., user.hash), where the hash is skipped for a missing account. Not reported: a branch that verifies against a dummy hash or calls set_password/hashpw first, a verification that runs before the account check (compare(pw, user ? user.hash : DUMMY)), a missing-record check with no password verification after it (a profile lookup), comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-205/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-205/",
 	"languages": ["python", "node"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-145",
 	"name": "Alibaba Cloud STS temporary access key (STS.)",
 	"description": "An Alibaba Cloud STS temporary access key ID (STS. prefix) was found. STS tokens grant short-lived, assumed-role access to Alibaba Cloud resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-145",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-145",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

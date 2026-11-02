@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-415",
 	"name": "Infobip API key",
 	"description": "An Infobip API key was found near an infobip assignment. Infobip keys authorize SMS, email, and omnichannel messaging operations and are sent as an App authorization header.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-415",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-415",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

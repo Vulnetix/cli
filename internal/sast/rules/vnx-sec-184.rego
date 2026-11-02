@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-184",
 	"name": "Azure DevOps personal access token",
 	"description": "An Azure DevOps (azure.com / visualstudio.com) personal access token was found. These 52-character base32 tokens grant scoped access to repos, pipelines, work items and artifacts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-184",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-184",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

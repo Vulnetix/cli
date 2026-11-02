@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-646",
 	"name": "Encrypted private key block",
 	"description": "A PEM encrypted PKCS#8 private key block (BEGIN ENCRYPTED PRIVATE KEY header) was found. Although passphrase-protected, the key material is exposed and the passphrase is often committed nearby.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-646",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-646",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

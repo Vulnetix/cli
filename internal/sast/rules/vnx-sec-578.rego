@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-578",
 	"name": "RabbitMQ AMQP URL with credentials",
 	"description": "An AMQP connection URL embedding the username and password was found. It authenticates to the RabbitMQ broker and grants access to vhosts, queues and exchanges per the user's permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-578",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-578",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

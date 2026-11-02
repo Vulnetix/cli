@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-039",
 	"name": "Missing rate limiting on login endpoint",
 	"description": "An HTTP handler for login or authentication is declared and nothing in the project's production Go code rate-limits requests (a limiter, throttle or rate-limit middleware; the word delimiter does not count) or locks accounts after failed attempts (lockout, failed/max attempts, a 429 StatusTooManyRequests response, a CAPTCHA). Login endpoints without rate limiting are vulnerable to brute force attacks. The handler is recognised from its declaration (a function or handler method whose name is the login path, Login/handleLogin/SignIn/Authenticate, and that takes a response writer or framework context, parameters possibly wrapped onto the next line) or from a login route registered with an inline handler (r.POST(\"/login\", func(c *gin.Context) {...})). Not reported: a client method or helper named Login that is not an HTTP handler, a parser or CLI command, test files, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-039/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-039/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

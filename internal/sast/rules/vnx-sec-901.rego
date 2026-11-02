@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-901",
 	"name": "HERE Maps API key",
 	"description": "A HERE Maps REST apiKey was found near a here assignment. It is a high-entropy URL-safe string used to authorize geocoding, routing, and map-tile requests against the HERE platform.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-901",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-901",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

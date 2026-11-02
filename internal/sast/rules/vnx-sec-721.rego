@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-721",
 	"name": "Facebook page/app access token (context)",
 	"description": "A Facebook/Meta access token assigned to an access-token context but not matching the EAA prefix (e.g. numeric|token form) was found. It authenticates Graph API requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-721",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-721",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

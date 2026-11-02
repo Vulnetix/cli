@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-672",
 	"name": "Tatum API key",
 	"description": "A Tatum blockchain API key (UUID format) assigned to a tatum context was found. It authorises access to Tatum's multi-chain APIs billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-672",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-672",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

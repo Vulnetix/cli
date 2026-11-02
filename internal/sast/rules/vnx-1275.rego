@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1275",
 	"name": "Sensitive Cookie with Improper SameSite Attribute",
 	"description": "A cookie is configured with SameSite=None, or with the SameSite attribute switched off, so the browser attaches it to cross-site requests and a session cookie becomes usable for cross-site request forgery. Reported in JavaScript/TypeScript: a sameSite: 'none' (any case, any quote, quoted or bare key) or sameSite: false property in cookie options (res.cookie, express-session, cookie-session, cookie.serialize and similar option objects, on the call line or on its own line), an assignment such as req.session.cookie.sameSite = 'none', and a Set-Cookie header or document.cookie string containing SameSite=None. Python: SESSION_COOKIE_SAMESITE, CSRF_COOKIE_SAMESITE, LANGUAGE_COOKIE_SAMESITE or REMEMBER_COOKIE_SAMESITE set to None, False or \"None\" in any case (Django settings, Flask app.config[...] or config.update(...)), and set_cookie()/set_signed_cookie() calls with samesite=None or samesite=\"none\" (on the call line or a continuation line of it), and Starlette/FastAPI SessionMiddleware with same_site=\"none\". Not reported: Lax, Strict or true, a value computed at run time, a TypeScript type that lists 'none' among the allowed values, a set_cookie method signature whose parameter defaults to None, comparisons, the text inside comments and string literals, and test files. SameSite=None is sometimes required for a cookie used in a cross-site embed; such a cookie must not carry a session or credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1275/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1275/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

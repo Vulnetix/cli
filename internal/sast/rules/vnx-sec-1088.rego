@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1088",
 	"name": "Imgur Client-ID",
 	"description": "An Imgur application Client-ID (15-character hex) was found. It authorizes anonymous Imgur API uploads and reads under the registered application rate limits.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1088",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1088",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

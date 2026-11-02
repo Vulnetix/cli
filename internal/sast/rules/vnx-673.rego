@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-673",
 	"name": "Control sphere (chroot jail, import or library search path) defined by remote input",
 	"description": "Python code lets a remote party define the boundary the process trusts: data from an HTTP request (Flask/Django/aiohttp/DRF request.args/form/values/json/data/get_json()/GET/POST/query_params/match_info/params/body/cookies/headers, Tornado self.get_argument) or read from a socket (recv/recvfrom) reaches os.chroot() (the jail root), sys.path.insert()/sys.path.append() or site.addsitedir() (where modules are imported from), or an assignment/os.putenv of PATH (in os.environ or in an environment mapping such as env = os.environ.copy() handed to subprocess), PYTHONPATH, PYTHONHOME, LD_LIBRARY_PATH, LD_PRELOAD or a DYLD_* variable (where programs and shared libraries are loaded from). The source may be on the sink line or assigned to a variable in the 10 lines above. Not reported: constants, settings and other configuration values, paths built from __file__ or BASE_DIR, command-line arguments (sys.argv, argparse: chosen by the operator, not a remote actor), a request value that was first mapped through an allow-list into a different variable, other environment variables, comments, string literals and triple-quoted strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-673/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-673/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

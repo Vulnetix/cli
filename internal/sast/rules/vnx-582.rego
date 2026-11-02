@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-582",
 	"name": "Array declared public, final and static",
 	"description": "A public static final array field: Java in any modifier order, with [] on the type or on the name, initialised inline or later in a static block, an array constant in a Java interface (implicitly public static final; files whose only top-level type is an interface, at the interface's member indent), and C# public static readonly T[]. final (readonly) fixes the reference, not the elements, so any code can overwrite the shared array's contents. Not reported: private, protected or package-private fields, non-final fields (a different weakness), zero-length arrays (new T[0], {}, new T[] {}, Array.Empty<T>(), []), collections and read-only list types, methods returning arrays, comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-582/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-582/",
 	"languages": ["java", "csharp"],
 	"severity": "medium",
 	"level": "warning",

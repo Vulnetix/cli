@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-840",
 	"name": "EasyPost test API key (EZTK)",
 	"description": "An EasyPost test API key (EZTK prefix) was found. It targets the EasyPost test environment and should not be committed to source control.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-840",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-840",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

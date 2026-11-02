@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-794",
 	"name": "FullStory server API key",
 	"description": "A FullStory server API key was found. It grants API access to the organisation's session-replay data, segments and user events in FullStory.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-794",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-794",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-484",
 	"name": "Okta API token (00 prefix)",
 	"description": "An Okta API token (42-character token beginning with 00) was found. It grants programmatic access to the Okta org for the issuing user's privileges.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-484",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-484",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

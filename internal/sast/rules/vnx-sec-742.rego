@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-742",
 	"name": "Workday ISU integration password",
 	"description": "A Workday Integration System User (ISU) password used for SOAP/REST integrations was found. It grants programmatic access to the Workday tenant.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-742",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-742",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

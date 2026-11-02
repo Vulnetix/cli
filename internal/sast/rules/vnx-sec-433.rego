@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-433",
 	"name": "Iterable API key",
 	"description": "An Iterable API key was found near an iterable assignment. It is a 32-character key that authorizes access to user data, campaigns, and events.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-433",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-433",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

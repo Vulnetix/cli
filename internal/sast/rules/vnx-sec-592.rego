@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-592",
 	"name": "SingleStore connection string with password",
 	"description": "A SingleStore (MemSQL) connection string embedding the user password against a singlestore.com host was found. It grants authenticated access to the SingleStore workspace.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-592",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-592",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-303",
 	"name": "AssemblyAI API key (32 hex assignment)",
 	"description": "An AssemblyAI API key in the 32-hex form referenced via an ASSEMBLYAI_API_KEY assignment was found.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-303",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-303",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

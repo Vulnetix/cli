@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-008",
 	"name": "Node.js open redirect",
 	"description": "A redirect whose target begins with request-controlled data: res/response.redirect([status,] url) (Express), ctx.redirect (Koa), reply.redirect (Fastify), h.redirect (hapi), NextResponse.redirect and Response.redirect, res.location(url), a Location header set with res.writeHead(30x, { Location }) or res.setHeader/set/header('Location', url), and in browser code an assignment to window.location/location.href or location.assign/replace(url). The target is reported when it starts with req.query/params/body/cookies/headers, req.param(), ctx.query/params/request.query/body, request.query/params/body/payload, URLSearchParams(...).get() or location.search/hash, directly, through decodeURIComponent/decodeURI/unescape/String, after a bare \"/\" prefix (\"/\" + value or `/${value}`, which makes a protocol-relative //host URL), as the first ${...} of a template literal, or through a variable assigned from one in the previous 15 lines (two hops for a URLSearchParams object). Not reported: constant targets, a path prefix followed by user data ('/users/' + id, `/pets/${id}`), which stays on the same site, Referer-based 'back' redirects, environment-derived targets, and a redirect preceded within 10 lines by an allow-list, origin/host comparison, startsWith('/') or validation check, test code (an open redirect in a test server is not reachable), plus comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-008/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-008/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

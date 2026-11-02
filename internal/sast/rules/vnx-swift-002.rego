@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SWIFT-002",
 	"name": "Swift credential written to the device log (NSLog, print, public os_log/Logger)",
 	"description": "Reports a Swift NSLog, print, debugPrint, dump or CocoaLumberjack DDLogVerbose/DDLogDebug/DDLogInfo/DDLogWarn/DDLogError call that passes a credential value as an argument or interpolates it into the message, an os_log call whose format marks an argument %{public} and passes one, and a Logger (os.Logger) call that interpolates one with privacy: .public. A credential value is an identifier or the last member of a property chain whose name ends with password/passwd/pwd/passcode/passphrase, secret, token, apiKey, privateKey or credential(s), a password text field's .text, or a local variable assigned from one in the six lines above. Arguments on up to three continuation lines are read. Not reported: the sensitive word inside the message text alone (\"wrong password\"), names that describe rather than hold the value (hashedPassword, maskedToken, tokenType, tokenExpiry, passwordPolicy, credentials.username), a value compared with nil, its .count/.isEmpty, or a value passed through mask/redact/hash/sanitize, os_log without %{public} and Logger interpolations without privacy: .public (both are redacted by default), comment lines and test files. Overlaps VNX-SEC-022 for NSLog/print; this rule adds the unified-logging privacy semantics.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-swift-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-swift-002/",
 	"languages": ["swift"],
 	"severity": "medium",
 	"level": "warning",

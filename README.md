@@ -13,8 +13,8 @@ Automated vulnerability management for your CI/CD pipelines and development work
 - [CLI Installation](#cli-installation)
 - [Available Tasks](#available-tasks)
 - [Documentation](#documentation)
-- [CLI Documentation](https://docs.cli.vulnetix.com/)
-- [Claude Code Plugin Documentation](https://ai-docs.vulnetix.com)
+- [CLI Documentation](https://docs.vulnetix.com/cli/get-started/overview/)
+- [Claude Code Plugin Documentation](https://docs.vulnetix.com/pix/)
 - [VDB API Reference](https://redocly.github.io/redoc/?url=https://api.vdb.vulnetix.com/v1/spec)
 - [GitHub App](https://github.com/marketplace/vulnetix)
 
@@ -104,7 +104,7 @@ Install the plugin:
 
 **Requires:** [Vulnetix CLI](#cli-installation) installed and authenticated (`vulnetix auth login`).
 
-[Full plugin documentation](https://ai-docs.vulnetix.com) | [Plugin repository](https://github.com/Vulnetix/pix-ai-coding-assistant)
+[Full plugin documentation](https://docs.vulnetix.com/pix/) | [Plugin repository](https://github.com/Vulnetix/pix-ai-coding-assistant)
 
 ---
 
@@ -130,7 +130,7 @@ vulnetix auth login
 vulnetix vdb status
 ```
 
-See [CLI Documentation](https://docs.cli.vulnetix.com/) for complete usage and command reference.
+See [CLI Documentation](https://docs.vulnetix.com/cli/get-started/overview/) for complete usage and command reference.
 
 ---
 
@@ -195,8 +195,8 @@ JVM artefacts, then writes one validated CycloneDX file offline.
 
 ## Documentation
 
-- [CLI Documentation](https://docs.cli.vulnetix.com/)
-- [Claude Code Plugin Documentation](https://ai-docs.vulnetix.com)
+- [CLI Documentation](https://docs.vulnetix.com/cli/get-started/overview/)
+- [Claude Code Plugin Documentation](https://docs.vulnetix.com/pix/)
 - [VDB API Reference](https://redocly.github.io/redoc/?url=https://api.vdb.vulnetix.com/v1/spec)
 - [Installation Guides](docs/README.md)
 - [Usage Examples](USAGE.md)

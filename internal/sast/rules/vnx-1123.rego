@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1123",
 	"name": "Excessive Use of Self-Modifying Code",
 	"description": "Code that rewrites itself at run time. Python: a program opening its own source for writing (open(__file__, sys.argv[0] or os.path.abspath/realpath of either, \"w\"/\"a\"/\"r+\"/\"x\", or mode= keyword), Path(__file__).write_text/write_bytes/open(\"w\"), or os.open(__file__, O_WRONLY/O_RDWR)), replacing a function's bytecode (fn.__code__ = ...), and building or patching code objects (types.CodeType(...), code.replace(co_code=...)). JavaScript/TypeScript: fs.writeFile/writeFileSync/appendFile/appendFileSync/createWriteStream on __filename, process.argv[1], import.meta.filename, fileURLToPath(import.meta.url) or new URL(import.meta.url). A call wrapped after its opening parenthesis is read with the next two lines. Self-modifying code defeats review, signing and integrity checks, and is a common trait of droppers and persistence implants. Not reported: reading one's own source (open(__file__, \"rb\"), the usual test-fixture idiom), exec(compile(open(path).read(), path, \"exec\")) of another file (setup.py version loading, which is not self-modification), writes to other paths, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1123/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1123/",
 	"languages": ["python", "javascript", "typescript"],
 	"severity": "medium",
 	"level": "warning",

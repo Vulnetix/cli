@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-400",
 	"name": "Paystack secret key (sk_test)",
 	"description": "A Paystack test secret key was found near a paystack assignment using the sk_test_ prefix. It is scoped to test mode but should not be committed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-400",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-400",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

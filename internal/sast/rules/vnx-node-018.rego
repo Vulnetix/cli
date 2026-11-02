@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-018",
 	"name": "JWT decoded without signature verification",
 	"description": "A jsonwebtoken token is accepted without its signature being checked. Reported, in JavaScript and TypeScript files that import or require jsonwebtoken: decode() called through a name bound to the module (require, default or namespace import) or through decode imported by name (including an `as` alias), in a file whose code never calls verify(); and an algorithms list passed to jsonwebtoken that contains 'none'. decode() only base64-decodes the payload, so a token anyone wrote is trusted. Not reported: a decode() in a file that also verifies (reading the header to pick a key, then verify()), the browser-side jwt-decode package, jwt-simple's decode(token, key) which verifies, test files, comments and string literals. Overlaps VNX-JWT-001 (request-derived token decoded without verify) and VNX-JWT-004 (the 'none' algorithm).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-018/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-018/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
 	"level": "error",

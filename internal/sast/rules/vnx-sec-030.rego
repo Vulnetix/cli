@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-030",
 	"name": "Google OAuth client secret hardcoded",
 	"description": "Reports a Google OAuth 2.0 client secret: GOCSPX- followed by exactly 28 base64url characters, delimited on both sides, in any file, and a legacy 24-character client_secret value (quoted or unquoted, as in GOOGLE_CLIENT_SECRET=...) in a file that also holds a Google client id (*.apps.googleusercontent.com), such as a downloaded client_secret.json. Placeholders and low-entropy values, the bare GOCSPX- prefix, environment references, client secrets of other providers, and test and fixture paths are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-030/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-030/",
 	"languages": ["generic"],
 	"severity": "high",
 	"level": "error",

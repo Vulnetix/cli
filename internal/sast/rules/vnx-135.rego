@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-135",
 	"name": "Incorrect Calculation of Multi-Byte String Length",
 	"description": "Reports C/C++ code that mixes up wide-character counts and byte counts: (1) malloc/xmalloc/alloca/realloc sized by wcslen() with no sizeof (and no * 2 / * 4), which allocates one byte per wide character, or too few bytes for a wcstombs() conversion; (2) memcpy/memmove/memcmp/memset given a wcslen() count with no sizeof, which copies only part of the string; (3) a function that counts in wide characters (wcsncpy, wcsncat, wcslcpy, wcslcat, wmemcpy, wmemmove, wmemset, swprintf, vswprintf, _snwprintf, mbstowcs, fgetws, wcsftime, wcsxfrm, MultiByteToWideChar, GetWindowTextW, GetModuleFileNameW, GetCurrentDirectoryW) given sizeof(buf) as its character-count argument (also when the call spans lines; a sizeof in another argument, such as the byte count MultiByteToWideChar takes for its input, is not reported), a byte count that is two or four times the buffer's length in characters, so the call writes past the buffer; (4) strlen() on a variable declared wchar_t/WCHAR in the 40 lines above, usually through a (char *) cast, which stops at the first zero byte of a wide character. Not reported: sizes multiplied by sizeof(wchar_t) or sizeof(*p), counts written sizeof(buf)/sizeof(buf[0]), ARRAY_SIZE() or _countof(), new wchar_t[wcslen(s) + 1] (an element count), narrow strings, comments. UTF-8 length mistakes in other languages are out of scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-135/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-135/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

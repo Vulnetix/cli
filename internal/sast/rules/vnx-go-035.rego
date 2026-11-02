@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-035",
 	"name": "Missing HttpOnly flag on cookie",
 	"description": "A cookie the server sends to the browser is not marked HttpOnly, so any script running in the page (an XSS payload included) can read it from document.cookie. Reported: an http.Cookie, fiber.Cookie or gorilla sessions.Options literal with no HttpOnly/HTTPOnly field or with it set to false that is passed to http.SetCookie/c.SetCookie/c.Cookie, returned to a caller, or assigned to a variable that is (session.Options = &sessions.Options{...} configures every session cookie); a new(http.Cookie) that is sent without .HttpOnly being set; gin c.SetCookie(name, value, maxAge, path, domain, secure, false), on one line or with its arguments wrapped over up to 10 lines; csrf.HttpOnly(false); x.HttpOnly = false; and sessions.NewCookieStore/NewFilesystemStore in a project that never sets the store's Options (their default leaves HttpOnly off). Not reported: HttpOnly set to true or to any expression (a config value), a deletion cookie (MaxAge negative, Expires at the Unix epoch), a CSRF/XSRF double-submit token cookie (it must be readable by the page's script), cookies a client sends (req.AddCookie, a cookie jar), test files, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-035/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-035/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

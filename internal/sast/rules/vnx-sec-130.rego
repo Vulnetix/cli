@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-130",
 	"name": "GCP OAuth access token (ya29.)",
 	"description": "A Google Cloud / Google OAuth 2.0 access token (ya29. prefix) was found. These bearer tokens grant API access for the authorized scopes until they expire.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-130",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-130",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

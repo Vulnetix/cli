@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1041",
 	"name": "Use of Redundant Code",
 	"description": "Code that repeats a check it has just made, the copy-paste shape that leaves one copy updated and the other stale, or a branch that can never run. Reported in Go, Java, JavaScript/TypeScript, PHP, Python and Ruby: an else if / elseif / elif / elsif whose condition repeats, character for character, a condition earlier in the same if chain, with braces on the same line or Allman-style (that branch is dead: the earlier branch always wins); a condition joined by && / || / and / or whose two adjacent operands are the same expression (user.isAdmin() || user.isAdmin()); and a security check statement (a call named check..., verify..., validate..., require..., ensure..., enforce..., authorize/authorise..., authenticate..., protect..., guard...) repeated identically on the next code line. Not reported: the same condition in a separate if statement or a nested chain, operands that differ only in an argument, operands that read or draw a new value each time they run (in.read() == 0 && in.read() == 0, next(it), random()), a check called twice with different arguments, checks passed as arguments (route middleware lists), conditions spanning lines, redundancy across functions or files, minified JavaScript, test code, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1041/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1041/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "low",
 	"level": "note",

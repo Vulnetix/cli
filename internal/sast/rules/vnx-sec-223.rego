@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-223",
 	"name": "Sentry user auth token (sntryu_)",
 	"description": "A Sentry user auth token using the sntryu_ prefix was found. It grants user-scoped access to the Sentry API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-223",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-223",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

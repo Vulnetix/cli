@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-776",
 	"name": "Improper Restriction of Recursive Entity References in DTDs ('XML Entity Expansion')",
 	"description": "Untrusted XML is parsed by a parser that expands nested internal entities without a limit, so a few kilobytes of nested entity definitions (billion laughs, quadratic blowup) exhaust memory and CPU. Reported: in Python, the standard library parsers (xml.etree.ElementTree/cElementTree fromstring/XML/parse/iterparse/fromstringlist, xml.dom.minidom and pulldom parse/parseString, xml.sax parse/parseString, under any import alias or imported by name) and xmltodict.parse given request data, an upload stream, stdin, urlopen() or a requests response, directly or through a variable assigned from one up to 25 lines above (one intermediate assignment such as .decode() is followed); lxml XMLParser(huge_tree=True), which switches libxml2's expansion limits off; in PHP, LIBXML_PARSEHUGE passed to a libxml loader; in JavaScript/TypeScript, libxmljs parseXml/parseXmlString with huge: true and libxml2-wasm XML_PARSE_HUGE. Not reported: defusedxml (or a file calling defusedxml.defuse_stdlib()), the standard parsers given a constant, a local path or a function parameter of unknown origin, lxml with its default limits, Java factories (VNX-JAVA-024 covers those), external entity resolution (XXE, VNX-PY-014), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-776/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-776/",
 	"languages": ["python", "php", "node"],
 	"severity": "medium",
 	"level": "warning",

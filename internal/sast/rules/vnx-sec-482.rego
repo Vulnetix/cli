@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-482",
 	"name": "Auth0 Management API token (JWT)",
 	"description": "An Auth0 Management API access token (JWT) was found. It grants administrative control over the Auth0 tenant including users, applications and connections until it expires.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-482",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-482",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

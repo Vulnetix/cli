@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-680",
 	"name": "LinkedIn client secret",
 	"description": "A LinkedIn application client secret assigned to a linkedin context was found. It authenticates the LinkedIn OAuth app for API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-680",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-680",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-226",
 	"name": "Netlify API access token",
 	"description": "A Netlify personal access token was found. It grants programmatic control over Netlify sites, deploys, DNS and environment variables.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-226",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-226",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-567",
 	"name": "Neon API key",
 	"description": "A Neon API key using the napi_ prefix was found. It authenticates to the Neon management API and can create, delete and access projects and branches.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-567",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-567",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

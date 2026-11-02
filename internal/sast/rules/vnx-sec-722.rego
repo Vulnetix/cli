@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-722",
 	"name": "YouTube/Google OAuth refresh token (1//)",
 	"description": "A Google OAuth refresh token (1// prefix) committed in a youtube/google context was found. It can mint access tokens for long-lived YouTube/Google API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-722",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-722",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

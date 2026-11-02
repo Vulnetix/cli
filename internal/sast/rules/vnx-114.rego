@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-114",
 	"name": "Process Control: request chooses the library or module loaded",
 	"description": "HTTP request data names the native library, plugin or code module the process loads, so a requester can make it load and run code of their choosing (CWE-114 Process Control). Reported sinks: Go plugin.Open; Java System.load/loadLibrary, Runtime.getRuntime().load/loadLibrary and new URLClassLoader; JavaScript/TypeScript require(), dynamic import() and process.dlopen; PHP dl(), FFI::cdef and FFI::load; Python importlib.import_module, __import__, imp.load_source/load_module, importlib.util.spec_from_file_location, and ctypes CDLL/PyDLL/WinDLL/OleDLL and cdll/windll .LoadLibrary; Ruby require, require_relative, load, Fiddle.dlopen and Fiddle::Handle.new. The argument must carry request data (the usual per-language request accessors, or a String Spring handler parameter bound with @RequestParam/@PathVariable/@RequestHeader), inline, concatenated, interpolated, or through a variable assigned from it (or from such a variable) in the 25 lines above. Not reported: constant names, values from configuration, environment or system properties, a request value checked against an allowlist (in / not in, in_array, includes, has, include?, array_key_exists, a switch) or looked up in a map between the read and the load, and calls in comments or string literals. PHP include/require is VNX-98.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-114/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-114/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "medium",
 	"level": "warning",

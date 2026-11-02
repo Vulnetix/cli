@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-412",
 	"name": "Telnyx API key (KEY)",
 	"description": "A Telnyx v2 API key using the KEY prefix was found. Telnyx API keys grant access to messaging, voice, and number management for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-412",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-412",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

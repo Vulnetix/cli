@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-657",
 	"name": "Infura project secret",
 	"description": "An Infura API project secret (32 hex characters) assigned to an infura secret context was found. Paired with the project ID it authenticates requests to Infura's Ethereum/IPFS endpoints.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-657",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-657",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

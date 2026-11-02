@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1070",
 	"name": "Serializable Data Element Containing non-Serializable Item Elements",
 	"description": "An instance field of a JDK type that is never serializable (Thread, Socket and socket channels, Input/OutputStream, Reader/Writer and their common subclasses, JDBC Connection/Statement/ResultSet/DataSource, EntityManager, ExecutorService/Executor, Optional and Stream, Logger, HttpClient, URLConnection, Process, ClassLoader), declared with an access modifier (after any annotations, one or several names) and neither static nor transient, inside a Java class whose own header implements Serializable (the nearest enclosing class declaration). Serialising such an object throws NotSerializableException at run time, or silently loses the resource when a custom writeObject skips it. Not reported: static and transient fields, fields of another class in the same file that is not Serializable, a class that is Serializable only through a superclass (cross-file), a simple name imported from a non-JDK package (com.acme.Process, org.slf4j.Logger, Guava Optional), the JDBC names (Connection, Statement, ResultSet, DataSource) in a file that never mentions java.sql or javax.sql (a bank Statement or graph Connection), local variables, package-private fields with no modifier (a documented gap), and comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1070/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1070/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

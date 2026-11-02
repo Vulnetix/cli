@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1037",
 	"name": "Infisical service token (st.)",
 	"description": "An Infisical service token (st. prefix) was found. It grants an application read/write access to the secrets of a specific Infisical project environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1037",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1037",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

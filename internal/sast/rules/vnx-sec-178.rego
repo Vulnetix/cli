@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-178",
 	"name": "Fly.io org deploy token (FlyV1 macaroon)",
 	"description": "A Fly.io FlyV1 macaroon deploy token was found. FlyV1 macaroons are scoped deploy tokens that authorize CI/CD to deploy and manage Fly.io apps.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-178",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-178",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

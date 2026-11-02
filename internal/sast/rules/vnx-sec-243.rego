@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-243",
 	"name": "FluxCD GitRepository SSH private key",
 	"description": "An SSH private key embedded in a FluxCD GitRepository/secret manifest was found. It grants the GitOps controller's git access to anyone who obtains it.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-243",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-243",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-DOCKER-001",
 	"name": "Dockerfile final stage runs as root",
 	"description": "The stage that becomes the image (the last FROM) runs as root: it has no USER instruction, or its last USER is root (USER root, USER 0, USER 0:0, the Windows ContainerAdministrator, case-insensitive), or it is built FROM an earlier stage whose last USER is root. USER does not carry across FROM, so a USER set only in a builder stage leaves the runtime stage as root; the finding is on the last FROM line, or on the USER root line. Not reported: a final stage whose last USER is any other name, uid or variable; a final stage built FROM an earlier stage (up to two levels) that set a non-root USER; base images that are non-root by default (a nonroot, rootless, unprivileged or chiseled image or tag such as gcr.io/distroless/*:nonroot, nginxinc/nginx-unprivileged and the .NET *-chiseled images, cgr.dev/chainguard images other than -dev, bitnami images); USER text inside comments and heredocs; .devcontainer and test images; and files that only mention Dockerfiles (dockerfile.go, render_dockerfile.py). A USER set at deploy time (compose user:, Kubernetes runAsUser) is not visible here.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-docker-001/",
 	"languages": ["docker"],
 	"severity": "medium",
 	"level": "warning",

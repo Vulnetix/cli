@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-004",
 	"name": "Express app without helmet",
 	"description": "An Express application object is created (const app = express(), module.exports = express(), export const app = express()) in a file that imports express, and nothing in the same npm package (the files under the nearest directory holding a package.json, or the whole project when there is none) applies security headers: no helmet(...) call in code, no lusca, and no middleware that sets Content-Security-Policy, X-Frame-Options, Strict-Transport-Security or X-Content-Type-Options itself (setHeader/set/header by name, or as a key of a headers object). A helmet named only inside a string literal or a comment does not count. The app then serves without clickjacking, MIME-sniffing, HSTS or CSP protection. Reported once per file, on the first express() call. Not reported: express.Router() and other express.* factories, a helmet() call in any other module of the package, a helmet mentioned only in a comment (this still reports), test, example, sample, demo and benchmark code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-004/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

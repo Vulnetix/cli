@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-596",
 	"name": "ArangoDB connection string with password",
 	"description": "An ArangoDB HTTP connection URL embedding the user password (http+ssl or basic auth) was found. It authenticates to the ArangoDB server and grants database access per the user's permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-596",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-596",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

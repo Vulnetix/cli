@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JAVA-006",
 	"name": "Insecure TLS trust manager",
 	"description": "Reports Java code that switches off TLS server authentication: an X509TrustManager whose checkServerTrusted() body is empty (or only returns, or only holds comments), a HostnameVerifier whose verify(String, SSLSession) just returns true, an Apache TrustStrategy whose isTrusted() returns true, a (hostname, session) -> true lambda passed to setHostnameVerifier/setDefaultHostnameVerifier/hostnameVerifier or assigned to a HostnameVerifier, a loadTrustMaterial lambda returning true, and the trust-everything constants NoopHostnameVerifier, ALLOW_ALL_HOSTNAME_VERIFIER/AllowAllHostnameVerifier, TrustAllStrategy, TrustSelfSignedStrategy and Netty InsecureTrustManagerFactory.INSTANCE. Any certificate or host name is then accepted, enabling man-in-the-middle attacks. Not reported: class or variable names that merely say trust-all, a checkServerTrusted that delegates or throws, an empty checkClientTrusted, imports, comments, string literals, and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-006/",
 	"languages": ["java"],
 	"severity": "critical",
 	"level": "error",

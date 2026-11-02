@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-727",
 	"name": "Slack webhook URL",
 	"description": "A Slack incoming-webhook URL (hooks.slack.com/services/...) was found. Anyone with this URL can post messages into the target Slack channel.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-727",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-727",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

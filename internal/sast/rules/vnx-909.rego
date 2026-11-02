@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-909",
 	"name": "Missing Initialization of Resource",
 	"description": "A Java private field holding an object (a DataSource, Cipher, Map, lock, array ...) that nothing in its class ever assigns, yet the class dereferences it (dataSource.getConnection(), this.cipher.doFinal(...), cache.get(id), allowed.length, synchronized (lock), for (X x : listeners)), so the first use throws NullPointerException. Reported on the field declaration: private, not final, not primitive, no initializer, no annotation (an injection, mock, binding or framework annotation such as @Autowired, @Inject, @Mock, @Value, @BindView), and no assignment anywhere in the file (name = ..., this.name = ..., other.name = ..., in a constructor, setter, initializer block or lazy if (x == null) x = ...). Not reported: classes whose fields a framework or Lombok fills (@Data, @Setter, @Builder, @AllArgsConstructor, @Value, @Entity, @Embeddable, @Document, @XmlRootElement, JSON-mapped DTOs annotated as such), files using reflection (setAccessible(true)), fields shadowed by a parameter, lambda or loop variable of the same name (unless dereferenced through this.), primitives (which default to 0/false), final fields (the compiler enforces their initialization), test sources, comments and strings. A field assigned by a serializer without annotations (plain Gson) is invisible to the rule.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-909/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-909/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-441",
 	"name": "Unintended proxy: request-chosen URL fetched and relayed to the client",
 	"description": "Reports a server-side HTTP fetch whose URL (the first argument, or the URL argument of requests.request/http.request) is a request value, directly or through a variable assigned from one in the 12 lines above (including JS destructuring and TypeScript-annotated declarations), when the fetched response is then returned to the caller in the next 15 lines, before the next handler or function starts: Python requests/httpx/urlopen with the response's content/text/read() returned, rendered or wrapped in a Response, and Node axios/fetch/got/needle/superagent/request with the body sent, written or piped to res. Also reports http-proxy's proxy.web/proxy.ws with a target taken from the request. The service then acts as an open proxy (confused deputy) that reaches internal hosts on the requester's behalf. Not reported: a fetch whose URL is a constant (a request value only in params or the body), a URL that names a fixed host and takes only its path or query from the request (f\"{API}/items/{id}\", `${UPSTREAM}/search?q=${q}`), a fetch whose response is not relayed (plain SSRF is VNX-918 in Python and VNX-NODE-009 in JavaScript, which leave relayed fetches to this rule so one request is one finding), a flow guarded by an allow-list or URL validation between source and fetch, comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-441/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-441/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

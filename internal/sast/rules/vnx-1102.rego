@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-1102",
 	"name": "Reliance on Machine-Dependent Data Representation",
 	"description": "C and C++ code writes or reads the in-memory representation of a multi-byte value or a struct straight to or from a socket, file or stream: send/sendto/recv/recvfrom/write/read/pwrite/pread, fwrite/fread (including the fwrite(&x, 1, sizeof x, f) form and std:: or :: qualified calls), or an iostream .write/.read through reinterpret_cast, where the buffer is the address of a variable (&n) or a pointer and the size is sizeof of that variable, of a multi-byte scalar type (int, long, short, uint16_t/uint32_t/uint64_t, float, double, size_t) or of a struct. The bytes on the wire or on disk then depend on the host's byte order, type widths, alignment and struct padding, so another machine reads a different value. Reported: the call line. Not reported: a byte-order conversion of the same variable within a few lines (htonl/ntohl, htobe64/le64toh, bswap, cpu_to_le32, memrev), single-byte values (char, uint8_t, bool, sizeof(char)), byte buffers sized by sizeof(buf), constant counts such as write(fd, &c, 1), host-local kernel interfaces read and written in native order by design (eventfd, signalfd, timerfd, inotify, self-pipe wakeups, judged by the descriptor's name, and descriptors the same file creates with pipe()/pipe2() or socketpair()), and calls inside comments or strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1102/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1102/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

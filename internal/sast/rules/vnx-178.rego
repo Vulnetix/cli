@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-178",
 	"name": "Improper Handling of Case Sensitivity",
 	"description": "An uploaded file's name or extension is compared case-sensitively against a dangerous extension (php/phtml/phar, jsp/jspx, asp/aspx, exe/dll, sh/bat/cmd/ps1, cgi/pl/py/rb, js, html/svg, htaccess, war/jar): endswith/endsWith/HasSuffix/str_ends_with, ==/===/!=, equals, in [...]/in_array/includes/contains, or a membership test (in X, X.includes/contains/has, in_array($ext, $X), slices.Contains) against a deny-list collection of such extensions defined in the same file, or a case-sensitive regular expression for them (a JavaScript literal without the i flag in .test()/.match(), re.search/re.match without re.I, Java String.matches without (?i)), in a Python, JavaScript/TypeScript, Java, Go or PHP file that handles uploads (request.files, multer originalname, MultipartFile, FormFile, $_FILES), on a line that names the value as a file name, extension, suffix or path. Such a deny check is bypassed by \"shell.PHP\" or \"x.Jsp\", which the server still executes. Not reported: a format, language or output parameter compared with \"html\" or \"py\", a value lower- or upper-cased on the same line or assigned from lower()/toLowerCase()/strings.ToLower/strtolower/casefold in the ten lines above, equalsIgnoreCase/EqualFold, allow-lists of harmless extensions (png, jpg), files that do not handle uploads, the comparison inside a string literal, comments. Equality against a role name such as \"admin\" fails closed and is not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-178/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-178/",
 	"languages": ["go", "java", "node", "python", "php"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-136",
 	"name": "DigitalOcean Spaces secret key",
 	"description": "A DigitalOcean Spaces secret key assigned to a context keyword was found. The secret signs S3-compatible requests to DigitalOcean Spaces object storage.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-136",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-136",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

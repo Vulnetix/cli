@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1021",
 	"name": "Snyk org/service account token (snyk_ prefix)",
 	"description": "A Snyk service account token (snyk_ prefix) was found. It grants automated API access scoped to a Snyk organization or group for CI integrations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1021",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1021",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

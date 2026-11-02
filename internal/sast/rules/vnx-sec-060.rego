@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-060",
 	"name": "Airtable personal access token",
 	"description": "Reports an Airtable credential written into a file: a personal access token (pat + 14 alphanumerics + . + 64 hex) anywhere, and a legacy API key (key + 14 alphanumerics) only when Airtable (airtable, AIRTABLE_API_KEY, Airrecord) is named on that line or up to three lines above it, since key followed by letters is an ordinary identifier. Each must stand alone rather than inside a longer identifier. Airtable tokens read and write the bases they are scoped to. The snippet is redacted. Not reported: placeholder or low-entropy bodies (XXXX, YOUR_KEY_HERE), key-prefixed names on lines without Airtable context, tokens read from the environment, and test, fixture and vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-060/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-060/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

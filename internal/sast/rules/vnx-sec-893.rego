@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-893",
 	"name": "Gorgias account subdomain credential pair",
 	"description": "A Gorgias basic-auth credential (base64 username:api-key) was found. It authenticates against the Gorgias helpdesk API for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-893",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-893",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-491",
 	"name": "Public cloneable() Method Without Final ('Object Hijack')",
 	"description": "A Java class that is not final declares a public clone() that is not final and builds its copy with super.clone() within the next few lines. super.clone() creates the object without running a constructor, and because neither the class nor the method is final, a subclass can override clone() and hand out copies that skip the constructor's checks or share mutable internals. Not reported: a final clone() (including one that only throws CloneNotSupportedException), a clone() in a final class or record, a clone() that copies through a constructor rather than super.clone(), a clone overload with parameters, non-public clone methods, and the pattern in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-491/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-491/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

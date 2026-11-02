@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-697",
 	"name": "SSH private key beginning marker (generic)",
 	"description": "A generic SSH/PEM private key begin marker (BEGIN ... PRIVATE KEY) for an uncommon key type was found, indicating committed private key material.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-697",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-697",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

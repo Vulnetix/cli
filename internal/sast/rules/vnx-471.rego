@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-471",
 	"name": "Modification of Assumed-Immutable Data (MAID)",
 	"description": "A Java `public static final` field (modifiers in any order) whose value is mutable, so `final` freezes only the reference and any code in the process can change data the rest of the program treats as a constant: a new mutable collection or holder (ArrayList, LinkedList, HashMap, TreeMap, LinkedHashMap, HashSet, TreeSet, Vector, Hashtable, Properties, ArrayDeque, ConcurrentHashMap, Date, Calendar, StringBuilder, StringBuffer), or Arrays.asList(...), whose elements stay settable; an initialiser on the following line is read too. Not reported: immutable values (List.of, Set.of, Map.of, copyOf, Collections.unmodifiable*/empty*, Guava Immutable*, strings and primitives), arrays of any kind (a public static final array, `String[] TRUSTED_HOSTS = {...}`, is reported by VNX-582), private, package-private or instance fields, fields assigned later in a static block (whose value the line does not show), methods returning arrays, test sources, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-471/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-471/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

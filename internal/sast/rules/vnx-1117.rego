@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1117",
 	"name": "Callable with Insufficient Behavioral Summary",
 	"description": "A Python function or method whose behavioural summary is missing where it matters: a docstring that is empty or only a placeholder (\"\"\"\"\"\", \"\"\"TODO\"\"\", \"\"\"...\"\"\", \"\"\"Docstring\"\"\", \"\"\"Description\"\"\", on one line or split over three, a generator stub such as autoDocstring's \"\"\"_summary_, or only a to-do note such as \"\"\"TODO: write docstring.\"\"\"), on any function; and a public (name not starting with an underscore) top-level function or method whose body is 50 or more lines of code with no docstring at all. Not reported: short or private undocumented functions (an undocumented helper is not by itself a weakness), functions documented by a real docstring (a single-quoted string as the first statement is a docstring too), nested functions, test files, and the patterns inside comments. CWE-1117 is a maintainability weakness; the finding says the callable cannot be reviewed against a stated contract, not that it is exploitable.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1117/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1117/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

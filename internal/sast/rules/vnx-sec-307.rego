@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-307",
 	"name": "NVIDIA NGC API key (legacy hex)",
 	"description": "A legacy NVIDIA NGC API key in 84-character base64-like form referenced via an NGC_API_KEY assignment was found.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-307",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-307",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

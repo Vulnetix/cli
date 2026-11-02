@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-317",
 	"name": "Weaviate API key (assignment context)",
 	"description": "A Weaviate API key referenced via a WEAVIATE_API_KEY assignment was found, confirming a live Weaviate credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-317",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-317",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

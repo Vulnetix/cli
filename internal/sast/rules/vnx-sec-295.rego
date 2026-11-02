@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-295",
 	"name": "Fireworks AI API key (fw- dash form)",
 	"description": "A Fireworks AI API key using the fw- dash prefix form was found. It grants access to Fireworks model inference billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-295",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-295",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

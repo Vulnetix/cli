@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1114",
 	"name": "SoundCloud OAuth access token",
 	"description": "A SoundCloud OAuth access token (oauth-prefixed numeric/hex) was found. It authorizes SoundCloud API actions on behalf of the authorized user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1114",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1114",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-C-004",
 	"name": "Use-after-free: pointer used after free()",
 	"description": "Reports a C, C++ or Objective-C pointer that is used after it was released: free(p), g_free, kfree, vfree, kvfree, OPENSSL_free, std::free or C++ delete/delete[] of a variable or member expression (p, ctx->buf, s.data), followed within the next 15 lines, on the same path, by a dereference (p->x, p[i], *p), a call that takes it as an argument (memcpy(p, ...), printf(\"%s\", p)) or return p, before anything reassigns it (p = NULL, p = malloc(...), get(&p)) and before the path leaves (return, break, continue, goto, exit, an else or case label, the end of the function). Also reported: a for loop whose step advances through the pointer its body frees (for (p = head; p; p = p->next) free(p)). Not reported: a pointer nulled or reassigned after free, a comparison such as if (p) or p != NULL, sizeof(p), a use only on the other branch of an if/else or another case, a use of a different variable or a saved next pointer, frees inside #define macros, aliases (q = p; free(p); q->x), uses further than 15 lines away or in another function, string literals and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-c-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-c-004/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

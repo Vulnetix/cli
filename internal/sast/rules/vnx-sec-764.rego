@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-764",
 	"name": "Box JWT app private-key passphrase",
 	"description": "A Box JWT app private-key passphrase from a config.json app settings file was found. It decrypts the app's RSA private key, which together with the client ID grants enterprise-wide API access to Box content.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-764",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-764",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

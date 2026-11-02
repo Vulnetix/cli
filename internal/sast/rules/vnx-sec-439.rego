@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-439",
 	"name": "Ably API key",
 	"description": "An Ably API key in appId.keyId:keySecret format was found. It grants the configured publish/subscribe capabilities on the Ably realtime platform.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-439",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-439",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

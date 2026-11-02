@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-743",
 	"name": "SAP BTP XSUAA client secret",
 	"description": "An SAP BTP XSUAA service-binding client secret was found. Combined with the client ID and token URL it grants OAuth access to SAP BTP services.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-743",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-743",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-025",
 	"name": "Potential open redirect via HTTP redirect",
 	"description": "A redirect target is taken from the request: a query, form or route parameter (r.URL.Query().Get, r.FormValue, r.PostFormValue, r.Form.Get, mux.Vars, chi.URLParam, r.PathValue, httprouter ps.ByName, gin c.Query/DefaultQuery/PostForm/Param, echo c.QueryParam/FormValue, fiber c.Query/Params) reaches http.Redirect, a framework Redirect (gin/echo c.Redirect(code, url), fiber c.Redirect(url)) or a Location header, directly, through the variable it was assigned to, or through one variable built from it (\"/\" + v, fmt.Sprintf(\"https://%s/...\", v), a host without a trailing slash). Not reported: a target checked first (strings.HasPrefix, a switch or map allowlist, url.Parse followed by a Host/IsAbs/Scheme test, a helper whose name says safe/valid/allowed/trusted/sanitize), a value placed after a fixed path segment or a fixed scheme://host/ (\"/users/\" + v, \"https://docs.example.com/\" + v), a value passed through url.QueryEscape/PathEscape, constant targets, the request Host or Referer header (not attacker-chosen in a victim's browser), comments and string literals. Cross-function flows are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-025/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-025/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

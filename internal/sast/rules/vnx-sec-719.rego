@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-719",
 	"name": "Pinata JWT (IPFS)",
 	"description": "A Pinata IPFS API JWT assigned to a pinata context was found. It authorises pinning and gateway operations on the Pinata account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-719",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-719",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

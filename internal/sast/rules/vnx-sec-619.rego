@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-619",
 	"name": "New Relic insert / ingest key (NRII)",
 	"description": "A New Relic ingest (license/insert) key using the NRII- prefix was found. It authorises event and telemetry data ingestion to the New Relic account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-619",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-619",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-345",
 	"name": "Flutterwave public key (FLWPUBK-)",
 	"description": "A Flutterwave public key using the FLWPUBK- prefix was found. Public keys are client-side safe but flag Flutterwave integration code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-345",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-345",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

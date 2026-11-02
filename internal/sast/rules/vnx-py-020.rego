@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-020",
 	"name": "tarfile.extractall() without path validation (zip slip)",
 	"description": "A tar archive is extracted with no extraction filter and no member validation, in a .py file. Reported: extractall() or extract() on a TarFile (a name or attribute bound by `x = tarfile.open(...)` / `self.x = tarfile.open(...)`, `tarfile.TarFile(...)`/`TarFile.open(...)` or `with tarfile.open(...) as x`, a parameter annotated TarFile, module aliases and a from-imported TarFile included) and tarfile.open(...).extractall(...) chained, when the call passes no filter= (or filter='fully_trusted'/fully_trusted_filter/None) and no members= other than x.getmembers(), arguments read across a call broken over lines. A member named ../../etc/cron.d/x, an absolute path or a symlink then writes outside the destination (CVE-2007-4559, CWE-22). Use filter='data' (Python 3.12+, the default from 3.14), tarfile.data_filter, or validate each member's resolved path. Not reported: a call with filter='data'/'tar'/data_filter, members= from a filtering function, extraction preceded within 15 lines by a getmembers()/member loop that checks member paths (it must refer to the members: getmembers(), getnames(), .name or member; a loop over other names does not count) (realpath, abspath, commonpath, is_relative_to, startswith, '..', isabs, issym/islnk), a file that sets TarFile.extraction_filter, zipfile extraction (zipfile sanitises member names), extractfile(), and the calls in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-020/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-020/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

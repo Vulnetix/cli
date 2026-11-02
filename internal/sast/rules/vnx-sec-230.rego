@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-230",
 	"name": "Drone CI RPC secret",
 	"description": "A Drone CI RPC shared secret was found. It authenticates runners to the Drone server and grants the ability to receive and execute build jobs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-230",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-230",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

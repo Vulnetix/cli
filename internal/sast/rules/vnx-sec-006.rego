@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-006",
 	"name": "Stripe secret key",
 	"description": "Reports a hard-coded Stripe secret API key in any file: a standalone sk_live_ (live mode) or sk_test_ (test mode) token of 24 or more alphanumeric characters, as assigned to stripe.api_key / Stripe.api_key / stripe.Key, passed to require('stripe')(…) or Stripe::setApiKey, or set in a .env file. Not reported: Stripe's published documentation test keys, placeholder runs (sk_live_xxxx…), publishable (pk_) and restricted (rk_, VNX-SEC-321/322) keys, prefix checks, environment references, and test, fixture, vendored and generated files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-006/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-821",
 	"name": "BigCommerce API access token",
 	"description": "A BigCommerce store API access token was found. It authenticates against the BigCommerce Stores API and grants access to catalog, orders and customer data for the store.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-821",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-821",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

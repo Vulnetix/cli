@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-342",
 	"name": "Paystack public key (pk_live)",
 	"description": "A Paystack live public key was found near a paystack assignment using the pk_live_ prefix. Public keys are client-side safe but flag Paystack integration code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-342",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-342",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

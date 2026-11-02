@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-580",
 	"name": "clone() Method Without super.clone()",
 	"description": "A Java class that is not final overrides clone() and builds the copy itself (a copy constructor, new ThisClass(), field-by-field copying) without calling super.clone(). A subclass that inherits this clone(), or calls super.clone() in its own, then receives an object of the parent's class, not its own: the copy silently loses the subclass's type and fields, and code that casts it fails or works on the wrong state. Reported: the declaration line of a public or protected clone() with a body (the opening brace on that line or after a throws clause on the next lines), in a class whose declaration is not final, when the body (up to its closing brace, 80 lines at most) never calls super.clone() (also when the call is split across lines). Not reported: a clone() that calls super.clone(), a clone() in a final class, record or enum, an abstract or interface clone() with no body, a clone() that only throws (CloneNotSupportedException, UnsupportedOperationException) or returns this, calls of clone() on fields or arrays, test code, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-580/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-580/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

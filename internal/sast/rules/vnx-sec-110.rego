@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-110",
 	"name": "Hetzner Cloud API token",
 	"description": "A Hetzner Cloud API token assigned to a context keyword was found. Hetzner Cloud tokens grant full read/write access to the project's servers, volumes, networks and firewalls.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-110",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-110",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

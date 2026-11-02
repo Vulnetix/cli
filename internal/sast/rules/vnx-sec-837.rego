@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-837",
 	"name": "Shippo live API token (shippo_live_)",
 	"description": "A Shippo live API token (shippo_live_ prefix) was found. It creates real shipping labels and charges the merchant's Shippo account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-837",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-837",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

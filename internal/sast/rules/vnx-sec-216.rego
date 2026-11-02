@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-216",
 	"name": "Vercel API token",
 	"description": "A Vercel API access token was found. It grants programmatic control over Vercel projects, deployments, domains and environment variables.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-216",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-216",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

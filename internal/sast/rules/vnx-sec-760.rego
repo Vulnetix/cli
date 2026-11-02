@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-760",
 	"name": "Workable API access token",
 	"description": "A Workable API access token was found. It grants API access to the company's jobs, candidates and recruiting workflow in Workable.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-760",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-760",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

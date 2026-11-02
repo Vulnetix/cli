@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-044",
 	"name": "Microsoft Teams webhook URL",
 	"description": "Reports a complete Microsoft Teams incoming webhook URL written into a file: the current form (<tenant>.webhook.office.com/webhookb2/<group-guid>@<tenant-guid>/IncomingWebhook/<32-hex>/<guid>) and the legacy form (outlook.office.com or outlook.office365.com /webhook/.../IncomingWebhook/...). Anyone holding the URL can post into the channel. The snippet is redacted. Not reported: truncated URLs, placeholder GUIDs and hashes (all zeros, xxxx, EXAMPLE), URLs read from the environment, Power Automate workflow URLs, and test, fixture and vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-044/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-044/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

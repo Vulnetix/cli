@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1320",
 	"name": "Fault or watchdog alert signal suppressed",
 	"description": "CWE-1320 (Improper Protection for Outbound Error Messages and Alert Signals) is a hardware weakness: an untrusted agent can disable or mask the alerts a component raises on a fault. Its nearest statically recognisable form in C and C++ is reported: code that switches off the alert channel the kernel and hardware use to report a fault, so the fault goes unnoticed and execution continues in an undefined state. Reported: signal()/std::signal()/sigset()/bsd_signal()/sysv_signal() setting SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGSYS, SIGXCPU or SIGABRT to SIG_IGN; sigaction() installing one of those signals with a struct whose sa_handler was last set to SIG_IGN (an assignment or a designated initialiser in the 15 lines above); disabling a hardware watchdog with ioctl(WDIOC_SETOPTIONS) where WDIOS_DISABLECARD is on the line or in the 5 lines above; and the watchdog magic close, write(fd, \"V\", 1), in a file that opens /dev/watchdog. Not reported: ignoring SIGPIPE, SIGCHLD, SIGHUP, SIGINT and other non-fault signals, a real handler or SIG_DFL for a fault signal, ordinary ioctl calls (WDIOC_KEEPALIVE, WDIOC_SETTIMEOUT, terminal ioctls), comments and string literals. The original rule's 'any ioctl() call' heuristic is gone: an ioctl is not by itself an alert-protection issue.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1320/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1320/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

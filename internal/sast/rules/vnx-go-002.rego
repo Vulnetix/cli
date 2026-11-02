@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-002",
 	"name": "Command injection via exec.Command",
 	"description": "os/exec runs a command line that a formatted or request-supplied value can rewrite: exec.Command/CommandContext (also golang.org/x/sys/execabs and import aliases of either) invokes a shell (sh, bash, zsh, dash, ksh, ash, cmd, powershell, pwsh, by name or path) with -c (or -lc, /C, -Command, optionally after shell options such as -e, -o pipefail or -NoProfile) and a script that is built with fmt.Sprintf or + concatenation, read from an HTTP request (net/http, gin, echo, fiber, gorilla/mux, chi), or held in a variable assigned from one of those in the 30 lines above; or the program to run is itself formatted, concatenated or taken from the request. Calls split over several lines are read as one. Not reported: a constant script, an inline script whose only formatted pieces are integer Sprintf verbs (%d) or strconv number conversions,a value passed as a positional parameter after the script (sh -c '... \"$1\"' sh value), a value quoted with shellescape.Quote or shellquote.Join, a formatted or request value given as its own argument to a fixed program (no shell, so no injection), lookalike packages (sshexec.Command), the call inside a string literal or comment, and _test.go/testdata code, which builds its shell lines from its own constants.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-002/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

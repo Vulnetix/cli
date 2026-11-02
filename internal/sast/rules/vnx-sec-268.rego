@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-268",
 	"name": "Weaviate API key",
 	"description": "A Weaviate Cloud API key was found. It grants access to the Weaviate vector database cluster.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-268",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-268",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

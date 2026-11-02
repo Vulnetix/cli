@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1047",
 	"name": "FOSSA API token (fossa_)",
 	"description": "A FOSSA API token (fossa_ prefix) was found. It grants programmatic access to FOSSA license-compliance and vulnerability reports for the organization.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1047",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1047",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

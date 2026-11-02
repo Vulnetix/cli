@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-486",
 	"name": "Comparison of Classes by Name",
 	"description": "An object's type is decided by comparing its class name: in Java, getClass().getName(), getSimpleName() or getCanonicalName() (or Foo.class.getName()) compared with equals/equalsIgnoreCase/== in either order; in C#, GetType().Name or GetType().FullName compared with ==, != or Equals; in Python, type(x).__name__ or x.__class__.__name__ compared with ==, != or in. A switch (C# switch expression, Python match) on such a name is reported, as is a class name stored in a local and compared with a literal within the next eight lines. Different classes can share a name (another package, another class loader, an attacker-supplied subclass or plugin), so a trust or dispatch decision made this way can be satisfied by the wrong type. Not reported: instanceof, isinstance, is, isAssignableFrom and class-object identity (getClass() == Foo.class, GetType() == typeof(Foo), type(x) is Foo), a class name read for logging or display, and the pattern in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-486/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-486/",
 	"languages": ["java", "csharp", "python"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-510",
 	"name": "monday.com API token (JWT)",
 	"description": "A monday.com API v2 token (JWT) was found. It grants GraphQL API access to the user's monday.com boards, items and account data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-510",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-510",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

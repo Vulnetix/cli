@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-428",
 	"name": "Crisp API key / identifier",
 	"description": "A Crisp API key or plugin identifier/key was found near a crisp assignment. Crisp credentials authorize access to chat sessions and customer profiles.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-428",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-428",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

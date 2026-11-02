@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1057",
 	"name": "Rapid7 InsightVM/InsightAppSec API key (assignment)",
 	"description": "A Rapid7 Insight platform API key (UUID) assigned to a rapid7/insightvm field was found. It grants programmatic access to InsightVM/InsightAppSec scan data and platform APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1057",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1057",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

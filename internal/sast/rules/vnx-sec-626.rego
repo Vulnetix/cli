@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-626",
 	"name": "Datadog client token (pub)",
 	"description": "A Datadog RUM/Logs browser client token using the pub prefix was found. It authorises browser SDK event ingestion (RUM, browser logs) to the Datadog account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-626",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-626",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

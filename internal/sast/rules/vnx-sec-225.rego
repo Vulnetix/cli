@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-225",
 	"name": "Netlify build hook URL",
 	"description": "A Netlify build hook URL containing an embedded secret was found. Anyone with the URL can trigger builds and deploys of the site.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-225",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-225",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

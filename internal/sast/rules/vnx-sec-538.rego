@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-538",
 	"name": "Unleash API token",
 	"description": "An Unleash feature-flag API token (client or admin) was found. Admin tokens grant full control over the Unleash project's flags and strategies.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-538",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-538",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

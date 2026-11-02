@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-020",
 	"name": "GitLab access token",
 	"description": "Reports a GitLab token written into a file: a personal, project or group access token (glpat- followed by 20 or more token characters, including the newer routable form with a .01. segment), a deploy token (gldt-), a runner authentication or registration token (glrt-, glrtr-), a CI/CD job token (glcbt-), an OAuth application secret (gloas-), a Kubernetes agent token (glagent-), a feed token (glft-), an incoming mail token (glimt-), a feature flags client token (glffct-), a SCIM token (glsoat-) or a pipeline trigger token (glptt- followed by 40 hex characters). The token must stand alone (not the tail of a longer identifier), must not be a placeholder (xxxx, your-token, EXAMPLE) and must have the entropy of a real token; the snippet is redacted. Not reported: tokens read from CI variables or the environment ($GITLAB_TOKEN, ${CI_JOB_TOKEN}), the bare prefix in validation code, and test, fixture, vendored and generated paths. Overlaps VNX-SEC-004 and VNX-SEC-039 on glpat- tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-020/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-020/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

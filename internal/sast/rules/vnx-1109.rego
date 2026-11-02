@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1109",
 	"name": "Use of Same Variable for Multiple Purposes",
 	"description": "A nested loop that reuses the enclosing loop's own control variable, so the inner loop overwrites the counter or element the outer loop is still using. Reported: in Python, a 'for NAME in ...:' statement inside the body of an enclosing 'for' whose targets include NAME (tuple targets included); in C, C++ and Java, an inner 'for (i = ...)' that assigns the outer loop's variable without declaring a new one; in JavaScript/TypeScript, an inner 'for (var i ...)' or 'for (i ...)', since 'var' is function-scoped and is the same variable. Not reported: sibling loops, an inner loop that declares its own variable ('for (int i', 'for (let i'), an outer C-family loop whose body is a single statement on its own line, an inner loop inside a callback function defined in the outer loop (a JavaScript 'function' or arrow, a Python 'def' or 'class'), an inner loop followed within four lines by a return/goto/throw/raise/exit inside the outer body, or within six lines by a 'break' at the inner loop's level (a rollback or reset that abandons the outer loop), Python comprehensions (their own scope), the throwaway name '_', and loops more than 60 lines apart.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1109/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1109/",
 	"languages": ["python", "javascript", "c", "cpp", "java"],
 	"severity": "low",
 	"level": "note",

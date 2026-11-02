@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-615",
 	"name": "Inclusion of Sensitive Information in Source Code Comments",
 	"description": "Reports a comment (a whole-line comment: # in Python; //, /* */, a * continuation line or <!-- --> elsewhere; a line inside a /* ... */ block opened by a line starting with /*; or a trailing comment after code, found after string literals are removed) in Go, Java, JavaScript/TypeScript or Python source that records a credential value: a password, passwd, passphrase, secret, client_secret, api_key, access/auth/api/refresh/CSRF/session token, jwt, sessionid, private key or secret/access key name followed by ':' or '=' and a literal of six or more characters containing a digit or a symbol (\"R3port!ng2023\", letmein99, commented-out `String password = \"Adm1n@2024\";`). Comments ship with the source and survive in history, so the credential is disclosed to everyone who can read it. Not reported: parameter documentation (@param password the user's password), prose and type descriptions (password: must be 12 characters, api_key: string), references to the environment, settings or a function call (os.Getenv(...), process.env.X, settings.API_KEY, hash(input)), placeholders (changeme, xxxxxxxx, ********, <your password>, ${VAR}, %(password)s, None), URLs, credentials in code rather than comments (hard-coded credential rules cover those), and provider-format tokens (the secrets rules cover those).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-615/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-615/",
 	"languages": ["go", "java", "node", "python"],
 	"severity": "low",
 	"level": "note",

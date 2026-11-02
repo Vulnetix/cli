@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-266",
 	"name": "Pinecone API key",
 	"description": "A Pinecone API key was found. It is a UUID-format key granting access to Pinecone vector indexes billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-266",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-266",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-453",
 	"name": "SendGrid subuser/marketing API key (SG.)",
 	"description": "A SendGrid subuser API key (SG. format) was found near a subuser assignment. SendGrid keys grant scoped access to mail send and account resources for a subuser.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-453",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-453",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

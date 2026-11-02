@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-149",
 	"name": "Google Maps Platform API key (AIza, restricted-context)",
 	"description": "A Google Maps Platform API key (AIza prefix) in a maps context was found. Unrestricted Maps keys can be abused to incur billing charges against the project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-149",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-149",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

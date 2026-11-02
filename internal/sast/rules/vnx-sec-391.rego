@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-391",
 	"name": "Coinbase Pro passphrase",
 	"description": "A Coinbase Pro API passphrase was found near a coinbase_pro/passphrase assignment. The passphrase is required alongside the key and secret to sign Coinbase Pro requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-391",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-391",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

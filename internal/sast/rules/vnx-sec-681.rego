@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-681",
 	"name": "Facebook/Meta app secret",
 	"description": "A Facebook/Meta app secret (32 hex characters) assigned to a facebook/meta context was found. It authenticates the app for the Graph API and can mint app access tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-681",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-681",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

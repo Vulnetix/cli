@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-695",
 	"name": "Magento integration access token",
 	"description": "A Magento integration access token assigned to a magento context was found. It authenticates Magento REST/SOAP API requests with the integration's permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-695",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-695",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

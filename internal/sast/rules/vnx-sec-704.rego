@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-704",
 	"name": "Reddit refresh token",
 	"description": "A Reddit OAuth refresh token assigned to a reddit context was found. It can mint new access tokens for long-lived API access on behalf of the user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-704",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-704",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

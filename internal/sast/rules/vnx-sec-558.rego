@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-558",
 	"name": "Contentful management token (keyword)",
 	"description": "A Contentful Content Management API access token referenced by a contentful management/cma assignment was found. It grants read/write access to Contentful spaces.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-558",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-558",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

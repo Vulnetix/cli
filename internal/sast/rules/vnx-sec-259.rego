@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-259",
 	"name": "Perplexity API key (pplx-)",
 	"description": "A Perplexity API key (pplx- prefix) was found. It grants access to the Perplexity Sonar API billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-259",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-259",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

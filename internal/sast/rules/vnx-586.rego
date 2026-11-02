@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-586",
 	"name": "Explicit Call to Finalize()",
 	"description": "A Java call to finalize() with no arguments on any receiver (obj.finalize(), this.finalize(), getX().finalize(), a .finalize() continuing a call chain on the next line) or as a bare finalize(); statement. Finalisers are meant to be run once by the garbage collector; calling one directly runs the cleanup while the object is still reachable and again when it is collected. Not reported: super.finalize() (the correct chaining inside an overriding finalizer), declarations of finalize(), finalize(...) overloads with arguments, methods whose name only starts with finalize, System.runFinalization(), comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-586/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-586/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

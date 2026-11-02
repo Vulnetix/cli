@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-547",
 	"name": "Heap app ID / API key",
 	"description": "A Heap Analytics API key or app ID with server access was found. Server keys grant access to the Heap account's data and user management.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-547",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-547",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

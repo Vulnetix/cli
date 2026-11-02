@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-083",
 	"name": "Heroku API key (v2 HRKU-)",
 	"description": "A Heroku v2 platform API key using the HRKU- prefix was found. It grants full access to the Heroku account's apps, config vars and add-ons.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-083",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-083",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

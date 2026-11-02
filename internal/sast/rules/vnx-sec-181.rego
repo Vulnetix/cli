@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-181",
 	"name": "Bitbucket app password",
 	"description": "A Bitbucket app password used for HTTP Basic auth against the Bitbucket Cloud API and git operations was found. App passwords grant scoped access to repositories, pull requests and pipelines.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-181",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-181",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

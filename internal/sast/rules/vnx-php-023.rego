@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-023",
 	"name": "PHP anonymous LDAP bind without password",
 	"description": "ldap_bind() or ldap_bind_ext() performs an anonymous or unauthenticated bind: it is called with the link only, with a null DN, without a password argument, or with a password of null, '' or \"\" (literally or through a variable assigned that value in the 25 lines above), or a login passes a request password ($_POST, $_GET, $_REQUEST, a Laravel/Symfony request accessor, inline or through a variable) to ldap_bind() with no empty-value check (empty(), strlen(), === '', a 'required' validation rule) between where it was read and the bind. LDAP servers accept a DN with an empty password as an unauthenticated bind that succeeds, so a login that only tests ldap_bind()'s result lets anyone in with any user name and a blank password. Not reported: binds with a service-account password from getenv(), configuration or a secrets store, binds whose password origin is not visible in the file, ldap_sasl_bind() (SASL EXTERNAL uses a client certificate), object methods named bind(), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-023/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-023/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

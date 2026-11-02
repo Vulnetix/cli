@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-554",
 	"name": "Sanity project token (keyword)",
 	"description": "A Sanity.io API token referenced by a sanity token assignment was found. It grants read or write access to the Sanity dataset depending on its role.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-554",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-554",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

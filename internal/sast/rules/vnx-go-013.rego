@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-013",
 	"name": "Go zip/tar slip via archive entry name",
 	"description": "An archive entry's name (a *zip.File from range over Reader.File or a parameter, a *tar.Header from tar.Reader.Next(), its .Name or .FileHeader.Name, directly or through a variable assigned from it) is joined into a destination path with filepath.Join, path.Join or string concatenation, and that path is written to (os.Create, OpenFile, Mkdir/MkdirAll, WriteFile, Symlink, Link, Rename, Chmod...), or the name is written to directly; a tar entry's Linkname passed to os.Symlink/os.Link is reported too. An entry named ../../etc/cron.d/x then writes outside the destination. Not reported when the function checks containment: strings.HasPrefix of the result against a non-literal prefix (the destination), filepath.Rel, filepath.IsLocal, fs.ValidPath, a '..' test, filepath.Base of the entry name, a rooted clean (filepath.Clean(\"/\"+name)), securejoin.SecureJoin, os.OpenRoot (os.Root) or a helper named for the check (sanitize/within/safe/insecure/traversal/zipslip/subpath, checkPath/validateDest/verifyEntry/ensureInside...). A HasPrefix against a string literal (skipping \"__MACOSX/\" entries), filepath.Clean of the bare name and filepath.Base of something else (the archive's own path) are not containment checks and do not suppress the finding; nor when the joined path is only printed, compared or indexed, or the code builds an archive (header.Name = ...) rather than extracting one, nor in comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-013/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-013/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

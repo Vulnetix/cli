@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-375",
 	"name": "Chargebee site/key combination",
 	"description": "A Chargebee API key was found near a chargebee assignment using the legacy non-prefixed form. It authorizes subscription and billing operations on the Chargebee site.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-375",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-375",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

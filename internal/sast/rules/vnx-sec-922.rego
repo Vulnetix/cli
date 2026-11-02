@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-922",
 	"name": "NumLookup API key",
 	"description": "A NumLookupAPI key was found near a numlookup assignment. It is a high-entropy alphanumeric string authorizing phone-number lookup requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-922",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-922",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

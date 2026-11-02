@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-103",
 	"name": "IBM Cloud IAM API key",
 	"description": "An IBM Cloud IAM API key assigned to a context keyword was found. IBM Cloud IAM keys grant programmatic access to the account's services according to the key owner's IAM policies.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-103",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-103",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-628",
 	"name": "Function Call with Incorrectly Specified Arguments",
 	"description": "C and C++ library calls whose arguments are wrong in a way visible on the call line: memset()/wmemset() with the fill value and the length transposed (a literal 0 length after a non-zero value, so nothing is cleared); printf, fprintf, sprintf, snprintf, dprintf and syslog with a literal format whose conversion count (including * width and precision) differs from the number of arguments that follow, so the call reads arguments that were never passed or silently drops one; and open()/openat() with O_CREAT but no mode argument, so the new file's permissions come from whatever is on the stack. Not reported: calls split over several lines, formats built from macros (PRIu64) or positional %n$ conversions, wrapper functions with their own format conventions, memset(p, 0, 0), open() with a mode, and the calls in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-628/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-628/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

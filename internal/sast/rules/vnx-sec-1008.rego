@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1008",
 	"name": "TRM Labs API key (assignment)",
 	"description": "A TRM Labs API key assigned to a trm field was found. It authenticates blockchain-intelligence and wallet-screening requests against the TRM Labs API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1008",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1008",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

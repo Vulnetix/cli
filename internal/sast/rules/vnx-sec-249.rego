@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-249",
 	"name": "Gitee OAuth client secret",
 	"description": "A Gitee OAuth application client secret was found. It is used with the client ID to obtain access tokens against the Gitee platform.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-249",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-249",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

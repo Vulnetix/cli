@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1073",
 	"name": "Dolby.io API secret",
 	"description": "A Dolby.io app secret was found. Combined with the app key it mints access tokens for the Dolby.io Media and Communications APIs billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1073",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1073",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

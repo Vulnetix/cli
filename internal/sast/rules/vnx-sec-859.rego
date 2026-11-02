@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-859",
 	"name": "ConvertKit API secret",
 	"description": "A ConvertKit (Kit) API secret was found. It grants full read/write access to the account's subscribers and broadcasts in the ConvertKit API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-859",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-859",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

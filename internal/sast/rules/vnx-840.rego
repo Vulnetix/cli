@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-840",
 	"name": "Business Logic Error: Client-Controlled Monetary Value",
 	"description": "A monetary value read from the HTTP request (a request field named amount, price, total, subtotal, discount, cost, fee or balance, e.g. req.body.amount, const { amount } = req.body, const price: number = req.body.price, request.form[\"total\"], request.json.get(\"discount_percent\")) used directly, or through one assignment, as what the server charges or books: an amount/unit_amount/total/subtotal/discount/balance key, shorthand property or keyword argument (payment-provider calls such as stripe.paymentIntents.create({ amount }) or stripe.Charge.create(amount=...)), an assignment to an order's .total/.amount/.subtotal/.discount or an account's .balance (including += and -=), or a total computed by arithmetic on the client value. The client decides what it pays, or moves a negative amount. JavaScript/TypeScript and Python. Not reported: a price looked up server-side (product.price * qty), request fields that are identifiers or codes (productId, coupon_code, quantity), a client value compared with a server value or range-checked in an if before use, catalogue edits that set a product's .price, query filters (a nested { $gte: ... } operator object), and the pattern in comments or strings. Flows through helper functions or across files are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-840/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-840/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

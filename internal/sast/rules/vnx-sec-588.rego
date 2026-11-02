@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-588",
 	"name": "Uploadcare public key",
 	"description": "An Uploadcare public key assigned to a context keyword was found. The public key identifies the Uploadcare project for client uploads and pairs with the secret key for API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-588",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-588",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

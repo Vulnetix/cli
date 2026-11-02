@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-068",
 	"name": "Ethereum private key",
 	"description": "Reports a hard-coded Ethereum (secp256k1) private key: exactly 64 hexadecimal characters, optionally 0x-prefixed, that are assigned to a private-key name (PRIVATE_KEY, privateKey, DEPLOYER_PRIVATE_KEY, signer_key, wallet_key...) in code, JSON/YAML config or .env files, passed to a wallet or signer constructor (new ethers.Wallet, privateKeyToAccount, Account.from_key, go-ethereum crypto.HexToECDSA, web3j Credentials.create, fromPrivateKey, SigningKey, PrivateKey, Truffle HDWalletProvider, web3.js wallet.add, Rust LocalWallet/PrivateKeySigner from_str or parse), passed as the key argument of signTransaction / sign_transaction, or listed in a Hardhat/Truffle network accounts: [...] array. The key is masked in the snippet. Not reported: other 64-hex values (transaction and block hashes, bytes32 constants, storage slots, Keccak role ids), a key read from the environment, the publicly known Hardhat/Anvil development keys, placeholder or low-entropy values (0x000..., deadbeef...), comment lines, Markdown files, and test, fixture, vendored and generated files. Encrypted V3 keystore files are VNX-SEC-700.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-068/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-068/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

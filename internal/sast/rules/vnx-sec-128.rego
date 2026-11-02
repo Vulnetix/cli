@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-128",
 	"name": "Azure Container Registry password",
 	"description": "An Azure Container Registry (ACR) admin password assigned to a context keyword was found. ACR admin credentials grant push/pull access to all repositories in the registry.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-128",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-128",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

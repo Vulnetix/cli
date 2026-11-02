@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-177",
 	"name": "DigitalOcean App Platform / function deploy URL (context)",
 	"description": "A DigitalOcean deploy/trigger URL containing an embedded token under a DigitalOcean context was found. Such URLs can trigger deployments without further authentication.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-177",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-177",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

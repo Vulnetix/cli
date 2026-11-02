@@ -1,6 +1,6 @@
 # Build from Source
 
-This documentation has moved to **[docs.cli.vulnetix.com/docs/getting-started/from-source](https://docs.cli.vulnetix.com/docs/getting-started/from-source/)**.
+This documentation has moved to **[docs.vulnetix.com/cli/get-started/install](https://docs.vulnetix.com/cli/get-started/install/)**.
 
 ## Quick Start
 

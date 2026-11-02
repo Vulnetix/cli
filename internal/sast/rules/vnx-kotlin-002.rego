@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-KOTLIN-002",
 	"name": "Kotlin RSA, DSA or DH key smaller than 2048 bits",
 	"description": "An RSA, DSA or Diffie-Hellman key pair is generated with a modulus smaller than 2048 bits, which today's factoring and discrete-log computations can break. Reported in Kotlin (.kt, .kts): KeyPairGenerator.initialize(n) and initialize(n, random) on a generator obtained from KeyPairGenerator.getInstance(\"RSA\"/\"DSA\"/\"DH\"/\"DiffieHellman\"/KeyProperties.KEY_ALGORITHM_RSA), through a variable or inside apply/run/also/with (the getInstance chain may span several lines); init(n) on an AlgorithmParameterGenerator for \"DSA\"/\"DH\" domain parameters; RSAKeyGenParameterSpec(n, ...); setKeySize(n) on an Android KeyGenParameterSpec.Builder that feeds an RSA KeyPairGenerator or on the legacy KeyPairGeneratorSpec.Builder (RSA by default); and Bouncy Castle RSAKeyGenerationParameters(e, random, n, certainty). The size may be a literal, a constant or a parameter default assigned exactly once in the file, and may sit on a continuation line or after an inline block comment. Not reported: sizes of 2048 or more; a keystore setKeySize under 512 bits (an AES or EC size, whatever generator sits nearby); EC, EdDSA and symmetric (KeyGenerator, AES/HMAC keystore) sizes; a size variable the file assigns more than once or a generator whose algorithm is not visible (a parameter, a variable algorithm name); unrelated initialize()/setKeySize() calls; test code; and the calls in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-kotlin-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-kotlin-002/",
 	"languages": ["kotlin"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-991",
 	"name": "Gate.io API secret",
 	"description": "A Gate.io API secret (long hex string) assigned to a gate.io secret field was found. It signs HMAC authentication for Gate.io trading and funding endpoints.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-991",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-991",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

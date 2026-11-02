@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-206",
 	"name": "Pulumi access token (pul-)",
 	"description": "A Pulumi access token using the pul- prefix was found. It grants access to Pulumi Cloud state, stacks and deployments for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-206",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-206",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

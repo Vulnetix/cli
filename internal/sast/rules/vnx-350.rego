@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-350",
 	"name": "Reliance on Reverse DNS Resolution for a Security-Critical Action",
 	"description": "An access decision is made on the host name a reverse DNS lookup returned for the peer's address. The PTR record belongs to whoever controls the address block, so an attacker names their own IP 'gw.example.com' and passes a suffix or allowlist check. Reported: a reverse lookup (Python socket.gethostbyaddr/getnameinfo, socket.getfqdn(address) and dnspython resolve_address; Java request.getRemoteHost(), InetAddress getCanonicalHostName()/getHostName(); Go net.LookupAddr and Resolver.LookupAddr; Node dns.reverse/dns.promises.reverse/resolver.reverse; PHP gethostbyaddr() and $_SERVER['REMOTE_HOST']; Ruby Resolv.getname(s)/getnameinfo) whose result is compared, on the same line or within the next eight lines (directly, through a loop variable or a callback parameter), by endsWith/HasSuffix/startsWith/equals/==/!=/in/includes/contains/preg_match/=~. getHostName() counts only in files that use InetAddress/InetSocketAddress, since Apache HttpHost.getHostName() resolves nothing. Not reported: getnameinfo() with NI_NUMERICHOST, forward-confirmed lookups (a gethostbyname/getaddrinfo/LookupHost/LookupIP/getAllByName/dns.lookup/resolve within the window, as for verifying Googlebot), results that are only logged or displayed, null/empty checks, the local host name (getLocalHost(), getfqdn() with no argument), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-350/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-350/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "medium",
 	"level": "warning",

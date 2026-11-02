@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-847",
 	"name": "eBay developer cert id (client secret)",
 	"description": "An eBay developer cert id (PRD application client secret) was found. With the app id it lets an attacker mint eBay OAuth application tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-847",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-847",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

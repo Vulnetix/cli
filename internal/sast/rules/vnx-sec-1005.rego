@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1005",
 	"name": "Anchorage API key (assignment)",
 	"description": "An Anchorage Digital API key assigned to an anchorage field was found. With the paired API secret it authenticates institutional custody and trading operations against the Anchorage API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1005",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1005",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

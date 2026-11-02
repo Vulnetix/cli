@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-528",
 	"name": "Freshservice/Freshworks API key",
 	"description": "A Freshservice or Freshworks API key was found. It grants API access to the helpdesk, assets and tickets for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-528",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-528",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-LLM-001",
 	"name": "LLM prompt injection via user-controlled input",
 	"description": "Reports Python, JavaScript and TypeScript code that splices user-controlled input into the instruction text of an LLM prompt: an f-string or template literal interpolation, `+` concatenation, `.format()` or `%` of a value that is read from an HTTP request (Flask/Django/FastAPI `request.args/form/json/GET/POST/...`, Express/Koa `req.body/query/params`, through up to two assignments or a destructuring within the preceding 20 lines) or is named as user input (`user_input`, `userMessage`, `user_query`, `user_prompt`, ...), where the string is a prompt argument (`content`, `prompt`, `input`, `text`) of an LLM call that opens within the 10 lines above (OpenAI/Anthropic/LiteLLM/Gemini/Ollama clients, the Vercel AI SDK, LangChain `.invoke()/.predict()/.run()`, `HumanMessage`) or is assigned to a `*prompt*` variable that an LLM call follows within 15 lines. Mixing the user's text into the instructions lets it override them. Not reported: user input passed as the whole content of a user-role message, LangChain template variables filled at invoke time, interpolation of server-side values, logging lines, comments and string literals, and system-prompt interpolation, which VNX-LLM-004 reports. Flows across functions or files are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-llm-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-llm-001/",
 	"languages": ["python", "javascript", "typescript"],
 	"severity": "high",
 	"level": "error",

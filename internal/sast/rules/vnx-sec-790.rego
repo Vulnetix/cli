@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-790",
 	"name": "Productboard API token",
 	"description": "A Productboard API bearer token was found. It grants API access to the organisation's product features, notes and roadmaps in Productboard.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-790",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-790",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

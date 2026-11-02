@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-024",
 	"name": "postMessage without origin validation (CSWSH/XSS)",
 	"description": "Browser code trusts cross-window messages without knowing who sent them, or sends data to a window without saying who may read it. Reported, in JavaScript, TypeScript and inline scripts of HTML/Vue pages: a window 'message' listener (window.addEventListener('message', ...), window.onmessage = ..., $(window).on('message', ...)) whose handler body, inline or a named function defined in the same file, never reads event.origin (or compares event.source), so any page that frames or opens this one can drive it; and postMessage(data, '*') to another window (window.opener, parent, top, an iframe's contentWindow, a window reference, also through TypeScript's ! or optional chaining), which delivers the data to whatever origin that window has navigated to. Not reported: a handler that checks origin or source, a named handler the file does not define, Worker/WebSocket/MessagePort/process 'message' events, service-worker and worker self listeners, window.postMessage(..., '*') to the page's own window, postMessage with an explicit target origin, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-024/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-024/",
 	"languages": ["javascript", "typescript"],
 	"severity": "medium",
 	"level": "warning",

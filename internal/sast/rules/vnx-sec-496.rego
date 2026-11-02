@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-496",
 	"name": "Contentful Content Delivery API token",
 	"description": "A Contentful Content Delivery API access token was found. It grants read access to published content in a Contentful space.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-496",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-496",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-610",
 	"name": "Externally Controlled Reference to a Resource in Another Sphere (XML external references enabled)",
 	"description": "CWE-610 is a class (external entities, XInclude, external DTDs and schemas are all references a document makes to resources outside the parser's sphere); this rule reports its most concrete Java form, a call that explicitly turns such references on: setFeature(external-general-entities / external-parameter-entities / load-external-dtd, true), setFeature(disallow-doctype-decl, false), setFeature(FEATURE_SECURE_PROCESSING, false), setProperty(IS_SUPPORTING_EXTERNAL_ENTITIES / javax.xml.stream.isSupportingExternalEntities, true), setAttribute/setProperty(ACCESS_EXTERNAL_DTD / ACCESS_EXTERNAL_SCHEMA / ACCESS_EXTERNAL_STYLESHEET, \"all\" or a protocol list such as \"file,http\"), and setXIncludeAware(true), including a call whose arguments continue on the next lines (also after a chained getXMLReader()), a setFeature(CONSTANT, true) whose String constant in the same file holds one of those feature URLs, and System.setProperty(javax.xml.accessExternalDTD or accessExternalSchema, \"all\" or a protocol list). Not reported: the same calls switching the feature off (false, \"\"), feature names held in variables or constants of another file, unrelated features (namespaces, validation), a factory left at its defaults (VNX-JAVA-004 and VNX-JAVA-029 judge unhardened factories), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-610/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-610/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

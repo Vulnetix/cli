@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-560",
 	"name": "Webflow site API token (Bearer keyword)",
 	"description": "A Webflow API token referenced by a webflow bearer/authorization assignment was found. It grants programmatic access to manage Webflow sites and CMS content.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-560",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-560",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-521",
 	"name": "DocuSign integration secret key",
 	"description": "A DocuSign integration (OAuth) secret key was found. Combined with the integration key it grants API access to send and manage DocuSign envelopes.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-521",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-521",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-041",
 	"name": "Use of deprecated TLS version",
 	"description": "Reports a Go TLS configuration whose MinVersion or MaxVersion field (or an options-struct field such as TLSMinVersion or MinTLSVersion) is set to SSL 3.0, TLS 1.0 or TLS 1.1: a struct literal field or an assignment naming tls.VersionSSL30, tls.VersionTLS10 or tls.VersionTLS11 (under any import alias, optionally wrapped in uint16()), the raw protocol numbers 0x0300-0x0302 in a file that imports a TLS package, a value on the line after the field name, a local variable assigned one of those values a few lines above, or a package-level const/var declared as one. Also reported: a string-typed MinVersion/MaxVersion option set to the constant's name (Traefik-style MinVersion: \"VersionTLS10\"), and an Envoy go-control-plane TlsMinimumProtocolVersion/TlsMaximumProtocolVersion set to TlsParameters_TLSv1_0 or TLSv1_1. Comparisons (state.Version == tls.VersionTLS10, cfg.MinVersion < ...), switch cases, version-name maps, comments, string literals including multi-line code-generation templates, and _test.go files are not reported; a version chosen at runtime from configuration or passed through a function argument is not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-041/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-041/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-668",
 	"name": "Binance API secret",
 	"description": "A Binance API secret (64-character alphanumeric) assigned to a binance secret context was found. Paired with the key it authorises trading and withdrawals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-668",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-668",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

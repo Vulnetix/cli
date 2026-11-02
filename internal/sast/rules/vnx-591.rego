@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-591",
 	"name": "Password read into a char[] copied into an immutable String",
 	"description": "Java cannot lock memory against paging or dumps; the one control it offers for a password is to keep it in a char[] and overwrite the array once used. This rule reports the line that throws that control away by copying a password that an API returned as char[] into an immutable String, which cannot be wiped and stays on the heap (and in swap and heap dumps) until garbage collection: new String(...), String.valueOf(...) or String.copyValueOf(...) applied to Console.readPassword(), JPasswordField/PasswordCallback/KeyStore.PasswordProtection getPassword(), or to a char[] variable declared (char[] or var) or reassigned from one a few lines above, and the deprecated JPasswordField.getText(). Not reported: a char[] that is used and wiped without becoming a String, getPassword() in a file that uses none of JPasswordField, PasswordCallback, KeyStore.PasswordProtection or readPassword (an application class whose getter returns a String), new String over other byte or char arrays, comments and string literals. Native memory locking (mlock/VirtualLock) in C/C++ is not analysed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-591/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-591/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

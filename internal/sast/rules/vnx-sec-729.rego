@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-729",
 	"name": "Vimeo access token",
 	"description": "A Vimeo API access token (64 hex characters) assigned to a vimeo context was found. It authenticates Vimeo API requests on behalf of the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-729",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-729",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

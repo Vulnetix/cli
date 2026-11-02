@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-546",
 	"name": "Pendo integration key",
 	"description": "A Pendo integration (API) key was found. It grants programmatic access to Pendo analytics, guides and visitor/account data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-546",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-546",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

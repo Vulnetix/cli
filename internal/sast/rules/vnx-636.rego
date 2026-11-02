@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-636",
 	"name": "Not Failing Securely ('Failing Open')",
 	"description": "A security decision that grants access when it fails: inside a function or method whose name says it decides access (auth, permission, access, allow, privilege, admin, verify, signature, token, csrf, trust, acl, policy, role, guard, session, credential, grant, entitle, canX/can_x), an exception handler (Python except, Java/JavaScript/TypeScript catch) whose body returns True/true, or calls next() with no error in JavaScript middleware, or a promise .catch() handler that resolves to true (.catch(() => true)),or swallows the exception (pass, an empty catch block) and falls through to return True/true. A policy engine timeout, a malformed token or a bad signature then reads as allowed. Not reported: handlers that return False, raise, rethrow, respond 401/403 or pass the error to next(err); the same shapes in functions whose names are not about access (fileExists, isCached, isNumeric); test code; comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-636/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-636/",
 	"languages": ["java", "node", "python"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-523",
 	"name": "Unprotected Transport of Credentials",
 	"description": "Credentials are sent to a remote host over plain http://, so anyone on the network path reads them. Reported: a URL that carries a user:password pair (http://user:pass@host); an HTTP client call to an http:// URL whose arguments carry credentials (Python requests/httpx/session/urllib3/urllib.request with auth=, an Authorization/Cookie/X-Api-Key header, or a password, token or API-key field in data/json/params; fetch/axios/jQuery with the same in its options; Go http.PostForm with a password field), the call broken across lines included; a request built on an http:// URL (Go http.NewRequest, Java new URL/URI.create/new HttpGet/HttpPost) that, within the next eight lines of the same function, gets SetBasicAuth or an Authorization, Cookie or X-Api-Key header; and an HTML login form (a page with a password input) whose action is an http:// URL. Not reported: https://, loopback, private-range, link-local, single-label (container or service names) and reserved example/test/local hosts, requests that carry no credentials, URLs in comments or prose strings, and test code. Cleartext endpoints in general are VNX-319; cleartext redis/amqp/ftp/ldap connection URLs are VNX-SEC-017.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-523/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-523/",
 	"languages": ["go", "java", "node", "python", "html"],
 	"severity": "high",
 	"level": "error",

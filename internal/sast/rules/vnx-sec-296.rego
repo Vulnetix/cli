@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-296",
 	"name": "Groq API key (assignment context)",
 	"description": "A Groq API key referenced via a GROQ_API_KEY assignment was found, confirming a live Groq credential in source.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-296",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-296",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

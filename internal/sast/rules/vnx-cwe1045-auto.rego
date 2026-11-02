@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1045",
 	"name": "Parent Class with Virtual Destructor and Child Without Virtual Destructor",
 	"description": "A C++ class derives from a class whose destructor is declared virtual, and declares its own destructor without virtual, override or final. C++ makes that destructor virtual anyway, so the code works, but the declaration reads as non-virtual: a reader cannot tell from the child that deleting through a base pointer is safe, and if the parent's virtual is later removed the child silently loses it (CWE-1045). Reported on the child's in-class destructor declaration (~Child(), including = default, noexcept and inline bodies) when a parent named in its base list (public, protected or private, with or without a namespace or template arguments, on the class line or wrapped onto the following lines up to the opening brace) declares its destructor virtual, override or final in any C++ file of the scanned tree, including a virtual keyword on the line above (so a grandchild of a virtual base is judged through an override parent). Not reported: a child destructor marked virtual, override or final; a child with no user-declared destructor (the implicit one is virtual and needs no annotation); a parent whose destructor is not virtual (a different weakness, CWE-1079 and CWE-1087, judged by VNX-1079 and VNX-1087); a parent defined outside the scanned tree; out-of-class definitions (Child::~Child()); two unrelated classes of the same name in different namespaces are not told apart; test code and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1045/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1045/",
 	"languages": ["cpp"],
 	"severity": "medium",
 	"level": "warning",

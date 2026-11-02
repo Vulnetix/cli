@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-C-006",
 	"name": "Use of alloca() for dynamic stack allocation",
 	"description": "Reports C, C++ and Objective-C stack allocations whose size is decided at run time without a bound: alloca(), _alloca() and __builtin_alloca() whose size argument names a variable, member or call (alloca(len), alloca(strlen(a) + strlen(b) + 2), alloca(n * sizeof(T))), strdupa() of a non-literal string, and a variable-length array declared with a size taken from strlen() or from a count parsed or received in the 30 lines above (atoi/strtol family, ntohl/ntohs, getenv, &out of scanf/fread/read/recv). An oversized request moves the stack pointer past the guard page into other memory. Not reported: sizes made only of literals, upper-case macros and sizeof, a size variable compared with < or > in the 15 lines above or in a ternary on the same line (n < 256 ? alloca(n) : malloc(n)), a MIN()/min() clamp, _malloca (which falls back to the heap), strndupa, other functions whose names contain alloca, declarations, #define macros, VLAs sized by a plain parameter, string literals and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-c-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-c-006/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

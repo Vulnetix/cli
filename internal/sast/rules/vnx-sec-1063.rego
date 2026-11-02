@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1063",
 	"name": "Twitch app access token (OAuth)",
 	"description": "A Twitch app access token (client-credentials OAuth bearer, 30-character base62) was found. It authorizes server-to-server Twitch Helix API calls on behalf of the application.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1063",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1063",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

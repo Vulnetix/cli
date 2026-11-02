@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-475",
 	"name": "Undefined Behavior for Input to API",
 	"description": "C or C++ calls whose arguments put the library function outside its defined behaviour: a copy whose source and destination are the same object (memcpy, strcpy, strncpy, strcat, strncat, wcscpy, wcscat with the same base pointer on both sides, such as `memcpy(buf, buf + 1, n)`, `strcpy(path, path + 2)`, `memcpy(s->data + off, s->data, n)`); sprintf/snprintf/vsprintf whose destination buffer is also one of its own arguments (`sprintf(buf, \"%s/%s\", buf, file)`); fflush(stdin), which the C standard leaves undefined for input streams; and a literal NULL passed where a string or object pointer is required (a printf-family call with %s and a NULL argument, memcpy/strlen/strcmp/strcpy and the other mem*/str* functions with a NULL argument, which is undefined even with a zero length). Not reported: snprintf(NULL, 0, ...) used to measure the output length, copies between different elements of one array of strings or structs (`strcpy(names[i], names[j])`, `strcpy(users[i].name, users[j].name)`), memmove, copies between different objects or different members (p->a and p->b), sprintf whose destination appears only inside another call such as strlen(buf), fflush of output streams, guarded NULL tests, test sources, comments and string literals. Signed overflow such as INT_MAX + 1 is CWE-190, and ctype functions applied to plain char are not judged (the argument's type is rarely visible on the line).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-475/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-475/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

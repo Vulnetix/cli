@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-151",
 	"name": "Tencent Cloud COS connection (SecretId+SecretKey)",
 	"description": "A Tencent Cloud secret id (AKID prefix) appearing together with COS/configuration context was found. With the matching secret key it grants access to Tencent COS object storage.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-151",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-151",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

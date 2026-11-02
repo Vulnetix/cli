@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JAVA-010",
 	"name": "Spring CSRF protection disabled",
 	"description": "Spring Security's CSRF protection is switched off for a browser-facing configuration: http.csrf().disable() (also with .disable() on the next line), .csrf(c -> c.disable()), .csrf(c -> { c.disable(); }), .csrf(AbstractHttpConfigurer::disable) and other ::disable method references including WebFlux's ServerHttpSecurity.CsrfSpec::disable, CSRF ignored for every path (ignoringAntMatchers/ignoringRequestMatchers(\"/**\"), also as new AntPathRequestMatcher(\"/**\"), antMatcher(\"/**\") or AnyRequestMatcher.INSTANCE), and <csrf disabled=\"true\"/> in a Spring Security XML namespace configuration. Not reported: CSRF ignored for specific paths (a webhook, an actuator endpoint), a configuration in the same file that is stateless (SessionCreationPolicy.STATELESS) and authenticates with bearer tokens (oauth2ResourceServer, JWT or bearer-token filters), where no ambient credential exists to forge, other .disable() calls (cors, frameOptions), test configurations, and the pattern in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-010/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-010/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-170",
 	"name": "GCP API key (AIza) generic",
 	"description": "A Google API key (AIza prefix) was found. Google API keys authorize calls to enabled Google APIs and, if unrestricted, can be abused to incur billing or access data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-170",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-170",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

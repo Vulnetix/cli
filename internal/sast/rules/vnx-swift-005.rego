@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SWIFT-005",
 	"name": "Swift WKWebView JavaScript auto-open-windows enabled, or deprecated UIWebView in use",
 	"description": "Reports a Swift assignment of true to WKPreferences.javaScriptCanOpenWindowsAutomatically (directly or through configuration.preferences), which lets script in the web view open windows without a user gesture, and the first use of the deprecated UIWebView type in a file (a property, outlet, parameter, cast or UIWebView(...) instance), since UIWebView always runs JavaScript, cannot disable it or isolate content and is rejected by App Store review. Not reported: the setting assigned false or only read, WKWebView, UIWebViewDelegate or UIWebView.NavigationType without a UIWebView reference of its own, the names inside string literals (NSClassFromString(\"UIWebView\")) and identifiers that merely contain the word, comment lines and test files. Further UIWebView references in the same file are not reported again.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-swift-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-swift-005/",
 	"languages": ["swift"],
 	"severity": "medium",
 	"level": "warning",

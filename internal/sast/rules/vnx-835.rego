@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-835",
 	"name": "Loop with Unreachable Exit Condition ('Infinite Loop')",
 	"description": "A while loop whose condition compares a variable against a bound (while i < n, while (offset <= limit), while (tries != attempts)) but whose body never changes either side and has no other way out: the variable is never assigned, incremented or rebound, the bound variable is never assigned and the collection it is read from (len(q), q.size(), items.length) is never mutated through a method call, and the body has no break, return, throw, raise, yield or exit call. Once the condition is true it stays true, so the loop never ends (CPU exhaustion, a hung request). A bound may be a variable, a collection size or a numeric literal. Java, JavaScript/TypeScript and Python. Not reported: a body that blocks or yields (wait(), sleep(), join(), await) unless the variable is a local or parameter not written between its declaration and the loop, since a field, a global or a variable captured by a callback can be changed by another thread or handler; deliberate infinite loops (while True, while (true), for (;;)), which are almost always server or worker loops, do-while loops, a body that advances the variable in any form (i++, ++i, i += 1, i = next(i), tuple assignment, walrus, an inner for over it), a loop that exits by break/return/throw, conditions on fields or method calls alone, a body longer than 60 lines, and comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-835/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-835/",
 	"languages": ["java", "node", "python"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-397",
 	"name": "Declaration of Throws for Generic Exception",
 	"description": "A Java method or interface method declares throws Exception or throws Throwable (alone, java.lang.-qualified or inside a list such as throws IOException, Exception), on the signature line or on a throws continuation line of a multi-line signature. Callers cannot tell which failures to handle and are forced to catch the generic type themselves. Not reported: a throws list of specific types (including names that merely start with Exception, such as ExceptionInInitializerError), a Spring Security configuration method taking HttpSecurity, WebSecurity, AuthenticationManagerBuilder or AuthenticationConfiguration (whose builders themselves throw Exception), sample, example and demo directories, a file declaring a @FunctionalInterface (a throwing functional interface, like Callable, must declare the generic type), a method annotated @Override (its signature is dictated by the supertype: AutoCloseable.close, HandlerInterceptor.preHandle), main(String[]), Callable.call(), AutoCloseable.close() and InitializingBean.afterPropertiesSet() implementations, test files, comments, Javadoc and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-397/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-397/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

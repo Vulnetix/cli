@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1074",
 	"name": "Class with Excessively Deep Inheritance",
 	"description": "A Java class whose chain of extends clauses, resolved across every Java file in the project by simple class name, is seven or more levels deep: seven extends edges, every class on the way declared in the project and the last parent possibly a library class (java.lang.Object is not counted). Headers may carry annotations and put the extends clause on the next line. Each level adds behaviour a reader must hold in mind and an override that can silently change what the base classes rely on, which is how deep hierarchies hide defects. The finding is on the class declaration. Not reported: chains of six edges or fewer (ancestors above a library class cannot be seen and are not counted), interfaces and implements clauses, generic bounds (class Box<T extends Number>), chains that loop back on a name (two classes with the same simple name in different packages), test sources, and class headers inside comments (line or block) or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1074/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1074/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

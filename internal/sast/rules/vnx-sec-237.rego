@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-237",
 	"name": "Codefresh runtime/agent token",
 	"description": "A Codefresh runtime or agent token assigned to a context variable was found. It registers Codefresh runners and grants execution access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-237",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-237",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

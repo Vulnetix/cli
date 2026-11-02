@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-472",
 	"name": "ClickSend username+API key Basic header",
 	"description": "A ClickSend Basic Auth credential (username:apikey) was found in an authorization header. It grants access to ClickSend SMS, voice, and account APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-472",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-472",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

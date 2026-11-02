@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-346",
 	"name": "Mollie live API key (live_)",
 	"description": "A Mollie live API key was found near a mollie assignment using the live_ prefix. It authorizes live payment, refund and customer operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-346",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-346",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

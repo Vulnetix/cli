@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-190",
 	"name": "Jenkins API token",
 	"description": "A Jenkins API token was found. It authenticates to the Jenkins REST API on behalf of a user and can trigger builds and read job configuration.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-190",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-190",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

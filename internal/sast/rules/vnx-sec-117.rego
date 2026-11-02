@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-117",
 	"name": "AWS MWS auth token",
 	"description": "An Amazon Marketplace Web Service (MWS) auth token (amzn.mws. UUID) was found. MWS auth tokens authorize third-party applications to call Amazon seller APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-117",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-117",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

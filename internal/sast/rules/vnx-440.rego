@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-440",
 	"name": "Expected Behavior Violation",
 	"description": "A Python check that the code relies on is written as an assert statement in production code, and assert does not behave as expected there: python -O and PYTHONOPTIMIZE strip every assert, so the check silently stops running. Reported, outside test files: an assert whose condition is an authentication, authorisation or integrity decision (is_authenticated, is_admin, is_superuser, is_staff, is_active, has_perm/has_permission/has_role, is_owner, can_*, check_password, verify*/is_valid*, compare_digest, or a name containing authorized, allowed, permission, csrf, signature or password, or a qualified token name such as api_token, auth_token, access_token or session_token, in the condition itself, not in the message; a parenthesised condition spread over the following lines is read up to its closing parenthesis); and assert False / assert 0 / assert None used to stop an unreachable or forbidden branch, which under -O falls through and carries on. Not reported: asserts in test files (tests/, test_*.py, *_test.py, conftest.py), type-narrowing asserts (an isinstance(...) call is ignored, so assert isinstance(u, User) alone is quiet but assert isinstance(u, User) and u.is_admin is reported), inspect.signature() checks, parser asserts on bare token/tokens, other asserts, the words appearing only in the assert message or a comment, raise AssertionError(...). An assert on request data is VNX-617.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-440/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-440/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-224",
 	"name": "ReadTheDocs API token",
 	"description": "A Read the Docs API token was found. It grants access to the Read the Docs API for managing documentation projects and builds.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-224",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-224",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

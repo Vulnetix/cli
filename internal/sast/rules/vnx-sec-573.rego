@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-573",
 	"name": "Elastic Cloud ID",
 	"description": "An Elastic Cloud ID assigned to a context keyword was found. The cloud id encodes the deployment hostname and endpoints; combined with a key or credentials it locates and connects to the Elastic deployment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-573",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-573",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

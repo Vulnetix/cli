@@ -96,4 +96,4 @@ Artifacts must be published somewhere addressable first; `release.yml` uses the 
 ## Credentials
 
 The component reads `VULNETIX_ORG_ID` and `VULNETIX_API_KEY` from the consuming project's CI/CD variables. It never
-runs `vulnetix auth login`. See [Authentication in CI/CD](https://docs.cli.vulnetix.com/docs/authentication/ci-cd/).
+runs `vulnetix auth login`. See [Authentication in CI/CD](https://docs.vulnetix.com/cli/authentication/ci-cd/).

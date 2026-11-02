@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-308",
 	"name": "ElevenLabs API key (assignment context)",
 	"description": "An ElevenLabs API key referenced via an ELEVENLABS_API_KEY or XI_API_KEY assignment was found, confirming a live credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-308",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-308",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

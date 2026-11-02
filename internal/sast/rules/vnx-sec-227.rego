@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-227",
 	"name": "Cloudsmith API key",
 	"description": "A Cloudsmith API key was found. It grants access to Cloudsmith package repositories for pushing, pulling and managing artifacts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-227",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-227",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

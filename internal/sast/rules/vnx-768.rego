@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-768",
 	"name": "Incorrect Short Circuit Evaluation",
 	"description": "Reports a Java or C# null guard joined to the rest of a condition by the non-short-circuit operator: `x != null & x.m()` (or `null != x & x[...]`) and `x == null | x.m()`, where the right operand dereferences the same variable. With `&` and `|` both operands are always evaluated, so the guard does not protect the dereference and a null value throws NullPointerException / NullReferenceException; `&&` and `||` were meant. A guard ending a line followed by its operand on the next line is also read. Not reported: `&&`, `||`, `&=` and `|=`, bitwise arithmetic on integers, null checks joined by `&` whose right operand does not dereference the guarded variable (no failure, only style), C# null-conditional access (`x?.y`), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-768/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-768/",
 	"languages": ["java", "csharp"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-451",
 	"name": "Mailtrap API token",
 	"description": "A Mailtrap API token was found near a mailtrap assignment. It authorizes the Mailtrap Email Sending/Testing API and account operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-451",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-451",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

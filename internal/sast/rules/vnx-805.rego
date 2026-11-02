@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-805",
 	"name": "Buffer Access with Incorrect Length Value",
 	"description": "A C/C++ call writes into a byte buffer with a length that does not come from that buffer. Reported: (1) memcpy, memmove, memset, strncpy, read, recv, pread, fgets, snprintf, vsnprintf or fread (element size 1) into a char/unsigned char/uint8_t/u_char array declared with a numeric size (a literal or a #define of a literal) in the 80 lines above, either in the same function or at file scope, whose length is a larger number or #define, or sizeof() of another, larger array that is not the copy's source (that shape is VNX-806); (2) memcpy, memmove, memset, strncpy, read, recv or pread whose length is a conversion result: a network or text conversion (ntohs, ntohl, be16toh/be32toh/le16toh/le32toh, atoi, atol, atoll, strtol, strtoul, strtoll, strtoull, std::stoi/stol/stoul/stoull) written inline as the length, or a variable (optionally plus, minus or times a constant) assigned from one in the ten lines above, with no clamp on the assignment itself (MIN/min/clamp or a ternary), no comparison of that variable (<, >, MIN/min) between the conversion and the call, and no allocation of the destination sized by it. Not reported: lengths written as sizeof(dst), equal or smaller numeric lengths, non-byte arrays (an int[10] memset by 40 bytes is correct), an array declared in another function (a pointer parameter of the same name), counts whose size cannot be resolved in the file, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-805/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-805/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

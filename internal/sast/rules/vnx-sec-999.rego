@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-999",
 	"name": "Deribit client secret",
 	"description": "A Deribit OAuth2 client secret assigned to a deribit secret field was found. It grants programmatic trading and withdrawal access to the linked Deribit account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-999",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-999",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

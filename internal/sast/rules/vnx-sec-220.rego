@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-220",
 	"name": "Concourse CI token",
 	"description": "A Concourse CI bearer/ATC token was found. It authenticates to the Concourse API for managing pipelines and resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-220",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-220",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

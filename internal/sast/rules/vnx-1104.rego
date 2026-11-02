@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1104",
 	"name": "Use of Unmaintained Third Party Components",
 	"description": "A dependency manifest declares a third-party component whose maintainers have deprecated, archived or end-of-lifed it, so security fixes no longer arrive: npm request/request-promise(-native), node-uuid, jade, node-sass, tslint, gulp-util, coffee-script, istanbul, babel-eslint, nomnom, bower, phantomjs(-prebuilt), protractor, swig and the npm 'crypto' stub in package.json dependency blocks; pycrypto, nose, PyPDF2, MySQL-python, pep8, sklearn and distribute in requirements*.txt (and requirements/*.txt), pyproject.toml (PEP 621 arrays and Poetry dependency tables) and Pipfile package sections; paperclip, therubyracer and Ruby Sass (gem 'sass') in a Gemfile; and log4j 1.x (log4j:log4j), commons-httpclient 3.x and Jackson 1.x (org.codehaus.jackson) in pom.xml and Gradle builds. Reported: the declaring line, with the maintained successor in the message. Not reported: the successors themselves (uuid, pug, sass, eslint, nyc, pycryptodome, pypdf, nose2, scikit-learn, mysqlclient, kt-paperclip, log4j 2, httpclient 4), lookalike names (request-ip, sass-rails, log4j-api, log4j-1.2-api), the names used as npm script keys or descriptions, Poetry and Pipfile [scripts] entries, and commented-out entries (including entries inside XML comments in pom.xml). A component that is merely old, or unmaintained without an upstream announcement, is not inferred.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1104/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1104/",
 	"languages": ["javascript", "python", "ruby", "java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

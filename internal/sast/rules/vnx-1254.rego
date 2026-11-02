@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1254",
 	"name": "Incorrect Comparison Logic Granularity",
 	"description": "A secret (a MAC, HMAC, signature, digest, hash, token, key, password, OTP, nonce or session value) is compared one element at a time in a Java loop that returns false at the first mismatch, so the comparison is performed in steps and its running time reveals how many leading bytes or characters of a forged value are correct (the software form of CWE-1254). Reported: inside a for/while loop, if (a[i] != b[i]) or if (a.charAt(i) != b.charAt(i)) followed by return false on the same line or the next code line, when the compared names or the enclosing method's signature name a secret. Not reported: an accumulate-and-test loop (diff |= a[i] ^ b[i]), MessageDigest.isEqual, a loop that returns the index of the first difference, the same loop over values whose names and method do not say they are secret, and comments. Whole-value comparisons with equals/Arrays.equals/== are reported by VNX-CRYPTO-008 and VNX-385.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1254/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1254/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

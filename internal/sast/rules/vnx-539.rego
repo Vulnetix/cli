@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-539",
 	"name": "Use of Persistent Cookies Containing Sensitive Information",
 	"description": "A cookie that carries sensitive information is made persistent, so it is written to the browser's disk and outlives the session. Reported: a cookie named for a credential or personal secret (password, passwd, pwd, secret, ssn, credit card, cvv, api key, private key) whose value is not a constant, set with any positive lifetime or an expiry that cannot be read statically (Express res.cookie and Koa ctx.cookies.set maxAge/expires, Python set_cookie max_age/expires, Java Cookie.setMaxAge and Spring ResponseCookie.from(...).maxAge(n or Duration.ofDays(n)), PHP setcookie expiry, Rails cookies.permanent[...] = v and cookies[...] = { value:, expires: N.days.from_now }); and a session or authentication cookie (session, sid, auth, token, jwt, userid) or the framework session cookie (express-session/cookie-session cookie.maxAge, Django SESSION_COOKIE_AGE, Flask PERMANENT_SESSION_LIFETIME) given a literal lifetime longer than 31 days. Not reported: cookies without a lifetime (browser-session cookies), deletions (maxAge 0, a past expiry), constant values, preference cookies (theme, lang), session lifetimes of 31 days or less (Flask's and Django's defaults), session lifetimes computed at run time, remember-me cookies, comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-539/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-539/",
 	"languages": ["node", "python", "java", "php", "ruby"],
 	"severity": "medium",
 	"level": "warning",

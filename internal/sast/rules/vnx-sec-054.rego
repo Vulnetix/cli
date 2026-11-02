@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-054",
 	"name": "Datadog API / APP key",
 	"description": "Reports a hard-coded Datadog API key (32 lower-case hex characters) or application key (40 hex characters) assigned to a Datadog key name (DD_API_KEY, DD_APP_KEY, datadog_api_key, DATADOG_APPLICATION_KEY), or to a generic api_key/app_key/apiKey/appKey/apiKeyAuth/appKeyAuth when the file is Datadog configuration (a path naming datadog) or a line naming Datadog appears within eight lines above; the value may follow =, :, a map entry (put(\"apiKeyAuth\", \"...\")) or the Go client's {Key: \"...\"} wrapper (provider \"datadog\", from datadog import, @datadog/datadog-api-client, a datadog: block). The keys read and write metrics, logs, monitors and dashboards. Not reported: hex values with no Datadog context (commit hashes, other providers' keys), the public RUM client token (pub...), variable or environment references, placeholder bodies, and test, fixture or vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-054/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-054/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-403",
 	"name": "Exposure of File Descriptor to Unintended Control Sphere ('File Descriptor Leak')",
 	"description": "Reports a long-lived file descriptor opened without close-on-exec in a C/C++ file that starts another program: open/openat/creat without O_CLOEXEC, socket without SOCK_CLOEXEC, or fopen with a literal mode lacking \"e\", whose result is assigned and not closed (close, fclose or dup2) within the next 40 lines, in a file that calls execv/execve/execvp/execl*/fexecve, posix_spawn(p), popen or system (plain, `::` or `std::` qualified). The child program inherits the descriptor and can read or write the file or socket. Not reported: files that use CLOEXEC anywhere (O_CLOEXEC, SOCK_CLOEXEC or FD_CLOEXEC through fcntl; the file is taken to manage inheritance, so a second open without it in such a file is missed) or close every descriptor before exec (close_range, closefrom, a loop to sysconf(_SC_OPEN_MAX)/getdtablesize or over F_GETFD), short-lived descriptors closed nearby, files that never start a program, test files, comments and string literals. Execs in another file than the open are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-403/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-403/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

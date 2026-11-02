@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-802",
 	"name": "Sprig API key",
 	"description": "A Sprig (formerly UserLeap) API key or environment key was found. It grants API access to the organisation's in-product survey and research data in Sprig.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-802",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-802",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

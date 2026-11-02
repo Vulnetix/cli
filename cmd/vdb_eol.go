@@ -10,7 +10,7 @@ import (
 )
 
 // The EOL endpoints have backed --block-eol since it landed and are documented
-// in full — response fields and all — in website/content/docs/cli-reference/vdb.md,
+// in full — response fields and all — at https://docs.vulnetix.com/vdb-api/cli/commands/,
 // but no subcommand ever exposed them, so every documented example failed with
 // "unknown command". These are read-only wrappers over the client methods the
 // gate already uses.

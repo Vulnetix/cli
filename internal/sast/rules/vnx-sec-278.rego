@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-278",
 	"name": "Fireworks AI API key (fw_)",
 	"description": "A Fireworks AI API key (fw_ prefix) was found. It grants access to Fireworks model inference and fine-tuning billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-278",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-278",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

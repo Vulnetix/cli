@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1131",
 	"name": "TMDB session id",
 	"description": "A TMDB authenticated session id (40-character hex) was found. It authorizes account-scoped TMDB actions such as rating and watchlist edits.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1131",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1131",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

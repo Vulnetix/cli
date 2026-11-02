@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1107",
 	"name": "PlayFab title ID + secret context",
 	"description": "A PlayFab developer secret key in a developer-secret context was found. It allows server API access bypassing client authentication for the PlayFab title.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1107",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1107",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

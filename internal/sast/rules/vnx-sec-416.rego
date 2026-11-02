@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-416",
 	"name": "ClickSend API key",
 	"description": "A ClickSend API key was found near a clicksend assignment. It is a 36-character UUID-style key paired with the username for Basic Auth against the ClickSend SMS API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-416",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-416",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-648",
 	"name": "SSH2 private key block",
 	"description": "An SSH2 (SECSH/commercial) private key block header (BEGIN SSH2 ENCRYPTED PRIVATE KEY) was found. It is an SSH private key in the IETF SECSH format.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-648",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-648",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

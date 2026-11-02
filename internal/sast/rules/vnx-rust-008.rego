@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUST-008",
 	"name": "Rust path traversal in Actix-web or Axum file-serving handler",
 	"description": "A value taken from an axum or actix-web request (a Path(name) / Path((a, b)) / Query(q) / Json / Form extractor, a web::Path<...> / web::Query<...> parameter, or HttpRequest::match_info()), directly or through one let binding such as path.into_inner() or format!(...), reaches a filesystem path or file operation in the same handler, as code or as an inline format argument (format!(\"/var/log/{service}.log\")): .join(...), Path::new, PathBuf::from, File::open/create, std::fs or tokio::fs read/write/remove/copy/rename, NamedFile::open, ServeFile::new or OpenOptions. A request value containing ../ or an absolute path then reads or writes files outside the intended directory. Not reported: handlers that canonicalize the path and check starts_with against the base, reject \"..\" (contains(\"..\")), keep only file_name(), allow-list the characters (chars().all(...), is_ascii_alphanumeric, a Regex is_match), check Component::ParentDir / Component::Normal, or call a sanitize/safe_join helper; extractors of integer, bool or Uuid type (including tuples of them, Path<(u16, u8)>); Url::join and slice .join(\",\"), which build no filesystem path; paths built from configuration rather than the request; comments and string literals. Flows through more than one intermediate binding or across functions are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-rust-008/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-rust-008/",
 	"languages": ["rust"],
 	"severity": "high",
 	"level": "error",

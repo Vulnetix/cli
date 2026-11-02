@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1287",
 	"name": "Improper Validation of Specified Type of Input",
 	"description": "A request value whose type the client chooses is used as a string without checking that it is one. A query-string parser turns ?q[]=a into an array and ?q[x]=1 into an object, and a JSON body field can be any JSON type, so a string method then throws (a crash or a 500) or, for length/includes/indexOf/startsWith checks, silently answers for an array and bypasses the check. Reported in JavaScript/TypeScript: a string method (toLowerCase/toUpperCase/trim/split/startsWith/endsWith/includes/indexOf/replace/match/matchAll/search/slice/substring/charAt/padStart/normalize/localeCompare/concat/repeat) or .length applied to a field of req.query/req.body/request.body/ctx.query/ctx.request.body, directly or through a variable or destructured name assigned from it in the 10 lines above. Not reported: Express/Koa route params (always strings), a value checked with typeof/Array.isArray or coerced with String() first, files that validate requests with express-validator, Joi, zod, yup, celebrate, ajv, class-validator or superstruct, comments and string literals. The same weakness in Python (a str method on a JSON body field: Flask request.json, DRF request.data, json.loads(request.body)) is reported by VNX-241.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1287/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1287/",
 	"languages": ["node"],
 	"severity": "low",
 	"level": "note",

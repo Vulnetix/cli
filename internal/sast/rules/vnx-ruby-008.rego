@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUBY-008",
 	"name": "Open3 shell command built from request input",
 	"description": "Request input reaches an Open3 call in its single-string (shell) form: Open3.pipeline, pipeline_r, pipeline_rw, pipeline_w, pipeline_start, popen3, popen2, popen2e, capture2, capture2e or capture3 (or the receiverless form after include Open3), where the command string interpolates, concatenates or formats request input, or the command is request input itself; the argument-list form that starts a shell (capture2(\"sh\", \"-c\", cmd), bash -lc) has its third argument read as the shell string. Request input is params, request.params/body/query_string/headers/cookies/env/path/url, cookies, Rack env request keys or an upload's original_filename, used on the call line or through a variable assigned from it (up to two assignments) in the 12 lines above; a call that spans lines is read up to 4 lines on. Not reported: argument-list and array forms (Open3.capture2(\"convert\", params[:f]), pipeline_r([\"cat\", f])), splatted argument arrays, constant commands, input passed through Shellwords.escape/shellescape or converted with to_i/to_f, an env hash as the first argument, other receivers (MyOpen3, redis.pipeline), text inside string literals and comments. Method arguments, ARGV and data read from local files are deliberately out of scope; Kernel#system, exec, spawn, backticks and IO.popen are VNX-RUBY-002.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-008/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-ruby-008/",
 	"languages": ["ruby"],
 	"severity": "high",
 	"level": "error",

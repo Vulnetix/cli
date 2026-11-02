@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-902",
 	"name": "TomTom API key",
 	"description": "A TomTom Maps API key was found near a tomtom assignment. It is a 32-character alphanumeric key authorizing maps, search, routing, and traffic APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-902",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-902",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

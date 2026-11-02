@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1013",
 	"name": "Crossmint API key (server-side)",
 	"description": "A Crossmint server-side API key (sk_ prefix with environment segment) was found. It authenticates minting, wallet and checkout operations against the Crossmint API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1013",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1013",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-674",
 	"name": "Unconditional self-recursion or a disabled recursion guard",
 	"description": "Recursion that nothing bounds. Reported: (1) a method, property or accessor whose first statement calls itself with the same arguments, so every call recurses until the stack is exhausted: a Python @property/@cached_property returning self.<same name>, an @<name>.setter assigning self.<same name>, a method returning self.<same name>(<same parameters>); a JavaScript/TypeScript getter returning this.<same name>, a setter assigning this.<same name>, a method returning this.<same name>(<same parameters>); a Java method whose first statement is <same name>(<same parameters>) or this.<same name>(...), with or without return, also a one-line method `{ return getX(); }` (the classic getter that forgot the field); (2) Python sys.setrecursionlimit() raised to 50000 or more (also written 1_000_000, 10**5+, 2**16+, int(1e5), sys.maxsize), which removes the interpreter's guard so attacker-shaped deep input (nested JSON, GraphQL queries, XML) crashes the process with a C stack overflow instead of a RecursionError. Not reported: accessors backed by another field (self._name, this._name), delegation to another receiver or to super, overloads called with different or converted arguments, recursion with a base case or a depth check, smaller recursion limits, comments and string literals. General recursion over untrusted nested data without a depth limit is not decided line by line and is not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-674/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-674/",
 	"languages": ["java", "node", "python"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-769",
 	"name": "Apollo.io API key",
 	"description": "An Apollo.io API key (master key) was found. It grants API access to the organisation's prospecting data, sequences and contacts in Apollo.io.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-769",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-769",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

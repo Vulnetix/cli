@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-338",
 	"name": "Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)",
 	"description": "A value drawn from a non-cryptographic PRNG becomes a secret. Reported: JavaScript/TypeScript Math.random(); PHP rand(), mt_rand(), lcg_value(), str_shuffle() and array_rand() (all Mersenne Twister or LCG based); Ruby Kernel#rand, Random.rand, Random.new.rand/bytes and Array#sample/#shuffle; Go math/rand and math/rand/v2 draws (Int, Intn, Int63, Uint64, Float64, Read, Perm, N, under the package's import alias), when the draw is stored under, keyed by or returned as a security name (token, password, secret, nonce, salt, OTP, PIN, CSRF/XSRF, session id, API/secret/signing key, reset/verification/activation/invite code, session cookie): the name on the left of the assignment or object key, the string key of a setter or cookie call, an assignment opened on the line above, a return from a function named for a secret, or a variable assigned from the draw that reaches such a name within six lines. Not reported: crypto.randomBytes/randomUUID/getRandomValues, random_bytes()/random_int(), SecureRandom (including .sample(random: SecureRandom)) and crypto/rand; draws for jitter, sleeps, retries, colours, sampling and counts (names such as token_count, max_tokens, token_expiry); test files; and the pattern in comments or string literals. Overlaps VNX-GO-008, which covers Go in more depth; Python, Java, C# and C/C++ are covered by VNX-PY-005, VNX-JAVA-016, VNX-CS-006 and VNX-CRYPTO-009.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-338/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-338/",
 	"languages": ["node", "php", "ruby", "go"],
 	"severity": "high",
 	"level": "error",

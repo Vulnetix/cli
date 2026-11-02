@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-747",
 	"name": "NetSuite TBA consumer secret",
 	"description": "A NetSuite Token-Based Authentication consumer secret was found. Combined with the consumer key, token ID and token secret it grants signed API access to the NetSuite account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-747",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-747",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

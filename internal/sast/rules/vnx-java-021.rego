@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-JAVA-021",
 	"name": "Java sensitive data logged (password, token, secret, key)",
 	"description": "A logging call passes the value of a password, token, secret, API key, private key or credential as an argument, writing it to log files and whatever ships them. Reported: SLF4J/Log4j/Logback/commons-logging (log, logger, LOG, LOGGER, *Log, *Logger receivers: trace/debug/info/warn/error/fatal), java.util.logging (severe/warning/info/fine/finer/finest/config/log) and android.util.Log (v/d/i/w/e/wtf) calls whose arguments, outside string literals and across continuation lines, name such a variable, field or getter (password, pwd, passphrase, secret, clientSecret, token, accessToken, apiKey, privateKey, credentials, getPassword()), or read a request parameter or header by such a name (request.getParameter(\"password\"), request.getHeader(\"Authorization\")). Not reported: the words only in the message text (\"Password reset requested for {}\"), metadata about the value (token.length(), password != null, tokenExpiry, tokenType, passwordPolicy, secretDirectory, nextPageToken), values passed through mask/redact/hash/digest helpers, non-logger receivers such as catalog.info(), and comments or string literals. Values logged through an intermediate variable with an unrelated name are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-021/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-021/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-703",
 	"name": "TikTok access token (act.)",
 	"description": "A TikTok Open API access token (act. prefix) was found. It authenticates TikTok API requests on behalf of a user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-703",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-703",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

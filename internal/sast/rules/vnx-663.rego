@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-663",
 	"name": "Use of a Non-reentrant Function in a Concurrent Context",
 	"description": "State that is not safe for concurrent use is shared between threads (CWE-663). Java: a static field whose type is a mutable, non-thread-safe formatter or engine, SimpleDateFormat, DateFormat, DecimalFormat, NumberFormat, MessageFormat, ChoiceFormat, MessageDigest, Mac, Cipher, Signature or java.util.regex.Matcher, which every thread then shares (concurrent format/parse/digest calls corrupt each other's internal buffers and return wrong results). C/C++: a call to a libc function that returns a pointer to static storage, strtok, localtime, gmtime, ctime, asctime, getpwnam, getpwuid, getgrnam, getgrgid, gethostbyname, gethostbyaddr, getservbyname, getlogin, ttyname, strsignal, ecvt, fcvt, crypt or inet_ntoa (also as std::), in a file that starts threads (pthread_create, std::thread/jthread, std::async, CreateThread, _beginthreadex, #pragma omp). Not reported: ThreadLocal holders, the thread-safe java.time DateTimeFormatter and Pattern, local or instance formatters, a static formatter the same file locks with synchronized (NAME) or uses only inside synchronized methods, the _r variants (strtok_r, localtime_r), member calls and lookalike names, declarations and members that share a libc name (struct tm *localtime(...); obj->localtime()), files that start no threads (a thread marker in a comment or string does not count), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-663/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-663/",
 	"languages": ["java", "c", "cpp"],
 	"severity": "low",
 	"level": "note",

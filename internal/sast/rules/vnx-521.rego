@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-521",
 	"name": "Weak Password Requirements",
 	"description": "A password policy written in code accepts passwords shorter than 8 characters (the minimum NIST SP 800-63B and OWASP ASVS require), so short, guessable passwords are allowed. Reported when the minimum is between 2 and 7: a length check on a password-named value (Python len(password) < N / <= N / >= N, JavaScript/TypeScript password.length, Java password.length() or getPassword().length(), C# password.Length); a minimum declared on a password field (Joi/zod/yup .min(N), express-validator isLength({ min: N }), jQuery Validate or Mongoose minlength under a password key, Java @Size/@Length(min = N) on a password field, C# [StringLength(..., MinimumLength = N)] or [MinLength(N)] on a password property, ASP.NET Identity options.Password.RequiredLength = N, Django MinimumLengthValidator OPTIONS min_length); and a Django AUTH_PASSWORD_VALIDATORS = [] that turns every check off. Not reported: minimums of 8 or more, a minimum of 0 or 1 (a presence check, as on a login form), maximum-length checks (password.length > 30), minimums on other fields, the numbers inside messages, comments and strings, minified files and test code. Policies configured outside code (an identity provider, a database setting) are not seen.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-521/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-521/",
 	"languages": ["java", "node", "python", "csharp"],
 	"severity": "high",
 	"level": "error",

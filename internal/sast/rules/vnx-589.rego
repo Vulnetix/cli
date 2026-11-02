@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-589",
 	"name": "Call to non-ubiquitous API",
 	"description": "A C or C++ call to a library function that exists only on some platforms, or whose signature differs between them, in a file with no platform or feature guard: C11 Annex K bounds-checked functions that only Microsoft's runtime ships (strcpy_s, strcat_s, sprintf_s, memcpy_s, fopen_s, gets_s, scanf_s and kin), Microsoft-only names (_stricmp, _strnicmp, _strdup, _snprintf, _vsnprintf, _itoa, itoa), BSD extensions (strlcpy, strlcat, arc4random*, strtonum, getprogname, reallocarray) and GNU/BSD extensions the Microsoft runtime lacks (asprintf, vasprintf, strcasestr, memrchr, strchrnul, mempcpy, qsort_r, whose argument order differs between glibc and BSD). Such code fails to build, or misbehaves, on a platform without the function. Not reported: a file with an #if/#ifdef on a platform or HAVE_* macro, that defines _GNU_SOURCE or __STDC_WANT_LIB_EXT1__, or that includes <windows.h> or <tchar.h> (the dependency is deliberate: the file is guarded or built for one platform); a file whose path names a platform (impl/apple/, win32_io.c); a function the project itself defines, declares at file scope or #defines (a compat implementation); member calls (obj.f(), p->f()) and identifiers that only contain the name (my_strlcpy); comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-589/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-589/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

@@ -11,7 +11,7 @@ metadata := {
 	"id": "VNX-761",
 	"name": "free() of a pointer that is not at the start of its buffer",
 	"description": "free() (or std::free) is given a pointer into the middle of an allocation instead of the pointer the allocator returned, which corrupts the heap. Reported: (1) free(p + n), free(s->data + s->off), free((void *)(p + 1)), free(&buf[i]) with a non-zero index, and free(++p); (2) a local pointer assigned from malloc, calloc, realloc, strdup or strndup (also through a C cast, static_cast/reinterpret_cast or std::), then advanced in the same function (p++, ++p, *p++ = ..., p += n, p = p + n), then passed to free() with no assignment, p -= or p-- that moves it back in between. Not reported: free(ptr - HEADER) (the allocator-wrapper idiom of stepping back over a prefix), a separate cursor that walks the buffer while the original pointer is freed, free(items[i]), free(items[i + 1]) and free(*(p + i)) (elements, not offsets), *p += n and (*p)++ (the value changes, not the pointer), a parameter or local of the same name declared after the allocation (another method of a class body), free(&buf[0]), wrappers such as sdsfree/zfree/my_free, comments and string literals. Releases of addresses that never came from the heap are VNX-763; mismatched allocators are VNX-762.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-761/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-761/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

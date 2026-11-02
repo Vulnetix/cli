@@ -8,9 +8,12 @@ import (
 	"github.com/Vulnetix/vdb-sca-match/ghaudit"
 )
 
-// RuleDocs renders the website pages for the GitHub posture rules:
-// website/content/docs/github-rules/_index.md and one page per rule, at the
-// URL ghaudit's Rule.HelpURI and the console's rule links point to.
+// RuleDocs renders the pages for the GitHub posture rules:
+// docs/generated/github-rules/_index.md and one page per rule. They are not
+// published from this repository: vdb-sca-match is private, so the platform
+// docs (docs.vulnetix.com, Vulnetix/platform-docs) cannot run this renderer and
+// instead read the committed pages from a git ref of this repository with
+// migration/generators/github-rules.mjs.
 func RuleDocs() map[string]string {
 	pages := map[string]string{}
 	rules := ghaudit.Rules()

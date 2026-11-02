@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-786",
 	"name": "Access of Memory Location Before Start of Buffer",
 	"description": "Reports C/C++ indexing that reaches before the start of a buffer when the length is zero or a call failed: X[strlen(Y) - 1] with no length or first-byte check in the three lines above, X[n - 1] where n was assigned from strlen() with no check of n in between, X[n] or X[n - 1] where n was assigned from read()/recv()/recvfrom()/readlink()/pread() (also ::read and std:: spellings, which return -1 on error) with no check of n in between, and a literal negative index on a name whose nearest declaration above is an array. Negative indexes on pointers or parameters (p[-1] into the middle of a buffer) lengths checked anywhere between the assignment and the index (including strlen(Y) == 0), and n = strlen(s) + 1 (never zero) are deliberately not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-786/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-786/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

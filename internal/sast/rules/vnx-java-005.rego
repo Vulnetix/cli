@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JAVA-005",
 	"name": "Insecure deserialization",
 	"description": "Reports Java deserialization of arbitrary object graphs: readObject()/readUnshared() on a java.io.ObjectInputStream created in the 40 lines above (or chained on new ObjectInputStream(...)) with no ObjectInputFilter set on it and no JVM-wide serial filter configured in the project; java.beans.XMLDecoder construction in a file that calls readObject(); XStream.fromXML() in a file that never restricts XStream types (allowTypes*, addPermission, setupDefaultSecurity, denyTypes); Jackson enableDefaultTyping() and activateDefaultTyping() with LaissezFaireSubTypeValidator; and SerializationUtils.deserialize(). Gadget chains in classpath libraries turn these into remote code execution when the bytes come from outside. Not reported: the in-memory deep-copy idiom (an ObjectInputStream or SerializationUtils.deserialize over bytes the same code just serialised), a subclass with its own resolveClass check (LookAheadObjectInputStream, ValidatingObjectInputStream), a custom readObject(ObjectInputStream) method calling in.defaultReadObject(), Jackson activateDefaultTyping with a restrictive PolymorphicTypeValidator, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-005/",
 	"languages": ["java"],
 	"severity": "critical",
 	"level": "error",

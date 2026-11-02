@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-411",
 	"name": "Plivo Auth Token",
 	"description": "A Plivo Auth Token was found near a plivo assignment. Combined with the Auth ID it grants full access to the Plivo account's voice and SMS APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-411",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-411",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

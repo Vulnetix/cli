@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-762",
 	"name": "DocuSign JWT user access token",
 	"description": "A DocuSign JWT user access token (bearer JWT issued via the JWT grant flow) was found. It grants API access to send and manage DocuSign envelopes on behalf of the user until it expires.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-762",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-762",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

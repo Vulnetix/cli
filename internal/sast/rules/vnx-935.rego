@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-935",
 	"name": "Administrative endpoint declared without a function-level access check",
 	"description": "CWE-935 is the OWASP Top Ten 2013 category 'Missing Function Level Access Control'. This rule reports the shape of it that only an annotation can produce: a Spring or JAX-RS handler (Java and Kotlin) mapped to a path that names an administrative function (an /admin, /administrator, /superadmin, /sysadmin, /management, /manage, /backoffice or /staff path segment) and annotated @PermitAll, @PreAuthorize(\"permitAll()\"), @Secured(\"IS_AUTHENTICATED_ANONYMOUSLY\") or @AnonymousAllowed, which explicitly opens the function to everyone. Not reported: Spring handlers without such an annotation (Spring Security is configured centrally and VNX-931 judges that configuration), handlers that require a role, non-admin paths, test files, comments and string literals. An administrative route registered with nothing in front of it is reported by VNX-306 for Python (Flask, FastAPI) and by VNX-425 for JavaScript, TypeScript and Go (Express, Koa, Fastify, net/http, gin, echo), so one route is one finding.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-935/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-935/",
 	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",

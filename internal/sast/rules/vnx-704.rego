@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-704",
 	"name": "File or content size narrowed from long with an unchecked cast",
 	"description": "A size or offset that Java reports as a long (the length of a file, an upload or a response body) is cast to int, short, char or byte, so a value past the narrow type's range silently wraps: a 2 GB+ file allocates a negative or tiny buffer (NegativeArraySizeException or a truncated read), and a size checked after the cast passes a limit it exceeds. Reported in .java files: (int)/(short)/(char)/(byte) applied directly to File.length() (a receiver declared File or RandomAccessFile in the file, a receiver named for a file, or new File(...)), Files.size(...), FileChannel.size() (a receiver declared FileChannel/SeekableByteChannel or named channel/fc/...Channel), RandomAccessFile.getFilePointer(), URLConnection.getContentLengthLong(), contentLength(), Apache HttpEntity.getContentLength() (receiver declared HttpEntity), MultipartFile/Part/ZipEntry getSize() and ZipEntry.getCompressedSize(); and such a cast of a variable declared long and assigned from one of those in the 15 lines above. Not reported: Math.toIntExact(...), a variable bounds-checked (compared with Integer.MAX_VALUE or any limit) between the assignment and the cast, casts of parenthesised arithmetic, casts of int-valued calls (String.length(), List.size(), HttpServletRequest.getContentLength(), stream count(), Math.round), including when an int is first widened into a long variable, comments and string literals. Integer.parseInt/Long.parseLong narrowing is VNX-192.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-704/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-704/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

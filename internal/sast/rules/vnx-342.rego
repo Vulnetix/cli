@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-342",
 	"name": "Predictable Exact Value from Previous Values",
 	"description": "A secret is the next value of a counter, so anyone who has seen one value (their own session id, reset code or token) knows the next one exactly. Reported: an increment (++x, x++, x += 1, x + 1, incrementAndGet/getAndIncrement/addAndGet, Go atomic.AddInt64/Uint64 and .Add(1), Python next(counter), Ruby .succ/.next) of a variable named as a counter or previous value (count, ctr, seq, last, prev, next, serial, latest, max, id, num) or for a secret, whose target is itself named for a secret (sessionId++, $_SESSION['last_session_id']++), or whose result is stored under, returned as, or set as the cookie value of a secret (token, password, session id, reset/confirmation/invite code, OTP, CSRF, API key), on the same line, through a standalone increment of a variable used as a secret within four lines, or through a variable that reaches one within six lines. Languages: Java, Kotlin, Python, JavaScript/TypeScript, PHP, Ruby, Go. Not reported: anonymous loop variables (i++, n += 1), counters used as nonces, IVs, JWT ids or sequence numbers (uniqueness is all they need), HOTP/HMAC over a counter, lines that also draw from a CSPRNG, counts, indexes, attempts and other bookkeeping names, loop headers, test files, and the pattern in comments or string literals. A secret mixing a counter with the clock is also VNX-341.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-342/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-342/",
 	"languages": ["java", "kotlin", "python", "node", "php", "ruby", "go"],
 	"severity": "medium",
 	"level": "warning",

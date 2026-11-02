@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-455",
 	"name": "Postmark account token",
 	"description": "A Postmark account API token was found near a postmark account assignment. Account tokens manage servers, domains, and senders across the Postmark account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-455",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-455",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

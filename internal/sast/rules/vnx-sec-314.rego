@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-314",
 	"name": "Anyscale API key (assignment context)",
 	"description": "An Anyscale API key referenced via an ANYSCALE_API_KEY assignment was found, confirming a live Anyscale credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-314",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-314",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-319",
 	"name": "Cleartext Transmission of Sensitive Information",
 	"description": "The program talks to a remote endpoint over cleartext http://, ws:// or ftp://, so requests, credentials and responses travel unencrypted. Reported: a URL with a registered host name on a line that uses it as an endpoint (or as an argument on its own line of a client call opened within two lines above): passed to an HTTP, FTP or socket client (requests/httpx/urllib/aiohttp, fetch, axios, jQuery ajax, XMLHttpRequest, WebSocket, EventSource, Go http.Get/Post/NewRequest, Java new URL/URI.create/HttpRequest/OkHttp .url()/RestTemplate/WebClient/HttpGet, PHP curl/file_get_contents/fopen/Guzzle/wp_remote_*, Ruby Net::HTTP/URI.parse/open-uri/HTTParty/Faraday/RestClient), assigned to a name or key that says it is an endpoint (url, uri, endpoint, host, server, base, api, webhook, callback, origin, proxy, registry, gateway, service, upstream, redirect), or loaded by a <script> or <iframe> src. Not reported: hyperlinks (href, link helpers), URLs in comments, licence headers and prose strings, lists of URLs with no endpoint context (redirect allowlists), XML/JSON-schema namespace and feature identifiers (w3.org, xml.org, apache.org features), the bare scheme in a prefix check or scheme list, loopback, private-range and reserved example hosts, a normaliser that lists both the http and https form of one host, test code, and example, sample and demo directories.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-319/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-319/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-542",
 	"name": "Mixpanel API secret",
 	"description": "A Mixpanel project API secret was found. It grants access to export and query raw event data from the Mixpanel project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-542",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-542",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

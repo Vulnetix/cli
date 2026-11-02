@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-025",
 	"name": "Insecure express-session or cookie-session configuration",
 	"description": "Reports the options object passed to an express-session or cookie-session middleware (the name bound by require()/import of that package, called inline or with an options variable defined in the same file) when it sets secure: false or httpOnly: false, and an express-session configuration that never sets the cookie's secure flag (express-session defaults it to false, so the session id travels over plain HTTP). A secure flag set to any non-false expression (true, 'auto', process.env.NODE_ENV === 'production') or assigned later through <options>.cookie.secure = ... counts as set. Not reported: cookie-session without an explicit secure (it marks the cookie Secure on HTTPS requests), resave/saveUninitialized settings, secure: false on other objects (mail transports, HTTP agents), options the rule cannot see (imported from another module), commented-out configuration, and test or example files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-025/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-025/",
 	"languages": ["javascript", "typescript"],
 	"severity": "medium",
 	"level": "warning",

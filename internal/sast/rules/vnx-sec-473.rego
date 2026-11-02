@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-473",
 	"name": "Bandwidth account API token+secret pair",
 	"description": "A Bandwidth API username/token+secret credential was found near a bandwidth assignment. It authorizes messaging and number operations on the Bandwidth account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-473",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-473",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

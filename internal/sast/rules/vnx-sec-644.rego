@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-644",
 	"name": "DSA private key block",
 	"description": "A PEM DSA private key block (BEGIN DSA PRIVATE KEY header) was found. It is the private half of a DSA key pair used for SSH or signing.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-644",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-644",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

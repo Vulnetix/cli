@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1241",
 	"name": "Use of Predictable Algorithm in Random Number Generator",
 	"description": "A java.util.Random, whose linear congruential algorithm is fully determined by its 48-bit seed, is given an explicit seed in production Java code, so every value it produces can be reproduced by anyone who knows or guesses the seed (a constant, the clock, a counter or a value derived from user data). Reported: new Random(<seed>) and new java.util.Random(<seed>) with any argument (a literal, a constant, System.currentTimeMillis()/nanoTime(), an expression), and <name>.setSeed(...) on a variable or field the same file declares as Random or assigns new Random(...). Not reported: new Random() with no seed (whether its use is security-sensitive is judged by VNX-JAVA-016), SecureRandom and its setSeed (which adds entropy rather than replacing it; seeding SecureRandom is VNX-335), other classes whose name merely contains Random, a method that is itself named setSeed, test code, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1241/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1241/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

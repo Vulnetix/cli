@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-C-002",
 	"name": "Format string injection via non-literal format argument",
 	"description": "Reports a C or C++ printf-family call whose format argument is not a string literal in two shapes. (1) The non-literal is the only thing after the format position, so a string is being printed as a format (printf(buf), fprintf(fp, msg), syslog(LOG_ERR, msg), snprintf(buf, n, s), dprintf, wprintf, swprintf, wsprintf, printk, and BSD warn/warnx/err/errx in files that include <err.h>); this is the shape -Wformat-security warns about. (2) The format, with further arguments, is argv[...] or getenv(...) directly, or a variable assigned from getenv/secure_getenv/argv or filled by fgets/gets/read/recv/recvfrom/fread/getline/scanf in the 25 lines above (also asprintf, vprintf, vfprintf, vsprintf, vsnprintf, vsyslog and the other v-forms, which always pass a va_list). Not reported: literal formats including adjacent literals, macro prefixes (COLOR \"...\", KERN_INFO \"...\"), literal ternaries and gettext _(\"...\"); upper-case macro formats; a variable initialised from a literal or a literal table in this file; a format that is a parameter of the enclosing function when further arguments are passed (variadic wrappers are the correct pattern, and the caller is the place to look); macro definitions; prototypes; method calls named printf; string literals and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-c-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-c-002/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-928",
 	"name": "Particle access token",
 	"description": "A Particle Cloud access token was found near a particle assignment. It is a 40-character lowercase hexadecimal token granting full control of devices and product fleets via the Particle Cloud API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-928",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-928",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

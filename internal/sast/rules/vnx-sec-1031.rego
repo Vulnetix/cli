@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1031",
 	"name": "HCP Vault Secrets / HCP API client secret (assignment)",
 	"description": "A HashiCorp Cloud Platform client secret assigned to an hcp secret field was found. With the client ID it obtains an HCP access token granting access to HCP Vault Secrets and other HCP services.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1031",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1031",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

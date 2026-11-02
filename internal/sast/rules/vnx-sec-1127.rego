@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1127",
 	"name": "TMDB v4 access token context",
 	"description": "A TMDB v4 access token referenced in an access-token context was found. It is a bearer JWT authorizing v4 API requests under the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1127",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1127",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

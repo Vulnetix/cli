@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-665",
 	"name": "Improper Initialization",
 	"description": "A Java static initializer swallows an exception, so the class finishes loading with its static state half set up (CWE-665): a catch clause (K&R or Allman braces) inside a static { } block whose body is empty or only prints the stack trace, writes to System.out/err or logs. The class is then usable, and every later caller meets the null keystore, connection or configuration far from the cause instead of an ExceptionInInitializerError at load time. The catch line is reported. Not reported: a catch that rethrows (ExceptionInInitializerError, IllegalStateException...), assigns a fallback value or returns, catches outside a static initializer (an empty catch in a method is a different weakness), comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-665/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-665/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

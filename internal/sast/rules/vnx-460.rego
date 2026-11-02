@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-460",
 	"name": "Improper Cleanup on Thrown Exception",
 	"description": "Java code whose cleanup runs only on the normal path, so an exception thrown in between skips it. Reported: a Lock acquired with x.lock() (including readLock()/writeLock()) and released by x.unlock() later in the same block with no finally between them, which leaves the lock held forever if the code in between throws; and a closeable resource (FileInputStream/FileOutputStream/FileReader/FileWriter/Buffered*/PrintWriter/RandomAccessFile/Socket/ZipFile/Object*Stream/Scanner, DriverManager or DataSource getConnection(), prepareStatement/createStatement, Files.newInputStream/newBufferedReader...) assigned to a variable that is later closed with v.close() in the same block with no finally between, so the handle leaks on any exception. Not reported: the lock()/try/finally idiom, try-with-resources, close() or unlock() inside a finally block, tryLock() branches, a resource returned to the caller without a close(), a lock released in a different method, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-460/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-460/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

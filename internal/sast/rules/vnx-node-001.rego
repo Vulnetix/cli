@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-001",
 	"name": "Missing npm lock file",
 	"description": "A package.json that declares at least one dependency (dependencies, devDependencies or optionalDependencies) has no lock file (package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lock, bun.lockb or deno.lock) in its own directory or in an ancestor directory that is a workspace root (package.json \"workspaces\", pnpm-workspace.yaml or lerna.json), and is not inside a Rush monorepo (rush.json) whose lock file lives under common/config/rush. Without one, every install re-resolves floating ranges, so a compromised or confused release reaches CI unnoticed. Reported: a nested tool or service package under a root lock file that is not a workspace root, because that lock file does not cover it. Not reported: a workspace member covered by a lock file at the workspace root, a package.json with no dependencies, and package.json files under test, fixture, mock or example directories. A lock file excluded by .gitignore is treated as absent, because it is not committed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-001/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

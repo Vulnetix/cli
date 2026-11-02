@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-402",
 	"name": "Mandrill API key",
 	"description": "A Mandrill (Mailchimp Transactional) API key was found near a mandrill assignment. Mandrill keys send transactional email on behalf of the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-402",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-402",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-321",
 	"name": "Stripe restricted key (rk_live)",
 	"description": "A Stripe live restricted API key (rk_live_) was found. Restricted keys carry a scoped subset of live account permissions and can move real money or read customer data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-321",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-321",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

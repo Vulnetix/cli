@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1112",
 	"name": "Deepgram-style media key skip placeholder",
 	"description": "A Bunny Stream library API access key (UUID format) was found. It authorizes Bunny Stream video library uploads, edits and deletes for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1112",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1112",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

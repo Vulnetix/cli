@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-372",
 	"name": "Adyen client/checkout key (pubkey)",
 	"description": "An Adyen client key (live_/test_) used for client-side Drop-in/Components was found near an adyen assignment. Client keys are origin-restricted and lower risk but flag Adyen integration code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-372",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-372",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

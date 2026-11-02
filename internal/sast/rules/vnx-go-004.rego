@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-004",
 	"name": "TLS InsecureSkipVerify enabled",
 	"description": "A crypto/tls Config turns off certificate verification with the constant true: InsecureSkipVerify: true in a struct literal (http.Transport, gRPC credentials.NewTLS, database and broker clients) or an assignment x.InsecureSkipVerify = true, so any certificate, for any host, is accepted and the connection can be intercepted. A switch that is not about certificates (if debug {) does not make it safe and is reported. Not reported: InsecureSkipVerify set from a variable, flag or environment value (the operator's explicit choice) or false; true set inside an if whose condition names the insecure/skip-verify option (--insecure, like curl -k) and whose block is still open; a config that replaces the default check with its own VerifyPeerCertificate or VerifyConnection callback within a few lines and in the same config (no other tls.Config or function declaration between them); the field declaration of an options struct; the text inside a string literal (including a multi-line raw string) or comment; and _test.go/testdata code and test-support packages (httptest, acmetest, testutil, testing, testenv), where test servers use throwaway certificates.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-004/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-600",
 	"name": "Cassandra connection string with password",
 	"description": "A Cassandra connection URL embedding the user password was found. It authenticates to the Cassandra cluster (PasswordAuthenticator) and grants keyspace access per the role's permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-600",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-600",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

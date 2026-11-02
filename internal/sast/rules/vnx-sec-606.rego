@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-606",
 	"name": "Dynatrace API token",
 	"description": "A Dynatrace API token using the dt0c01 prefix was found. It authenticates to the Dynatrace environment API with the token's assigned scopes (metrics, config, logs, etc.).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-606",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-606",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

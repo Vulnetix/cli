@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-699",
 	"name": "Coinbase API key (organizations/ EC key name)",
 	"description": "A Coinbase Cloud / Advanced Trade API key name (organizations/.../apiKeys/...) was found, typically committed alongside an EC private key. It identifies the Coinbase API key used to sign requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-699",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-699",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

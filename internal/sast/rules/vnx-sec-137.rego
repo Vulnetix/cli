@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-137",
 	"name": "Render API key (rnd_)",
 	"description": "A Render API key (rnd_ prefix) was found. Render API keys grant access to manage the account's services, deploys and environment variables.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-137",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-137",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

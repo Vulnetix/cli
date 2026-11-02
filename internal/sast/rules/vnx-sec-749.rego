@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-749",
 	"name": "ADP OAuth client secret",
 	"description": "An ADP Workforce Now OAuth client secret was found. Combined with the client ID and SSL certificate it grants API access to ADP payroll and HR data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-749",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-749",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

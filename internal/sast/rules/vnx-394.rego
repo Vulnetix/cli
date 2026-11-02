@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-394",
 	"name": "Unexpected Status Code or Return Value",
 	"description": "Python code consumes a result without checking the status that says whether it is the result it expects. Reported: the body of an HTTP response from requests, httpx, an alias (import requests as rq), a session (also self.session) or, in a module importing httpx, a *client (.get/.post/.put/.patch/.delete/.head/.request) read with .json(), .text or .content, either chained on the call or from the variable it was assigned to (or bound by with ... as resp:) within the next 12 lines, when no line in between checks raise_for_status(), status_code, .ok or .status, or tests the response itself; an error page or a 4xx/5xx JSON body is then processed as data. Also reported: a slice indexed directly by str.find()/rfind() of the same string (s[s.find(':') + 1:], s[:s.find('-')]), which silently returns the wrong substring when find returns -1. Not reported: a checked response, a SQLAlchemy session.get(Model, pk) lookup, a module whose session installs a raise_for_status response hook, s[s.rfind(sep) + 1:] (the after-last-separator idiom, correct when -1), a cache or dict .get(), soup.find(), a find() result tested before use or guarded by an 'in' test on the line above, test files, comments and docstrings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-394/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-394/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

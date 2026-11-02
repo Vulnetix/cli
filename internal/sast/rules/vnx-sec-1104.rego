@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1104",
 	"name": "Riot Games production API key (production RGAPI)",
 	"description": "A Riot Games production API key (RGAPI- prefix) referenced in a production-key context was found. Production keys have far higher rate limits and broader access than dev keys.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1104",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1104",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

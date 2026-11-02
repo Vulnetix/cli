@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-637",
 	"name": "Aiven API token",
 	"description": "An Aiven management API token using the AVNS_ prefix was found. It authenticates to the Aiven API and can manage projects, services and credentials.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-637",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-637",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

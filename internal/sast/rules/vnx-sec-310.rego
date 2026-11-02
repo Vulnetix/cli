@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-310",
 	"name": "CometML API key (assignment context)",
 	"description": "A Comet ML API key referenced via a COMET_API_KEY assignment was found, confirming a live Comet credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-310",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-310",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-674",
 	"name": "WalletConnect project ID",
 	"description": "A WalletConnect (Reown) project ID (32 hex characters) assigned to a walletconnect context was found. It identifies the project to the WalletConnect relay and is often paired with restricted origins.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-674",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-674",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

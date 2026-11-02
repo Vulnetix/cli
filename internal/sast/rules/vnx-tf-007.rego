@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-TF-007",
 	"name": "Terraform AWS EKS cluster public API endpoint enabled",
 	"description": "An EKS cluster's Kubernetes API server is reachable from the whole internet: endpoint_public_access = true in an aws_eks_cluster, or an aws_eks_cluster that does not set endpoint_public_access at all (the AWS default is a public endpoint), in either case without public_access_cidrs or with public_access_cidrs containing 0.0.0.0/0 (the default); or cluster_endpoint_public_access / endpoint_public_access = true in a terraform-aws-modules EKS module (a module whose source names eks) without a restricting *_public_access_cidrs list. Not reported: endpoint_public_access = false, a public endpoint restricted to specific CIDRs (or to a variable list), a value taken from a variable, an EKS module that leaves public access at its default (off), other resource types, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-tf-007/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-tf-007/",
 	"languages": ["terraform"],
 	"severity": "high",
 	"level": "error",

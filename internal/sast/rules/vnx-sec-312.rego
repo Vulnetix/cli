@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-312",
 	"name": "Baseten API key (assignment context)",
 	"description": "A Baseten API key referenced via a BASETEN_API_KEY assignment was found, confirming a live Baseten credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-312",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-312",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

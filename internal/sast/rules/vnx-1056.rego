@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1056",
 	"name": "Invokable Control Element with Variadic Parameters",
 	"description": "A C or C++ function is defined with a C-style variadic parameter list whose last named parameter is a format string (a char, gchar, wchar_t or TCHAR pointer named fmt, format, msg or message, such as void log_event(int level, const char *fmt, ...)), its body hands the va_list to the v*printf or v*scanf family (vfprintf, vsnprintf, g_strdup_vprintf, vsscanf, vsyslog, ...), and neither the definition nor any prototype of the same function in the scanned sources carries a format attribute (__attribute__((format(printf|scanf, n, m))), __printf(n, m), __printflike, G_GNUC_PRINTF, or any PRINTF-named macro given two argument positions such as PRINTF_FMT(1, 2)). The variadic arguments are then unchecked: the compiler cannot match them to the format string, so a missing, extra or wrongly typed argument is undefined behaviour read off the stack (CWE-1056, and the route to CWE-134). The parameter list may span several lines and C++ member definitions (Logger::log) are covered. Not reported: prototypes, macros (#define F(fmt, ...)), function pointers, variadic templates (typename... Args, which are type-checked), variadic functions whose last named parameter is a count or a sentinel-terminated pointer (nothing an attribute could check), wrappers that are attributed in a header, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1056/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1056/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-942",
 	"name": "Permissive cross-origin (CORS) policy in a Node.js server",
 	"description": "A Node.js/TypeScript server lets any website read its responses. Reported: the Access-Control-Allow-Origin response header set to '*' (res.setHeader/res.header/res.set/ctx.set/writeHead or a headers object literal); the header set to the request's own Origin (req.headers.origin, req.get('origin'), req.header('origin'), ctx.get('origin'), ctx.request.headers.origin), directly or through a variable assigned from it in the 8 lines above, with no allowlist test (includes/indexOf/has/test/===) in between; the cors package called with no options (cors() allows every origin), with origin: true / origin: '*', or with an origin callback that always answers cb(null, true); Fastify register(cors) / register(require('@fastify/cors')) with no options (the plugin defaults to '*') or with origin: true / '*'; and NestJS app.enableCors() with no options or NestFactory.create(..., { cors: true }). Not reported: a specific origin or an allowlist, a reflected origin checked against an allowlist first, the header sent by client code (setRequestHeader, fetch/axios request headers), test files, comments and string literals that merely mention the header. This rule owns CORS in JavaScript/TypeScript servers; the same weakness in other languages, server configuration and the AWS CDK construct is VNX-SEC-012.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-942/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-942/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

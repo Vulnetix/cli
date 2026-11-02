@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-186",
 	"name": "CircleCI project API token (CCIP)",
 	"description": "A CircleCI project-scoped API token using the CCIPAT_ prefix was found. It grants API access scoped to a single CircleCI project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-186",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-186",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

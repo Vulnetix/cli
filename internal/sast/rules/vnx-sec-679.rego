@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-679",
 	"name": "Reddit client secret",
 	"description": "A Reddit application client secret assigned to a reddit context was found. It authenticates the Reddit OAuth app for API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-679",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-679",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

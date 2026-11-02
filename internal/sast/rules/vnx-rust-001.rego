@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUST-001",
 	"name": "Missing Cargo.lock",
 	"description": "A Cargo.toml that declares at least one dependency ([dependencies], [dev-dependencies], [build-dependencies], [workspace.dependencies], a [target.*.dependencies] table or a [dependencies.<name>] table with an entry) has no Cargo.lock in its own directory or in any ancestor directory. Without a committed lock file every build re-resolves the version requirements against the registry, so a compromised or yanked-and-replaced release reaches the build unnoticed and cargo audit has nothing stable to check. Not reported: a workspace member covered by the Cargo.lock at the workspace root, a manifest whose dependency tables are empty, and manifests under test, fixture, mock or example directories. A Cargo.lock excluded by .gitignore is treated as absent, because it is not committed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-rust-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-rust-001/",
 	"languages": ["rust"],
 	"severity": "high",
 	"level": "error",

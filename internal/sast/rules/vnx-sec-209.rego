@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-209",
 	"name": "JFrog access/identity token",
 	"description": "A JFrog Artifactory/Pipelines access or identity token was found. It grants access to artifact repositories, builds and the JFrog platform API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-209",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-209",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

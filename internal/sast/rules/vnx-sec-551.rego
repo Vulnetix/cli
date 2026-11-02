@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-551",
 	"name": "WorkOS publishable key",
 	"description": "A WorkOS publishable client key (client_ prefix) was found. It is used client-side for AuthKit and is lower risk but identifies the WorkOS environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-551",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-551",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

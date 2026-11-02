@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-246",
 	"name": "Octopus Deploy server API key (assignment)",
 	"description": "An Octopus Deploy API key assigned to an OCTOPUS_API_KEY context variable was found. It grants REST API access to the Octopus server.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-246",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-246",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

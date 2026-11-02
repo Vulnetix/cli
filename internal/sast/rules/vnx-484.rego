@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-484",
 	"name": "Omitted Break Statement in Switch",
 	"description": "A case or default label of a C, C++ or Java switch whose statements run into the next label of the same switch: the label has a body of its own, and its last statement is not a break, return, throw, continue, goto, yield or a call that does not return (exit, abort, System.exit), so control falls through into the next case. Not reported: stacked labels with no statements between them (case 1: case 2:), a fall-through marked as deliberate (a /* fall through */ or FALLTHROUGH comment, [[fallthrough]], __attribute__((fallthrough))), Java arrow labels (case X ->), which never fall through, the last label of a switch, and labels in comments or string literals. A body whose last statement is a bare if guarding the exit (if (x) return -1;, with no else) is reported, because the other branch falls through. A body ending in an inner block (an if/else or loop closed by a brace) is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-484/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-484/",
 	"languages": ["c", "cpp", "java"],
 	"severity": "medium",
 	"level": "warning",

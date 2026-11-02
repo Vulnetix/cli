@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-260",
 	"name": "DeepSeek API key (sk-)",
 	"description": "A DeepSeek API key was found. DeepSeek uses the sk- prefix with a 32-character hex body and grants access to DeepSeek model inference billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-260",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-260",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1336",
 	"name": "Server-side template injection: template source built from request data",
 	"description": "Request data becomes the SOURCE of a template that is then compiled, so an attacker can write template expressions that the engine evaluates on the server (server-side template injection, often remote code execution). Reported when the template-source argument (the first argument) reads the request directly or names a variable assigned from it, or from a string built from it (f-string, concatenation, format), within 30 lines above: Python flask render_template_string, Jinja2 Environment.from_string and jinja2.Template, Django Template and engines[...].from_string, Mako Template; Node.js Handlebars.compile, ejs.render/compile, pug.render/compile, nunjucks renderString, lodash _.template and doT.template. Sources: Flask/Django request.args/form/values/json/get_json/data/cookies/headers/GET/POST, Express/Koa req.body/query/params/headers/cookies and ctx.request.body/ctx.query. Not reported: a literal template with request data passed only as render context, templates loaded from files (render_template, res.render, get_template, a template read from disk), Python's string.Template, from_string on a Jinja2 SandboxedEnvironment (the documented mitigation, inline or through a name assigned one in the same file), comments and docstrings. Templates built from stored data (a database value) are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1336/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1336/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

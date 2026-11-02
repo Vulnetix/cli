@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1325",
 	"name": "Improperly Controlled Sequential Memory Allocation",
 	"description": "An allocation (Go make([]T, n)/map/chan, Java new byte[n]/char[n]/int[n]/long[n] and ByteBuffer.allocate/allocateDirect, C/C++ malloc/calloc/realloc and new T[n]) is sized by a value that arrived from outside the program (a parsed request parameter or header, Content-Length, a binary length prefix, ntohl/be32toh/atoi/strtol/strtoull, a command-line argument, or a variable filled through &n by binary.Read/fread/recv/scanf) with no upper bound checked first, or a loop whose iteration count is such a value allocates on every pass. An attacker who controls the size or the count can exhaust memory and cause denial of service. Not reported: sizes taken from len()/sizeof/length of data already in memory, constants, values the program computed itself, a size compared against a maximum in an if/assert above the allocation (a check of zero or a lower bound only does not count), a size clamped with min()/Math.min, test files and comments. Taint is followed one assignment within 25 lines; flows through helper functions are not.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1325/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1325/",
 	"languages": ["c", "cpp", "go", "java"],
 	"severity": "medium",
 	"level": "warning",

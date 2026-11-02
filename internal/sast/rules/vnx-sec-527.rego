@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-527",
 	"name": "Zoho OAuth token (1000.)",
 	"description": "A Zoho OAuth access or refresh token (1000. prefix) was found. It grants API access to the user's Zoho applications such as CRM, Mail and Books.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-527",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-527",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

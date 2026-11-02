@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-163",
 	"name": "Yandex Cloud API key (AQVN context)",
 	"description": "A Yandex Cloud service account API key (AQVN prefix) was found. These long-lived keys authorize API calls for the associated service account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-163",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-163",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-855",
 	"name": "Faire API access token",
 	"description": "A Faire wholesale marketplace API access token was found. It grants access to the brand's or retailer's orders, products and inventory on Faire.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-855",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-855",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

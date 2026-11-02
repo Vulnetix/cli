@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-160",
 	"name": "GCP Cloud Run / IAP service identity token (context)",
 	"description": "A Google-issued identity/bearer token (eyJ JWT) bound to a GCP service context keyword was found. Identity tokens authorize invocation of protected Cloud Run / IAP endpoints.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-160",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-160",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

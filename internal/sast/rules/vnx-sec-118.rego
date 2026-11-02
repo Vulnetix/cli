@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-118",
 	"name": "AWS AppSync GraphQL API key (da2-)",
 	"description": "An AWS AppSync GraphQL API key (da2- prefix) was found. AppSync API keys authorize calls to the GraphQL API and can expose backend data sources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-118",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-118",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

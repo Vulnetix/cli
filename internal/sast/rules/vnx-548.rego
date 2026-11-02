@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-548",
 	"name": "Exposure of Information Through Directory Listing",
 	"description": "A web server or framework is configured to answer a request for a directory with a listing of its files, so anyone can enumerate backups, logs, uploads and keys that were never linked. Reported: a serveIndex(...) call (the serve-index middleware) and @fastify/static registered with list: true in JavaScript/TypeScript; Django's static serve view given show_indexes: True or static(..., show_indexes=True), aiohttp add_static(..., show_index=True) and Flask-AutoIndex AutoIndex(app, ...) in Python; a Tomcat listings or Jetty dirAllowed DefaultServlet init-param set to true in web.xml, Jetty setDirectoriesListed(true) and setInitParameter(\"dirAllowed\", \"true\") in Java; nginx autoindex on (also inside a one-line location block); and Apache Options Indexes / +Indexes / All in httpd.conf, apache2.conf, site .conf files and .htaccess. Not reported: importing serve-index without calling it, express.static and other file servers that do not list directories, the settings when switched off (autoindex off, Options -Indexes, listings false, show_indexes False), commented-out directives, string literals and test files. Go's http.FileServer, which lists any directory without an index.html, is not reported because almost every use serves a directory of public assets on purpose.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-548/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-548/",
 	"languages": ["node", "python", "java", "generic"],
 	"severity": "medium",
 	"level": "warning",

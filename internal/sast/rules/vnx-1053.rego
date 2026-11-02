@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1053",
 	"name": "Missing Documentation for Design",
 	"description": "CWE-1053 (missing design documentation) has no code shape of its own, so this rule reports the one concrete signal source code carries: a Java or Python comment in which the author records that the design or architecture is not documented. That is a TODO/FIXME/XXX/TBD marker naming the design or architecture together with documenting, explaining or describing it (\"// TODO: document the design of this cache\", \"# FIXME: explain the architecture of the retry pipeline\", \"TODO(ops): write up the design rationale\"), or a statement that the design documentation is missing or pending (\"no design doc yet\", \"undocumented design\", \"design doc: TBD\", \"the architecture here is undocumented\"). Not reported: a comment that points at documentation which exists (\"see the design doc at docs/design/cache.md\", an ADR number, a URL) or says no design doc change is needed, a TODO about documenting a parameter or a function, a TODO to design something (the work, not its documentation), the same words in a string literal or in code, and files in other languages. Classes or modules without doc comments are deliberately not reported: absence of a docstring is not evidence that a design is undocumented.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1053/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1053/",
 	"languages": ["java", "python"],
 	"severity": "low",
 	"level": "note",

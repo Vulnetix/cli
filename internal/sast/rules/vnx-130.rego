@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-130",
 	"name": "Improper Handling of Length Parameter Inconsistency",
 	"description": "Reports C/C++ code that trusts a length field taken from a message: a value decoded from wire byte order (ntohs, ntohl, be16toh/be32toh/le16toh/le32toh, get_unaligned_be16/be32/le16/le32, OpenSSL's n2s/n2l, or bytes combined as (p[0] << 8) | p[1]) is used as the length argument of memcpy, memmove, strncpy or strncat, or as the size of read/recv/recvfrom/fread, with no comparison of that length against the destination or the received size in between (the Heartbleed shape). The conversion written directly in the length argument (memcpy(dst, src, ntohs(h->len))) is reported too. Not reported: a length compared in an if/while/assert or a ternary, or clamped with MIN()/min() before the copy; constant or sizeof lengths; values decoded but never used as a copy length; host-to-network conversions (htons, htonl); comments. Lengths that reach the copy through another function are out of scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-130/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-130/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

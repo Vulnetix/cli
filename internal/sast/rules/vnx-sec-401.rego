@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-401",
 	"name": "Mailchimp API key (-us datacenter)",
 	"description": "A Mailchimp Marketing API key was found. It is a 32-character hex string suffixed with a regional data-center tag such as -us21, and grants full access to lists, audiences, and campaigns.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-401",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-401",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

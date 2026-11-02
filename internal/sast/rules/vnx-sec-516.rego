@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-516",
 	"name": "Dropbox short-lived access token (sl.)",
 	"description": "A Dropbox short-lived OAuth2 access token (sl. prefix) was found. It grants temporary API access to the user's Dropbox files until it expires.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-516",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-516",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

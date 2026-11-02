@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-422",
 	"name": "Microsoft Graph / Azure AD client secret",
 	"description": "A Microsoft Graph / Azure AD application client secret was found near a graph or azure assignment. These secrets let an app authenticate to Microsoft Graph (Teams, Mail, Users) as itself.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-422",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-422",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

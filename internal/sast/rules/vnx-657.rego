@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-657",
 	"name": "Violation of Secure Design Principles",
 	"description": "CWE-657 is a design-level class with no single code shape, so this rule reports its most concrete static signal: a TODO, FIXME, XXX or HACK comment in Python or JavaScript/TypeScript production code in which the author records that a security control is missing, disabled or bypassed. Reported: the marker followed by security, insecure, vulnerable or exploitable, or by a verb of absence (add, implement, missing, no, not, enable, disable, bypass, skip, remove, without, lacks, turn off) within forty characters of a control, or a control followed within thirty characters by disabled, turned off, bypassed, skipped, missing or not implemented/enforced/checked/verified (SSL verification disabled), or a marker that orders the control (TODO(bob): sanitize, escape, authenticate, encrypt, or validate user input, the request, a token or a filename) (authentication, authorization, auth, access control, permission check, CSRF/XSRF, sanitizing, escaping, input validation, validation (not validated), encryption, TLS/SSL, certificate verification, rate limiting, a hard-coded secret, password, key or credential). Whole-line and trailing comments, and lines inside a block comment, are read. Not reported: ordinary TODOs (performance, refactoring, layout), notes about adding tests or documentation, statements that a control exists, the same words in a string literal, and test files. The comment is the finding; the code it describes may be reported by other rules.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-657/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-657/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

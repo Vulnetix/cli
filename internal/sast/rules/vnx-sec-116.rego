@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-116",
 	"name": "AWS SES SMTP password",
 	"description": "An AWS SES SMTP password assigned to an SMTP context keyword was found. SES SMTP passwords are derived from IAM secret keys and allow sending email through Amazon SES.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-116",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-116",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

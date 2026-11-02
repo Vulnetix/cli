@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-284",
 	"name": "NVIDIA NGC API key (nvapi-)",
 	"description": "An NVIDIA NGC / NVIDIA AI Endpoints API key (nvapi- prefix) was found. It grants access to NVIDIA NIM model inference and NGC registry resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-284",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-284",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

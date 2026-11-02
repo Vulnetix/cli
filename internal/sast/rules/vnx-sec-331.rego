@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-331",
 	"name": "Adyen API key",
 	"description": "An Adyen web service API key was found near an adyen/api_key assignment. Adyen API keys authorize live payment, payout and management operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-331",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-331",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

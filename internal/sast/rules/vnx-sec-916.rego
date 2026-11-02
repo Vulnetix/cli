@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-916",
 	"name": "Abstract API key",
 	"description": "An Abstract API key was found near an abstractapi assignment. It is a 32-character lowercase hex string authorizing one of Abstract's enrichment, geolocation, or validation APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-916",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-916",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

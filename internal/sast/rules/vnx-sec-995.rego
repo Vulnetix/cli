@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-995",
 	"name": "Huobi/HTX secret key",
 	"description": "A Huobi (HTX) secret key assigned to a huobi/htx secret field was found. It is the HMAC signing key for authenticated HTX trading and withdrawal requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-995",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-995",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

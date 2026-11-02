@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-HTML-001",
 	"name": "Use of Jinja2 |safe filter",
 	"description": "A Jinja2, Django or Nunjucks template switches off auto-escaping for a value: an output expression {{ ... }} whose filter chain applies safe or safeseq ({{ user.bio|safe }}, {{ c.body | safe }}, {{- post.content|markdown|safe -}}), or an {% autoescape off %} / {% autoescape false %} block. If the value can carry user-controlled data, it is rendered as raw HTML (XSS). Checked in .html, .htm, .jinja, .jinja2, .j2, .njk and .djhtml files. Not reported: a string literal marked safe, a value already escaped, JSON-encoded or passed through an HTML sanitiser filter earlier in the chain (|escape|safe, |e|safe, |tojson|safe, |json_script, |bleach|safe, |sanitize_html|safe), CSRF tokens and rendered form fields (csrf_token, form.x, field(...)), other filters whose name starts with safe, |safe in prose or script text outside {{ }}, Jinja {# #} comments, and templates under test directories. Twig |raw and Handlebars {{{ }}} are not covered.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-html-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-html-001/",
 	"languages": ["html"],
 	"severity": "medium",
 	"level": "warning",

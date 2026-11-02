@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-005",
 	"name": "GCP API key",
 	"description": "Reports a hard-coded Google Cloud / Google Maps / Firebase API key: a standalone 39-character token, AIza followed by 35 URL-safe base64 characters, in any file, including script URLs (?key=AIza…), Android string resources, Firebase web config and .env files. Not reported: placeholder runs (AIzaXXXX…), the AIza prefix inside a longer token, prefix checks, environment references, and test, fixture, vendored and generated files. Firebase web keys are designed to ship to browsers, but an unrestricted key still bills the project, so they are reported; restrict the key by API and referrer.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-005/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

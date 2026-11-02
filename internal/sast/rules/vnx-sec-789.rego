@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-789",
 	"name": "Confluence/Jira Connect app shared secret",
 	"description": "An Atlassian Connect app shared secret was found. It signs the JWTs an Atlassian Connect add-on uses to authenticate to Jira/Confluence, granting the app's full scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-789",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-789",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-JAVA-023",
 	"name": "Java unrestricted file upload — no content-type or extension validation",
 	"description": "An uploaded file is written to disk under the name the client sent, with no check of its extension or content type, so an attacker can store a .jsp, .war or other executable or browser-active file where the server or its users will run it. Reported: a write sink (MultipartFile.transferTo, Files.copy/write/move, new FileOutputStream, Part.write, FileItem.write, commons-io FileUtils.copyInputStreamToFile/copyToFile/writeByteArrayToFile) whose destination uses MultipartFile.getOriginalFilename(), Part.getSubmittedFileName() or FileItem.getName(), inline, through a variable assigned from it, or through one more assignment (Path target = dir.resolve(name)), within 25 lines. Not reported: when the 30 lines above the sink check the name or type (endsWith, FilenameUtils.getExtension, an ALLOWED/allowlist set, getContentType, probeContentType, Tika, matches(), a call to a validate* helper; a @Validated annotation or an import is not a check); files stored under a generated name (UUID) while the original name is only logged or saved as metadata; and the pattern in comments or string literals. Path traversal through the same name is a separate weakness (CWE-22).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-023/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-023/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

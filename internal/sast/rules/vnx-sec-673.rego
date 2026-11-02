@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-673",
 	"name": "thirdweb secret key (sk_)",
 	"description": "A thirdweb secret key (sk_ prefix) was found. It authenticates server-side access to thirdweb's web3 infrastructure billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-673",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-673",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

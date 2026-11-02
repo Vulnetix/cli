@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-482",
 	"name": "Comparing instead of Assigning",
 	"description": "Reports a statement that is only an equality comparison, x == y; (or x === y; in JavaScript/TypeScript, x == y on its own line in Python), and a for loop whose initialiser compares instead of assigning (for (i == 0; ...)), in C, C++, JavaScript, TypeScript and Python. The result is discarded, so the assignment that was meant (or, in a Python test, the assert that was meant) never happens. Not reported: comparisons that are part of a larger statement (assert, return, if, a call argument, an assignment, a ternary), continuation lines of a multi-line expression (the line before ends with an operator, a comma or an open bracket), a Python comparison directly under with pytest.raises(...)/self.assertRaises(...) (evaluated on purpose to prove __eq__ raises), Java and C# (where an expression statement that only compares does not compile), and comparisons inside strings and comments. The Java BigDecimal reference comparison the earlier version of this rule reported is covered by VNX-480.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-482/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-482/",
 	"languages": ["c", "cpp", "javascript", "typescript", "python"],
 	"severity": "medium",
 	"level": "warning",

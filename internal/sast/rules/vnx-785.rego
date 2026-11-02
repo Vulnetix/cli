@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-785",
 	"name": "Use of Path Manipulation Function without Maximum-sized Buffer",
 	"description": "Reports C/C++ calls to path functions that write a path of unbounded length into a caller buffer without taking its size: getwd() (always), realpath() whose output is a local array declared in the file with a size below PATH_MAX/MAXPATHLEN (4096), and the Windows PathCanonicalize/PathCombine/PathAppend family whose output array is declared smaller than MAX_PATH (260). The size is read from the nearest declaration of the array above the call (including 'char a[8], out[64];'), and a size macro #defined in the file as a number is judged by that number. realpath(p, NULL), output buffers whose declaration is not visible in the file (pointers, struct members) and size-taking functions such as getcwd() are deliberately not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-785/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-785/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

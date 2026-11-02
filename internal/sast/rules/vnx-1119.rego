@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1119",
 	"name": "Excessive Use of Unconditional Branching",
 	"description": "A backward goto in C++ (.cc, .cpp, .cxx, .hpp, .hh files): goto <label>; where the label is defined earlier in the same function, so the goto builds a loop (retry, again, restart, top) out of unconditional jumps instead of a while/for/do statement. Backward jumps are what make goto-heavy code hard to follow and are how a retry path loops forever or re-enters with stale state. Not reported: forward gotos to a cleanup or error label (goto out, goto err, goto cleanup, the idiomatic C error-unwinding pattern), a label of the same name in an earlier function, gotos in comments and string literals, computed gotos (goto *ptr), a goto to a label that leaves through continue or break (a shared loop tail, not a loop), and a goto whose same-name label also appears below it in the same function (it is forward), and gotos inside a /* */ block whose lines carry no leading *. Backward gotos in C files (.c, .h) are reported by VNX-1075.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1119/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1119/",
 	"languages": ["cpp"],
 	"severity": "low",
 	"level": "note",

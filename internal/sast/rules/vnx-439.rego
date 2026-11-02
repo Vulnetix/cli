@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-439",
 	"name": "Behavioral Change in New Version or Environment",
 	"description": "Python security APIs whose behaviour depends on the interpreter version the code happens to run on, so the same line is weak on one runtime and broken or different on another. Reported: hmac.new() or hmac.HMAC() without a digest (no digestmod= and fewer than three positional arguments), which silently uses MD5 before Python 3.8 and raises TypeError from 3.8; ssl.SSLContext() with no protocol, or with the deprecated generic ssl.PROTOCOL_TLS/PROTOCOL_SSLv23, whose client/server role, certificate verification and hostname checking defaults differ between versions (deprecated since 3.10; use PROTOCOL_TLS_CLIENT or ssl.create_default_context()); the module-level ssl.wrap_socket(), which performs no certificate or hostname verification by default and was removed in 3.12; ssl.match_hostname(), removed in 3.12 (3.7+ checks hostnames inside the context); and cgi.escape(), removed in 3.8 and, where it still exists, leaving quotes unescaped by default unlike html.escape(). From-imported names (from ssl import wrap_socket, from cgi import escape) are recognised. Not reported: hmac.new(key, msg, hashlib.sha256) or digestmod=, hmac.digest(), SSLContext(ssl.PROTOCOL_TLS_CLIENT/PROTOCOL_TLS_SERVER), context.wrap_socket(), html.escape(), comments and string literals. Explicitly obsolete TLS versions are VNX-PY-021; tar extraction without a filter (whose default changes in 3.14) is VNX-409.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-439/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-439/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

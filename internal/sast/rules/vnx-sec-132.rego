@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-132",
 	"name": "Google reCAPTCHA secret key",
 	"description": "A Google reCAPTCHA secret key assigned to a context keyword was found. The secret key verifies reCAPTCHA responses server-side; exposure lets attackers bypass or abuse the verification.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-132",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-132",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

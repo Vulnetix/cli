@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-406",
 	"name": "Vonage/Nexmo API secret",
 	"description": "A Vonage (formerly Nexmo) API secret was found near a vonage or nexmo assignment. Paired with the 8-character API key, it authorizes SMS, voice, and verify operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-406",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-406",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

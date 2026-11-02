@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1111",
 	"name": "Incomplete I/O Documentation",
 	"description": "A Python function whose docstring documents its inputs in a structured section (Google-style 'Args:'/'Parameters:' entries, including one entry naming several parameters such as 'x, y: the point', or Sphinx ':param name:') but leaves out one or more of the function's own parameters, so the documented interface is incomplete. Reported at the 'def' line, naming the missing parameters. Not reported: functions without a structured parameter section (an undocumented function is a different question), 'self'/'cls' (and a metaclass's 'mcs'/'mcls'/'metacls'), '*args'/'**kwargs', parameters whose name starts with an underscore, NumPy-style 'Parameters' sections with dashed underlines (not parsed), and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1111/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1111/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

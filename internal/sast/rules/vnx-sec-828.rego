@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-828",
 	"name": "Wix OAuth app secret",
 	"description": "A Wix OAuth application secret key was found. Combined with the app id it lets an attacker obtain access tokens for the Wix app's installed sites.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-828",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-828",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

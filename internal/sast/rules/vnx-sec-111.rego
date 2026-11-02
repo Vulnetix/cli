@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-111",
 	"name": "Linode personal access token",
 	"description": "A Linode (Akamai) personal access token was found. Linode PATs are 64-character hex tokens that grant API access to the account's Linodes, volumes, DNS and billing per the token scopes.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-111",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-111",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

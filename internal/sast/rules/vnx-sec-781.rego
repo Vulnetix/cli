@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-781",
 	"name": "Copper CRM API token",
 	"description": "A Copper (ProsperWorks) CRM API token was found. Combined with the user email it grants API access to the CRM's people, companies and opportunities. This complements the Copper API key rule.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-781",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-781",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

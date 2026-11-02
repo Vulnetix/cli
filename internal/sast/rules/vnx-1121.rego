@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1121",
 	"name": "Excessive McCabe Cyclomatic Complexity",
 	"description": "A Python top-level function or method whose McCabe cyclomatic complexity is 26 or more: one plus every if, elif, for, while, except and match-case statement in its body (nested functions included) plus every and/or in those statements' conditions, including a condition wrapped over several lines (if (a is None\n and b):). Above about 25 a function has more independent paths than can be tested or reviewed, and validation and authorisation checks get lost among them. Not reported: functions below the threshold however long, decisions in comprehensions and conditional expressions (not counted, so the measure errs low), prose and pseudo-code in the function's docstring and in comments, and test files. The finding is a maintainability signal, not an exploitable defect.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1121/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1121/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

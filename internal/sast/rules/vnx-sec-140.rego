@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-140",
 	"name": "Aiven API token (aivenv1 / context)",
 	"description": "An Aiven API token assigned to a context keyword was found. Aiven tokens grant access to manage the account's managed database and streaming services.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-140",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-140",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

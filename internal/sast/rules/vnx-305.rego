@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-305",
 	"name": "Authentication Bypass by Primary Weakness",
 	"description": "An authentication check that only tests whether a credential is present and then lets the request through: a Node/Express middleware, a Python decorator, view or DRF permission, or a Java servlet filter or Spring interceptor reads a token, API key, Authorization header or session cookie from the request and grants access (next(), return f(*args), call_next, chain.doFilter(...), return True/true from an auth or permission method, or such a method returning the presence test itself, as in return bool(request.headers.get(\"Authorization\")) or return token != null) when the value is merely non-empty, or as the very next statement after rejecting an empty one, without verifying, decoding, comparing or looking it up. Any value then authenticates. Not reported: a check whose condition or intervening lines call verify/validate/decode/authenticate/lookup/compare, a token compared against an expected value, a variable assigned from a verification call, a value held in the server-side session store (req.session.user, session.getAttribute), client-side route guards (canActivate), test files and comments. Deeper flows (verification in another function between the read and the grant) are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-305/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-305/",
 	"languages": ["java", "node", "python"],
 	"severity": "high",
 	"level": "error",

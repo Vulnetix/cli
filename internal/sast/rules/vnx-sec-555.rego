@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-555",
 	"name": "Algolia search/usage key (keyword)",
 	"description": "An Algolia API key (search, usage or analytics scoped) referenced by an algolia key assignment was found. Scope determines risk but it identifies the app.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-555",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-555",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-561",
 	"name": "Snowflake account identifier + password connection",
 	"description": "A Snowflake connection string or SQLAlchemy URL embedding the account identifier and user password was found. It grants authenticated access to the Snowflake data warehouse and all databases the user can reach.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-561",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-561",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

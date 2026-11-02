@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-634",
 	"name": "Dynatrace platform token (dt0s)",
 	"description": "A Dynatrace platform / OAuth-style token using the dt0s prefix was found. It authenticates to the Dynatrace platform APIs with the token's assigned scopes.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-634",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-634",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

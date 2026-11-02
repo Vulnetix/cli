@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-436",
 	"name": "OneSignal REST API key (legacy hex)",
 	"description": "A legacy OneSignal REST API key (44-character base64) was found near a onesignal assignment. It authorizes push notification sends for a OneSignal app.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-436",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-436",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

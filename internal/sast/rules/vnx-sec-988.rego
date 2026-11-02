@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-988",
 	"name": "Bitstamp API key",
 	"description": "A Bitstamp API key assigned to a Bitstamp key field was found. Combined with the secret it signs HMAC-authenticated trading and withdrawal requests against the Bitstamp API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-988",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-988",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

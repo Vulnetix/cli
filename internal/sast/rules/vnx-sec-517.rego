@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-517",
 	"name": "Dropbox long-lived access token",
 	"description": "A Dropbox long-lived API access token was found. It grants persistent API access to the user's Dropbox account and files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-517",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-517",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-099",
 	"name": "Zapier webhook URL",
 	"description": "A Zapier catch-hook webhook URL was found, allowing arbitrary data to be injected into the user's Zaps.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/webhooks/#vnx-sec-099",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/webhooks/#vnx-sec-099",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-202",
 	"name": "Semaphore CI token",
 	"description": "A Semaphore CI API token was found. It grants access to the Semaphore API for pipelines, workflows and secrets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-202",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-202",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

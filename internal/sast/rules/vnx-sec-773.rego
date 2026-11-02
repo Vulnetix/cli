@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-773",
 	"name": "Chorus.ai API token",
 	"description": "A Chorus.ai (ZoomInfo Chorus) API token was found. It grants API access to the organisation's call recordings and conversation intelligence in Chorus.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-773",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-773",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

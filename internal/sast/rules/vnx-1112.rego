@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1112",
 	"name": "Incomplete Documentation of Program Execution",
 	"description": "A Python command-line option or argument that changes how the program runs but is missing from its --help text: an argparse '.add_argument(...)' or optparse '.add_option(...)' call (including Django management commands and subparsers) or a '@click.option(...)' decorator with no 'help=' keyword anywhere in the call, which may span several lines. Reported at the line that opens the call. Not reported: calls that pass 'help=' (including help=argparse.SUPPRESS, a deliberate choice to hide an option), calls that expand '**options' (help may be inside), action='version' and action='help' (argparse supplies their help text), an add_option call whose first argument is not a '-' flag or dest= (a menu or config API, not optparse), calls inside a triple-quoted string (a usage example in a docstring), add_argument_group/add_mutually_exclusive_group, click.argument (which takes no help), commented-out calls, and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1112/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1112/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

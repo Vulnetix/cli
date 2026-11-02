@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-650",
 	"name": "Certificate bundled with private key",
 	"description": "A PEM certificate header (BEGIN CERTIFICATE) was found in a file that also references a private key, indicating a combined cert+key bundle was committed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/private-keys/#vnx-sec-650",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/private-keys/#vnx-sec-650",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-334",
 	"name": "Small Space of Random Values",
 	"description": "A secret is drawn as a random integer from a range of fewer than 2^32 values, so it can be guessed or enumerated however good the generator is. Reported when the same line (or the line above, when the assignment wraps after `=`) names the value as a token, secret, key, password, salt, session id, CSRF, API key, reset or invite value: Python random.randint(a, b)/randrange(..., b) and secrets.randbelow(n) with a literal bound below 2^32 (digits, 1_000_000, 10**k, 2**k), secrets.randbits/getrandbits(k) with k < 32; Java/Kotlin nextInt() and nextInt(n) (32 bits at most, from SecureRandom too); Node.js crypto.randomInt([min,] max) with a literal max below 2^32 and Math.floor([offset +] Math.random() * N); PHP random_int/mt_rand/rand(a, b); Ruby SecureRandom.random_number(n) and rand(n). Not reported: bounds from variables or expressions, ranges of 2^32 and more, random integers with no security name (indexes, delays, ports, colours, dice) or whose name is a count, length, size or index of tokens or keys (tokenCount, key_index), one-time passcodes and PINs (a 6-digit OTP is the norm and is protected by expiry and attempt limits), comments and test files. Use 128 bits from a CSPRNG for tokens (secrets.token_urlsafe(32), crypto.randomBytes(32)). A non-cryptographic generator for a secret is reported by VNX-PY-005 and VNX-JAVA-016 as well.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-334/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-334/",
 	"languages": ["java", "kotlin", "node", "php", "python", "ruby"],
 	"severity": "medium",
 	"level": "warning",

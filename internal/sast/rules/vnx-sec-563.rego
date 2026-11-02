@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-563",
 	"name": "Databricks personal access token",
 	"description": "A Databricks personal access token using the dapi prefix was found. It authenticates to the Databricks REST API and workspace with the issuing user's permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-563",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-563",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

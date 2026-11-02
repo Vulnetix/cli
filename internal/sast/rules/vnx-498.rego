@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-498",
 	"name": "Cloneable Class Containing Sensitive Information",
 	"description": "A Java class that implements Cloneable (the implements clause may span lines) and declares a non-static field holding a secret: a String, char[], byte[] or CharSequence whose name says password, passwd, passphrase, pwd, pin, secret, API key, private key, an access/refresh/auth/session/bearer/id/csrf token, credential, credit card/card number, CVV or SSN, or a field of type PrivateKey, SecretKey, SecretKeySpec, KeyPair, KeyStore or Key. clone() copies the object without running a constructor, so any caller that can clone it gets a second copy of the secret that no wipe or access check covers. Reported on the class declaration. Not reported: a class whose clone() throws CloneNotSupportedException, static constants (PASSWORD_KEY), names that describe a secret rather than hold it (passwordLength, secretName), classes that are not Cloneable, test code, comments and string literals. Classes that inherit Cloneable from a superclass are not resolved.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-498/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-498/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

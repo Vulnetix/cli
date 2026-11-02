@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-294",
 	"name": "Together AI API key (40 hex)",
 	"description": "A Together AI API key in the legacy 40-character hex form referenced via a TOGETHER_API_KEY assignment was found.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-294",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-294",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

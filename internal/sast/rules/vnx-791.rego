@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-791",
 	"name": "Incomplete Filtering of Special Elements",
 	"description": "Reports hand-written sanitisers in Python and JavaScript/TypeScript that delete a dangerous token in a single pass: str.replace(TOKEN, ''), re.sub(TOKEN, '', s) and PATTERN.sub('', s) on a re.compile(TOKEN) constant in Python, and replaceAll(TOKEN, ''), split(TOKEN).join(''), replace(/TOKEN/g, '') and replace(PATTERN, '') on a /TOKEN/g constant in JavaScript, where TOKEN is a script/iframe/object/embed/svg tag, a generic tag pattern built from word characters (<\\w+..., which cannot match a nested '<'), a javascript:/vbscript: scheme, an event-handler attribute (onerror, on\\w+), a ../ or .. traversal sequence, or shell metacharacters (a class of two or more always; a single ; & | $ or backtick only with a command such as exec, subprocess or cmd within six lines). One pass leaves nested input reassembled ('<scr<script>ipt>', '....//') and a character denylist leaves the others. A replacement repeated in a while/do loop, escaping (replacing with an entity), an ellipsis, <[^>]*> (which absorbs a nested '<'), a lone '$' or '|' away from any command (prices, table cells), anchored patterns (VNX-796) and JavaScript first-occurrence replace() (VNX-792, VNX-793) are deliberately not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-791/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-791/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

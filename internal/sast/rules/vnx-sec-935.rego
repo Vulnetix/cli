@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-935",
 	"name": "Sigfox API credential",
 	"description": "A Sigfox API access credential (login/password pair) was found near a sigfox assignment. The password component is a 32-character hex string authorizing device and message access on the Sigfox backend.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-935",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-935",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

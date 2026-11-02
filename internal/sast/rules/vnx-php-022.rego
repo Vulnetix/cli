@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-022",
 	"name": "PHP open redirect via non-literal redirect destination",
 	"description": "A framework redirect helper's destination comes from the request: Laravel and CodeIgniter redirect($x), redirect()->to()/away(), Redirect::to()/away(), Symfony $this->redirect() and new RedirectResponse() (also split across lines), where the destination starts with a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, $_FILES, client-controlled $_SERVER keys such as HTTP_REFERER), filter_input(), getallheaders(), a Laravel/Symfony/CodeIgniter/PSR-7 request accessor or php://input, inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable). The browser then follows an attacker-chosen URL, which makes phishing links look like they belong to the site. Not reported: literal destinations, a destination whose literal prefix already fixes the host or a path ('/login?next=' . $x, 'https://example.com/cb?state=' . $x), a value checked with in_array(), array_key_exists(), preg_match() or parse_url() or replaced by a constant (switch/allowlist) before the redirect, redirect()->route()/back()/intended(), configuration values, values whose origin is not visible in the file, and calls in comments or string literals. A strpos() substring check is not treated as validation. A raw header('Location: ...') or Refresh header, wp_redirect() and PSR-7 withHeader('Location', ...) are reported by VNX-PHP-004.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-022/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-022/",
 	"languages": ["php"],
 	"severity": "medium",
 	"level": "warning",

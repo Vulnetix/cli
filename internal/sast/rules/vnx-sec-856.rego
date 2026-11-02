@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-856",
 	"name": "Cratejoy API secret",
 	"description": "A Cratejoy subscription-box API secret was found. Paired with the client id it grants access to the merchant's subscriptions, orders and customers.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-856",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-856",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

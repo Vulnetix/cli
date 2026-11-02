@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-753",
 	"name": "Gusto API token",
 	"description": "A Gusto API token used for system integrations was found. It grants API access to Gusto payroll and HR resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-753",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-753",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

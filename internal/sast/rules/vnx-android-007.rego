@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-ANDROID-007",
 	"name": "AES cipher in ECB mode (Java/Kotlin)",
 	"description": "A javax.crypto Cipher is created for AES in Electronic Codebook mode, which encrypts equal 16-byte blocks to equal ciphertext and carries no integrity check. Reported, in Java and Kotlin: Cipher.getInstance with an AES/ECB/... transformation (also AES_128/AES_256 and lower case, with or without a provider argument); with bare \"AES\" or KeyProperties.KEY_ALGORITHM_AES, which names no mode and gets the provider default AES/ECB/PKCS5Padding; with KeyProperties.KEY_ALGORITHM_AES + \"/\" + KeyProperties.BLOCK_MODE_ECB concatenations or Kotlin string templates; and with a constant (anywhere in the file, including a companion object below the call) whose literal value is one of those. Not reported: GCM, CBC, CTR and other modes, AESWrap, RSA/ECB/... (RSA's mode name, not block ECB), KeyGenerator/SecretKeySpec/Mac.getInstance(\"AES\"), a transformation read from configuration or passed in as a parameter, an ECB literal that never reaches Cipher.getInstance (a deny list), comments and strings. ECB with DES, 3DES or Blowfish is left to the broken-cipher rules and, in Kotlin, VNX-KOTLIN-001.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-android-007/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-android-007/",
 	"languages": ["java", "kotlin"],
 	"severity": "high",
 	"level": "error",

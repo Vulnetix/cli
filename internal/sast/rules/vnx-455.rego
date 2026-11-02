@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-455",
 	"name": "Non-exit on Failed Initialization",
 	"description": "C/C++ code checks an initialisation call for failure and then only logs: the failure branch of an if whose condition tests an init/setup/startup function (sodium_init, OPENSSL_init_ssl, curl_global_init, pthread_mutex_init, a project's own foo_init/initialize_engine...) for failure (!f(), < 0, <= 0, != 0, == -1, == NULL/nullptr/false, != *_OK/*SUCCESS, != 1), directly or through a status/handle variable assigned from the call in the 3 lines above, consists only of printf/fprintf/perror/puts/syslog/std::cerr/log*/warn* statements, so execution continues with an uninitialised library, context or lock. Reported for braced, Allman, single-statement and same-line bodies. Not reported: a failure branch that exits, returns, aborts, jumps, throws or does anything other than log (setting a fallback flag counts as handling), a success test (== 0, != NULL) that logs, predicates named is*/has*Initialized, non-initialisation calls, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-455/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-455/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

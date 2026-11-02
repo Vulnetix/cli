@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-252",
 	"name": "Unchecked Return Value",
 	"description": "The result of a call that reports failure only through its return value is dropped. In Go: a bare statement recv.Write(...), recv.Read(...) or recv.WriteString(...), or a bare io.Copy/io.CopyN/io.CopyBuffer/io.WriteString/io.ReadFull/io.ReadAtLeast/os.WriteFile/ioutil.WriteFile call, which silently discards the error (and the byte count). In C and C++: the result of malloc/calloc/realloc/strdup/strndup/fopen/fdopen/tmpfile assigned to a variable that none of the next six code lines tests (== NULL, != NULL, !p, if (p), assert(p), serverAssert(p)), so a failed allocation or open is dereferenced; and a bare setuid/setgid/seteuid/setegid/setreuid/setregid/setresuid/setresgid/setgroups/initgroups/chroot statement, where a failed privilege drop leaves the process running privileged. Not reported in Go: an explicit discard (_ = f.Close(), _, _ = w.Write(b)), a deferred call, a returned or assigned result, writes to in-memory writers that cannot fail (bytes.Buffer, strings.Builder, bufio.Writer, hashes and HMACs, tabwriter) and to an http.ResponseWriter (w, rw, resp, res, writer), and test files. Not reported in C: a test on the same line, a pointer handed straight back to the caller by the next statement (return p;), an abort-on-failure wrapper (xmalloc, zmalloc, g_malloc), a (void) cast, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-252/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-252/",
 	"languages": ["c", "cpp", "go"],
 	"severity": "medium",
 	"level": "warning",

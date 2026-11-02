@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-612",
 	"name": "Logz.io shipping / API token",
 	"description": "A Logz.io account shipping or API token assigned to a context keyword was found. It authorises log/metric shipping and API access to the Logz.io account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-612",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-612",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUBY-009",
 	"name": "Ruby dynamic method dispatch via send with user-controlled method name",
 	"description": "Reports a Ruby send, public_send or __send__ call (with or without a receiver, with or without parentheses) and a receiver's try/try! call whose FIRST argument, the method name, comes from request input: params, request.params/query_parameters/request_parameters/headers or cookies, directly, inside an interpolated or concatenated string, with .to_sym, or through a variable assigned from such input within the 15 lines above, including one further hop (kind = job_params[:kind] after job_params = params.require(:job).permit(:kind)), in .rb, .rake and .ru files. The caller can then invoke any method on the receiver (destroy, delete_all, instance_variable_set, system on Kernel). Not reported: a symbol or plain string method name with user input only in later arguments, an allowlist check on the name (include?/member?/key?/in?/presence_in, or an equality test) in the lines above or on the same line, a name looked up from a constant table (HANDLERS.fetch(params[:x])), send_file/send_data, Socket#send, method definitions, comments and string literals. respond_to? is not treated as a guard, because every dangerous method responds. Flows through instance variables, helper methods or other files are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-009/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-ruby-009/",
 	"languages": ["ruby"],
 	"severity": "high",
 	"level": "error",

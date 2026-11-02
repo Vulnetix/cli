@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-351",
 	"name": "Checkout.com public key (pk_)",
 	"description": "A Checkout.com public API key using the pk_ prefix was found. Public keys are client-side safe but flag Checkout.com integration code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-351",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-351",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-033",
 	"name": "AWS Bedrock API key (long-lived)",
 	"description": "Reports an AWS Bedrock long-term API key: the ABSK prefix followed by 109 to 269 base64 characters, standing alone (not embedded in a longer base64 run). Placeholder and example values, test and fixture paths, and short-term bedrock-api-key- tokens (which expire within hours) are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-033/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-033/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

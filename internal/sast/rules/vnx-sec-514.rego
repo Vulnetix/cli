@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-514",
 	"name": "Miro access token",
 	"description": "A Miro REST API access token was found. It grants programmatic access to the user's Miro boards and team content.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-514",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-514",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

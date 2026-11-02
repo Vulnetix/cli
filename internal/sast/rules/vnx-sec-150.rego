@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-150",
 	"name": "Scaleway API token (UUID, context)",
 	"description": "A Scaleway-style API key/token UUID under a generic Scaleway context keyword was found. It may grant access to Scaleway project resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-150",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-150",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

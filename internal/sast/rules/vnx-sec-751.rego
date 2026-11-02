@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-751",
 	"name": "Justworks API access token",
 	"description": "A Justworks API access token was found. It grants API access to the company's payroll, benefits and HR data in Justworks.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-751",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-751",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

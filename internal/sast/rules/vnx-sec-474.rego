@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-474",
 	"name": "Plivo Basic auth header (Auth ID:Token)",
 	"description": "A Plivo Basic Auth credential (Auth ID:Auth Token) was found in an authorization header, granting full access to the Plivo voice and SMS APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-474",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-474",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

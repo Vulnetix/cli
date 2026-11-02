@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-680",
 	"name": "Integer Overflow to Buffer Overflow",
 	"description": "A C or C++ heap or stack allocation whose size is a multiplication involving a count read from outside the program, with no overflow or range check in between, so a large count wraps the product and the buffer is allocated far smaller than the code then writes. Reported: malloc, realloc, alloca, xmalloc, g_malloc, kmalloc, vmalloc, HeapAlloc, LocalAlloc and GlobalAlloc, and C++ new T[...], whose size multiplies a value parsed or received on the same line (atoi, strtol and friends, ntohl/ntohs/beNNtoh, getenv) or a variable that one of the 20 lines above assigned from such a call or filled through scanf/fscanf/sscanf, fread, read, recv/recvfrom, ReadFile, std::cin >> or an extraction statement from any stream (in >> w >> h;); also an allocation sized by a variable that one of the 10 lines above computed as such a product (size_t bytes = n * sizeof *e; malloc(bytes)). A comparison only against 0 or 1 (n <= 0, n > 0) bounds nothing and does not count as a check. Not reported: calloc and reallocarray (which check the product), a product of constants or of internal counts, a count compared against any other bound (<, >, <=, >= or == on the variable) or guarded by SIZE_MAX, INT_MAX, __builtin_mul_overflow or ckd_mul between the read and the allocation, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-680/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-680/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-049",
 	"name": "Anthropic admin API key",
 	"description": "Reports a complete Anthropic Admin API key: the sk-ant-admin01- prefix followed by the 93-character body and the AA terminator, in any file (source, .env, YAML, shell). Admin keys manage an organisation's members, workspaces, billing and other API keys. Not reported: a prefix on its own, a truncated key, placeholder bodies (xxxx, your-key-here), keys in test, fixture, vendored or generated paths, and ordinary sk-ant-api03- workspace keys, which are a different credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-049/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-049/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -1,6 +1,6 @@
 # Publishing & Distribution
 
-This documentation has moved to **[docs.cli.vulnetix.com/docs/enterprise/publishing](https://docs.cli.vulnetix.com/docs/enterprise/publishing/)**.
+How releases are built and published. Installing a release is documented at **[docs.vulnetix.com/cli/get-started/install](https://docs.vulnetix.com/cli/get-started/install/)**.
 
 ## Distribution Channels
 
@@ -13,7 +13,7 @@ This documentation has moved to **[docs.cli.vulnetix.com/docs/enterprise/publish
 | Nix Flake | Automated on release | `nix profile install github:Vulnetix/cli` |
 | GitHub Actions | In-repo | `uses: Vulnetix/cli@v3.59.4` (pin an exact tag; no moving major tag exists) |
 
-See the [full documentation](https://docs.cli.vulnetix.com/docs/enterprise/publishing/) for release processes and repository details.
+See [Install](https://docs.vulnetix.com/cli/get-started/install/) for every channel's install steps.
 
 ## Build provenance and TEA
 

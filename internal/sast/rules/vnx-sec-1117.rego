@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1117",
 	"name": "Pixabay numeric key context",
 	"description": "A Pixabay API key in a generic pixabay key context was found. It authorizes Pixabay media search under the account rate limit.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1117",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1117",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

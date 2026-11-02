@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1069",
 	"name": "Empty Exception Block",
 	"description": "A Java catch block whose body is empty: nothing but whitespace between its braces, written on one line (catch (IOException e) {}) or across lines (the brace on the next line, an empty line inside). The exception is swallowed with no log, rethrow, return or recorded decision, so a failure the program should react to disappears. Not reported: a body holding any statement or a comment (a comment records the decision to ignore), an exception variable named ignored/ignore/expected/unused or _ (the Java convention for a deliberate discard), test sources, and catch text inside string literals or comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1069/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1069/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

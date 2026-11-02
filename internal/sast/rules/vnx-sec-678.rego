@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-678",
 	"name": "Spotify client secret",
 	"description": "A Spotify application client secret (32 hex characters) assigned to a spotify context was found. It authenticates the Spotify app for the Web API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-678",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-678",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

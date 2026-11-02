@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-448",
 	"name": "Obsolete Feature in UI",
 	"description": "Reports a Java web endpoint that is marked obsolete but still served: @Deprecated (or an OpenAPI @Operation/@ApiOperation with deprecated = true, on one line or spread over several) in the same annotation block as a Spring @*Mapping, JAX-RS @GET/@POST/.../@Path, Micronaut @Get/@Post/..., or on a @Controller/@RestController class, whether the annotations share a line or not and in either order. A deprecated endpoint usually keeps the weaker behaviour it was retired for (an old login flow, an unescaped export) and stops getting fixes, while clients and attackers can still call it. Not reported: @Deprecated on ordinary methods, fields and classes that are not mapped to a URL, an endpoint whose body answers 410 Gone or redirects to its replacement, declarative HTTP clients (@FeignClient, Micronaut @Client, MicroProfile @RegisterRestClient, @HttpExchange), Javadoc @deprecated tags, comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-448/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-448/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-189",
 	"name": "Buildkite API access token",
 	"description": "A Buildkite REST/GraphQL API access token was found. It grants programmatic access to pipelines, builds and organization data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-189",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-189",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

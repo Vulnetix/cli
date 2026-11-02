@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-590",
 	"name": "ClickHouse connection string with password",
 	"description": "A ClickHouse connection URL embedding the user password was found. It authenticates to the ClickHouse server's HTTP/native interface and grants query access per the user's grants.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-590",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-590",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

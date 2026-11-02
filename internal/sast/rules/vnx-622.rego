@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-622",
 	"name": "Client-supplied JSONP callback name written into the response unvalidated",
 	"description": "CWE-622 (unvalidated arguments to a function hook) has no general static signature in application JavaScript, so this rule reports its most concrete server-side form: a JSONP endpoint that takes the name of the function to call from the request (req/request/ctx .query/.params/.body .callback, .jsonp, .cb or .jsoncallback, url.parse(req.url, true).query.callback, searchParams.get('callback'), or a destructured const { callback } = req.query) and writes it into a script response as name + '(' or `${name}(` through res.send/write/end, ctx.body or reply.send, inline, through a variable assigned a few lines above, or into a body string that is sent within the next six lines. An unvalidated name lets the caller run any script in the page that loads the endpoint (reflected XSS, Rosetta-Flash-style content sniffing). Not reported: res.jsonp() (Express restricts the callback charset), a name read through a call named like a sanitiser or validator (sanitizeCallback(...)), sanitised with .replace(), checked against a regular expression, looked up in an allow-list (.has/.includes/.indexOf) or compared with a constant between the read and the write, a constant callback name, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-622/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-622/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

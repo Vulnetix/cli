@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-336",
 	"name": "Coinbase Commerce API key",
 	"description": "A Coinbase Commerce API key was found near a coinbase_commerce assignment. It authorizes creation and management of cryptocurrency charges.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-336",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-336",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

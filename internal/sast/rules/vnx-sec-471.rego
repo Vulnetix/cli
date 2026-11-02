@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-471",
 	"name": "Intercom OAuth client secret",
 	"description": "An Intercom OAuth client secret (UUID format) was found near an intercom secret assignment. It can mint access tokens for connected Intercom workspaces.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-471",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-471",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

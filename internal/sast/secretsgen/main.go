@@ -1,11 +1,11 @@
-// Command secretsgen renders the high-fidelity secret-detection rule set and
-// its documentation from a single source of truth: catalog.json.
+// Command secretsgen renders the high-fidelity secret-detection rule set from
+// a single source of truth: catalog.json.
 //
-// For every catalog entry it emits:
-//   - internal/sast/rules/vnx-sec-<id>.rego   (the OPA rule)
-//   - a row in website/content/docs/sast-rules/secrets/<category>.md
-//
-// Rules and docs are therefore guaranteed never to drift. Run via:
+// For every catalog entry it emits internal/sast/rules/vnx-sec-<id>.rego (the
+// OPA rule). The category pages on docs.vulnetix.com are rendered from the
+// same catalog.json and the category titles below by the platform docs
+// generator (Vulnetix/platform-docs, migration/generators/sast-rules.mjs), so
+// rules and docs still cannot drift. Run via:
 //
 //	just gen-secrets        # go run ./internal/sast/secretsgen
 //
@@ -19,7 +19,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"text/template"
 )
@@ -44,7 +43,10 @@ type Entry struct {
 	Deprecated  bool     `json:"deprecated"`
 }
 
-// category display metadata, ordered by weight.
+// category display metadata, ordered by weight. Here the map only validates a
+// catalog entry's category. The platform docs generator parses this table out
+// of the source for its page titles, summaries and order, so keep its shape:
+// one positional {title, summary, weight} literal per line.
 type catMeta struct {
 	Title  string
 	Desc   string
@@ -196,7 +198,6 @@ func main() {
 	}
 	catalogPath := filepath.Join(base, "internal", "sast", "secretsgen", "catalog.json")
 	rulesDir := filepath.Join(base, "internal", "sast", "rules")
-	docsDir := filepath.Join(base, "website", "content", "docs", "sast-rules", "secrets")
 
 	raw, err := os.ReadFile(catalogPath)
 	if err != nil {
@@ -232,10 +233,6 @@ func main() {
 	}
 
 	tmpl := template.Must(template.New("rego").Parse(regoTmpl))
-
-	if err := os.MkdirAll(docsDir, 0o755); err != nil {
-		fatal("mkdir docs: %v", err)
-	}
 
 	// Remove previously generated rules so deletions in the catalog propagate.
 	// Only files carrying the generator marker are removed; the hand-written
@@ -289,7 +286,7 @@ func main() {
 		d := regoData{
 			Pkg:         pkgName(e.ID),
 			RuleID:      ruleID(e.ID),
-			HelpURI:     fmt.Sprintf("https://docs.cli.vulnetix.com/docs/sast-rules/secrets/%s/#%s", e.Category, docAnchor(e.ID)),
+			HelpURI:     fmt.Sprintf("https://docs.vulnetix.com/sast/rules/secrets/%s/#%s", e.Category, docAnchor(e.ID)),
 			Severity:    e.Severity,
 			Level:       severityLevel(e.Severity),
 			CWSS:        cwssFor(e.Severity),
@@ -318,68 +315,7 @@ func main() {
 		written++
 	}
 
-	// Emit category doc pages + section index.
-	emitDocs(docsDir, byCat)
-
 	fmt.Printf("secretsgen: wrote %d rego rules across %d categories (%d skipped)\n", written, len(byCat), skipped)
-}
-
-func emitDocs(docsDir string, byCat map[string][]Entry) {
-	// Section index.
-	var idx strings.Builder
-	idx.WriteString("---\ntitle: \"Secrets / Credentials\"\ndescription: \"Exhaustive, high-fidelity hardcoded-secret detection rules grouped by category.\"\nweight: 6\n---\n\n")
-	idx.WriteString("Vulnetix detects hardcoded credentials, API keys, tokens and private keys across source code, configuration, binaries (via printable-string and EXIF extraction) and full git history. Each rule runs a cheap keyword/prefix prefilter, extracts the candidate token, then applies allowlist and Shannon-entropy filtering to suppress false positives before reporting a SARIF finding.\n\n")
-	idx.WriteString("## Categories\n\n{{< cards >}}\n")
-
-	// Order categories by weight.
-	var slugs []string
-	for s := range byCat {
-		slugs = append(slugs, s)
-	}
-	sort.Slice(slugs, func(i, j int) bool {
-		return categories[slugs[i]].Weight < categories[slugs[j]].Weight
-	})
-
-	for _, slug := range slugs {
-		cm := categories[slug]
-		fmt.Fprintf(&idx, "  {{< card link=\"%s\" title=%q subtitle=%q >}}\n", slug, cm.Title, fmt.Sprintf("%d rules", len(byCat[slug])))
-	}
-	idx.WriteString("{{< /cards >}}\n")
-	if err := os.WriteFile(filepath.Join(docsDir, "_index.md"), []byte(idx.String()), 0o644); err != nil {
-		fatal("write secrets index: %v", err)
-	}
-
-	for slug, list := range byCat {
-		cm := categories[slug]
-		sort.Slice(list, func(i, j int) bool { return list[i].ID < list[j].ID })
-		var b strings.Builder
-		fmt.Fprintf(&b, "---\ntitle: %q\ndescription: %q\nweight: %d\n---\n\n", cm.Title, cm.Desc, cm.Weight)
-		b.WriteString(cm.Desc)
-		b.WriteString("\n\n")
-		b.WriteString("All rules in this category are kind `secrets`. They run under `vulnetix secrets` and the secrets stage of `vulnetix scan`.\n\n")
-		b.WriteString("| Rule ID | Name | Severity | Detection |\n|---------|------|----------|-----------|\n")
-		for _, e := range list {
-			det := detectionLabel(e)
-			fmt.Fprintf(&b, "| <a id=%q></a>%s | %s | %s | %s |\n", docAnchor(e.ID), ruleID(e.ID), e.Name, capitalize(e.Severity), det)
-		}
-		b.WriteString("\n## Remediation\n\nRotate any exposed credential immediately, remove it from source, and load it from a secrets manager or environment variable instead. Purge it from git history with `git filter-repo`. See [CWE-798](https://cwe.mitre.org/data/definitions/798.html) and the [OWASP Secrets Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html).\n")
-		if err := os.WriteFile(filepath.Join(docsDir, slug+".md"), []byte(b.String()), 0o644); err != nil {
-			fatal("write category %s: %v", slug, err)
-		}
-	}
-}
-
-func detectionLabel(e Entry) string {
-	switch {
-	case e.EntropyMin > 0 && len(e.Keywords) > 0:
-		return "keyword + regex + entropy"
-	case e.EntropyMin > 0:
-		return "regex + entropy"
-	case len(e.Keywords) > 0:
-		return "keyword + regex"
-	default:
-		return "regex"
-	}
 }
 
 // cleanGenerated removes every vnx-sec-*.rego file that carries the generator
@@ -395,13 +331,6 @@ func cleanGenerated(rulesDir string) {
 			_ = os.Remove(p)
 		}
 	}
-}
-
-func capitalize(s string) string {
-	if s == "" {
-		return s
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 func fatal(format string, a ...any) {

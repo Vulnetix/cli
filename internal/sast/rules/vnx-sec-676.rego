@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-676",
 	"name": "Twitch client secret",
 	"description": "A Twitch application client secret (30-character alphanumeric) assigned to a twitch context was found. It authenticates the Twitch app for OAuth and API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-676",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-676",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

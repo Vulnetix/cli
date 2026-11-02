@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1035",
 	"name": "CyberArk Conjur API key (assignment)",
 	"description": "A CyberArk Conjur API key assigned to a conjur field was found. It authenticates a host or user to the Conjur secrets engine and can retrieve secrets within its policy.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1035",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1035",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

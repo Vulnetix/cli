@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-415",
 	"name": "Double free",
 	"description": "Reports a C or C++ pointer that is released twice on one path. Two shapes: a release (free, g_free, kfree, vfree, kvfree, OPENSSL_free, CRYPTO_free, xfree, std::free, delete or delete[] of a variable or member expression) followed within the next 20 lines by a second release of the same expression, with nothing in between that reassigns it (p = NULL, p = malloc(...), &p passed to a call, reassigning the struct that holds a member), leaves the path (return, break, continue, goto, exit, abort, throw at the release's nesting level) or starts another branch (else, case, default, #else, the end of the function); and the error-path shape, a release immediately followed by goto LABEL where the cleanup code under LABEL releases the same expression again without it having been nulled. Not reported: a pointer set to NULL or reassigned after the first release, releases on two branches of an if/else or switch, releases in different functions, a release inside a loop that reassigns the pointer (in its body or its while/for header, so a release after the loop closes is of another value), macro definitions, frees of different expressions, project-specific wrapper functions other than xfree, string literals and comments. Aliases (q = p; free(p); free(q)) are not tracked.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-415/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-415/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-104",
 	"name": "Tencent Cloud secret ID (AKID)",
 	"description": "A Tencent Cloud API secret ID using the AKID prefix was found. The secret ID identifies the API caller and is paired with a secret key to sign Tencent Cloud API requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-104",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-104",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

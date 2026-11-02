@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-919",
 	"name": "People Data Labs API key",
 	"description": "A People Data Labs API key was found near a peopledatalabs assignment. It is a 64-character lowercase hex string authorizing person and company enrichment queries.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-919",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-919",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

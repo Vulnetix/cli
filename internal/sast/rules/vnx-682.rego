@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-682",
 	"name": "Incorrect Calculation",
 	"description": "An arithmetic expression that is wrong whatever the input. Reported in C, C++ and Java: an integer division or remainder by a literal zero (a / 0, a % 0, a /= 0, a %= 0, including 0L/0U suffixes), which is undefined behaviour in C and an ArithmeticException in Java. Reported in Java: Math.abs() of hashCode(), Objects.hash(), Arrays.hashCode(), or Random.nextInt()/nextLong() called without a bound (also on new Random() or ThreadLocalRandom.current()), which stays negative for Integer.MIN_VALUE/Long.MIN_VALUE, so the index or shard computed from it can be negative. Not reported: floating-point division by 0.0, hexadecimal or non-zero divisors, division by a variable (VNX-369 covers unchecked external divisors), Math.floorMod, a masked hash (h & 0x7fffffff), Math.abs of a bounded nextInt(n), test code (where dividing by zero is how an exception is provoked), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-682/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-682/",
 	"languages": ["c", "cpp", "java"],
 	"severity": "low",
 	"level": "note",

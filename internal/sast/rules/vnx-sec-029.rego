@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-029",
 	"name": "PyPI upload token hardcoded",
 	"description": "Reports a PyPI or TestPyPI API token: the macaroon prefix pypi-AgEIcHlwaS5vcmc (pypi.org) or pypi-AgENdGVzdC5weXBpLm9yZw (test.pypi.org) followed by at least 50 base64url characters, in any file (.pypirc, workflows, Makefiles, scripts). The bare prefix as a constant, placeholder and low-entropy bodies, ${{ secrets.* }} references, and test and fixture paths are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-029/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-029/",
 	"languages": ["generic"],
 	"severity": "high",
 	"level": "error",

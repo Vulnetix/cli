@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-048",
 	"name": "OpenAI project / service / admin key",
 	"description": "Reports an OpenAI project, service-account or admin key written into a file: sk-proj-, sk-svcacct- or sk-admin- followed by at least 40 base64url characters, standing alone rather than inside a longer identifier. These keys bill the organisation and can read its files, assistants and fine-tunes. The snippet is redacted. Not reported: truncated or elided keys (sk-proj-..., sk-proj-abc), placeholders (xxxx, your-key, EXAMPLE, REPLACE), low-entropy values, keys read from the environment, and test, fixture and vendored paths. Classic sk-...T3BlbkFJ keys are VNX-SEC-251; VNX-SEC-018 and VNX-LLM-003 also report project keys.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-048/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-048/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

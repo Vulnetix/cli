@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-JAVA-018",
 	"name": "Java RSA cipher without OAEP padding",
 	"description": "An RSA javax.crypto.Cipher is created with PKCS#1 v1.5 padding or no padding, which leaves decryption open to Bleichenbacher-style padding-oracle attacks (and raw RSA is deterministic and malleable). Reported: Cipher.getInstance() whose transformation is the literal \"RSA\" (which SunJCE resolves to RSA/ECB/PKCS1Padding), RSA/<mode>/PKCS1Padding or RSA/<mode>/NoPadding in any letter case, with or without a provider argument, written inline, on the following line, or through a String constant or variable assigned such a literal in the same file. Not reported: OAEP transformations, other algorithms (AES/GCM/NoPadding), Signature, KeyPairGenerator and KeyFactory instances for RSA, a transformation passed in as a parameter, and the text in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-018/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-018/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

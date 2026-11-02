@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-114",
 	"name": "Akamai EdgeGrid client token",
 	"description": "An Akamai EdgeGrid client token (akab- prefix) was found. The client token is part of the EdgeGrid credential set used to sign Akamai Open API requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-114",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-114",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

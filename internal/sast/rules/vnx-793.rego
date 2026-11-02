@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-793",
 	"name": "Only Filtering One Instance of a Special Element",
 	"description": "Reports path, command and header sanitising that removes or rewrites only the first occurrence of a special element: in JavaScript/TypeScript, String.replace() with a string literal or a regex literal without the g flag whose pattern is a .., ../, ..\\ or \\.\\.[\\/\\\\] traversal sequence, a shell metacharacter (&& || backtick $( always; a lone ; | $ or a deleted & only with a command such as exec, subprocess or cmd within six lines, since those are stripped from prices, table cells and CSS far more often), CR/LF or a NUL byte; in Python, str.replace(..., 1) and re.sub(..., count=1) with the same tokens. 'a/../../x'.replace('../', '') still contains ../. Global replacements (/g, replaceAll, Python's default replace-all, reported by VNX-791 when they delete the token), anchored patterns (VNX-796) and markup tokens (VNX-792) are deliberately not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-793/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-793/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

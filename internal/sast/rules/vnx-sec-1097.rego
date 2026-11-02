@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1097",
 	"name": "Countly API key",
 	"description": "A Countly server API key (32-character hex) was found. It authorizes Countly analytics dashboard and data-export API calls for the application.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1097",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1097",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

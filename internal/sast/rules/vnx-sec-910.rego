@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-910",
 	"name": "Tomorrow.io API key",
 	"description": "A Tomorrow.io (Climacell) API key was found near a tomorrow.io assignment. It is a high-entropy alphanumeric string authorizing weather timelines and map layers.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-910",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-910",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

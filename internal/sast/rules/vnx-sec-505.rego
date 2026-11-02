@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-505",
 	"name": "Webflow API token",
 	"description": "A Webflow API token was found. It grants programmatic access to manage Webflow sites, CMS collections and forms.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-505",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-505",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

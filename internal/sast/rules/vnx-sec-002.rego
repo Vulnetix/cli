@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-002",
 	"name": "Private key committed",
 	"description": "Reports a committed PEM private key: a -----BEGIN RSA/EC/DSA/OPENSSH PRIVATE KEY----- or PKCS#8 -----BEGIN PRIVATE KEY----- armour line that is followed by real key material, either base64 on the same line (an escaped \\n string in code, JSON or Terraform) or a base64 line within the next four lines (a key file, heredoc, YAML block or multi-line string, including legacy Proc-Type encrypted PEM). Not reported: code that only builds, strips or compares the armour, placeholder bodies, public keys and certificates, examples in Markdown/reStructuredText/AsciiDoc or in comments, and test, fixture, vendored and generated files. PKCS#8 ENCRYPTED PRIVATE KEY blocks are VNX-SEC-646.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-002/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

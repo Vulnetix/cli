@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1027",
 	"name": "Request data in a require() or import() module specifier (Node.js)",
 	"description": "An injection (OWASP Top Ten 2017 A1, CWE-1027) in Node.js where the module the process loads is chosen by the request: the specifier of require(), require.resolve() or dynamic import() contains Express/Koa request data (req/request .query/.body/.params/.headers/.cookies, ctx.query/ctx.params/ctx.request.body), directly, through a variable assigned or destructured from it a few lines above, or concatenated/interpolated into a path. A caller can then load any module or JavaScript file the process can read (../../ traversal, an uploaded file), which runs with the server's privileges. Not reported: constant specifiers, a lookup through an object or Map (require(PLUGINS[name])), a value checked against an allowlist (includes/has/indexOf/switch) in the lines between, comments and test files. Other A1 injection classes have their own rules: eval/Function/vm (VNX-913, VNX-94), child_process (VNX-NODE-003), SQL (VNX-NODE-007), NoSQL (VNX-NODE-014), templates (VNX-NODE-011).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1027/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1027/",
 	"languages": ["node"],
 	"severity": "low",
 	"level": "note",

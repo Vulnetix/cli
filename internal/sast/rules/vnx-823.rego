@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-823",
 	"name": "Use of Out-of-range Pointer Offset",
 	"description": "Reports C and C++ pointer offsets and indexes that are out of range by construction: an array indexed at its own size or element count (buf[sizeof(buf)], buf[sizeof buf], names[ARRAY_SIZE(names)] / _countof / std::size / N_ELEMENTS, slots[sizeof(slots) / sizeof(slots[0])], one element past the end); a pointer or array of a non-byte type offset by a sizeof value (values + sizeof(values), hdr + sizeof(struct header), words + sizeof(uint32_t) * n), which pointer arithmetic scales a second time by the element size; and a for loop whose condition is i <= sizeof(arr), i <= ARRAY_SIZE(arr) / _countof(arr) / std::size(arr), or i <= v.size() / v.length() and whose header or next eight lines index that same array with the loop variable, reaching one element past the end. Not reported: the one-past-the-end address &buf[sizeof(buf)] and byte pointers (char, unsigned char, uint8_t, void) plus sizeof, a pointer cast to a byte pointer before the addition ((uint8_t *)hdr + sizeof(*hdr)), pointer offsets by element counts (a + sizeof(a) / sizeof(a[0])), sizeof(x) - 1 bounds, a <= loop that indexes a different array, offsets computed from runtime lengths (no dataflow), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-823/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-823/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1124",
 	"name": "Statsig server secret key (secret-)",
 	"description": "A Statsig server-side secret key (secret- prefixed) was found. It grants server SDK access to evaluate and manage feature gates, experiments and dynamic configs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1124",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1124",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-518",
 	"name": "Box developer token",
 	"description": "A Box developer/access token was found. It grants API access to the user's Box files and folders for the token lifetime.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-518",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-518",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

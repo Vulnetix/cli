@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1087",
 	"name": "Flickr API secret",
 	"description": "A Flickr API shared secret (16-character hex) was found. It signs authenticated Flickr API calls and OAuth flows acting on the Flickr account's photos.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1087",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1087",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

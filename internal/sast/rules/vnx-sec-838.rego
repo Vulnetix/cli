@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-838",
 	"name": "Shippo test API token (shippo_test_)",
 	"description": "A Shippo test API token (shippo_test_ prefix) was found. It exercises the Shippo test environment; while non-billing it should not be committed to source control.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-838",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-838",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

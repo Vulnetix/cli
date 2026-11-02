@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-353",
 	"name": "Marqeta API key/token",
 	"description": "A Marqeta application token or admin access token was found near a marqeta assignment. Marqeta credentials authorize card-issuing and program operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-353",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-353",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

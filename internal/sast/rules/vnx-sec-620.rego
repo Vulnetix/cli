@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-620",
 	"name": "AppDynamics access key",
 	"description": "An AppDynamics controller access key assigned to a context keyword was found. It authenticates agents and API clients to the AppDynamics controller account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-620",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-620",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

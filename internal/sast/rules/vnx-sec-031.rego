@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-031",
 	"name": "Mailgun API key hardcoded",
 	"description": "Reports a Mailgun private API key: the legacy key- form (key- and 32 lowercase letters or digits, delimited so pubkey- validation keys and longer words do not match) in a file that mentions Mailgun or an MG_API_KEY-style name, and the current form (32 hex, dash, 8 hex, dash, 8 hex) when Mailgun is named within three lines of it. Public validation keys, key- values in files with no Mailgun context, placeholders and low-entropy values, environment references, and test and fixture paths are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-031/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-031/",
 	"languages": ["generic"],
 	"severity": "high",
 	"level": "error",

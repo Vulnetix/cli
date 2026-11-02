@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-688",
 	"name": "Function Call With Incorrect Variable or Reference as Argument",
 	"description": "A C or C++ bounded write takes its size from sizeof of a different array than the one it writes, so the bound describes the wrong buffer and a smaller destination overflows. Reported: snprintf, vsnprintf, fgets, getcwd, gethostname, bzero, explicit_bzero, strncpy, strlcpy, strncat, strlcat, memset, memcpy, memmove, read, recv, recvfrom, pread and readlink whose destination array and the array named in the sizeof size argument (optionally minus a constant) are different arrays (char, wide char, integer or floating-point element types) both declared in the file (locals, globals or struct members, compared by their final name so c->host and c->url differ). For memcpy and memmove a size taken from the source array is not reported, since copying a whole source into a destination of the same declared type is common; strncpy, strlcpy, strncat and strlcat bounded by the source are reported. Not reported: a size from the destination itself, sizeof of a type or of *ptr, a pointer destination (its target is unknown), non-sizeof sizes, calls split over lines, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-688/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-688/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

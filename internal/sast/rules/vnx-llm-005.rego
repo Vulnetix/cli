@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-LLM-005",
 	"name": "LangChain arbitrary code execution tool",
 	"description": "Reports Python code that hands an LLM agent a code or shell execution capability through LangChain: instantiating PythonREPLTool, PythonAstREPLTool, PythonREPL, ShellTool or BashProcess (also under an `import ... as <alias>` name), calling create_python_agent(), building LLMMathChain or PALChain (both have had prompt-to-code-execution CVEs), load_tools() naming \"python_repl\" or \"terminal\" (on the call line or its continuation lines), and allow_dangerous_code=True on an agent or chain constructor (create_pandas_dataframe_agent, create_csv_agent and others). Prompt injection against such an agent is remote code execution on the host. Not reported: imports alone, safe tools (search, Wikipedia), load_tools() with other tool names, allow_dangerous_code=False, lookalike class names (MyPythonREPLToolConfig), and the names inside comments, docstrings or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-llm-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-llm-005/",
 	"languages": ["python"],
 	"severity": "critical",
 	"level": "error",

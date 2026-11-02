@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-413",
 	"name": "Bandwidth API token/secret",
 	"description": "A Bandwidth messaging/voice API token or secret was found near a bandwidth assignment. Bandwidth credentials authorize SMS, MMS, and voice operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-413",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-413",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-028",
 	"name": "Missing Content-Security-Policy header",
 	"description": "Judges the project, not a line: reports the express() application (including require('express')()) and an http/https.createServer request handler that answers with text/html in a project that serves HTML (res.render, res.sendFile, express.static, res.send of markup, a text/html Content-Type) when no code anywhere in the project sets a Content-Security-Policy: no helmet() (which sends a CSP by default), no helmet.contentSecurityPolicy()/csp()/lusca.csp()/expressCspHeader() middleware, no Content-Security-Policy header or meta tag. Also reports helmet configured with contentSecurityPolicy: false. Without a CSP an injected script runs with the page's full authority. Not reported: JSON-only APIs, projects where a CSP is set in any file (middleware, a route, a meta tag), commented-out middleware does not count as a mitigation, test and example files, Koa/Fastify/Next.js servers (their headers are set differently).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-028/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-028/",
 	"languages": ["javascript", "typescript"],
 	"severity": "medium",
 	"level": "warning",

@@ -1,6 +1,6 @@
 # Bitbucket Pipelines
 
-This documentation has moved to **[docs.cli.vulnetix.com/docs/ci-cd/bitbucket](https://docs.cli.vulnetix.com/docs/ci-cd/bitbucket/)**.
+This documentation has moved to **[docs.vulnetix.com/cli/ci-cd/bitbucket](https://docs.vulnetix.com/cli/ci-cd/bitbucket/)**.
 
 ## Quick Start
 
@@ -16,4 +16,4 @@ pipelines:
           - vulnetix
 ```
 
-See the [full documentation](https://docs.cli.vulnetix.com/docs/ci-cd/bitbucket/) for pipeline templates and advanced configuration.
+See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/bitbucket/) for pipeline templates and advanced configuration.

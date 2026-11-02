@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-172",
 	"name": "Vultr deploy / API token (context, hex)",
 	"description": "A Vultr API token in hexadecimal form under a Vultr context was found. It grants management access to the account's cloud resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-172",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-172",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-326",
 	"name": "PayPal client secret",
 	"description": "A PayPal REST API client secret was found near a paypal/client_secret assignment. It is paired with a client id to obtain OAuth access tokens against the PayPal API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-326",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-326",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

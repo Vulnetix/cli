@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-759",
 	"name": "Lever Data API key",
 	"description": "A Lever Data API key was found. Used as the HTTP basic-auth username it grants API access to the company's recruiting pipeline, candidates and postings in Lever.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-759",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-759",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

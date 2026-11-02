@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1041",
 	"name": "Veracode API key (assignment)",
 	"description": "A Veracode API key (long hex secret) assigned to a veracode key field was found. It is the HMAC signing secret for authenticated Veracode API calls.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1041",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1041",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-451",
 	"name": "UI misrepresentation: hidden bidi controls in code, or a link that shows a different host",
 	"description": "Reports two concrete ways the text a person reads differs from what the machine acts on. First, a Unicode bidirectional override or isolate control (U+202A-U+202E, U+2066-U+2069) written literally in a source-code file (Trojan Source, CVE-2021-42574): the editor and the review diff display the line reordered, so a comment or string appears to end where it does not and reviewers approve logic they cannot see. Second, an HTML/template anchor that misrepresents its destination: link text that reads as a URL (a scheme, www. or host/path) for a host unrelated to the constant href's host, or an href whose userinfo before '@' is itself a host name (https://bank.example@203.0.113.9/) so the real host is hidden. Not reported: escaped forms (\\u202e) in sanitisers, literal controls only inside a regex character-class range ([LRE-RLO]) that strips them, bidi marks in locale/data files (JSON, PO, YAML, XML), link text for the same host, a subdomain or parent domain, an href that contains the displayed host (archive links), dynamic hrefs or link text, plain-word link text, links split over several lines, and HTML comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-451/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-451/",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

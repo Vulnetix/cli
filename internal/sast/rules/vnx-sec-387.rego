@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-387",
 	"name": "Lithic API key (live/test prefix)",
 	"description": "A Lithic API key using an explicit live/test prefix form was found. It authorizes card issuing, transaction and account-holder operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-387",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-387",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

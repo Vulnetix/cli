@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-237",
 	"name": "Improper Handling of Structural Elements",
 	"description": "A parser of untrusted form or query data is configured, or called, without a limit on its structural elements (field count, nesting depth, array length), so one request can make it build millions of keys or deeply nested objects. Node.js/TypeScript: an option of express.urlencoded()/bodyParser.urlencoded(), qs.parse() or querystring.parse() (the call within the eight lines above) set to Infinity, Number.MAX_SAFE_INTEGER/MAX_VALUE/POSITIVE_INFINITY, or a number far past the library default: parameterLimit >= 100000, arrayLimit >= 10000, depth >= 50, and querystring's maxKeys: 0 (unlimited). Python: Django's DATA_UPLOAD_MAX_NUMBER_FIELDS or DATA_UPLOAD_MAX_NUMBER_FILES, Werkzeug's max_form_parts or Flask's MAX_FORM_PARTS set to None; and urllib.parse.parse_qs()/parse_qsl() of a raw request body (self.rfile.read(), request.body, request.get_data(), request.stream.read(), environ['wsgi.input'].read(), inline or through a variable assigned in the eight lines above) without max_num_fields. Not reported: limits at or near the defaults, a depth option of an unrelated API (util.inspect, a tree walker), parse_qs of a URL's query string, comments, string values and test code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-237/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-237/",
 	"languages": ["node", "python"],
 	"severity": "low",
 	"level": "note",

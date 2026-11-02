@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1138",
 	"name": "PlayFab title shared secret context",
 	"description": "A PlayFab title shared secret in a playfab title-secret context was found. It authorizes server API calls bypassing client auth for the title.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1138",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1138",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

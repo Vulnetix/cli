@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-363",
 	"name": "Ramp API client secret",
 	"description": "A Ramp API client secret was found near a ramp assignment using the ramp_ prefix. Ramp credentials authorize card, transaction and reimbursement operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-363",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-363",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

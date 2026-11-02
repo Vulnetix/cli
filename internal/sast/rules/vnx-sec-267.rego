@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-267",
 	"name": "Pinecone API key (pckey_)",
 	"description": "A modern Pinecone API key using the pckey_ prefix was found. It grants access to Pinecone vector database resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-267",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-267",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-008",
 	"name": "Go weak PRNG for security",
 	"description": "A value drawn from math/rand or math/rand/v2 (rand.Read, Int, Intn/IntN, Int31/Int63 and their n variants, Uint32/Uint64, N, Float64, Perm, Shuffle, under the package's import alias, or on a generator created with rand.New in the same file) is used for something a guess must not reproduce: the call's line names a token, password, secret, nonce, salt, OTP/TOTP, PIN, CSRF/XSRF value, session id, API or signing key, password-reset or verification code, invite code or credential, the value assigned on that line flows into such a line within the next four lines (n := rand.Int63(); token := strconv.FormatInt(n, 36)), or the call sits in a function whose name does. OTP and PIN are matched only at a word or camelCase boundary (rootPath, hotPartition and spinner are not secrets), and a bare Reset() is state, not a reset code. math/rand is seeded predictably and its state can be recovered from a few outputs. Not reported: crypto/rand calls (also when math/rand is imported under another alias in the same file), math/rand used for timing (jitter, backoff, Sleep, time.Duration, delay; a timestamp beside the value does not count as timing), sampling, load spreading or shuffling in functions not named for a secret, rand.Seed itself, the import line, _test.go and testdata code, and the call inside a string literal or comment. Random values passed out of an unnamed helper to a security caller elsewhere are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-008/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-008/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

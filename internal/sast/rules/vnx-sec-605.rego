@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-605",
 	"name": "Lightstep / Cloud Observability access token",
 	"description": "A Lightstep (ServiceNow Cloud Observability) access token assigned to a context keyword was found. It authenticates trace/metric ingestion and API access for the project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-605",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-605",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

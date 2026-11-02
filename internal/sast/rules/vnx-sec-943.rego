@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-943",
 	"name": "Daily.co API key",
 	"description": "A Daily.co API key was found near a daily assignment. It is a 64-character lowercase hex string authorizing room creation and meeting-token minting on the Daily video API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-943",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-943",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

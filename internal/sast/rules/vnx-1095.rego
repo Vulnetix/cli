@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1095",
 	"name": "Loop Condition Value Update within the Loop",
 	"description": "A loop changes the collection it is iterating over. Python: inside 'for x in items:' (or items.keys()/values()/items()) the body calls items.remove/pop/popitem/insert/clear/update/setdefault/add/discard or runs 'del items[...]', which skips elements of a list or raises RuntimeError for a dict or set. Java: inside an enhanced 'for (T x : items)' (or items.entrySet()/keySet()/values()) the body calls items.remove/add/addAll/removeAll/retainAll/removeIf/clear/put/putAll, which throws ConcurrentModificationException on the next iteration. Reported: the mutating statement, including one guarded on the same line (if (x) items.remove(x); / if x: items.remove(x)); a Java loop without braces has only its next statement as its body. Not reported: iteration over a copy (list(items), items[:], items.copy(), sorted(items), new ArrayList<>(items)), a mutation followed directly by break or return (the loop never resumes), list.append/extend (the deliberate worklist idiom), Iterator.remove(), files that use concurrent or copy-on-write collections (Java), and comments. While loops and index-based loops are not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1095/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1095/",
 	"languages": ["python", "java"],
 	"severity": "low",
 	"level": "note",

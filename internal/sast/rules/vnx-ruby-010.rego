@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUBY-010",
 	"name": "OpenSSL certificate verification disabled (VERIFY_NONE)",
 	"description": "Reports Ruby code that turns TLS certificate verification off with OpenSSL::SSL::VERIFY_NONE (qualified, or bare after include OpenSSL::SSL): assigned to verify_mode (Net::HTTP, OpenSSL::SSL::SSLContext, HTTPClient ssl_config), passed as a verify_mode:/:verify_mode =>/verify_ssl: option (Net::HTTP.start, set_params, Faraday ssl:, RestClient), chosen by a ternary, or assigned over OpenSSL::SSL::VERIFY_PEER; and verify_mode set to the literal 0. A connection made this way accepts any certificate, so a man-in-the-middle can read and alter the traffic. Not reported: VERIFY_PEER, a comparison against VERIFY_NONE (==, !=, defined?), an option table that maps a \"none\"/:none key to the constant, comments and string literals, and test and spec files. Options that disable verification without the constant (Faraday ssl: { verify: false }, HTTParty verify: false) are out of scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-010/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-ruby-010/",
 	"languages": ["ruby"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-188",
 	"name": "Buildkite agent token",
 	"description": "A Buildkite agent registration token was found. It allows any host to register agents and run jobs in the Buildkite organization.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-188",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-188",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

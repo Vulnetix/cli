@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1097",
 	"name": "Persistent Storable Data Element without Associated Comparison Control Element",
 	"description": "A class defines an ordering but not the equality that must agree with it, so the comparison controls it carries are incomplete: Java classes with compareTo() and no equals(Object), Kotlin classes with override fun compareTo() and no override fun equals(), and Python classes with __lt__/__le__/__gt__/__ge__ and no __eq__ (functools.total_ordering included, which documents that the class must supply __eq__). Sorted collections (TreeSet, TreeMap, bisect, sorted dedupe) then treat two objects as the same element while hash-based collections and == treat them as different, so lookups, de-duplication and stored copies disagree depending on which structure holds them. Reported: the compareTo line, or the first ordering method of a Python class. Not reported: classes that also define equality, Java records and enums, Lombok @Data/@Value/@EqualsAndHashCode classes, Kotlin data, enum and value classes, Python dataclasses/attrs classes, classes that extend another class (equality may be inherited), interfaces, and comments. The related pairing of equals() with hashCode() is VNX-581.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1097/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1097/",
 	"languages": ["java", "kotlin", "python"],
 	"severity": "low",
 	"level": "note",

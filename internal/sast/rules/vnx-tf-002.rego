@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-TF-002",
 	"name": "Terraform AWS security group with unrestricted ingress (0.0.0.0/0)",
 	"description": "An AWS security group admits traffic from any address: 0.0.0.0/0 or ::/0 in cidr_blocks or ipv6_cidr_blocks (on one line or in a list spread over several) of an ingress block inside aws_security_group, of an aws_security_group_rule whose type is ingress, or in cidr_ipv4/cidr_ipv6 of an aws_vpc_security_group_ingress_rule; the attribute form ingress = [{ ... }]; and the terraform-aws-modules security-group module's ingress_cidr_blocks (when ingress_rules or the //modules/<preset> names anything but http-80-tcp/https-443-tcp) and the cidr_blocks string of its ingress_with_cidr_blocks objects. Not reported: egress blocks and egress rules, routes and network ACL rules, restricted or variable CIDRs, security-group-to-security-group rules, ingress limited to exactly port 80 or exactly port 443 (a public web listener is open to the world by design; any other port, a port range or all protocols is reported), and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-tf-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-tf-002/",
 	"languages": ["terraform"],
 	"severity": "high",
 	"level": "error",

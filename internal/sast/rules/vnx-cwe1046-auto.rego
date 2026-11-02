@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1046",
 	"name": "Creation of Immutable Text Using String Concatenation",
 	"description": "A String is built up by concatenation inside a loop, so every iteration copies the whole text into a new immutable object: the work grows with the square of the length (a request that controls the loop count controls the CPU time), and each discarded copy of a password, token or key stays on the heap until it is collected. Reported in Java and C#: an `s += ...`, `s = s + ...` or Java `s = s.concat(...)` statement inside the body of a for, foreach, while or do loop (braced, Allman-style, a single unbraced statement or on the loop's own line) where s is a local declared String/string (or C# var initialised with a string literal or string.Empty) before the loop. Not reported: StringBuilder/StringBuffer/StringJoiner appends, String.join and Collectors.joining, concatenation after the loop ends, numeric += on int/long/double variables (also when an earlier method declared the same name as a String), a String declared inside the loop body (rebuilt each iteration rather than accumulated), fields and variables not declared in the enclosing 100 lines, Kotlin and other JVM languages, test code, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1046/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1046/",
 	"languages": ["java", "csharp"],
 	"severity": "low",
 	"level": "note",

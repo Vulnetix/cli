@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-535",
 	"name": "LaunchDarkly mobile key (mob-)",
 	"description": "A LaunchDarkly mobile SDK key (mob- prefix) was found. It is used by mobile clients to evaluate feature flags for the environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-535",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-535",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

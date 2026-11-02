@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-831",
 	"name": "PrestaShop webservice API key",
 	"description": "A PrestaShop webservice API key was found. It is used as the HTTP basic auth username and grants access to the configured PrestaShop webservice resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-831",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-831",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

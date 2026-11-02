@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1128",
 	"name": "Unsplash application id context",
 	"description": "An Unsplash application id paired with a Client-ID value was found. It identifies the Unsplash app for API authorization.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1128",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1128",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1102",
 	"name": "Datadog RUM client token (pub)",
 	"description": "A Datadog RUM client token (pub prefixed) was found. While a client-side token, it allows sending arbitrary RUM/log events to the Datadog organization which can poison telemetry and incur cost.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1102",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1102",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-457",
 	"name": "Microsoft Teams incoming webhook URL (Power Automate)",
 	"description": "A Microsoft Teams / Power Automate workflow webhook URL was found. Anyone with the URL can post messages into the target Teams channel.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/webhooks/#vnx-sec-457",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/webhooks/#vnx-sec-457",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

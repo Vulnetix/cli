@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-070",
 	"name": "1Password secret key / service account",
 	"description": "Reports a 1Password credential in any file: a service account token (ops_eyJ followed by at least 50 base64url characters, the form OP_SERVICE_ACCOUNT_TOKEN holds) or an account Secret Key (A3-XXXXXX-XXXXXX-XXXXX-XXXXX-XXXXX-XXXXX, and the older A3-XXXXXX-XXXXXXXXXXX-XXXXX-XXXXX-XXXXX layout, uppercase letters and digits, both present).The credential is masked in the snippet. Not reported: the bare ops_eyJ / ops_ prefix in token checks, truncated examples (ops_eyJ...), CI secret references (${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}), A3- strings of a different layout or with an all-digit body (paper sizes, SKUs, batch numbers), placeholder runs (A3-XXXXXX-...), and generated, vendored and test-suffixed files and testdata/fixtures directories.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-070/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-070/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

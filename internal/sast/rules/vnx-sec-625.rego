@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-625",
 	"name": "Raygun API key",
 	"description": "A Raygun application API key (UUID-style or base64) assigned to a context keyword was found. It identifies the Raygun application and authorises crash/RUM event ingestion.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-625",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-625",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

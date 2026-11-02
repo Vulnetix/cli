@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-918",
 	"name": "Hunter.io API key",
 	"description": "A Hunter.io API key was found near a hunter assignment. It is a 40-character lowercase hexadecimal string authorizing email finder, verifier, and domain search endpoints.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-918",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-918",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

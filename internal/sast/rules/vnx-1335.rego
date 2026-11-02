@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1335",
 	"name": "Incorrect Bitwise Shift of Integer",
 	"description": "A C or C++ shift whose amount is a constant at or past the width of the operand, or negative, which is undefined behaviour (compilers fold it to any value, often the unshifted operand): an integer literal with no suffix or a U suffix (32-bit int/unsigned) shifted by 32 or more, a literal with an L/LL/UL/ULL suffix shifted by 64 or more, a value cast to a 32-bit or narrower type ((uint32_t)v, (int)x, (unsigned)x, static_cast<uint32_t>(v)) and then shifted by 32 or more, a variable declared nearby as a 32-bit or narrower integer (uint32_t, int, unsigned, DWORD, u32...) shifted or shift-assigned by 32 or more, and any shift by a negative constant. Not reported: suffixed or widened operands within their width (1ULL << 40, (uint64_t)1 << 63, UINT64_C(1) << 40), 64-bit variables, an amount that is part of a larger expression (1 << 32 - 1), shifts by a variable amount, C++ stream insertion (std::cout << x << 64), comments, strings and macro parameters. The type of a variable is known only from a declaration within 60 lines above the shift.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1335/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1335/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

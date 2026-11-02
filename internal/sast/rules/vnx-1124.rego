@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1124",
 	"name": "Excessively Deep Nesting",
 	"description": "A Python control-flow statement (if, elif, else, for, while, try, except, finally, with, match, case; header-only or with an inline return/continue/break/pass/raise/yield body) nested inside five or more enclosing control blocks of the same function, measured by indentation relative to the enclosing def and that function's own indent step (4 spaces, 2 spaces or a tab). Reported once per function, on the first statement that reaches that depth. Code this deep hides which conditions guard a statement, and an access check or error branch at one level is easily misread at another. Not reported: nesting of four or fewer blocks, depth that comes from nested defs or classes (each function is measured from its own def), continuation lines inside brackets, comments, lines inside triple-quoted strings (a docstring's indented example) and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1124/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1124/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

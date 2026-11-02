@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-015",
 	"name": "Python ReDoS via user-controlled regular expression",
 	"description": "A value read from the request (Flask request.args/form/values/json, Django request.GET/POST, or a route parameter named in a Flask <name> or FastAPI {name} path) is compiled or matched as the regular expression pattern of re or regex (compile, match, search, fullmatch, findall, finditer, sub, subn, split), directly or through one or two assignments. An attacker can supply a pattern with catastrophic backtracking to cause denial of service. Not reported: a pattern passed through re.escape() (in the call or when the variable was assigned), a fixed or configured pattern, user text used only as the subject being searched, argparse and settings values, and comments or strings that merely mention the call.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-015/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-015/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

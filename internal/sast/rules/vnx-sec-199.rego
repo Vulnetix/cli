@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-199",
 	"name": "Code Climate test reporter ID",
 	"description": "A Code Climate test reporter ID (64-character hex) was found. It authorizes uploading test coverage to Code Climate for a repository.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-199",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-199",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

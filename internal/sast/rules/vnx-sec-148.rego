@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-148",
 	"name": "GCP service account email + key context",
 	"description": "A reference to a GCP service account private_key_id alongside a service account email was found. Exposure of the key id together with the private key compromises the service account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-148",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-148",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

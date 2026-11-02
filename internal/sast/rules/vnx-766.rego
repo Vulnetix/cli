@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-766",
 	"name": "Critical Data Element Declared Public",
 	"description": "Reports a Java class field that is declared public and holds secret material: a non-final public field of a string-like or credential type (String, char[], byte[], CharSequence, Map, *Credentials) whose name says it is a password, secret, API key, private key, token or credential; any public field typed PrivateKey, SecretKey, KeyPair, KeyStore or SecretKeySpec; and a public final char[] or byte[] secret (final freezes the reference, not the contents). Any class can then read or overwrite the value. Not reported: private, protected and package-private fields, public final String constants (usually parameter or header names), non-secret types (boolean, int, Instant), names that describe metadata about a secret (passwordHint, tokenUrl, tokenEndpoint, secretQuestionLabel, tokenType), and words that only begin with a secret word (secretary, tokenizer), local variables, comments, string literals and test sources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-766/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-766/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

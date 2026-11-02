@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1065",
 	"name": "Unity Cloud Build API key",
 	"description": "A Unity Cloud Build / Unity Services API key (40-character hex) was found. It authorizes builds, downloads and configuration changes for the Unity organization project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1065",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1065",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

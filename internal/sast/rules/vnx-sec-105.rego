@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-105",
 	"name": "Tencent Cloud secret key",
 	"description": "A Tencent Cloud API secret key assigned to a context keyword was found. The secret key signs Tencent Cloud API requests and, with the matching secret ID, grants full API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-105",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-105",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

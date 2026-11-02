@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1022",
 	"name": "New window opened to an untrusted target with window.opener access (tabnabbing)",
 	"description": "A page opens another document in a new browsing context that keeps a window.opener reference back to it, so the opened page can navigate the opener to a phishing copy (reverse tabnabbing). Reported: an <a>, <area>, <form>, React/Next <Link> or <NavLink> with target=\"_blank\" whose href (or form action) is dynamic (JSX {expr}, Vue :href/v-bind:href, Angular [href]/[attr.href], Thymeleaf th:href,, or a value that starts with a template expression {{ }}, <%= %>, <?= ?>, ${ } or Razor @) and no rel containing noopener or noreferrer; any such tag with rel=\"opener\"; and window.open(url, ...) with a non-constant URL, no noopener/noreferrer in its features and no .opener = null on the result. Not reported: links and window.open calls with a fixed URL or a fixed host and an interpolated path (current browsers apply noopener to target=_blank anchors by default, and a fixed link names a site the author chose), relative and same-page links and template route helpers ({{ url_for(...) }}, {{ path(...) }}, {% url %}, *_path, Hugo .Permalink/.RelPermalink/relURL, Jekyll site.baseurl), window.open to a template literal or concatenation that starts with a fixed host or a relative path, window.open to '_self'/'_parent'/'_top', comments, and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1022/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1022/",
 	"languages": ["html", "node"],
 	"severity": "medium",
 	"level": "warning",

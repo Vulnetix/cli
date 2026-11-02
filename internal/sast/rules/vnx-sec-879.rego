@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-879",
 	"name": "Ghost Content API key",
 	"description": "A Ghost Content API key was found. It grants read-only access to the site's published posts and pages; if intended to be private it should be rotated.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-879",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-879",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

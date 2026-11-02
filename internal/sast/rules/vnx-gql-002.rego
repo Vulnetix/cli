@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GQL-002",
 	"name": "GraphQL query batching enabled without a limit (DoS)",
 	"description": "A GraphQL server turns on unbounded operation batching with a literal true: Apollo Server allowBatchedHttpRequests: true, graphql-yoga batching: true, Mercurius allowBatchedQueries: true (JavaScript/TypeScript, in a file that builds one of those servers), or, in a Python file, batch=True as an argument of a still-open GraphQLView(...) or .as_view(...) call (including a GraphQLView subclass's) or as a class attribute of a GraphQLView subclass, in a file that imports graphene, flask_graphql, graphql_server or graphql. One HTTP request can then carry an arbitrary number of operations, multiplying resolver cost and defeating per-request rate limits and brute-force counters. Not reported: false or an environment-derived value, a bounded batching object (batching: { limit: 5 }), the same option on a non-GraphQL object or nested inside another key's object (transport: { batching: true }), batch=True passed to another call near a view (DataLoader(fn, batch=True)), comments, strings and test files. The absence of a depth or complexity limit is deliberately not reported: it cannot be judged from one file.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-gql-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-gql-002/",
 	"languages": ["javascript", "typescript", "python"],
 	"severity": "medium",
 	"level": "warning",

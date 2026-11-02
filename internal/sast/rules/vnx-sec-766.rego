@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-766",
 	"name": "Egnyte access token",
 	"description": "An Egnyte OAuth access token was found. It grants API access to the company's files and folders stored in Egnyte.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-766",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-766",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

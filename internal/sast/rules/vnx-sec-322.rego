@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-322",
 	"name": "Stripe restricted key (rk_test)",
 	"description": "A Stripe test restricted API key (rk_test_) was found. While scoped to test data, it should not be committed and can expose integration structure.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-322",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-322",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

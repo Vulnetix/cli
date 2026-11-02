@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-777",
 	"name": "Keap/Infusionsoft OAuth access token",
 	"description": "A Keap (Infusionsoft) OAuth2 access token was found. It grants API access to the organisation's CRM contacts, orders and campaigns in Keap.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-777",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-777",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

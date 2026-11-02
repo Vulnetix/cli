@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-624",
 	"name": "Elastic APM secret token",
 	"description": "An Elastic APM secret token assigned to a context keyword was found. It authenticates APM agents to the APM Server and authorises trace/metric ingestion.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-624",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-624",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

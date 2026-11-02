@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-476",
 	"name": "Freshchat bundle/app token (keyword)",
 	"description": "A Freshchat bundle or app API token was found near a freshchat token assignment as a long base64/JWT credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-476",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-476",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

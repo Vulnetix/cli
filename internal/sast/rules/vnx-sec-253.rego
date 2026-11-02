@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-253",
 	"name": "OpenAI organization ID (org-)",
 	"description": "An OpenAI organization identifier (org- prefix) was found. While not secret by itself, it scopes API access and is often committed alongside keys.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-253",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-253",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

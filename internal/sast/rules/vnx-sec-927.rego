@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-927",
 	"name": "GCP IoT Core device key (context)",
 	"description": "A PEM-encoded private key was found near GCP IoT Core / Cloud IoT device context. These EC/RSA keys sign the JWT used to authenticate devices to the Cloud IoT MQTT/HTTP bridge.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-927",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-927",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

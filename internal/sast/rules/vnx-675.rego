@@ -11,7 +11,7 @@ metadata := {
 	"id": "VNX-675",
 	"name": "Single-use operation repeated on the same handle (double close, relock, double unlock)",
 	"description": "C or C++ code performs an operation that may happen only once per resource twice on the same handle in straight-line code: fclose(), close(), closedir() or pclose() (also ::close / std::fclose) of the same expression again within 20 lines (the second close of a FILE* is undefined behaviour, and the second close() of a descriptor number can close an unrelated file another thread has just opened under it), pthread_mutex_lock() of the same mutex again before its pthread_mutex_unlock() (a default mutex deadlocks), and pthread_mutex_unlock() twice without a lock in between (undefined behaviour). Not reported: a reassignment of the handle in between (fp = fopen(...), fd = -1, *fp = NULL, &fp passed to a function), an unlock (or lock) of the mutex in between, a return/goto/break/continue/exit/abort, an else/case/default, a preprocessor #else/#elif (alternative builds), or the end of the block holding the first call (an error path and its main path, two if/else branches), different handles, calls behind a condition on the same line, comments and string literals. free() twice is VNX-415; a format string with %n, which the original version of this rule matched, is not a CWE-675 weakness and is no longer reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-675/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-675/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

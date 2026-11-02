@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-320",
 	"name": "Clarifai PAT (assignment context)",
 	"description": "A Clarifai personal access token referenced via a CLARIFAI_PAT assignment was found, confirming a live Clarifai credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-320",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-320",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

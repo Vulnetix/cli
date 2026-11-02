@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1099",
 	"name": "Inconsistent Naming Conventions for Identifiers",
 	"description": "One file defines two functions in the same scope (the same indentation with no enclosing block closing between them) whose names differ only in naming convention, one snake_case and one camelCase (validate_token and validateToken, get_user and getUser). Callers cannot tell from the name which one they get, so it is easy to call the unchecked or outdated variant, and a fix applied to one silently misses the other. Reported: the later definition, in Python (def, async def) and JavaScript/TypeScript (function declarations, const/let/var function or arrow assignments, and class or object-literal methods written as name(args) {). Not reported: names that differ only by leading or trailing underscores (_impl beside impl), deliberate compatibility aliases whose body (within ten lines, after a docstring or deprecation warning) calls the other name, functions in different scopes (different indentation, or separate classes at the same indentation), names that differ in more than convention, bundled third-party JavaScript (node_modules, vendor, dist, static libs, minified or library-named files, files over 150 KB), test files and comments. Convention mixing across files, or in variables and classes, is not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1099/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1099/",
 	"languages": ["python", "javascript", "typescript"],
 	"severity": "low",
 	"level": "note",

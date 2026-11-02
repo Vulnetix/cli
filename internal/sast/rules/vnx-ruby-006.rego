@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUBY-006",
 	"name": "Ruby mass assignment",
 	"description": "Request parameters reach ActiveRecord attribute assignment without a strong-parameters allowlist: create/create!/update/update!/update_attributes/assign_attributes/attributes=/first_or_create/first_or_initialize/find_or_create_by/find_or_initialize_by/insert/insert_all/upsert(_all) or Model.new given params, params[...], request.params, params.to_unsafe_h, params.require(...).to_unsafe_h or a .permit! result, directly or through a variable assigned from one (up to two assignments, so a reject/merge on the raw hash still counts) in the 15 lines above; every .permit! call; and a .permit(...) list that admits a privilege attribute (admin, is_admin, role, role_id, roles, role_ids, superuser, super_admin, site_admin, permissions, as a symbol or as a nested key such as permissions: []) outside an admin controller, including a list spread over the lines after permit( (reported on the attribute's line). Not reported: values filtered by params.require(...).permit(...) or .slice, a single scalar param (update(name: params[:name])), Model.new(params) with the whole bare params hash (form and service objects), Hash#update on option hashes, OpenStruct/Struct.new, comments and strings. This rule owns Ruby mass assignment; VNX-915 covers JavaScript/TypeScript. Rails 4+ raises ForbiddenAttributesError for unpermitted ActionController::Parameters, so findings on raw params matter most for Sinatra, Rails 3 and apps that set permit_all_parameters.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-ruby-006/",
 	"languages": ["ruby"],
 	"severity": "high",
 	"level": "error",

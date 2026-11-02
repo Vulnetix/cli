@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1062",
 	"name": "Parent Class with References to Child Class",
 	"description": "Java: a class refers to one of its own subclasses. The rule collects every `class Child extends Parent` (or `extends pkg.Parent`) declaration in the scanned Java files, then reports a line of Parent's own source file (Parent.java) that tests `instanceof Child`, matches `case Child c ->` in a pattern switch, compares `getClass() == Child.class`, casts to `(Child)`, or constructs `new Child(` for a subclass declared in a different file. The parent then depends on its children, so adding or changing a subclass forces a change to the base class, and type switches in the parent bypass polymorphism. Not reported: `Child.class` registrations that are not type tests (Jackson @JsonSubTypes and similar annotations), references to the parent's own type, unrelated classes with similar names, a sealed class's `permits` clause, subclasses nested in the parent's own file, and comments or string literals. Subclasses declared outside the scanned files are not known.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1062/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1062/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-213",
 	"name": "GitHub App private key (PEM)",
 	"description": "A GitHub App RSA private key (PEM block) was found. It is used to mint installation tokens granting the App's full configured permissions across installations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-213",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-213",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-208",
 	"name": "Terraform Cloud team/org token",
 	"description": "A Terraform Cloud/Enterprise team or organization API token was found. These tokens carry the .atlasv1. segment and grant access to workspaces, runs and state.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-208",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-208",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

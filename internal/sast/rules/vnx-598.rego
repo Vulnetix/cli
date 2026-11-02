@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-598",
 	"name": "Credential or secret sent in a GET query string",
 	"description": "A password, API key, client secret or access token is placed in a URL query string, where it is written to server and proxy access logs, browser history and Referer headers. Reported: a URL whose query (the line also opens one with ?name=) carries a parameter named password, passwd, pwd, pass, passphrase, secret, client_secret, api_key, apikey, api-key, access_token, auth_token, token, session_id, sessionid or ssn whose value is interpolated from code, or a ?key= parameter whose interpolated value is named for an API key or secret (?key= followed by apiKey) (string concatenation, f-string or template-literal placeholder, %s/%v format verb, PHP $variable); a request helper (requests.get/post, axios.get, http.get and the like) given such a key in its params object on the same line, which always goes into the query string; and an HTML/template <form> that submits a password input by GET, either method=get or no method attribute (GET is the default) in .html, .htm, .php, .jsp, .ejs, .hbs, .twig, .jinja and .erb files. Not reported: form-encoded POST bodies (grant_type=password&password=...), credentials in headers or POST data, constant example URLs (?api_key=YOUR_API_KEY), lookalike parameters (pageToken, next_token, show_password_field), forms submitted by POST or by a script handler (onsubmit, ngSubmit, @submit), comments, and JSX/Vue forms (submitted by script).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-598/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-598/",
 	"languages": ["go", "java", "node", "php", "python", "html"],
 	"severity": "medium",
 	"level": "warning",

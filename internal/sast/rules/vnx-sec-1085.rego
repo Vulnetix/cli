@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1085",
 	"name": "Pexels API key",
 	"description": "A Pexels API key (56-character base62) was found. It authorizes Pexels photo and video search under the account hourly/monthly quota.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1085",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1085",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

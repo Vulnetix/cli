@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-713",
 	"name": "OKX API passphrase",
 	"description": "An OKX exchange API passphrase assigned to an okx context was found. Combined with the API key and secret it authorises trading and withdrawals on OKX.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-713",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-713",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

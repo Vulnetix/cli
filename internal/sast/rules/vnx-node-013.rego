@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-013",
 	"name": "Node.js command injection via child_process",
 	"description": "An OS command run through a shell is built from the incoming request: the command string (first argument) of child_process exec/execSync (called on a module bound by require/import such as cp.exec or child_process.execSync, on require('child_process') directly, as a destructured { exec }/{ execSync } import, or through a util.promisify(exec) wrapper), of spawn/spawnSync/execFile/execFileSync with shell: true, of shelljs exec or execa's command/execaCommand, or the script of spawn('sh'|'bash', ['-c', script]), is a req/request query, body, params, headers or cookies value, a Koa ctx.query/ctx.request.body value, or a variable assigned (or destructured) from one in the 25 lines above, directly or through one intermediate assignment such as 'ls ' + dir. Not reported: execFile/spawn with an argument array and no shell (no shell parses the value), values passed through shell-quote quote(), shell-escape or an escape function, values matched against an anchored regex or an isValid/isIP/isFQDN check in the lines above, constant commands and commands built only from local values, RegExp.exec and database exec methods, comments and string literals. VNX-NODE-003 reports exec/execSync with any run-time command string, whatever its source; this rule reports the subset where request data reaches it, across the wider set of shell-running APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-013/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-013/",
 	"languages": ["node"],
 	"severity": "critical",
 	"level": "error",

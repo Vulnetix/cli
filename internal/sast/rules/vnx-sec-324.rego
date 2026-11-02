@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-324",
 	"name": "Stripe publishable key (pk_test)",
 	"description": "A Stripe test publishable key (pk_test_) was found. It is client-side safe but indicates Stripe integration code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-324",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-324",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

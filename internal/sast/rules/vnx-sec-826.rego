@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-826",
 	"name": "Squarespace API key",
 	"description": "A Squarespace developer API key was found. It grants access to the Squarespace commerce, inventory and profiles APIs for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-826",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-826",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

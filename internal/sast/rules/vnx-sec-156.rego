@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-156",
 	"name": "Fastly Compute / service ID with token context",
 	"description": "A Fastly service ID under a token context was found. Combined with an API token it identifies the CDN service targeted for configuration changes.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-156",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-156",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

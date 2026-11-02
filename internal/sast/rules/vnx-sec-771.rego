@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-771",
 	"name": "Salesloft API key",
 	"description": "A Salesloft API key or OAuth access token was found. It grants API access to the organisation's cadences, people and sales activity in Salesloft.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-771",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-771",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-379",
 	"name": "Dwolla webhook secret",
 	"description": "A Dwolla webhook signing secret was found near a dwolla/webhook assignment. Exposure lets attackers forge webhook signatures and spoof transfer events.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-379",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-379",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

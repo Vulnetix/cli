@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-159",
 	"name": "Azure Maps subscription key (context)",
 	"description": "An Azure Maps subscription key under an Azure Maps context keyword was found. The key authorizes calls to Azure Maps services and can incur billing if abused.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-159",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-159",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

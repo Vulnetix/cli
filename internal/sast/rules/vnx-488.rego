@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-488",
 	"name": "Exposure of Data Element to Wrong Session",
 	"description": "Per-request or per-user data stored in a field of a Java component that one instance serves every request: a class that extends HttpServlet/GenericServlet, is annotated @WebServlet, @Controller or @RestController, or extends a Struts Action. A request handler assigns a non-final field (instance or static) from the request (getParameter, getHeader, getAttribute, getSession, getRemoteUser, getUserPrincipal, getCookies, getInputStream/getReader, getQueryString), directly or through a local variable assigned from the request a few lines above. Concurrent requests share the field, so one user's data is served to another. Not reported: locals, final fields, assignments in init() or a constructor, fields of classes that are not request singletons (including Spring beans annotated @RequestScope, @SessionScope or @Scope request/session/prototype), fields set from servlet configuration, and the pattern in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-488/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-488/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

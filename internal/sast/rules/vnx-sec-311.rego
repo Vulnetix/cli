@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-311",
 	"name": "RunPod API key (assignment context)",
 	"description": "A RunPod API key referenced via a RUNPOD_API_KEY assignment was found, confirming a live RunPod credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-311",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-311",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

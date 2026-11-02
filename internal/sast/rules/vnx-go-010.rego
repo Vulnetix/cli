@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-010",
 	"name": "Go weak cipher usage",
 	"description": "Go code constructs a broken or deprecated cipher: des.NewCipher (DES, 56-bit key), des.NewTripleDESCipher (3DES, deprecated by NIST, Sweet32), rc4.NewCipher (RC4, keystream biases), or the 64-bit-block ciphers golang.org/x/crypto/blowfish, cast5, tea and xtea (deprecated by the Go project). A call or a constructor passed as a value (a table of ciphers) is reported, with an aliased import resolved; so is an RC4 or 3DES TLS cipher suite (tls.TLS_*_RC4_128_*, tls.TLS_*_3DES_EDE_CBC_*) placed in a tls.Config CipherSuites list, and a legacy SSH cipher (\"3des-cbc\", \"arcfour\", \"arcfour128\", \"arcfour256\") placed in an x/crypto/ssh Ciphers list, which x/crypto/ssh leaves disabled unless a config names it; for both, the list may be inline, a []uint16{/[]string{ literal opened above, or a variable the CipherSuites/Ciphers field takes. Not reported: the import alone, constants such as des.BlockSize and des.KeySizeError, blowfish.NewSaltedCipher (the bcrypt key schedule), a TLS suite or SSH cipher named in a deny-list or comparison, comments and string literals, and test files (a cipher in a test protects no data). Use AES-GCM or ChaCha20-Poly1305.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-010/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-010/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

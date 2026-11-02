@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-090",
 	"name": "Figma personal access token (figd_)",
 	"description": "A Figma personal access token (figd_) was found, granting API access to the user's Figma files and projects.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-090",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-090",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

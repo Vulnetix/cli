@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-035",
 	"name": "DigitalOcean personal access token",
 	"description": "Reports a DigitalOcean API token: a standalone dop_v1_ personal access token, doo_v1_ OAuth access token or dor_v1_ OAuth refresh token followed by exactly 64 hex characters. Placeholder values and test or fixture paths are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-035/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-035/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

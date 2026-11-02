@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-741",
 	"name": "Workday OAuth client secret",
 	"description": "A Workday OAuth/ISU client secret used to authenticate an Integration System User was found. Combined with the client ID it grants API access to Workday HCM and Financials data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-741",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-741",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

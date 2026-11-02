@@ -8,15 +8,16 @@ import (
 	"testing"
 )
 
-// The rule pages render through Goldmark with raw HTML allowed, so a rule doc
+// The rule prose is rendered into HTML pages on docs.vulnetix.com, so a rule doc
 // that writes <script> in prose instead of `<script>` emits a real script
-// element, and Hugo's minifier then fails the whole site build parsing the
-// sentence after it as JavaScript. That is how one page (VNX-933) stopped the
-// docs deploy. Tags are only safe inside code spans and fenced blocks.
+// element. On the old Hugo site the minifier then failed the whole build
+// parsing the sentence after it as JavaScript; that is how one page (VNX-933)
+// stopped the docs deploy. Tags are only safe inside code spans and fenced
+// blocks.
 var rawActiveTag = regexp.MustCompile(`(?i)<(script|style|iframe|object|embed)\b`)
 
 func TestRuleDocsWriteTagsAsCode(t *testing.T) {
-	dir := filepath.Join("..", "..", "website", "content", "docs", "sast-rules")
+	dir := filepath.Join("docs")
 	paths, err := filepath.Glob(filepath.Join(dir, "*.md"))
 	if err != nil || len(paths) == 0 {
 		t.Skipf("no rule docs at %s", dir)

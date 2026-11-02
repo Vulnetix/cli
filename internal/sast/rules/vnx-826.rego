@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-826",
 	"name": "Premature Release of Resource During Expected Lifetime",
 	"description": "Reports a C or C++ handle that is released while the code below still uses it: fclose/pclose of a FILE* followed by stdio on the same stream (fprintf, fputs, fwrite, fread, fgets, fseek, fflush, ...), close/closesocket of a descriptor followed by read/write/send/recv/lseek/fstat/ioctl/setsockopt/shutdown and the other descriptor calls on it, closedir followed by readdir, sqlite3_close followed by sqlite3_exec/prepare/errmsg on the same connection, and CloseHandle followed by ReadFile/WriteFile/WaitForSingleObject on the same handle. The release line is reported when such a use of the same variable or member (fp, c->fd) follows within 15 lines in the same function, including a call whose argument list continues on the next line. Not reported: a release followed by return, goto, break, continue, exit/abort or throw before the use (error paths), a variable reassigned or reopened in between (fp = fopen(...), fd = -1, fd = accept(...)), a use on another if/else or switch branch, uses in another function (including the next inline method of a class body), method calls (file.close(), s->close()), array elements (close(pipefd[1])), freed memory (use after free() is VNX-C-004 and VNX-416), double release (VNX-1341), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-826/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-826/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

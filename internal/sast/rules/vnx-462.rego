@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-462",
 	"name": "Duplicate Key in Associative List (Alist)",
 	"description": "Python dict literals that name the same key twice, where the later entry silently replaces the earlier one (a security setting written as True and then overridden by False further down is the dangerous case). Reported: in a multi-line dict literal (a line ending in `{`), a string or integer key written at the dict's own key indentation that an earlier entry of the same literal already used, at the later entry; and a single-line literal {...} with no nested braces that repeats a key. Single and double quotes are the same key. Not reported: the same key in sibling nested dicts or in different dicts of a list, keys that differ only in case, set literals, dicts built with dict()/update(), f-string or computed keys, comments and literals inside strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-462/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-462/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

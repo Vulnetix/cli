@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JAVA-016",
 	"name": "Java weak PRNG (java.util.Random) used for security-sensitive value",
 	"description": "A value drawn from a non-cryptographic generator is used as a secret: new java.util.Random().nextX(), a Random field or local created with new Random(...) and drawn with next*/ints/longs/doubles, ThreadLocalRandom.current().nextX(), Math.random() or Apache Commons RandomStringUtils.random*/randomAlphanumeric/randomNumeric (static methods built on java.util.Random). Reported when the draw is used for a token, nonce, password, salt, OTP/PIN, CSRF token, remember-me or session identifier, API/secret key or IV: the draw's own statement names such an identifier, the draw is stored straight into a Cookie, a session attribute or value, or a response header, the variable it assigns (or the buffer nextBytes fills) flows within the next six lines, directly or through one more assignment, into such an identifier or store, or the draw (or a weak Random handed to a helper) is returned from a method named for a secret (newSessionId, generateToken, createPasswordReset). Not reported: java.security.SecureRandom (including a SecureRandom held in a Random-typed variable) and RandomStringUtils.secure()/secureStrong(), randomness for jitter (including names for a property of a secret's handling rather than the secret: tokenExpirySeconds, sessionTtl, a method named tokenRefillJitterMs), shuffling, sampling, load balancing, colours and other non-secret uses, test code, and the pattern in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-016/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-016/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

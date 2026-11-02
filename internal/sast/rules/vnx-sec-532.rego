@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-532",
 	"name": "Segment write key",
 	"description": "A Segment source write key was found. It allows sending arbitrary analytics events into the Segment source and any connected downstream destinations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-532",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-532",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-476",
 	"name": "NULL Pointer Dereference",
 	"description": "Reports a value that can be NULL being dereferenced before anything checks it. C/C++: the result of malloc, calloc, realloc, strdup, strndup, fopen or getenv assigned to a variable and then, within the next six code lines and with no NULL test in between, dereferenced (p->f, p[i], *p) or passed to a libc function that dereferences it (memcpy, memset, strcpy, strlen, strcmp, sprintf, fgets, fprintf, fread, fclose, atoi and similar). Java: the result of request.getParameter/getHeader, System.getenv or one-argument System.getProperty dereferenced by a chained method call, or assigned to a variable whose method is called within the next six code lines with no null test, plus a for-each over File.listFiles(). Not reported: an allocation made inside an if/while condition or checked on the same line, a variable tested against NULL/null (==, !=, !p, p &&, assert, a ternary, Objects/StringUtils helpers) before the use, wrapper allocators (xmalloc, zmalloc) that never return NULL, a constant-first comparison (\"x\".equals(v)), getProperty with a default, the system properties the JVM always defines (os.name, user.home, user.dir, java.*, the separators), and comments. Deeper flows (a NULL returned from the project's own functions, fields, across functions) are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-476/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-476/",
 	"languages": ["c", "cpp", "java"],
 	"severity": "medium",
 	"level": "warning",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-014",
 	"name": "PHP session fixation via user-controlled session ID",
 	"description": "The session identifier is taken from the request, so an attacker can plant a known ID on a victim and use it after the victim logs in. Reported: session_id() called with a $_GET/$_POST/$_REQUEST/$_COOKIE element (including $_COOKIE[session_name()], which accepts any client-chosen cookie value as the ID) or with a variable assigned from one within the 15 lines above; a Laravel/Symfony session object's ->setId() (or Session::setId()) given request input ($request->input()/get()/query()/cookie(), $request->query->get(), $request->cookies->get(), request('x')) directly or through such a variable, except a session store reading its own cookie by $session->getName(); and ini_set() turning on session.use_trans_sid (IDs accepted from the URL) or turning off session.use_only_cookies or session.use_strict_mode (uninitialised IDs accepted). Not reported: ->setId() on objects that are not sessions ($user->setId(...)), session_id() as a getter, session_id() given a generated value (random_bytes(), session_create_id()), the settings set to their safe values, and the call inside a comment or a string literal. A login that never calls session_regenerate_id() is not detected: whether a handler authenticates cannot be told line by line.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-014/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-014/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

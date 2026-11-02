@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1078",
 	"name": "TMDB API key (v3)",
 	"description": "A TMDB (The Movie Database) v3 API key (32-character hex) was found. It authorizes read access to the TMDB catalog API under the developer account rate limits.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1078",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1078",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-570",
 	"name": "InfluxDB v2 API token",
 	"description": "An InfluxDB v2 / Cloud API token assigned to a context keyword was found. InfluxDB tokens authenticate to the v2 API and can read or write time-series buckets per their permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-570",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-570",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

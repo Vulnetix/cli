@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-458",
 	"name": "Twilio SendGrid subuser SMTP password",
 	"description": "A SendGrid SMTP credential (SG. API key used as the SMTP password for a subuser) was found near an smtp assignment. It allows relaying mail through SendGrid.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-458",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-458",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

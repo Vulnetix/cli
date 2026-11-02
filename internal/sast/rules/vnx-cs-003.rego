@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-CS-003",
 	"name": "C# XXE: XML parser resolves external entities",
 	"description": "An XML parser is configured, or left at a default, that resolves external entities, so a document can read local files or make the server fetch URLs (XXE). Reported: an XmlResolver set to an XmlUrlResolver (inline, or a variable holding one) on XmlDocument, XmlTextReader or any other parser, and on XmlReaderSettings when that settings object also enables DTDs; DtdProcessing = DtdProcessing.Parse and ProhibitDtd = false with no XmlResolver = null beside them, unless every project file in the scan targets .NET Framework 4.5.2+ or .NET Core/.NET (where the default resolver is null and only the URL resolver line is a finding); and, when a project file targets .NET Framework 4.5.1 or older (TargetFrameworkVersion v2.0-v4.5.1, or net20-net451) or a web.config's compilation/httpRuntime targetFramework is 4.5.1 or older (a Web Site project has no project file), XmlDocument.Load/LoadXml and new XmlTextReader(...) on non-constant input without XmlResolver = null or DtdProcessing.Prohibit/Ignore, because those parsers resolve external entities by default there. Not reported: XmlResolver = null, DtdProcessing.Prohibit or Ignore, ProhibitDtd = true, an XmlUrlResolver on XmlReaderSettings whose DTD processing stays prohibited, documents loaded from string constants, comparisons, and the names in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-cs-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-cs-003/",
 	"languages": ["csharp"],
 	"severity": "high",
 	"level": "error",

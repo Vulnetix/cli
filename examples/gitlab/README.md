@@ -1,7 +1,7 @@
 # GitLab CI examples
 
 Every YAML file here is validated against GitLab's own CI schema before it ships, and the documentation at
-[docs.cli.vulnetix.com/docs/ci-cd/gitlab-ci](https://docs.cli.vulnetix.com/docs/ci-cd/gitlab-ci/) quotes these files
+[docs.vulnetix.com/cli/ci-cd/gitlab-ci](https://docs.vulnetix.com/cli/ci-cd/gitlab-ci/) quotes these files
 directly. If you change one, run the validator.
 
 ```sh

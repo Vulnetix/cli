@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1073",
 	"name": "Non-SQL Invokable Control Element with Excessive Number of Data Resource Accesses",
 	"description": "A Java method with a body that performs five or more data-resource accesses itself: JDBC executeQuery/executeUpdate/executeLargeUpdate/executeBatch and execute() on a statement, JdbcTemplate query*/update/batchUpdate/execute, JPA createQuery/createNativeQuery/createNamedQuery and EntityManager find/persist/merge/remove/refresh/getReference, Spring Data repository find*/save*/delete*/exists*/count* calls, and Hibernate Session / MyBatis SqlSession get/load/save/saveOrUpdate/persist/merge/update/delete/selectOne/selectList/insert calls on a receiver named *session. A method that makes that many round trips to the database is hard to keep transactional and slow under load; move the work into one query, a stored procedure or a dedicated data-access method. The finding is on the method declaration. Methods are recognised by a modifier, or for package-private methods by a return type, name, parameter list and opening brace on one line. Not reported: fewer than five accesses in one method (accesses spread over several methods are counted per method), statements prepared once and run as one batch, abstract and interface methods, test sources, and calls in comments. The method boundary is the next method declaration (at most 200 lines), so an anonymous class inside a method is counted with it, and a package-private method whose signature spans lines is counted with the method above it.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1073/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1073/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

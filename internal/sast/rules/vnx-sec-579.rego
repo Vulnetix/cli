@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-579",
 	"name": "Confluent Cloud API key",
 	"description": "A Confluent Cloud / Kafka API key (16-char uppercase key) assigned to a context keyword was found. Paired with its secret it authenticates to Confluent Cloud clusters and the Kafka API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-579",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-579",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

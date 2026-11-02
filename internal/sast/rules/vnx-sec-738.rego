@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-738",
 	"name": "LaunchDarkly SDK/API key (sdk-/api-)",
 	"description": "A LaunchDarkly feature-flag key (sdk-, api-, or mob- prefix followed by a UUID) was found. The api- key grants management access to flags and environments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-738",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-738",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

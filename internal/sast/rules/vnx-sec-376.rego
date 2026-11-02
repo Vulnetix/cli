@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-376",
 	"name": "Plaid access token (access-)",
 	"description": "A Plaid item access token using the access- prefix was found. It grants ongoing access to a linked bank account's balances and transactions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-376",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-376",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

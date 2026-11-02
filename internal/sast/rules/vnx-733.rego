@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-733",
 	"name": "Compiler Optimization Removal or Modification of Security-critical Code",
 	"description": "Security-critical C or C++ code that the optimiser is allowed to delete. Two shapes are reported. A dead-store wipe: memset/std::memset/bzero/ZeroMemory/RtlZeroMemory with a zero fill of a buffer named as a secret (password, passwd, passphrase, pwd, secret, key, private key, seed, pin, token, credential, plaintext; prefixes and camelCase included) whose next statement frees it (free, OPENSSL_free, g_free, kfree, delete) or, for a plain local name, returns or closes the scope, so nothing reads the cleared memory and the clear can be removed (CWE-14). And a pointer-wraparound bounds check in an if condition, p + n < p or p + n <= p (also written p > p + n), on a name declared as a pointer in the same file: pointer overflow is undefined behaviour, so compilers fold the test to false and drop the check; a check on a line without if (an assert, a return expression) is not read. Not reported: explicit_bzero, memset_s, SecureZeroMemory, OPENSSL_cleanse, sodium_memzero and other guaranteed wipes; a clear followed by a use of the buffer (initialisation); a clear of a struct member before return (caller-owned memory); non-zero fills; the same arithmetic test on integers (size_t a + b < a is a well-defined unsigned overflow check), checks written as n > end - p; test code, comments and strings. VNX-CWE1037-AUTO reports the dead-store wipe as well.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-733/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-733/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

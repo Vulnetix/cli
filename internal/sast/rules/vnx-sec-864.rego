@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-864",
 	"name": "Customer.io app API token (Bearer)",
 	"description": "A Customer.io App API bearer token was found. It grants access to the workspace's transactional messaging, broadcasts and customer data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-864",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-864",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

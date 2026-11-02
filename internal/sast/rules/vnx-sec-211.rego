@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-211",
 	"name": "Argo CD auth token (JWT)",
 	"description": "An Argo CD API authentication token (JWT) was found. It grants access to the Argo CD API for managing GitOps applications and clusters.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-211",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-211",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

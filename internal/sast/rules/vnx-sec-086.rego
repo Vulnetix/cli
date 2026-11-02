@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-086",
 	"name": "Cohere API key",
 	"description": "A Cohere API key was found in source. It grants access to Cohere LLM inference and embeddings billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-086",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-086",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

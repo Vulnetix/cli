@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-106",
 	"name": "Yandex Cloud IAM token",
 	"description": "A Yandex Cloud IAM bearer token (t1. prefix) was found. IAM tokens are short-lived credentials that authorize Yandex Cloud API calls for the associated account or service account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-106",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-106",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

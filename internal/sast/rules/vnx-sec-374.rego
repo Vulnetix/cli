@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-374",
 	"name": "Recurly public key",
 	"description": "A Recurly public key (ewr- prefix) used for client-side Recurly.js tokenization was found. Public keys are client-side safe but flag Recurly integration code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-374",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-374",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

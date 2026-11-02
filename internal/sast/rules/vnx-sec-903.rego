@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-903",
 	"name": "MapQuest API key",
 	"description": "A MapQuest Developer API key (consumer key) was found near a mapquest assignment. It is a high-entropy alphanumeric string authorizing geocoding and directions APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-903",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-903",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

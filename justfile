@@ -119,7 +119,7 @@ build-release: clean
 install:
     go install -ldflags "{{ldflags}}" .
 
-# Regenerate secret-detection rules + docs from the catalog (single source of truth)
+# Regenerate secret-detection rules from the catalog (single source of truth)
 gen-secrets:
     go run ./internal/sast/secretsgen .
     go run ./internal/sast/cwssgen
@@ -133,15 +133,18 @@ gen-cwss:
     go run ./internal/sast/cwssgen
     just fmt
 
-# Regenerate AIBOM detection docs from the catalog (single source of truth)
+# Regenerate the AIBOM catalog pages under docs/generated/aibom/ (read by the
+# platform docs, docs.vulnetix.com) from the catalog (single source of truth)
 gen-aibom:
     go run ./internal/aibom/aibomgen
 
-# Regenerate CBOM detection docs from the catalog (single source of truth)
+# Regenerate the CBOM catalog pages under docs/generated/cbom/ (read by the
+# platform docs, docs.vulnetix.com) from the catalog (single source of truth)
 gen-cbom:
     go run ./internal/cbom/cbomgen
 
-# Regenerate the third-party scanner docs from the `gha setup` catalog. Every
+# Regenerate docs/generated/ci-cd/third-party-scanners.md (read by the platform
+# docs, docs.vulnetix.com) from the `gha setup` catalog. Every
 # workflow example on that page is rendered by the same code the command uses,
 # so a reader is looking at the exact job that will run.
 gen-gha-setup:
@@ -585,57 +588,6 @@ update-vdb-cyclonedx VERSION:
 run: build
     ./{{output_dir}}/{{binary}} --org-id "123e4567-e89b-12d3-a456-426614174000"
 
-# --- Cloudflare DNS management for docs.cli.vulnetix.com (uses .env) ---
-
-domain := "docs.cli.vulnetix.com"
-target := "vulnetix.github.io"
-
-# Show current DNS records for docs.cli.vulnetix.com
-dns-status:
-    @echo "Checking DNS records for {{domain}}..."
-    @curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name={{domain}}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" | jq '.result[] | {id, type, name, content, proxied, ttl}'
-
-# Create CNAME record pointing to vulnetix.github.io
-dns-setup:
-    @echo "Creating CNAME record: {{domain}} -> {{target}}"
-    @curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"{{domain}}","content":"{{target}}","ttl":1,"proxied":false}' | jq '{success: .success, id: .result.id, errors: .errors}'
-
-# Remove the CNAME record for docs.cli.vulnetix.com
-dns-delete:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    RECORD_ID=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name={{domain}}&type=CNAME" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" | jq -r '.result[0].id')
-    if [ "$RECORD_ID" = "null" ] || [ -z "$RECORD_ID" ]; then
-        echo "No CNAME record found for {{domain}}"
-        exit 1
-    fi
-    echo "Deleting CNAME record $RECORD_ID for {{domain}}..."
-    curl -s -X DELETE \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/$RECORD_ID" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" | jq '{success: .success}'
-
-# Verify DNS resolution is working
-dns-verify:
-    @echo "Resolving {{domain}}..."
-    @dig +short {{domain}} CNAME || true
-    @echo ""
-    @echo "HTTP check:"
-    @curl -sI "https://{{domain}}" 2>/dev/null | head -5 || echo "Site not yet reachable"
-    @echo ""
-    @echo "TLS certificate subject:"
-    @echo | openssl s_client -connect {{domain}}:443 -servername {{domain}} 2>/dev/null | openssl x509 -noout -subject -dates 2>/dev/null || echo "Could not retrieve certificate"
-
 # --- Release flow ---
 #
 # Releases are fully automated via GitHub Actions using conventional commits.
@@ -940,47 +892,6 @@ tea-release VERSION="":
 # Run GitHub Actions workflows locally with act (defaults to test workflow)
 act workflow="test" *args="":
     act -W .github/workflows/{{workflow}}.yml --container-daemon-socket unix://$XDG_RUNTIME_DIR/podman/podman.sock -s GITHUB_TOKEN="$(gh auth token)" {{args}}
-
-# --- Hugo local development ---
-
-# One-command local dev: install modules and start dev server with live reload
-docs-dev:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd website
-    echo "Installing Hugo modules..."
-    hugo mod get && hugo mod tidy
-    echo ""
-    echo "Starting dev server at http://localhost:1313"
-    hugo server --buildDrafts --buildFuture --navigateToChanged
-
-# Install Hugo modules (run after cloning or updating theme)
-docs-init:
-    cd website && hugo mod get && hugo mod tidy
-
-# Run Hugo dev server locally (with drafts and future posts)
-docs-serve:
-    cd website && hugo server --buildDrafts --buildFuture
-
-# Build the Hugo site locally to website/public/
-docs-build:
-    cd website && hugo mod get && hugo --minify
-
-# Preview production build locally
-docs-preview: docs-build
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd website
-    echo "Serving production build at http://localhost:1313"
-    hugo server --minify --disableLiveReload
-
-# Clean Hugo build artifacts
-docs-clean:
-    rm -rf website/public website/resources website/.hugo_build.lock
-
-# Create a new content page (usage: just docs-new docs/getting-started/new-page.md)
-docs-new page:
-    cd website && hugo new content {{page}}
 
 # Install the repo's git hooks (pre-commit lint gate). Idempotent.
 hooks:

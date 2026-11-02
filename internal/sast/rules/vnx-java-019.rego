@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-JAVA-019",
 	"name": "Java hardcoded cryptographic key literal",
 	"description": "A symmetric or signing key is written into the source and handed to a key API, so anyone with the jar can decrypt or forge what it protects. Reported: new SecretKeySpec(...) and new PBEKeySpec(...) whose key argument is a string literal (.getBytes()/.toCharArray()), a Base64/hex decode of a literal, or a byte-array literal; JJWT signWith(alg, key) and setSigningKey(key), auth0 Algorithm.HMAC256/384/512(key) and Keys.hmacShaKeyFor(key) with such a value; and the same calls given a String, byte[] or char[] variable or constant declared in the file with such a literal, directly or through one .getBytes() assignment. Not reported: keys read from the environment, a KeyStore, properties, Spring @Value injection, KeyGenerator or a method parameter; algorithm-name literals (\"AES\"); test sources; and the pattern in comments or string literals. Initialisation vectors are VNX-JAVA-020's concern.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-019/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-019/",
 	"languages": ["java"],
 	"severity": "critical",
 	"level": "error",

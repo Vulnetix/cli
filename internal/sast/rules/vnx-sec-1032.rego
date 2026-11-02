@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1032",
 	"name": "Bitwarden / Secrets Manager access token (0.uuid)",
 	"description": "A Bitwarden Secrets Manager machine-account access token (version.UUID.base64 form) was found. It grants a machine account read/write access to its assigned Bitwarden secrets.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1032",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1032",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

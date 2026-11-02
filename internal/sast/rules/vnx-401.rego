@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-401",
 	"name": "Missing Release of Memory after Effective Lifetime (memory leak)",
 	"description": "Reports two C/C++ memory-leak shapes. (1) A heap block held in a local variable (malloc, calloc, strdup, strndup, xmalloc, g_malloc, zmalloc, kmalloc and friends, or C++ `new`) is abandoned by a return or throw on a later error path before the variable is freed, deleted, stored, passed to another function or returned; the finding is on the leaking return. Returns guarded by the variable's own NULL check (nothing was allocated) are not reported. (2) `p = realloc(p, n)`: the result overwrites the only pointer to the old block, so a failed realloc leaks it; not reported when the old pointer was saved to another variable on the lines just before. Not reported: allocations stored straight into a struct member, a block passed to any function other than plain memory/string/IO helpers (ownership may move), goto-cleanup code, test files and comments. Paths through code more than 100 lines long, macros and ownership taken by callees are not modelled.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-401/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-401/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

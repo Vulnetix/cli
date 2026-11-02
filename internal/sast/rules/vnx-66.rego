@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-66",
 	"name": "Improper Handling of File Names that Identify Virtual Resources",
 	"description": "An uploaded file is stored under the name the client sent, so a name such as CON, NUL, AUX, COM1 or LPT1 (with or without an extension) opens a Windows device instead of a file, and the upload hangs the worker, discards data or writes to a port. Reported: the client file name (Python werkzeug/FastAPI .filename of request.files or UploadFile, Django request.FILES[...].name; Java MultipartFile.getOriginalFilename(), Part.getSubmittedFileName(); C# IFormFile/HttpPostedFile .FileName; Go multipart FileHeader .Filename) placed in a file-system path or write call (os.path.join, open, .save, Path; new File, Paths.get, Path.of, resolve, FileOutputStream, transferTo, Files.copy/write/move, servlet Part.write; Path.Combine, File.Create/OpenWrite/WriteAll*/Move/Copy, FileStream, SaveAs, MapPath; filepath.Join, path.Join, os.Create/OpenFile/WriteFile, SaveUploadedFile/SaveFile), on the same line or through a variable assigned from it in the 15 lines above. Stripping directories (basename, Path.GetFileName, FilenameUtils.getName, filepath.Base) does not remove a device name and is still reported. Not reported: a name passed through secure_filename or a sanitize/sanitise function, a generated name on the write line (uuid, Guid, random, GetRandomFileName, hash, timestamp), a project that checks names against the reserved device list, the name only logged or stored, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-66/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-66/",
 	"languages": ["csharp", "go", "java", "python"],
 	"severity": "medium",
 	"level": "warning",

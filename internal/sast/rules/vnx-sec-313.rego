@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-313",
 	"name": "Jina AI API key (assignment context)",
 	"description": "A Jina AI API key referenced via a JINA_API_KEY assignment was found, confirming a live Jina credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-313",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-313",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1003",
 	"name": "Fireblocks API secret (RSA private key)",
 	"description": "A Fireblocks API secret (RSA private key PEM body) assigned to a fireblocks secret field was found. It signs JWTs for every Fireblocks API call and grants control over custody operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1003",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1003",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

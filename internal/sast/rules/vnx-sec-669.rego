@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-669",
 	"name": "Kraken API key",
 	"description": "A Kraken API key assigned to a kraken context was found. Paired with the private key it authorises trading and funding operations on the Kraken account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-669",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-669",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

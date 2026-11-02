@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-915",
 	"name": "MaxMind license key",
 	"description": "A MaxMind license key was found near a maxmind assignment. License keys authorize GeoIP database downloads and minFraud/web-service queries and are paired with an account ID.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-915",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-915",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

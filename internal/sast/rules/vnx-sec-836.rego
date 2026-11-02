@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-836",
 	"name": "ShipStation API secret",
 	"description": "A ShipStation API secret was found. Paired with the API key it grants full programmatic access to the ShipStation merchant account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-836",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-836",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

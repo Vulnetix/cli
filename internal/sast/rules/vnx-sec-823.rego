@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-823",
 	"name": "WooCommerce REST consumer key (ck_)",
 	"description": "A WooCommerce REST API consumer key (ck_ prefix) was found. Paired with the consumer secret it grants programmatic access to the WooCommerce store's orders, products and customers.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-823",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-823",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

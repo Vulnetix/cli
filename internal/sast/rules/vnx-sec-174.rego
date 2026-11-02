@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-174",
 	"name": "GCP service account private key (PEM in JSON)",
 	"description": "A GCP service account RSA private key embedded in a service account JSON (private_key field) was found. It fully authenticates as the service account and grants all its IAM permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-174",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-174",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

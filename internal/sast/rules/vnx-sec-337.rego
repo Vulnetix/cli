@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-337",
 	"name": "Coinbase Pro API key",
 	"description": "A Coinbase Pro (Exchange) API key was found near a coinbase_pro assignment. With the secret and passphrase it grants trading and withdrawal access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-337",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-337",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

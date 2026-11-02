@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1085",
 	"name": "Invokable Control Element with Excessive Volume of Commented-out Code",
 	"description": "A Python function or method whose body holds 5 or more comment lines that are commented-out code rather than prose: an assignment (`# total = amount`), a call statement (`# self.check_csrf(request)`), an import, a bare `return`/`raise`/`pass`/`break`/`continue` or a `return x`, `del x`, `assert x`, or a block header ending in a colon (`# if customer.is_vip:`, `# for x in y:`, `# else:`). Disabled code inside a function hides what the function used to check (a commented-out permission or CSRF call reads like a decision nobody recorded) and goes stale against the code around it. One finding per function, at its `def` line. Not reported: prose comments (`# If the customer is a reseller we apply ...`, `# Example: price(item, 3)`), fewer than 5 such lines, `#` lines inside a triple-quoted string in the function (a docstring, or a config or shell template the function writes), commented-out code at module level, and test files. The threshold is this rule's choice; CWE-1085 does not fix one.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1085/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1085/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

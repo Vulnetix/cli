@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-021",
 	"name": "XXE via libxmljs with noent:true",
 	"description": "libxml2 is told to substitute entities while parsing, which turns on XML External Entity (XXE) processing: a document that declares <!ENTITY x SYSTEM \"file:///etc/passwd\"> gets the file's contents (or an internal URL's response) spliced in. Reported, in JavaScript and TypeScript files that import or require libxmljs, libxmljs2 or libxml2-wasm: a noent: true option (in the parseXml/parseXmlString call, across line breaks, or in an options object passed to it), and libxml2-wasm's ParseOption.XML_PARSE_NOENT flag. Not reported: noent: false or omitted (the libxml2 default leaves entities unexpanded), a noent key in a file that does not use libxml (fast-xml-parser, xml2js and sax never fetch external entities), comments and string literals. Leave noent off and do not combine dtdload with untrusted XML.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-021/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-021/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
 	"level": "error",

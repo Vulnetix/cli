@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-495",
 	"name": "Contentful Content Management token (CFPAT-)",
 	"description": "A Contentful Content Management API personal access token (CFPAT- prefix) was found. It grants full read/write access to all Contentful spaces the user can access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-495",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-495",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

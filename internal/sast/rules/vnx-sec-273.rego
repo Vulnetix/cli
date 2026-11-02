@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-273",
 	"name": "Weights \u0026 Biases API key",
 	"description": "A Weights \u0026 Biases (wandb) API key was found. It is a 40-character hex token granting access to W\u0026B experiment tracking and artifacts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-273",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-273",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

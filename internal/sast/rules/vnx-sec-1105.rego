@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1105",
 	"name": "Twitch client ID",
 	"description": "A Twitch application client ID (30-character base62) was found. While public, it identifies the app and is required alongside the client secret; leaking it aids targeted abuse.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1105",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1105",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

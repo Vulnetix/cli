@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-029",
 	"name": "Hardcoded weak or default password",
 	"description": "A well-known weak or default password ('admin', 'password', '123456', 'changeme', 'Passw0rd', 'postgres'...) is written into Go source as a credential: assigned to a password-named variable, constant, field or map key (password/passwd/pwd, or a name ending in Pass that says whose credential it is, such as DBPass, AdminPass or smtp_pass); passed to a password setter (SetPassword(\"admin\")), to req.SetBasicAuth or url.UserPassword; placed in the user:password@ part of a connection string (\"root:root@tcp(...)\", \"postgres://postgres:postgres@...\"); or given as the default of a password-named environment variable (a getEnv(key, default) helper, cmp.Or(os.Getenv(key), default)), flag (flag.String, cobra StringVar/StringVarP) or viper key. These are the first values tried against any service. Not reported: a field-name constant whose value is the word itself (PasswordField = \"password\", a form key, a label, a struct tag), an empty default, an environment lookup or ${VAR} placeholder, a comparison or deny-list of common passwords, a strong literal (hard-coded secrets in general are other rules' concern), test files, comments and strings that only mention the word.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-029/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-029/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

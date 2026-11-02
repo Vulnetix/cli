@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-934",
 	"name": "Helium API key",
 	"description": "A Helium console/network API key was found near a helium assignment. It is a high-entropy base64/URL-safe token authorizing device and integration management on the Helium IoT network.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-934",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-934",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

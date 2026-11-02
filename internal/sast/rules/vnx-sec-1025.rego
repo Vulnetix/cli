@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1025",
 	"name": "Doppler audit token (dp.audit.)",
 	"description": "A Doppler audit token (dp.audit. prefix) was found. It grants programmatic access to workplace audit logs and activity history.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1025",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1025",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

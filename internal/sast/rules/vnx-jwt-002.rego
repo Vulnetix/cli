@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JWT-002",
 	"name": "JWT token signed without expiration",
 	"description": "A JWT is issued with no expiry, so a leaked token stays valid for ever. Reported: jsonwebtoken jwt.sign() and jose new SignJWT() (JavaScript/TypeScript), PyJWT/python-jose jwt.encode() (Python), jjwt Jwts.builder() and Auth0 JWT.create() (Java), golang-jwt jwt.NewWithClaims() (Go), ruby-jwt JWT.encode() and firebase/php-jwt JWT::encode() (PHP), when neither the call itself (its arguments, options and builder chain) nor the definition of a payload, claims or options variable it uses (assigned within 25 lines above) sets an expiry: exp, expiresIn, setExpiration/expiration, withExpiresAt, ExpiresAt or setExpirationTime. Not reported: test files, comments, decode/verify calls, and payloads or options built further away or in another function or file (those are a documented gap rather than a guess).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-jwt-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-jwt-002/",
 	"languages": ["python", "javascript", "typescript", "java", "go", "ruby", "php"],
 	"severity": "medium",
 	"level": "warning",

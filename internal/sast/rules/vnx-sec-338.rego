@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-338",
 	"name": "Razorpay key id (rzp_live)",
 	"description": "A Razorpay live key id (rzp_live_) was found. It is paired with a key secret to authorize live payment operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-338",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-338",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

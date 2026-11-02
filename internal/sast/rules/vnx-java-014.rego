@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JAVA-014",
 	"name": "Java zip/tar slip via archive entry name",
 	"description": "The name of an archive entry (java.util.zip ZipEntry, java.util.jar JarEntry, Apache Commons Compress TarArchiveEntry/ZipArchiveEntry/ArchiveEntry and similar) is used to build an output path without a containment check: new File/FileOutputStream/FileWriter/RandomAccessFile, Paths.get, Path.of, Path.resolve/resolveSibling or Files.newOutputStream/copy/write/createFile/createDirectories, whose arguments contain entry.getName() directly, getNextEntry().getName(), or a local assigned from it up to three assignments earlier within 15 lines. An entry named ../../etc/cron.d/x then writes outside the extraction directory. The entry variable is recognised from its declared type, from `(entry = zis.getNextEntry()) != null`, and from `var e = entries.nextElement()` in a file that uses an archive API. Not reported: extraction that checks containment within 15 lines before or 12 after (getCanonicalPath/getCanonicalFile/toRealPath/normalize() together with startsWith, or the name tested for \"..\"), names reduced to a bare file name (FilenameUtils.getName, Paths.get(name).getFileName()), the same path reported again when opened after the line that built it, listing or logging entry names, File.getName() and Class.getName(), and the pattern in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-014/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-014/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

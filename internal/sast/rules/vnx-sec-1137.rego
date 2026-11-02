@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1137",
 	"name": "Wistia data API token context",
 	"description": "A Wistia data API token paired with a wistia data context was found. It authorizes read/write access to Wistia media and stats.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1137",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1137",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

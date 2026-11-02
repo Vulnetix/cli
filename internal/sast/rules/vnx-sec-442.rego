@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-442",
 	"name": "PubNub secret key (sec-c-)",
 	"description": "A PubNub secret key (sec-c-) was found. It grants administrative access including Access Manager grants on the PubNub keyset.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-442",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-442",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

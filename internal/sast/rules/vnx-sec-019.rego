@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-019",
 	"name": "GCP service account key",
 	"description": "Reports a Google Cloud service account key committed to a file: the \"private_key\" member carrying a PEM private key (-----BEGIN PRIVATE KEY----- or RSA PRIVATE KEY with a real base64 body) in a document that also declares \"type\": \"service_account\" within 20 lines. Both the plain JSON key file and the same document embedded as an escaped string (\\\"private_key\\\": ...) in an environment file, Terraform, YAML or source code are reported, as are the YAML form with the key inline (type: service_account, private_key: \"-----BEGIN ...\") or in a private_key: | block scalar, and the TOML form of .streamlit/secrets.toml (type = \"service_account\", private_key = \"-----BEGIN ...\"). The snippet is redacted. Not reported: a file that only names the type (google-auth and client libraries compare against the string \"service_account\"), a key file with an empty or placeholder private_key, and test, fixture, vendored and generated paths. Overlaps the generated rules VNX-SEC-148 (private_key_id) and VNX-SEC-174 (PEM in JSON).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-019/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-019/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

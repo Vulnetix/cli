@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-788",
 	"name": "Access of Memory Location After End of Buffer",
 	"description": "Reports C/C++ off-by-one accesses one element past the end of an array declared in the same file: X[sizeof(X)], X[N] where the nearest declaration of X above is X[N] (N a number or constant), a for loop bounded by i <= N or i <= sizeof(X) that indexes X[i] in its body (six lines of a braced body, the single statement of an unbraced one), and n = read/recv/pread/fread(X, ..., sizeof(X)) (also ::read) followed by X[n] = ... (a full read leaves no room for the terminator). Arrays whose declaration is not in the file, struct members, pointer buffers, &X[N] (a valid one-past-the-end pointer) and bounds that are computed at run time are deliberately not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-788/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-788/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
 	"level": "error",

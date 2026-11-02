@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-944",
 	"name": "LiveKit API secret",
 	"description": "A LiveKit API secret was found near a livekit assignment. The secret pairs with the API key (prefix APIxxxx) to sign access tokens; a leaked secret lets an attacker mint valid room tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-944",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-944",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

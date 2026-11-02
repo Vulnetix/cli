@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-352",
 	"name": "Dwolla API key/secret",
 	"description": "A Dwolla API key or secret was found near a dwolla assignment. Dwolla credentials authorize ACH transfers and funding-source operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-352",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-352",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

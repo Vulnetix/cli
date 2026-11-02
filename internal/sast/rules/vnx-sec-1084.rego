@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1084",
 	"name": "Unsplash secret key",
 	"description": "An Unsplash application secret key (43-character base64url) was found. Combined with the access key it completes the OAuth flow to act on Unsplash user accounts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1084",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1084",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

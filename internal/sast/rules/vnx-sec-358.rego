@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-358",
 	"name": "Lemon Squeezy API key",
 	"description": "A Lemon Squeezy API key (JWT-style) was found near a lemon/lemonsqueezy assignment. It authorizes store, order and license operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-358",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-358",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

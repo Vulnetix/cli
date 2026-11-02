@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-606",
 	"name": "Unchecked Input for Loop Condition",
 	"description": "Reports a loop whose bound is a number parsed from untrusted input with no upper limit checked first, so a caller chooses how long the loop runs (CPU exhaustion). The loop is a C/C++/Java/Go `for (...; i < N; ...)`, `while (i < N)`, a count-down `while (N-- > 0)` / `while (N--)` / `for (; N > 0; N--)`, or Go `for i := range N`, and N is, within the 25 lines above: assigned from atoi/atol/strtol/strtoul/ntohl/ntohs over argv, getenv or optarg, or read with scanf(\"%u\", &N) (C/C++); assigned from Integer.parseInt/valueOf, Long.parseLong or Scanner.nextInt over request.getParameter/getHeader or a variable read from one, or a @RequestParam/@PathVariable/@QueryParam int parameter, annotation arguments included (Java); assigned from strconv.Atoi/ParseInt/ParseUint over r.URL.Query(), FormValue, Header.Get, gin c.Query/c.Param, mux.Vars or os.Args, directly or through one variable (Go). Not reported: a bound compared against a limit in an if between the parse and the loop, a bound clamped with min()/Math.min or reassigned from a clamp/limit/bound helper, a bound passed to a verify/validate/check function, a loop in a different function from the parse (a function or method declaration between them), count-down loops over values decoded with ntohs/ntohl (protocol code validates message lengths elsewhere), a loop header that also tests a second condition (i < n && i < MAX), constants, collection lengths and loops over a collection, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-606/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-606/",
 	"languages": ["c", "cpp", "go", "java"],
 	"severity": "low",
 	"level": "note",

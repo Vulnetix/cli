@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-748",
 	"name": "NetSuite TBA token secret",
 	"description": "A NetSuite Token-Based Authentication token secret was found. Combined with the token ID and consumer credentials it signs requests against the NetSuite account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-748",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-748",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-425",
 	"name": "Freshchat API token",
 	"description": "A Freshchat API token (a long JWT-style bearer) was found near a freshchat assignment. It authorizes access to Freshchat conversations and agents.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-425",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-425",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

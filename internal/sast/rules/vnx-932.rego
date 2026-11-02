@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-932",
 	"name": "Source code switches off stack protection or FORTIFY_SOURCE",
 	"description": "CWE-932 is an OWASP Top Ten 2013 category with no code shape of its own; this rule reports the concrete C/C++ hardening signal it was generated for, source that turns off a compiler memory-safety defence for the code that follows: #pragma GCC/clang optimize(\"no-stack-protector\"/\"-fno-stack-protector\"), __attribute__((no_stack_protector)) and __attribute__((optimize(..., \"no-stack-protector\"))) (also after other attributes in the list, and inside #pragma clang attribute push), [[gnu::no_stack_protector]], #undef _FORTIFY_SOURCE that is not followed by a non-zero redefinition, #define _FORTIFY_SOURCE 0, and MSVC #pragma strict_gs_check(off) and __declspec(safebuffers). Not reported: optimisation-level pragmas and attributes (O0, O2, O3; optimize(\"O0\") is the usual secure-zeroing idiom), _FORTIFY_SOURCE set to 1-3, comments (including a trailing comment after code) and string literals, and test or fuzzing code. Build-system flags (-fno-stack-protector in a Makefile) are out of scope.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-932/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-932/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

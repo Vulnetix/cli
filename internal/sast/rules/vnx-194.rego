@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-194",
 	"name": "Unexpected Sign Extension",
 	"description": "A signed byte is widened to int and keeps its sign, so bytes 0x80-0xFF become negative numbers. Reported: in C and C++, a <ctype.h> classifier or converter (isalnum, isalpha, isascii, isblank, iscntrl, isdigit, isgraph, islower, isprint, ispunct, isspace, isupper, isxdigit, tolower, toupper, std:: forms included) called with a plain char: a variable declared char, or *p / p[i] where p is declared char * or char[] (const included); a negative value there is undefined behaviour and indexes the classification table out of bounds. In Java, a line that shifts and combines bytes (<<, |) or multiplies one by 256 and adds the next (b[0] * 256 + b[1]) where an element of an array declared byte[] is used without & 0xff (or Byte.toUnsignedInt), which smears the sign bit across the upper bits of the result ((b[0] << 8) | b[1]). Not reported: an argument cast to (unsigned char), variables declared unsigned char or int (a getc() result), masked bytes, an unmasked byte shifted by 24 into the top of an int, arrays of other types, and comments. Go and the other languages listed before were dropped: Go has no implicit sign extension, and JavaScript, PHP, Python and Ruby have no signed byte type.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-194/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-194/",
 	"languages": ["c", "cpp", "java"],
 	"severity": "medium",
 	"level": "warning",

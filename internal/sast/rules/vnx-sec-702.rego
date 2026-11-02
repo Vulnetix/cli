@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-702",
 	"name": "YouTube data API client secret (GOCSPX context)",
 	"description": "A Google OAuth client secret (GOCSPX- prefix) committed in a youtube/google context was found. It authenticates the OAuth client for YouTube Data API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-702",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-702",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

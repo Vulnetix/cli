@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-210",
 	"name": "JFrog reference token (cmVmdGtuOjA)",
 	"description": "A JFrog reference token (base64 prefix cmVmdGtuOjA) was found. These short-form tokens proxy access to a JFrog access token.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-210",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-210",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-782",
 	"name": "Salesforce OAuth bearer JWT",
 	"description": "A Salesforce OAuth bearer access token in JWT form was found. It grants API access to the Salesforce org's records and metadata until it expires. This is distinct from the 00D session ID and the connected-app consumer key.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-782",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-782",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-851",
 	"name": "Walmart Marketplace client secret",
 	"description": "A Walmart Marketplace API client secret was found. Combined with the client id it lets an attacker obtain access tokens to the seller's Walmart Marketplace APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-851",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-851",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

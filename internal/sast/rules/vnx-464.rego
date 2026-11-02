@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-464",
 	"name": "Addition of Data Structure Sentinel",
 	"description": "C/C++ code that stores a number parsed from input into an element of a character buffer, so an input of 0 places a NUL terminator in the middle of the string and silently truncates it (and other values may inject separators). Reported: buf[i] = atoi/atol/atoll/strtol/strtoul/strtoll/strtoull(...) or std::stoi/stol/stoul(...), optionally cast to char (C cast or static_cast<char>), and buf[i] = v where v was assigned such a conversion in the 5 lines above with no if/while test of v in between, when buf is declared in the same file as a char array or char pointer. Multi-dimensional char arrays (grid[r][c] = atoi(s)) are included. Not reported: stores into int/long arrays and unsigned char byte buffers (where 0 is data), a conversion used only as a condition (atoi(s) ? 'Y' : 'N'), a converted value range-checked before the store, constant characters and '\\0', comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-464/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-464/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

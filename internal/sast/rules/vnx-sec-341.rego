@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-341",
 	"name": "Paystack secret key (sk_live)",
 	"description": "A Paystack live secret key was found near a paystack assignment using the sk_live_ prefix. It authorizes live charges, transfers and refunds.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-341",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-341",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

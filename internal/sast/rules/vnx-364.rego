@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-364",
 	"name": "Signal Handler Race Condition",
 	"description": "A function registered as a signal handler in the same C or C++ file (signal(SIG..., h), std::signal, sigset, or a struct sigaction whose sa_handler/sa_sigaction is h, assigned or in a designated initializer, or a captureless C++ lambda registered in place such as std::signal(SIGTERM, [](int) { ... }); the handler may be defined with its name at column 0, BSD style) writes to a file-scope variable that is not declared volatile sig_atomic_t or atomic (_Atomic, atomic_*, std::atomic): an assignment, increment, compound assignment, a write to a member or element of it, or free() of it. The signal can arrive while the interrupted code is half way through using the same variable, so the handler corrupts it (a pointer freed under the main loop and freed again, a counter update lost, a struct reset mid-read). Not reported: writes to volatile sig_atomic_t or atomic globals, locals and parameters of the handler (also one that shadows a global's name), functions that are not registered as handlers (atexit callbacks, a function only called directly), SIG_IGN/SIG_DFL, and comments. Calls to async-signal-unsafe functions such as printf or malloc in a handler are VNX-479/VNX-828, not this rule.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-364/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-364/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

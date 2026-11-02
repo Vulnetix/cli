@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-481",
 	"name": "Auth0 client secret",
 	"description": "An Auth0 application client secret was found. Combined with a client ID it lets an attacker mint tokens and impersonate the application against the Auth0 tenant.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-481",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-481",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

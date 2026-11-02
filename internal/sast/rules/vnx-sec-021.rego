@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-021",
 	"name": "Twilio API credentials",
 	"description": "Reports a Twilio secret written into a file: (1) a 32-character auth token or API key secret assigned to a name that says what it is (TWILIO_AUTH_TOKEN, authToken, auth_token, api_secret, apiKeySecret) in a file that mentions Twilio or holds an Account SID, and (2) a Twilio client built from literals, an Account SID or API key SID (AC/SK followed by 32 hex characters) passed beside a 32-character secret literal on the same line (Client(\"AC...\", \"<token>\"), twilio('AC...', '<token>')). The secret must not be a placeholder and must have the entropy of a real token; the snippet is redacted. Not reported: an Account SID or API key SID on its own (an identifier, not a credential), secrets read from the environment or a secrets manager, auth_token names outside a Twilio context, and test, fixture, vendored and generated paths. Overlaps the generated rule VNX-SEC-937 (Twilio IoT key SID).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-021/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-021/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

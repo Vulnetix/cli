@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-525",
 	"name": "Salesforce refresh token (5Aep861)",
 	"description": "A Salesforce OAuth refresh token (5Aep861 prefix) was found. It can be exchanged indefinitely for access tokens granting API access to the Salesforce org.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-525",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-525",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

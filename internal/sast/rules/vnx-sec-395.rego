@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-395",
 	"name": "Ramp client id",
 	"description": "A Ramp OAuth client id was found near a ramp/client_id assignment. It identifies the Ramp application and is paired with a client secret.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-395",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-395",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

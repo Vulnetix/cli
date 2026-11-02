@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-577",
 	"name": "Redis Cloud / rediss URL with password",
 	"description": "A Redis connection URL embedding a password (redis:// or rediss://) was found. It authenticates to the Redis server with the embedded credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-577",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-577",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

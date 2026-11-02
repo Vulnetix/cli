@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-020",
 	"name": "Deprecated crypto.createCipher/createDecipher without IV",
 	"description": "Node's crypto.createCipher() or crypto.createDecipher() is called. Both derive the key and IV from the password with a single unsalted MD5 pass (EVP_BytesToKey), so every message encrypted under one password uses the same IV: CTR, GCM and CCM lose confidentiality and integrity outright, and CBC leaks equal prefixes. Both were deprecated in Node 10 and removed in Node 22. Reported, in JavaScript and TypeScript: the call through crypto or any name bound to the crypto/node:crypto module (require, default or namespace import), including a member access continued on the next line (nodeCrypto on one line, .createCipher(...) on the next), require('crypto').createCipher(...) inline, and createCipher/createDecipher imported from it by name (including an `as` alias). Not reported: createCipheriv()/createDecipheriv(), node-forge's forge.cipher.createCipher() (which takes its IV in start()), a method or function of the same name defined in the program, comments and string literals. Use createCipheriv() with a key from scrypt/pbkdf2 and a random IV from crypto.randomBytes().",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-020/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-020/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
 	"level": "error",

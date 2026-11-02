@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-050",
 	"name": "Google Gemini / Vertex AI / PaLM API key",
 	"description": "Reports a Google API key (AIza followed by 35 characters) used for the generative AI APIs: the key must sit on a line, or within eight lines of one, that names Gemini, PaLM, Vertex AI, the generativelanguage.googleapis.com endpoint or a Google GenAI SDK (google.generativeai, google-genai, @google/generative-ai, generative-ai-go). Such keys are billed per request and are scraped from public repositories. Not reported: a key inside a Firebase web config (authDomain, *.firebaseapp.com, messagingSenderId nearby), which is public and App Check-guarded even when the app reaches Gemini through Vertex AI in Firebase; the bare word palm (place names) as context; AIza keys with no generative-AI context (Maps, Firebase web config and generic GCP keys are reported by VNX-SEC-005/VNX-SEC-170 and the context rules), keys read from the environment, placeholder bodies, and test, fixture or vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-050/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-050/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

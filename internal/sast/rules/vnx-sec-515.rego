@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-515",
 	"name": "Loom API key",
 	"description": "A Loom API key was found. It grants access to the Loom embed/SDK API for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-515",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-515",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

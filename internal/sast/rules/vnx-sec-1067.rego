@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1067",
 	"name": "GameAnalytics secret key",
 	"description": "A GameAnalytics game secret key (32-character hex) used to sign analytics events was found. Disclosure allows event spoofing and access to game telemetry configuration.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1067",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1067",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

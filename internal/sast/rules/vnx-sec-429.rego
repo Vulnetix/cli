@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-429",
 	"name": "Drift API token",
 	"description": "A Drift API access token was found near a drift assignment. Drift tokens authorize access to conversations, contacts, and playbooks.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-429",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-429",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

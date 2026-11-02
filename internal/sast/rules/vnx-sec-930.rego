@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-930",
 	"name": "Losant access token",
 	"description": "A Losant IoT platform access token was found near a losant assignment. Losant tokens are JWTs that authorize device, application, and data access on the Losant API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-930",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-930",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

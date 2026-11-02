@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-690",
 	"name": "Unchecked return value to NULL pointer dereference",
 	"description": "A C/C++ function that returns NULL on failure has its result dereferenced without a NULL test, so an allocation failure, a missing file or an unset environment variable crashes the program. Reported: (1) the result of malloc, calloc, realloc, strdup, strndup, fopen or getenv assigned to a variable (also a cast result, s->field targets and std:: forms) that, within the next six code lines and with no NULL test in between, is dereferenced (p->f, p[i], *p) or passed to a libc function that dereferences it (strcpy, memcpy, memset, strlen, strcmp, sprintf, fprintf, fgets, fread, atoi and similar); (2) getenv(...) passed straight to such a function or indexed (strcpy(buf, getenv(\"HOME\")), strlen(getenv(\"X\")), atoi(getenv(\"X\")), getenv(\"X\")[0]), and a std::string or std::string_view constructed or assigned from getenv(...) (undefined behaviour on NULL). Not reported: an allocation inside an if/while condition or checked on the same line, a test of the variable (== NULL, != NULL, !p, if (p), p &&, a ternary, assert, or an upper-case checking macro such as RETURN_IF_NULL(p)/CHECK_ALLOC(p)) before the use, wrapper allocators that abort on failure (xmalloc, zmalloc), a getenv result guarded by a ternary, string literals and comments. The value is not followed across functions or through further assignments. The two-line form overlaps VNX-476.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-690/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-690/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

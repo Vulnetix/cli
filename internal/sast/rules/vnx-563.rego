@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-563",
 	"name": "Assignment to Variable without Use",
 	"description": "A Python local variable is assigned a computed value that is overwritten before anything reads it (a dead store): inside a function, `name = <expression>` is followed, in the same block and at the same indentation, by another plain `name = ...` whose right-hand side does not read name, with no read of name, no continue/break and no end of the block in between. The first value is computed and thrown away, which usually means a check, a lookup or a signature verification that the code believes it performs is silently replaced (expected = hmac.new(...).hexdigest(); expected = token). Not reported: trivial initialisers (None, True/False, numbers, empty strings and containers), names starting with _ (deliberate discards), a value read in between (including f-strings, closures and nonlocal/global statements), self-referencing updates (x = x + 1), assignments in different branches or try/except arms, loops that continue or break between the two, functions that call locals() or vars(), module- and class-level attributes, keyword arguments inside multi-line calls, annotated and tuple assignments, docstrings and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-563/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-563/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

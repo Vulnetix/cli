@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-449",
 	"name": "The UI Performs the Wrong Action",
 	"description": "Reports a C/C++ confirmation dialog whose answer is compared with a button the dialog does not have, so the confirmed branch never runs (or always runs): a Win32 MessageBox/MessageBoxEx with an explicit MB_YESNO, MB_YESNOCANCEL, MB_OKCANCEL, MB_RETRYCANCEL, MB_ABORTRETRYIGNORE, MB_CANCELTRYCONTINUE or MB_OK button set, or only icon/modality flags (which shows the default lone OK button), whose result is tested against another ID (MB_YESNO == IDOK), a Qt QMessageBox::question/warning/information/critical whose result is tested against a StandardButton outside its buttons (question() offers Yes and No by default, the others Ok), and a GTK gtk_message_dialog_new with GTK_BUTTONS_* whose gtk_dialog_run response is tested against a GTK_RESPONSE_* it cannot return. The comparison is reported in the dialog call itself, through the variable assigned from it, or in a switch on it (including switch (gtk_dialog_run(...))), within the next lines. Not reported: comparisons with a button the dialog offers, button sets held in a variable (Win32 flags or a Qt buttons argument), GTK dialogs whose buttons are added later, GTK_RESPONSE_DELETE_EVENT/NONE, comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-449/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-449/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

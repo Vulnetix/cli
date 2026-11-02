@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1039",
 	"name": "reCAPTCHA v3 verdict accepted without checking the score",
 	"description": "reCAPTCHA v3 is an automated recognition mechanism: siteverify answers success: true for every well-formed token, bots included, and the bot/human judgement is only in the score (0.0 to 1.0). Reported in Python and JavaScript/TypeScript: in a project that uses reCAPTCHA v3 (grecaptcha.execute(...), api.js?render=<site key>, react-google-recaptcha-v3 executeRecaptcha/useGoogleReCaptcha/GoogleReCaptchaProvider, a RECAPTCHA_V3 name), a file that handles the reCAPTCHA siteverify response and reads its success field (result[\"success\"], .get(\"success\"), data.success, const { success } = ...) but never mentions the score; and a score compared against 0 (score > 0, score >= 0.0), which accepts every request. Not reported: reCAPTCHA v2 and hCaptcha/Turnstile projects (no score, success is the verdict), handlers that read the score, comments and test files. CWE-1039 in general (machine-learning classifiers that adversarial input can fool) has no static signature; this rule covers the concrete case of a bot-detection score being ignored.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1039/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1039/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

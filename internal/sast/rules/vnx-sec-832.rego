@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-832",
 	"name": "Recharge API token (sk_)",
 	"description": "A Recharge subscriptions API token (sk_ prefix) was found. It grants access to the merchant's subscription, charge and customer data in Recharge.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-832",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-832",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

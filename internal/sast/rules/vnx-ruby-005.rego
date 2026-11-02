@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUBY-005",
 	"name": "Ruby XSS via html_safe or raw",
 	"description": "Rails output escaping is switched off for a value that is not a fixed string: .html_safe called on a model attribute, a variable, a method result or an interpolated string; raw(...) / raw x, <%== x %> in ERB, != x in Haml and == x in Slim given the same. An interpolated string literal is reported when one of its #{...} parts is not known safe. Not reported: string literals without interpolation (or whose interpolations are only ids, to_i values, counts, path/url helpers, h()/sanitize() results or constants), a local assigned only from such a literal, values from sanitize/strip_tags/h/html_escape/escape_javascript/json_escape, translations (t/I18n.t), Rails tag and link helpers, render/partial/yield/content_for/capture output, safe_join, CONSTANTS, the html_safe? predicate, the word raw inside a Ruby string literal, comments. Whether a reported value can actually hold user-controlled markup is not proven: a stored attribute rendered with html_safe is reported because that is how stored XSS is written.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-005/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-ruby-005/",
 	"languages": ["ruby"],
 	"severity": "high",
 	"level": "warning",

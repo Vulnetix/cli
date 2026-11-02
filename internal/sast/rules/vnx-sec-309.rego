@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-309",
 	"name": "Qdrant API key (JWT form)",
 	"description": "A Qdrant API key in JWT form referenced via a QDRANT_API_KEY assignment was found, confirming a live vector DB credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-309",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-309",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

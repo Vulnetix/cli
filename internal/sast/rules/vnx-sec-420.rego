@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-420",
 	"name": "Slack config refresh token (xoxe-)",
 	"description": "A Slack configuration refresh token (xoxe-) was found. It is used to mint new config access tokens and rotate Slack app management credentials.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-420",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-420",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

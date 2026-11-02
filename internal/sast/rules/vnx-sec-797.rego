@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-797",
 	"name": "Mouseflow API key",
 	"description": "A Mouseflow API key was found. It grants API access to the organisation's session-recording, heatmap and analytics data in Mouseflow.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-797",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-797",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-533",
 	"name": "LaunchDarkly SDK key (sdk-)",
 	"description": "A LaunchDarkly server-side SDK key (sdk- prefix) was found. It lets a server evaluate and stream feature flags for the LaunchDarkly environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-533",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-533",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1084",
 	"name": "Invokable Control Element with Excessive File or Data Access Operations",
 	"description": "A Python function or method whose own body performs more than 7 file or data access operations: `open(...)` and `x.open(...)` (io, gzip, tarfile, aiofiles, Path), cursor/connection `.execute(...)`/`.executemany(...)`/`.executescript(...)` with an argument, `os.remove/unlink/rename/replace/makedirs/mkdir/rmdir/removedirs/chmod/chown/listdir/scandir/symlink/link/truncate`, `shutil.copy*/move/rmtree`, and pathlib `read_text/write_text/read_bytes/write_bytes/unlink/rmdir/mkdir/touch`. A function that does that much I/O mixes several responsibilities, which makes its error handling and its authorisation of each access hard to review. One finding per function, at its `def` line. Operations are counted per source line, inside the function's indented body (bounded to 400 lines), and nested functions count toward the enclosing one. Not reported: functions with 7 operations or fewer, operations named in comments, string literals or doctest (`>>>`) lines, command-pattern calls with no argument (`step.execute()`), `webbrowser.open(...)` and argument-less `self.<widget>.open()`, and test files. The threshold is this rule's choice; CWE-1084 does not fix one.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1084/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1084/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

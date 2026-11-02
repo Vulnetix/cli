@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-572",
 	"name": "Call to Thread run() instead of start()",
 	"description": "A java.lang.Thread whose run() method is called directly, in Java or Kotlin, so its work executes synchronously on the calling thread instead of on a new one: the caller blocks, and any isolation, timeout or concurrency the thread was meant to give is lost. Reported: new Thread(...).run() (also when the lambda body spans lines and the call closes with }).run()), Thread { ... }.run() in Kotlin, and x.run() / this.x.run() where x is declared in the same file as a Thread (a field, local, parameter, var x = new Thread(...), Thread.ofVirtual().unstarted(...), val x = Thread(...)) or as a class of the file that extends Thread (including a for (Thread t : ...) loop variable), and workers[i].run() on an array declared Thread[]. Not reported: start(), run() on a Runnable or any other type, super.run() inside a run() override, Kotlin's run { } scope function, and the call in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-572/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-572/",
 	"languages": ["java", "kotlin"],
 	"severity": "low",
 	"level": "note",

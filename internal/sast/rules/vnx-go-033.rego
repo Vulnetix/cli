@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-033",
 	"name": "JWT missing audience validation",
 	"description": "A Go service verifies a JWT without checking its audience (aud) claim, so a token issued by the same identity provider for a different service is accepted. Reported: a golang-jwt jwt.Parse/ParseWithClaims call or jwt.NewParser/jwt.Parser construction whose own arguments carry no jwt.WithAudience option, a lestrrat jwx jwt.Parse/ParseString/ParseRequest call likewise, and a go-jose jwt.ParseSigned/ParseSignedAndEncrypted call, each only when nothing else in the same file checks the audience (WithAudience, VerifyAudience, GetAudience, jwt.Expected{AnyAudience/Audience}, a read of .Audience, .Aud or claims[\"aud\"]); and a go-oidc oidc.Config with SkipClientIDCheck: true, which turns the audience check off. Not reported: a wrapper that forwards its caller's parser options (opts...), a method on a parser variable (the construction is judged instead), jwt.ParseUnverified, including jwt.NewParser().ParseUnverified (no signature check at all, a different weakness), test files, comments and string literals. Audience checks performed in another file are not seen.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-033/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-033/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

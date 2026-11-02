@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-164",
 	"name": "IBM Cloud IAM bearer token (context)",
 	"description": "An IBM Cloud IAM bearer access token (eyJ JWT) under an IBM/iam context was found. These short-lived tokens authorize IBM Cloud API calls for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-164",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-164",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-131",
 	"name": "GCP OAuth refresh token (1//)",
 	"description": "A Google OAuth 2.0 refresh token (1// prefix) was found. Refresh tokens are long-lived and can mint new access tokens for the authorized scopes indefinitely.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-131",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-131",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

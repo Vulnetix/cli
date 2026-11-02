@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-494",
 	"name": "Supabase access token (sbp_)",
 	"description": "A Supabase Management API personal access token (sbp_ prefix) was found. It grants account-level control over Supabase projects, billing and organisations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-494",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-494",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

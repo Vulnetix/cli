@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-438",
 	"name": "Pusher Channels app key",
 	"description": "A Pusher Channels app key was found near a pusher assignment. It is a 20-character hex public identifier paired with the app secret.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-438",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-438",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

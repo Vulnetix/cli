@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-235",
 	"name": "Semaphore organization API token (legacy)",
 	"description": "A legacy Semaphore Classic API auth token (20-char hex) assigned to a context variable was found. It grants access to the Semaphore Classic API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-235",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-235",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

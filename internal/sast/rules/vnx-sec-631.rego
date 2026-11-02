@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-631",
 	"name": "Redis Cloud / Upstash REST URL (https with token)",
 	"description": "An Upstash Redis REST endpoint URL with an embedded bearer-style token query/path was found. It locates and authorises the serverless Redis HTTP interface.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-631",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-631",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

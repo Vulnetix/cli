@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-096",
 	"name": "Sentry DSN with secret",
 	"description": "A legacy Sentry DSN containing both the public and secret key was found, allowing event submission and project access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-096",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-096",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

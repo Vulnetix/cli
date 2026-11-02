@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1051",
 	"name": "Wiz service account client secret (assignment)",
 	"description": "A Wiz service account client secret assigned to a wiz field was found. With the client ID it obtains an OAuth token granting access to the Wiz cloud-security graph and findings API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1051",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1051",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

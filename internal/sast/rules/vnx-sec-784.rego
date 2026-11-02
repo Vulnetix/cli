@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-784",
 	"name": "ServiceNow OAuth refresh token",
 	"description": "A ServiceNow OAuth refresh token was found. It can be exchanged for access tokens granting persistent API access to the ServiceNow instance records and workflows.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-784",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-784",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

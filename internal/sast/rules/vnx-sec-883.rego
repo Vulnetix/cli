@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-883",
 	"name": "Shopify private app API secret key (shpss alt)",
 	"description": "A Shopify app API secret key (32-char hex client secret, distinct from the shpss_ token base) was found. With the API key it can mint Shopify access tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-883",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-883",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

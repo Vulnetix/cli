@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-258",
 	"name": "Groq API key (gsk_)",
 	"description": "A Groq API key (gsk_ prefix) was found. It grants access to Groq's fast LLM inference billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-258",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-258",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

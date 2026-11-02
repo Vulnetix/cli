@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-821",
 	"name": "Incorrect Synchronization",
 	"description": "Java code synchronizes, but on a monitor that does not give the intended mutual exclusion. Reported: synchronized (new X()) (a fresh lock each call, so nothing is excluded); synchronized on a local variable assigned new ... in the same method; synchronized (Thread.currentThread()) (each thread locks itself); synchronized on a string literal, Boolean.TRUE/FALSE, Integer/Long/String.valueOf or .intern(), or a String/Integer/Long/Short/Byte/Boolean/Character field or variable, final or not (interned and cached values are shared with unrelated code); synchronized (getClass()) (a subclass instance locks a different Class object); synchronized on a java.util.concurrent Lock/ReentrantLock/ReadWriteLock/StampedLock/Semaphore object, field or local (its intrinsic monitor is unrelated to lock()/unlock()); synchronized on a non-final field that a method other than a constructor reassigns (threads end up holding different monitors); and a write to a static non-final field inside a non-static synchronized method, which locks the instance while the data is shared by every instance. Not reported: synchronized (this), on a final Object or collection field, on X.class, on a non-final field assigned only in a constructor, on a local obtained from a shared map or a lock-stripe array, static synchronized methods, a static write inside a synchronized (X.class) block, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-821/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-821/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

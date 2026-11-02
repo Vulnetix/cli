@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-640",
 	"name": "Sumo Logic HTTP source collector URL",
 	"description": "A Sumo Logic HTTP source collector endpoint URL embedding the per-source upload secret path was found. Anyone with the URL can push arbitrary log/metric data to the Sumo Logic source.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-640",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-640",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

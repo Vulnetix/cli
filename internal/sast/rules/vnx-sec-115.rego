@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-115",
 	"name": "Akamai EdgeGrid client secret",
 	"description": "An Akamai EdgeGrid client secret assigned to a context keyword was found. The client secret signs EdgeGrid API requests and, with the matching tokens, grants Akamai API access.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-115",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-115",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

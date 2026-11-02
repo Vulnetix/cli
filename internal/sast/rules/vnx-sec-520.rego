@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-520",
 	"name": "Zoom JWT app token",
 	"description": "A Zoom JWT app token was found. It grants API access to the Zoom account's meetings, recordings and users for the token lifetime.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-520",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-520",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

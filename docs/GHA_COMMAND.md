@@ -1,6 +1,6 @@
 # GHA Command Reference
 
-This documentation has moved to **[docs.cli.vulnetix.com/docs/ci-cd/gha-command](https://docs.cli.vulnetix.com/docs/ci-cd/gha-command/)**.
+This documentation has moved to **[docs.vulnetix.com/cli/ci-cd/gha-command](https://docs.vulnetix.com/cli/ci-cd/gha-command/)**.
 
 ## Overview
 
@@ -40,4 +40,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 ```
 
-See the [full documentation](https://docs.cli.vulnetix.com/docs/ci-cd/gha-command/) for detailed usage and examples.
+See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/gha-command/) for detailed usage and examples.

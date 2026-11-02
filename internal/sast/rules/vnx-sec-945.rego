@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-945",
 	"name": "LiveKit API key (APIxxxx)",
 	"description": "A LiveKit API key was found. LiveKit keys begin with API followed by a high-entropy alphanumeric string and identify the project; paired with the secret they sign room access tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-945",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-945",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

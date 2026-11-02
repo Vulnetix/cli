@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-633",
 	"name": "Logtail / Better Stack ingesting host token (https)",
 	"description": "A Better Stack (Logtail) ingest host URL with an embedded bearer source token was found. It authorises log ingestion to the Better Stack source over HTTPS.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-633",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-633",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

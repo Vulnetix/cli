@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-463",
 	"name": "Deletion of Data Structure Sentinel",
 	"description": "C/C++ code that overwrites a string's NUL terminator with another character and does not write a new one, so every later string operation on the buffer reads past its end. Reported: buf[strlen(buf)] = c (or wcslen), and buf[n] = c or buf[n++] = c where n was assigned strlen(buf) in the 10 lines above (and not changed since), when c is not '\\0'/0 and none of the next 3 code lines writes a NUL into the same buffer (buf[n + 1] = '\\0', buf[++n] = 0...). Not reported: a write of '\\0' at that position, an index other than the length (buf[n - 1]), a write into a different buffer than the one measured, an append that re-terminates on the following lines (a NUL store, or strcpy/snprintf into buf + n), a buffer next consumed with an explicit byte count (write/send/fwrite/memcpy of buf within 3 lines), comments and string literals. Lengths carried through structs or other functions are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-463/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-463/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

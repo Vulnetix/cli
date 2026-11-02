@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-895",
 	"name": "TaxJar sandbox API token",
 	"description": "A TaxJar sandbox API token was found. It targets the TaxJar test environment; while non-production it should not be committed to source control.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-895",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-895",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-399",
 	"name": "Square application secret (sq0idp- app id)",
 	"description": "A Square application id using the sq0idp- prefix was found. App ids are not secret alone but are paired with the OAuth client secret and flag Square integration code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-399",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-399",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

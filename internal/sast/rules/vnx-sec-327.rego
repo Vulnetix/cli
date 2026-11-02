@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-327",
 	"name": "PayPal/Braintree client id",
 	"description": "A PayPal or Braintree REST client id was found. Client ids are not secret on their own but are paired with a client secret; their presence flags PayPal integration code for review.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-327",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-327",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

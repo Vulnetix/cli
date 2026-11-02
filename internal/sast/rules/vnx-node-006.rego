@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-006",
 	"name": "Prototype pollution via merge",
 	"description": "A deep-merge or path-assignment function is given request data: lodash _.merge/mergeWith/defaultsDeep/set/setWith/zipObjectDeep/update/updateWith (as _., lodash. or a destructured or default import of lodash, lodash.merge, deepmerge, merge-deep, mixin-deep, deep-extend, set-value or dset), jQuery $.extend(true, ...), and objectPath.set/dotProp.set, where an argument is req.body/query/params/cookies/headers, the parsed body of a fetch-style request (await request.json() or formData()), ctx.request.body, ctx.query, event.body or location.hash/search, directly or through a variable assigned from one in the previous 15 lines (arguments spanning up to 5 lines are read). A __proto__ or constructor key then writes Object.prototype, which leads to denial of service, authorization bypass or code execution. Not reported: merges of constants or configuration files, Object.assign and spread (shallow copies do not reach the prototype), arguments filtered through pick(), code that checks for __proto__/constructor keys in the 10 lines before the call, read-only _.get, and merge methods on other objects (Immutable, wysihtml). Hand-written recursive merge functions are not analysed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-006/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-006/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

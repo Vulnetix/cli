@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-414",
 	"name": "Sinch service plan API token",
 	"description": "A Sinch SMS API token was found near a sinch assignment. Paired with the service plan ID it authorizes SMS batch and messaging operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-414",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-414",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

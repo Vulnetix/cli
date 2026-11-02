@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-710",
 	"name": "Snapchat OAuth access token",
 	"description": "A Snapchat Login Kit OAuth access token assigned to a snapchat token context was found. It authenticates Snap API requests on behalf of a user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-710",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-710",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

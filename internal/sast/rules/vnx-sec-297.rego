@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-297",
 	"name": "Mistral API key (assignment context)",
 	"description": "A Mistral AI API key referenced via a MISTRAL_API_KEY assignment was found, confirming a live Mistral credential in source.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-297",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-297",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

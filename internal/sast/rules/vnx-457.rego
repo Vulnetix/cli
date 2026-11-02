@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-457",
 	"name": "Use of Uninitialized Variable",
 	"description": "C/C++ function-local variables read before anything is stored in them. A local scalar (int, long, char, double, size_t, intN_t, bool...) declared without an initialiser and without static/extern is reported at its first mention in the same block, within 25 lines, when that mention reads it: return v, v++/++v, a compound assignment (v += ...), the right-hand side of an assignment, an if/while/switch condition, a printf-family argument, or std::cout << v. A local char array declared without an initialiser is reported when its first mention is strcat/strncat/strlen/strdup/puts or a printf argument. Not reported: a first mention that assigns (v = ..., for (v = 0;...), cin >> v), takes the address (&v, scanf, FD_ZERO), or passes the variable to a call that may fill it (C++ references, macros), a variable assigned on every branch before the read, static and namespace-scope variables (zero-initialised), struct/class/union members, and comments or string literals. Flow across functions, through pointers and after the first mention is not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-457/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-457/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

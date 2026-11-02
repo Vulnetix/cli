@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-981",
 	"name": "Coinbase CDP API key ID (organizations path)",
 	"description": "A Coinbase Developer Platform (CDP) API key resource name was found. The organizations/{org}/apiKeys/{key} identifier pairs with an EC private key to sign authenticated requests against the CDP and Advanced Trade APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-981",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-981",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

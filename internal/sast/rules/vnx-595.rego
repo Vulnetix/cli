@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-595",
 	"name": "Boxed number or value object compared by reference (== / !=)",
 	"description": "Java's == and != on two objects compare references, not values. This rule reports a comparison whose two operands are both variables declared (as a parameter, local or field within the 60 lines above, including a later declarator such as Long a = x(), b = y()) with a boxed or value type: Integer, Long, Short, Byte, Character, Double, Float, BigDecimal, BigInteger, UUID, Date, LocalDate, LocalDateTime or Instant. Such comparisons pass in tests (the Integer cache covers -128..127) and fail on real values. It also reports an object compared with a freshly constructed wrapper (new Integer(0), new Long(..), new Boolean(..)), which is never identical to anything, and with a boxed X.valueOf(..), unless the other side is a primitive (where Java unboxes and compares values). Not reported: primitives, comparisons with null, enum constants, this, equals/compareTo/Objects.equals, a boxed value against a primitive or a literal, method-call operands whose types are not known, and comments and string literals. String comparison with == is VNX-597.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-595/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-595/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

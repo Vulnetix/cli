@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-002",
 	"name": "Dangerous function in PHP",
 	"description": "A PHP command or code execution sink (exec(), system(), passthru(), shell_exec(), popen(), proc_open(), pcntl_exec(), the backtick operator, or eval()) receives a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, $_FILES, client-controlled $_SERVER keys), php://input, getallheaders(), filter_input() or a Laravel/Symfony request accessor, either inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable). Not reported: an argument passed through escapeshellarg(), escapeshellcmd(), intval(), an (int)/(float) cast or a numeric filter_var() filter, a variable checked with in_array(), preg_match(), ctype_*(), is_numeric() or filter_var() before the call, constant commands, a command chosen by a match expression whose arms are all literals, function parameters and other values whose origin is not visible in the file (no cross-function dataflow), methods named exec/system on an object or class, declarations, and the names in comments (including a trailing // or # comment) or string literals. .php and .phtml files are scanned.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-002/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

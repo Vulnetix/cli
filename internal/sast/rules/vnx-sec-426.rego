@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-426",
 	"name": "Front API token",
 	"description": "A Front API token was found near a front assignment. Front JWT bearer tokens authorize access to shared inboxes, conversations, and contacts.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-426",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-426",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

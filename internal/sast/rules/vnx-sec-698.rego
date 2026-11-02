@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-698",
 	"name": "BscScan/Etherscan-family multichain key (V2)",
 	"description": "An Etherscan V2 multichain API key assigned to a scanner context was found. A single V2 key authorises access across Etherscan-family explorers (ETH, BSC, Polygon, etc).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-698",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-698",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

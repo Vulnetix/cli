@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-269",
 	"name": "Improper Privilege Management",
 	"description": "Privileges are dropped in the wrong order: the user ID is changed to a non-root user first, and the group ID or the supplementary groups are changed afterwards in the same function (or later on the same line, as in `setuid(u) < 0 || setgid(g) < 0`; a C/C++ function is bounded by a column-0 brace or a function header, so inline class methods are judged separately). Once the user ID is no longer root the later call fails (or, for seteuid, setegid and setgroups, has no permission), so the process keeps root's group and supplementary groups. Reported in C and C++ for setgid, setegid, setregid, setresgid, setgroups and initgroups after setuid, seteuid, setreuid or setresuid with a non-zero argument (also ::-qualified), and in Python for os.setgid, os.setegid, os.setregid, os.setresgid, os.setgroups and os.initgroups after os.setuid, os.seteuid, os.setreuid or os.setresuid. Not reported: the correct order (setgroups/initgroups, then setgid, then setuid), a regain of root (seteuid(0), os.seteuid(0)) between the two calls, a setgid(0) after the drop (the check that root cannot be regained), calls in different functions, and the names in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-269/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-269/",
 	"languages": ["c", "cpp", "python"],
 	"severity": "high",
 	"level": "error",

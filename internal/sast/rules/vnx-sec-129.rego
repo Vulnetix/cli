@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-129",
 	"name": "Azure DevOps personal access token",
 	"description": "An Azure DevOps personal access token assigned to a context keyword was found. Azure DevOps PATs grant scoped access to repos, pipelines, work items and packages.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-129",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-129",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-028",
 	"name": "Use of weak cryptographic hash for password hashing",
 	"description": "A password is hashed with a fast general-purpose digest: md5.Sum, sha1.Sum, sha256.Sum256/Sum224 or sha512.Sum512/Sum384 called on it, a hasher from md5.New/sha1.New/sha256.New/sha512.New (or crypto.MD5.New...) written with it (h.Write, io.WriteString), or a helper whose name says MD5/SHA (Md5Sum, util.SHA1Hex) called with it, or a digest assigned to a password-named variable or field (u.PasswordHash = hex.EncodeToString of an md5.Sum). MD5 and SHA-1 are broken, and none of these has a salt or a work factor, so a leaked hash table falls to GPU guessing; use bcrypt, scrypt, Argon2id or PBKDF2. The argument must name a password (password/passwd/pwd/pass/passphrase, or a request field \"password\"). Not reported: bcrypt, argon2, scrypt, pbkdf2 and HMAC (a hash passed as a function value), digests of other data (file contents, API keys and reset tokens, which are random, and names such as passwordResetToken or passwordPolicy), protocol-mandated digests (HTTP Digest realm/nonce responses, MySQL scramble, CRAM/NTLM/CHAP challenge functions), test files, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-028/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-028/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

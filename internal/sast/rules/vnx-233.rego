@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-233",
 	"name": "Improper Handling of Parameters",
 	"description": "Request parameters are forwarded wholesale as keyword arguments, so every extra or undefined parameter a client sends is accepted: Python ** unpacking of a Flask/Django/DRF request mapping (request.GET, POST, args, form, values, json, get_json(), data, query_params, params, with or without .dict()/.to_dict()/.copy()) into a call or dict literal, inline or through a variable assigned from one in the ten lines above. Into an ORM filter() this lets a client add lookups such as password__startswith; into a constructor, create() or update() it sets fields the form never offered (is_admin, owner). Not reported: explicit keyword arguments, a dict built by a comprehension that filters keys, serializer.validated_data and form.cleaned_data, **kwargs in a def, exponentiation, the text in comments and string literals, and test code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-233/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-233/",
 	"languages": ["python"],
 	"severity": "low",
 	"level": "note",

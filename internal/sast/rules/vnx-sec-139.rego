@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-139",
 	"name": "Fly.io API token (fo1_ / FlyV1)",
 	"description": "A Fly.io API/deploy token (fo1_ prefix or FlyV1 macaroon) was found. Fly.io tokens grant access to deploy and manage the account's apps and machines.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-139",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-139",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

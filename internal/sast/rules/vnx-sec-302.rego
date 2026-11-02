@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-302",
 	"name": "Cerebras API key (assignment context)",
 	"description": "A Cerebras API key referenced via a CEREBRAS_API_KEY assignment was found, confirming a live Cerebras credential in source.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-302",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-302",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

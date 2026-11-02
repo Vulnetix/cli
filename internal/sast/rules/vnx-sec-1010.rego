@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1010",
 	"name": "Pinata API key (legacy, assignment)",
 	"description": "A Pinata legacy API key (non-JWT, 20-hex) assigned to a pinata key field was found. Paired with the API secret it authenticates IPFS pin and management operations on Pinata.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1010",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1010",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

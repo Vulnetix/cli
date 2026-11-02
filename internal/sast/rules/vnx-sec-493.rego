@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-493",
 	"name": "Supabase anon JWT",
 	"description": "A Supabase anonymous (anon) JWT was found. It is the public client key and is subject to Row Level Security, so it is lower risk but identifies the project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-493",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-493",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

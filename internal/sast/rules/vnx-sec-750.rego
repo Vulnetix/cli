@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-750",
 	"name": "Paychex OAuth client secret",
 	"description": "A Paychex Flex API OAuth client secret was found. Combined with the client ID it grants API access to Paychex payroll and benefits data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-750",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-750",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

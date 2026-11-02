@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1135",
 	"name": "Tenor v2 client key context",
 	"description": "A Tenor v2 client key paired with a tenor key context was found. It authorizes Tenor GIF API search under the Google project quota.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1135",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1135",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

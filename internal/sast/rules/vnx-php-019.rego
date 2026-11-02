@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-019",
 	"name": "PHP insecure cipher mode (AES-CBC)",
 	"description": "openssl_encrypt() or openssl_decrypt() is called with an unauthenticated CBC block cipher (aes/aria/camellia-128/192/256-cbc, or the OpenSSL alias aes128/aes192/aes256) as its method, given literally or through a variable, property, class constant or define() assigned that literal in the same file, or mcrypt_encrypt()/mcrypt_decrypt() is called with MCRYPT_MODE_CBC or 'cbc', in a file that computes no MAC. Without a MAC, CBC ciphertext can be modified undetected (bit flipping) and decryption errors become a padding oracle. Not reported: AEAD methods (aes-*-gcm, chacha20-poly1305), OpenSSL's composite aes-*-cbc-hmac-* methods, files that also compute a MAC with hash_hmac(), hash_init(..., HASH_HMAC) or sodium_crypto_auth() (encrypt-then-MAC, as Laravel's Encrypter does), a cipher name in a configuration array with no encrypt call, a method whose value is not visible in the file, comments and string literals. ECB mode and DES/RC4 are other rules' concern.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-019/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-019/",
 	"languages": ["php"],
 	"severity": "medium",
 	"level": "warning",

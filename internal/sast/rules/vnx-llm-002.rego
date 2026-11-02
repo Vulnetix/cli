@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-LLM-002",
 	"name": "LLM output passed to code execution (RCE)",
 	"description": "Reports model output reaching a code or shell execution sink in Python, JavaScript or TypeScript. The source is an LLM response read as text (`.choices[0].message.content`, `.choices[0].text`, Anthropic `.content[0].text`, `.output_text`, or the result of `llm/chain/model/agent/chat.invoke()/predict()/run()/generate()` and `generate_content()`), used directly or through up to two assignments within the preceding 25 lines. The sinks are Python eval(), exec() (also exec(compile(...))), os.system(), os.popen() and subprocess.run/call/Popen/check_output/check_call/getoutput(), and JavaScript eval(), new Function(), vm.runInNewContext/runInThisContext/runInContext() and child_process exec()/execSync(). Prompt injection steers the model, so whoever controls the prompt or any document it reads then runs code on the host. Not reported: tool-call arguments parsed with json.loads/JSON.parse and dispatched to fixed handlers, ast.literal_eval(), a regex .exec(), execFile with constant arguments, execution of values that do not come from a model response, and the pattern inside a comment or string literal. Flows across functions or files are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-llm-002/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-llm-002/",
 	"languages": ["python", "javascript", "typescript"],
 	"severity": "critical",
 	"level": "error",

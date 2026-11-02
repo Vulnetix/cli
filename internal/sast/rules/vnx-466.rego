@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-466",
 	"name": "Return of Pointer Value Outside of Expected Range",
 	"description": "A C or C++ function returns a pointer offset from the result of a search function (strchr, strrchr, memchr, memrchr, strstr, strcasestr, strpbrk) without checking that result for NULL: `return strchr(s, '=') + 1;`, or `p = strchr(s, ':');` followed within 20 lines by `return p + 2;` or `return &p[1];` (directly or through one plain copy `q = p;`) with no NULL test in between. When the character is absent the search returns NULL and the caller receives NULL + n, a pointer outside any object, which a NULL check by the caller cannot catch. Not reported: a result tested for NULL (`if (!p)`, `p == NULL`, `p ? p + 1 : s`, `if ((p = strchr(...)) != NULL)`, an assert) before the return, a pointer reassigned after the search, offsets returned from pointers that did not come from a search (whose range cannot be judged line by line), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-466/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-466/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

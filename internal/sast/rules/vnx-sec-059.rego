@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-059",
 	"name": "Linear API key",
 	"description": "Reports a Linear credential written into a file: a personal API key (lin_api_ + 40 alphanumerics, either case) or an OAuth access token (lin_oauth_ + 64 hex), standing alone rather than inside a longer identifier. Linear keys read and write issues, projects and comments, including roadmap and customer data. The snippet is redacted. Not reported: bare prefixes in a prefix check, placeholder or low-entropy bodies (xxxx, YOUR_KEY), identifiers that merely begin lin_api_, keys read from the environment, and test, fixture and vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-059/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-059/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

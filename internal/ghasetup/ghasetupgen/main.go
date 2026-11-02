@@ -2,7 +2,12 @@
 // single source of truth: the embedded catalog (internal/ghasetup/catalog).
 //
 // It writes:
-//   - website/content/docs/ci-cd/third-party-scanners.md
+//   - docs/generated/ci-cd/third-party-scanners.md
+//
+// The page is not published from this repository. The platform docs
+// (docs.vulnetix.com, Vulnetix/platform-docs) read it from a git ref of this
+// repository with migration/generators/gha-scanners.mjs, so it must stay
+// committed.
 //
 // Every workflow example on that page is produced by the same Render() that
 // `vulnetix gha setup` writes to a repository, so a reader is looking at the
@@ -26,10 +31,10 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if err := os.MkdirAll(filepath.Join("website", "content", "docs", "ci-cd"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join("docs", "generated", "ci-cd"), 0o755); err != nil {
 		fail(err)
 	}
-	out := filepath.Join("website", "content", "docs", "ci-cd", "third-party-scanners.md")
+	out := filepath.Join("docs", "generated", "ci-cd", "third-party-scanners.md")
 	if err := os.WriteFile(out, []byte(render(c)), 0o644); err != nil {
 		fail(err)
 	}

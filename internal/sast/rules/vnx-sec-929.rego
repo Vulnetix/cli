@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-929",
 	"name": "Blynk auth token",
 	"description": "A Blynk IoT auth token was found near a blynk assignment. It is a 32-character hex token that links a hardware device to a Blynk project and authorizes control of that device.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-929",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-929",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

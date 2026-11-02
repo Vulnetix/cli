@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-755",
 	"name": "Interrupt or JVM error caught and swallowed",
 	"description": "A Java catch block handles one of the exceptional conditions that must not be absorbed, and then carries on. Reported: catch (InterruptedException e), alone or in a multi-catch, whose body neither restores the interrupt (Thread.currentThread().interrupt()) nor rethrows nor leaves the loop or method (return, break), and is not the last statement of a thread body (run(), call() or a lambda, which ends right after it), so the thread's cancellation request is lost and shutdown, timeouts and executor cancellation stop working; and catch of a JVM Error (Error, VirtualMachineError, OutOfMemoryError, StackOverflowError, InternalError, ThreadDeath, LinkageError), alone or in a multi-catch, whose body neither rethrows nor ends the process (System.exit, Runtime.halt), so the program keeps running in a state the JVM has declared unrecoverable. Not reported: handlers that restore the interrupt, rethrow or wrap (throw ...), or return/break out of the work, an interrupt handler that ends a run()/call()/lambda body; catch (Throwable) and catch (Exception), which VNX-396 (discarded generic catch) and VNX-391 (empty catch) cover; test code, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-755/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-755/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

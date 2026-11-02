@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-775",
 	"name": "Pipedrive OAuth access token",
 	"description": "A Pipedrive OAuth2 access token (bearer) was found. It grants API access to the user's Pipedrive deals, contacts and pipelines. This is distinct from the legacy 40-character api_token.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-775",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-775",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

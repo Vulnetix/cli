@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-493",
 	"name": "Critical Public Variable Without Final Modifier",
 	"description": "A public field that any code can overwrite holds security- or business-critical data: in Java a public field without final, in C# a public field without readonly or const, whose name says it is a password, passphrase, secret, API key, private key, token, credential, an admin flag, role, permission or privilege, or a price, balance, amount or salary. Any class can change it, so a check that reads it can be steered. Static and instance fields are both reported. Not reported: final, readonly and const fields, C# properties ({ get; ... } or =>), private, protected and package-private fields (package scope is VNX-487), constants that name a parameter or header rather than hold the value, methods, test code, and the pattern in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-493/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-493/",
 	"languages": ["java", "csharp"],
 	"severity": "low",
 	"level": "note",

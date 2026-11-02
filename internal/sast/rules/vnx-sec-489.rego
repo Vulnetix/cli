@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-489",
 	"name": "WorkOS API key (test)",
 	"description": "A WorkOS staging/test API secret key (sk_test_ prefix) was found. It grants server-side access to the WorkOS test environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-489",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-489",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

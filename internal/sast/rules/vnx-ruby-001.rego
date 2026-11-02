@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUBY-001",
 	"name": "Missing Gemfile.lock",
 	"description": "A directory holds an application Gemfile but no committed Gemfile.lock beside it (or Bundler's alternative gems.rb without gems.locked), so every bundle install resolves the floating version ranges afresh and a newly published or compromised gem version enters the build unreviewed. Reported once per Gemfile, on its first line. Not reported: a gem library (a *.gemspec beside the Gemfile or a gemspec directive in it), whose consumers resolve its dependencies from their own lock; Gemfiles under test, spec or fixture directories; vendored gems under vendor/ or node_modules/.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-ruby-001/",
 	"languages": ["ruby"],
 	"severity": "high",
 	"level": "error",

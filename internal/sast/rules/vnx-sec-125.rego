@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-125",
 	"name": "Azure Service Bus connection string",
 	"description": "An Azure Service Bus (or Event Hubs / Relay) connection string with an embedded SharedAccessKey was found. It grants send/listen/manage access to the messaging namespace.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-125",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-125",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

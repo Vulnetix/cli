@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-004",
 	"name": "yaml.load() without SafeLoader",
 	"description": "PyYAML is asked to construct arbitrary Python objects from a document: yaml.unsafe_load()/unsafe_load_all(), or yaml.load()/load_all() (through the module, an `import yaml as y` alias or a name imported with `from yaml import load`) whose Loader (keyword or second positional argument, read across a call broken over several lines) is Loader, UnsafeLoader, CLoader or CUnsafeLoader, or is missing (PyYAML before 5.1 then used the unsafe loader, and 5.1 to 5.4 defaulted to FullLoader, which had code-execution bypasses; 6.0 rejects the call). A !!python/object tag in such a document runs code. Not reported: yaml.safe_load()/safe_load_all(), SafeLoader, CSafeLoader, BaseLoader and CBaseLoader, FullLoader and full_load() (code-execution-free since PyYAML 5.4), a custom loader class whose safety cannot be read from its name, ruamel.yaml and other objects' .load() methods (YAML().load, self.yaml.load), and the names in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-004/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "warning",

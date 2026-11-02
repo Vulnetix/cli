@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-112",
 	"name": "Vultr API key",
 	"description": "A Vultr API key assigned to a context keyword was found. Vultr API keys grant full access to the account's instances, block storage, DNS and billing.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-112",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-112",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

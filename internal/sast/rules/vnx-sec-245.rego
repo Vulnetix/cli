@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-245",
 	"name": "Cloudsmith entitlement token (cmVudA / ent_)",
 	"description": "A Cloudsmith entitlement token used to authorize package downloads from a repository was found. It can leak read access to private packages.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-245",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-245",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

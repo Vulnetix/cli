@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-393",
 	"name": "Brex client secret (OAuth)",
 	"description": "A Brex OAuth client secret was found near a brex/client_secret assignment. It is used in the OAuth flow to obtain access tokens for the Brex API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-393",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-393",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

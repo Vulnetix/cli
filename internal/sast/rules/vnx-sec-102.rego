@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-102",
 	"name": "Oracle Cloud (OCI) auth token",
 	"description": "An Oracle Cloud Infrastructure user auth token assigned to a context keyword was found. OCI auth tokens are used for Swift/object-storage and other token-based API authentication.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-102",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-102",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

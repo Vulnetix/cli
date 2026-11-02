@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-JAVA-004",
 	"name": "XML external entity (XXE) injection",
 	"description": "Reports a Java XML parser factory created without XXE hardening: DocumentBuilderFactory, SAXParserFactory, XMLInputFactory (newInstance/newDefaultInstance/newFactory), XMLReaderFactory.createXMLReader, dom4j SAXReader and JDOM SAXBuilder, plus TransformerFactory in a file that loads a StreamSource/SAXSource stylesheet or document and SchemaFactory in a file that calls newSchema. A factory counts as hardened when (also for an assignment broken after `=`, and a setter whose arguments continue on the next lines), within the 40 lines after it is created and not only inside an if/else branch, the factory variable sets disallow-doctype-decl true, external-general/parameter-entities or load-external-dtd false, ACCESS_EXTERNAL_DTD/SCHEMA/STYLESHEET to \"\", FEATURE_SECURE_PROCESSING true, or (StAX) SUPPORT_DTD / IS_SUPPORTING_EXTERNAL_ENTITIES false, or when it is handed to a helper method in a file that applies such hardening. Also reports a line that explicitly re-enables entities (disallow-doctype-decl false, external-general-entities true, IS_SUPPORTING_EXTERNAL_ENTITIES true). Not reported: a TransformerFactory used only to serialise an in-memory DOM, JAXB contexts, factory names in comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-java-004/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-084",
 	"name": "Salesforce access token",
 	"description": "A Salesforce OAuth access token was found. It grants API access to the Salesforce org until it expires or is revoked.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-084",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-084",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

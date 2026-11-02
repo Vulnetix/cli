@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-407",
 	"name": "Vonage/Nexmo API key",
 	"description": "A Vonage (formerly Nexmo) API key was found near a vonage or nexmo assignment. It is an 8-character hex identifier paired with the API secret.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-407",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-407",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

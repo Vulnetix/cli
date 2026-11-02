@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-873",
 	"name": "Moosend API key",
 	"description": "A Moosend email-marketing API key was found. It grants access to the account's mailing lists, campaigns and automations in the Moosend API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-873",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-873",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

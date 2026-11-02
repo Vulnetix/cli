@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-839",
 	"name": "Numeric Range Comparison Without Minimum Check",
 	"description": "A signed integer read from untrusted input is checked only against a maximum and then used as an array or list index. Python: int() of request.*, sys.argv or input(); Java: Integer.parseInt/valueOf, Long.parseLong of getParameter()/getHeader() or of a variable assigned from one a few lines above, or Scanner.nextInt(); C/C++: atoi/atol/strtol, std::stoi/stol, or sscanf with %d/%i into a signed variable. The value is compared with an upper bound (if idx < len(items), if (slot > 63) return, if (i >= 16)) within six lines of being read, and indexes an array (or a Java List through .get(i)) within eight lines of the check, with no lower-bound check in between: a negative value passes, and indexes from the end in Python, throws in Java and reads or writes out of bounds in C. Not reported: a range check that also tests the minimum (0 <= i < n, i < 0 || i >= n, i >= 0 && ..., i < 1, i <= 0), a value clamped by max(0, ...)/Math.max(0, ...)/abs() or validated with isdigit(), unsigned/size_t/strtoul values, constants, and values that are compared but never used as an index. Flows through helper functions are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-839/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-839/",
 	"languages": ["python", "java", "c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

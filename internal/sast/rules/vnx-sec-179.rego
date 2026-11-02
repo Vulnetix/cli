@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-179",
 	"name": "Tencent Cloud webhook URL (context)",
 	"description": "A Tencent Cloud / WeCom group robot webhook URL with an embedded key was found. Anyone with the URL can post messages to the chat group.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-179",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-179",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

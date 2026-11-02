@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-154",
 	"name": "Hetzner DNS API token (context)",
 	"description": "A Hetzner DNS Console API token under a Hetzner DNS context keyword was found. It grants management of the account's DNS zones and records.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-154",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-154",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

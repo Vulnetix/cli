@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1039",
 	"name": "AWS Secrets Manager secret ARN",
 	"description": "An AWS Secrets Manager secret ARN was found. While not a credential itself, the ARN reveals account ID, region and secret name and is often paired with leaked access keys to retrieve the secret value.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1039",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1039",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

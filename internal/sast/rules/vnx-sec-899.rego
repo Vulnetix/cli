@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-899",
 	"name": "Etsy OAuth2 access token (prefix.token)",
 	"description": "An Etsy OAuth2 access token (userId.token format) was found. It grants delegated access to the Etsy user's shops, listings and transactions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-899",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-899",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

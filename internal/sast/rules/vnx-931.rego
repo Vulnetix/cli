@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-931",
 	"name": "Authorization rule opens every request, an admin path or a state-changing endpoint to anyone",
 	"description": "CWE-931 is an OWASP Top Ten 2013 category with no code shape of its own; this rule reports the concrete missing-authorization configuration it was generated for, in Java and Kotlin: Spring Security anyRequest().permitAll() and WebFlux anyExchange().permitAll() (also split across lines, and the Kotlin DSL authorize(anyRequest/anyExchange, permitAll)); a matcher (requestMatchers, antMatchers, mvcMatchers, regexMatchers, pathMatchers or the Kotlin authorize) for \"/**\", an admin, management or internal path segment at any depth (/admin/**, /api/admin/**, also inside new AntPathRequestMatcher(...)), the whole /actuator tree or EndpointRequest.toAnyEndpoint() directly followed by permitAll() (the matcher's arguments may span several lines); web.ignoring() on such a path, which takes it out of Spring Security altogether; and a JAX-RS/Jakarta @PermitAll on a method annotated @DELETE, @PUT or @PATCH. Not reported: permitAll on public paths (login, static assets, /actuator/health, and an admin area's own login page and assets such as /admin/login or /admin/css/**), a sensitive matcher that is given a role before a later permitAll on the same line, formLogin()/logout() permitAll, @PermitAll on GET or POST methods (login and registration are public by design), StrictMode policies, comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-931/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-931/",
 	"languages": ["java", "kotlin"],
 	"severity": "low",
 	"level": "note",

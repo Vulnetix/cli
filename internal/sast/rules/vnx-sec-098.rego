@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-098",
 	"name": "Crates.io (Rust) API token",
 	"description": "A crates.io registry API token (cio prefix) was found, allowing publishing crates as the token owner.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/package-registries/#vnx-sec-098",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/package-registries/#vnx-sec-098",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

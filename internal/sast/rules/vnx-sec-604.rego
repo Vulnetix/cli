@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-604",
 	"name": "Honeycomb API key",
 	"description": "A Honeycomb ingest/configuration API key assigned to a context keyword was found. It authenticates to the Honeycomb API and can send or read observability events for the team's environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-604",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-604",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

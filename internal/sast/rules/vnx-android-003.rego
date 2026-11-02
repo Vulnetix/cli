@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-ANDROID-003",
 	"name": "Android component exported without a permission",
 	"description": "An <activity>, <activity-alias>, <service>, <receiver> or <provider> in a production AndroidManifest.xml is reachable by every app on the device and requires no permission. Exported means android:exported=\"true\", or (activity, service, receiver) an <intent-filter> with no android:exported attribute, which exports the component in an app targeting API 30 or lower (API 31+ refuses to build that manifest). Protected means android:permission on the component or on <application> (which covers every component), or for a provider both android:readPermission and android:writePermission. Not reported: components whose intent filters answer a platform action (android.* or com.google.android.*: the launcher entry, deep links and app links, share targets, system broadcasts, Play-services bindings), which are public by design and cannot require a permission; components with android:exported=\"false\", tools:node=\"remove\" or android:enabled=\"false\"; providers left unexported by default; manifests in debug/test source sets and test, sample, example or demo modules; XML comments. Whether the permission's protection level is strong enough, and how the component validates its input, are not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-android-003/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-android-003/",
 	"languages": ["android"],
 	"severity": "high",
 	"level": "error",

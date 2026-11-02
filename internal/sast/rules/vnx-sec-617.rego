@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-617",
 	"name": "New Relic user API key (NRAK)",
 	"description": "A New Relic user API key using the NRAK- prefix was found. It authenticates to the NerdGraph and REST APIs with the user's permissions to manage and query New Relic data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-617",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-617",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

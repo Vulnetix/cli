@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-SEC-078",
 	"name": "Doppler API token",
 	"description": "Reports a Doppler personal token (dp.pt. followed by 43 mixed-case alphanumeric characters) as a whole token in any file: quoted, assigned (DOPPLER_TOKEN=...), passed to doppler --token or in an Authorization header. Not reported: service, CLI, service-account and audit tokens (dp.st., dp.ct., dp.sa., dp.audit.), which VNX-SEC-1022 to VNX-SEC-1025 report, the bare prefix, truncated tokens, placeholder or low-entropy bodies, environment references, and test, fixture, vendored and generated files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-078/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-078/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

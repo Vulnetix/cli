@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1047",
 	"name": "Modules with Circular Dependencies",
 	"description": "Python or JavaScript/TypeScript modules of the same project that import each other in a cycle. Python imports (absolute, relative, 'from pkg import submodule') and JavaScript require(), import, export-from and import() with a relative specifier are resolved to files of the scanned tree. Reported: two modules that import each other at load time (once, on the import in the file whose path sorts first); three modules in a load-time cycle (once, on the import of the module whose path sorts first); and an import deferred into a function that closes a cycle of any length with load-time imports (on the deferred import, the usual workaround). A partially initialised module is how a validator, logger or auth handler ends up undefined when first used. Not reported: imports under 'if TYPE_CHECKING:' or 'if __name__ == \"__main__\":', 'import type' and all-type import lists (inline 'type' specifiers included, on one line or several), import text inside a multi-line template literal (generated source), cycles in which every import is deferred, package and standard-library imports, path aliases, and load-time cycles longer than three modules. Go is not covered: the Go compiler rejects import cycles.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1047/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1047/",
 	"languages": ["python", "node"],
 	"severity": "low",
 	"level": "note",

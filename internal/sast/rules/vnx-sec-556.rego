@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-556",
 	"name": "Statsig console API key (console-)",
 	"description": "A Statsig console API key (console- prefix) was found. It grants management access to the Statsig project's experiments, gates and configuration.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-556",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-556",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

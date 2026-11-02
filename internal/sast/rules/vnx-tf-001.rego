@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-TF-001",
 	"name": "Terraform S3 bucket or object with a public ACL",
 	"description": "An S3 bucket or object is made readable or writable by everyone through its ACL: acl = \"public-read\", \"public-read-write\" or \"authenticated-read\" inside an aws_s3_bucket, aws_s3_bucket_acl, aws_s3_object, aws_s3_bucket_object or alicloud_oss_bucket resource or an S3 bucket module (a module whose source names s3), or a grant/grantee uri naming the AllUsers or AuthenticatedUsers group. Not reported: private, log-delivery-write and other canned ACLs, an ACL taken from a variable (the value is unknown), grants to canonical users or the LogDelivery group, a bucket whose own aws_s3_bucket_public_access_block (in any file of the project) sets block_public_acls or ignore_public_acls = true, an S3 module whose own inputs set either to true, any bucket when an aws_s3_account_public_access_block anywhere in the project does, the attribute in other resource types or modules, and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-tf-001/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-tf-001/",
 	"languages": ["terraform"],
 	"severity": "high",
 	"level": "error",

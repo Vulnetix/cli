@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1079",
 	"name": "TMDB API read access token (v4 JWT)",
 	"description": "A TMDB v4 API read access token (long JWT bearer, eyJ prefix) was found. It authorizes v4 TMDB API requests and account-scoped reads as a bearer token.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1079",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1079",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

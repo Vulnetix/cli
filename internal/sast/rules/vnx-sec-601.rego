@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-601",
 	"name": "Snowflake key-pair private key (JWT auth)",
 	"description": "An unencrypted PKCS#8 private key block assigned to a Snowflake context keyword was found. Snowflake key-pair authentication uses this RSA private key to sign JWTs and authenticate as the user.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-601",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-601",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

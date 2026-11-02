@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-654",
 	"name": "Solana keypair byte array",
 	"description": "A Solana keypair expressed as a 64-element JSON byte array (the format written by solana-keygen) was found. It is the full ed25519 secret key and controls the associated wallet.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-654",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-654",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

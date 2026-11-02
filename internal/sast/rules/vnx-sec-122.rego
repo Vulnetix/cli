@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-122",
 	"name": "AWS SNS topic ARN with credentials context",
 	"description": "An AWS SNS topic ARN assigned to a context keyword was found. While the ARN is an identifier, exposure alongside credentials can aid targeting of publish/subscribe abuse.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-122",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-122",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

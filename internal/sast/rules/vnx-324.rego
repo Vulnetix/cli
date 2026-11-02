@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-324",
 	"name": "Use of a Key Past its Expiration Date",
 	"description": "An expired certificate or signed token is accepted instead of rejected, so a key or credential keeps working after the date its issuer set for it to stop. Reported: Java/Kotlin JJWT and auth0 catch blocks (including Java multi-catch and Kotlin catch (e: X)) for CertificateExpiredException, ExpiredJwtException or TokenExpiredException that swallow the exception (empty or log-only body that falls through), return true, or go on to use the expired token's e.getClaims() (Kotlin e.claims); Node.js jsonwebtoken ignoreExpiration: true; a JJWT setAllowedClockSkewSeconds/clockSkewSeconds or auth0 acceptLeeway/acceptExpiresAt/acceptNotBefore of MAX_VALUE or a literal of at least 86400 seconds; Python PyJWT/python-jose options with 'verify_exp': False or dict(verify_exp=False); Ruby ruby-jwt verify_expiration: false; and C/C++ OpenSSL verify callbacks that return 1 or reset the error to X509_V_OK for X509_V_ERR_CERT_HAS_EXPIRED or X509_V_ERR_CERT_NOT_YET_VALID, and X509_V_FLAG_NO_CHECK_TIME set on a verify parameter or store. Not reported: a catch block that rethrows, returns false/null or a 401/403 response (reading e.getClaims() only to log is fine), ignoreExpiration: false and verify_exp: True, the names in comments, test files (decoding an expired fixture is normal), and Go, which VNX-GO-032 covers. Long certificate validity periods are a policy choice and are not reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-324/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-324/",
 	"languages": ["java", "kotlin", "node", "python", "ruby", "c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

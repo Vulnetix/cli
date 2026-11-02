@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1004",
 	"name": "BitGo access token (v2x)",
 	"description": "A BitGo access token (v2x prefix) was found. It grants programmatic access to the BitGo wallet platform including transaction signing and policy management.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-1004",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-1004",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

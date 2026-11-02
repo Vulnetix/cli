@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1092",
 	"name": "G-Core Labs API token (APIKey)",
 	"description": "A G-Core Labs API permanent token presented in the APIKey authorization scheme was found. It grants programmatic access to G-Core CDN, storage and cloud resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1092",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1092",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

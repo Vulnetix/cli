@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-386",
 	"name": "Marqeta admin API password (Basic auth)",
 	"description": "A Marqeta admin API password was found near a marqeta basic-auth assignment. Combined with the application token it authorizes program-admin operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-386",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-386",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

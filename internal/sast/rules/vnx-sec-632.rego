@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-632",
 	"name": "Datadog API key (dd context)",
 	"description": "A Datadog API key bound to a dd/datadog api-key context keyword was found. It authorises metric, log and trace ingestion to the Datadog account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-632",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-632",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

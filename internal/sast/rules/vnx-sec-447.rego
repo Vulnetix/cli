@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-447",
 	"name": "Loops API key",
 	"description": "A Loops (loops.so) API key was found near a loops assignment. It authorizes transactional and marketing email sends via the Loops API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-447",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-447",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

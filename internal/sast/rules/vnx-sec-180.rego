@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-180",
 	"name": "Cloudflare Workers / Pages deploy webhook URL",
 	"description": "A Cloudflare Pages deploy hook URL with an embedded token was found. Anyone with the URL can trigger a new deployment of the Cloudflare Pages project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/webhooks/#vnx-sec-180",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/webhooks/#vnx-sec-180",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

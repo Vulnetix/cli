@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-277",
 	"name": "Anyscale API key (esecret_)",
 	"description": "An Anyscale Endpoints API key (esecret_ prefix) was found. It grants access to Anyscale model inference billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-277",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-277",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

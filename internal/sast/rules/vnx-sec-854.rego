@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-854",
 	"name": "Mercado Libre client secret (APP_USR secret)",
 	"description": "A Mercado Libre application client secret was found. With the app id it lets an attacker mint Mercado Libre access tokens for authorized sellers.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-854",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-854",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

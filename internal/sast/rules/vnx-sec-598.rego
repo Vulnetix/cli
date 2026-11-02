@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-598",
 	"name": "MSSQL connection string with password",
 	"description": "A Microsoft SQL Server connection string embedding the Password=/Pwd= keyword was found. It authenticates to the SQL Server instance and grants access per the SQL login's permissions.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/database/#vnx-sec-598",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/database/#vnx-sec-598",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

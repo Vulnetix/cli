@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-76",
 	"name": "Improper Neutralization of Equivalent Special Elements",
 	"description": "A dangerous multi-character sequence is neutralised by deleting it once, so an equivalent input that rebuilds it survives: removing ../ from ....// leaves ../, removing <script> from <scr<script>ipt> leaves <script>, removing && from &;& leaves &&, removing http:// from hthttp://tp:// leaves http://. Reported: a replacement with the empty string of a path-traversal sequence (../, ..\\), an HTML tag opener (<script, </script>, <iframe...), a script scheme (javascript:, vbscript:), a URL scheme (http://, https://, file://), a shell operator (&&, ||, $( ) or a bare SQL/script keyword (UNION, SELECT, script, alert...), via Python str.replace/re.sub, JavaScript/TypeScript replace/replaceAll with a string or regex literal, Java replace/replaceAll/replaceFirst, and PHP str_replace/str_ireplace (string or array) and preg_replace. Not reported: a removal inside a loop that repeats until the sequence is gone (a while within the three lines above), removal of a single character (it cannot be rebuilt), replacements with a non-empty string (encoding such as &lt;), test code, comments and strings. A line that removes a path-traversal sequence (../, ..\\, ..), a script tag or element pattern (<script>, </script>, <script[^>]*>) or javascript:, or strips http:// or https:// beside such a removal, is reported by VNX-182, not here; this rule keeps the other tags, vbscript:, other URL schemes, shell operators and keywords.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-76/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-76/",
 	"languages": ["java", "node", "php", "python"],
 	"severity": "medium",
 	"level": "warning",

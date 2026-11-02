@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-339",
 	"name": "Razorpay key id (rzp_test)",
 	"description": "A Razorpay test key id (rzp_test_) was found. It identifies the test integration and should not be committed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-339",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-339",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

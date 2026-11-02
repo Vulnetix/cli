@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-326",
 	"name": "Inadequate Encryption Strength (undersized DSA, DH, EC or symmetric key)",
 	"description": "A key is generated too small to resist attack. Reported: DSA and Diffie-Hellman keys or parameters below 2048 bits (Java KeyPairGenerator.getInstance(\"DSA\"|\"DH\"|\"DiffieHellman\") then initialize(N) on that generator; Python cryptography dsa.generate_private_key(key_size=N) and dh.generate_parameters(..., key_size=N), PyCryptodome DSA.generate(N); Go dsa.L1024N160; Node.js generateKeyPair(Sync)('dsa'|'dh', { modulusLength|primeLength: N }), createDiffieHellman(N) and the 768-1536-bit getDiffieHellman('modp1'|'modp2'|'modp5') groups); AES keys below 128 bits (Java KeyGenerator.getInstance(\"AES\") then init(N)); elliptic curves under 224 bits (secp112/128/160/192, prime192v*, sect113-193, brainpoolP160/192, P-192) in Java ECGenParameterSpec or KeyPairGenerator.getInstance(\"EC\") then initialize(N < 224), Python ec.SECP192R1() and friends, PyCryptodome ECC.generate(curve=\"P-192\"), Node namedCurve/createECDH; RSA, DSA and DH keys below 2048 bits in Ruby OpenSSL::PKey::RSA/DSA/DH.new|generate(N) and PHP openssl_pkey_new 'private_key_bits' => N. Not reported: sizes of 2048 bits (128 for AES) and above, sizes from a variable or configuration, init()/initialize() on objects that are not such a generator, RSA in Python, Go, Java and Node.js (VNX-CRYPTO-006 covers those), broken ciphers such as DES and RC4 (VNX-CRYPTO-004), comments, string literals and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-326/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-326/",
 	"languages": ["go", "java", "kotlin", "node", "php", "python", "ruby"],
 	"severity": "high",
 	"level": "error",

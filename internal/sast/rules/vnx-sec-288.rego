@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-288",
 	"name": "Baseten API key",
 	"description": "A Baseten API key was found. It grants access to deploy and invoke models on Baseten billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-288",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-288",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

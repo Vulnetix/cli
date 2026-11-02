@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-912",
 	"name": "Hidden functionality: master password or hidden account in a credential check",
 	"description": "A credential check carries a hidden way in (CWE-912): on one condition line, the real verification (check_password, password_verify, bcrypt/argon compare, authenticate, matches, verify, checkpw) is OR-ed with a comparison of the supplied password, passphrase, PIN, token, secret or API key against a hard-coded string literal (password == \"Spring2019!\", \"x\".equals(token)), so a master password logs in as anyone (on an if/elif/elsif/unless/return line, or an assignment whose expression starts with the credential: ok = password === \"x\" || bcrypt.compare(...)); or a username and a password are both compared to literals in one AND-ed condition, a hidden built-in account. Reported in Go, Java, JavaScript/TypeScript, PHP, Python and Ruby. Not reported: comparisons with empty or two-character literals, != tests, password-policy checks that are not OR-ed with a verifier, an OR with a negated verifier (token === \"undefined\" || !verifyToken(token), which rejects), conditions split across lines, field-type or grant-type comparisons (type === 'password'), test files, comments and string literals. A hidden request parameter that grants access is VNX-656; hard-coded credentials in general are VNX-798.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-912/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-912/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "medium",
 	"level": "warning",

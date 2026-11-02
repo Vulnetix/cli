@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-040",
 	"name": "Logging of sensitive data",
 	"description": "A Go logging call writes a secret value into the log: an argument (outside any string literal) whose name says it is a password, passphrase, secret, token (access, refresh, ID, API, bearer), API key, private or secret key, credentials (creds), card number, CVV or SSN (password, req.Password, accessToken, cfg.APIToken, clientSecret), the request's Authorization, Cookie or X-Api-Key header, or a structured field keyed by such a name (zap.String(\"password\", v), slog \"token\", v, logrus WithField/Fields{\"private_key\": v}, zerolog Str(\"secret\", v)). Covers the standard log package, log/slog, zap (and its sugared logger), logrus, zerolog, klog/glog and any logger variable, including loggers reached through a getter or wrapper (c.Logger().Infof, lg.Sugar().Debugf, log.Ctx(ctx).Debug(), lg.Named(\"auth\").Info) and calls broken across lines. Not reported: sensitive words only in the message text (\"password reset for %s\"), errors and error variables (ErrInvalidToken), a value passed through a redacting or derived-value call (redact, mask, len, hash, fingerprint), a string-literal value (\"[REDACTED]\"), lookalike names (nextPageToken, tokenCount, tokens, hasPassword, passwordPolicy, secretName, keyID), comments and string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-040/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-040/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

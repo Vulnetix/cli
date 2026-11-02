@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-597",
 	"name": "String compared with == or != instead of equals()/strcmp()",
 	"description": "In Java, == and != on two Strings compare references, so a check against a string literal or another String passes or fails depending on interning, not on content; in C, comparing a char pointer with a string literal compares addresses and is never a content comparison. Reported: a Java expression comparing anything with a string literal by == or != (role == \"admin\", request.getParameter(\"a\") == \"x\", also with the literal on the next line), a Java comparison of two variables both declared String within the 60 lines above, and in .c files a comparison of an expression with a string literal. Not reported: equals/equalsIgnoreCase/Objects.equals/strcmp, comparisons with null, char literals ('a'), C++ files (std::string overloads ==), Kotlin (== is equals there), and operators inside comments or string literals. Comparisons of boxed numbers and other objects are VNX-595.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-597/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-597/",
 	"languages": ["java", "c"],
 	"severity": "medium",
 	"level": "warning",

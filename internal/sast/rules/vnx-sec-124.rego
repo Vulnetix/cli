@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-124",
 	"name": "Azure SAS token (shared access signature)",
 	"description": "An Azure Shared Access Signature (SAS) token query string was found. SAS tokens grant delegated, time-limited access to Azure Storage or other Azure resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-124",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-124",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

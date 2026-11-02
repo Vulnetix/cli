@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PHP-008",
 	"name": "PHP phpinfo exposure",
 	"description": "A call to PHP's phpinfo() function (any argument, namespaced \\phpinfo() included) in production PHP code. Served over the web it discloses the PHP version and build, loaded modules, configuration, file paths, environment variables and request headers, which assist reconnaissance and can leak secrets. .php and .phtml files are scanned. Not reported: a call guarded within the five lines above by a positive CLI check (php_sapi_name() / PHP_SAPI === 'cli'), a loopback-client check ($_SERVER['REMOTE_ADDR'] === '127.0.0.1' or '::1'), or a debug or local-environment condition (APP_DEBUG, WP_DEBUG, app()->isLocal(), environment('local'), app.debug); a call after an early bail in the 80 lines above (if (PHP_SAPI !== 'cli') or a loopback check that exits, dies, returns or throws within four lines); methods or functions merely named phpinfo; test and fixture code; the name inside a heredoc or nowdoc, comments or string literals ('phpinfo' as data or a menu label). A PHP_SAPI !== 'cli' condition that wraps the call itself is not a guard and is reported.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-008/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-php-008/",
 	"languages": ["php"],
 	"severity": "medium",
 	"level": "warning",

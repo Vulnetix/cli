@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-368",
 	"name": "Context Switching Race Condition",
 	"description": "A temporary switch into the root context (seteuid(0), setegid(0), setreuid(-1, 0), setregid(-1, 0), setresuid(-1, 0, -1) or setresgid(-1, 0, -1), also ::-qualified) that is not an atomic, contained step, in C or C++. Reported when the file starts threads (pthread_create, thrd_create, std::thread, std::jthread, std::async, boost::thread, g_thread_new, CreateThread, #pragma omp parallel): the effective ID is process-wide, so every other thread runs as root for the whole switch; when the function returns or jumps out (return, goto) between the elevation and the call that switches back, leaving the process in the root context on that path; and when the function never switches back at all. Not reported: a failure exit that belongs to the elevation call itself (if (seteuid(0) != 0) return -1, or a braced failure block after it), an elevation after fork() in the same function (the single-threaded child, which ends its context when it exits; a parent branch after the fork is also skipped), an elevation that restores root after the same function lowered it, permanent drops (setuid, setgid, setresuid with three IDs), comments and string literals. The order of a permanent drop is VNX-269, and exec after a temporary drop is VNX-270.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-368/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-368/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

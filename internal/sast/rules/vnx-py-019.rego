@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-019",
 	"name": "Paramiko implicit host key trust",
 	"description": "A paramiko SSH client is told to accept a server host key it does not know, in a .py file. Reported: set_missing_host_key_policy() given AutoAddPolicy or WarningPolicy (instance or class, through any module alias or from-import, with the argument on the call line or the next line), or given a variable assigned from one in the 15 lines above; a policy assigned straight to client._policy; and a missing_host_key() method (one-line or multi-line signature) whose body never raises and does not delegate to another policy's missing_host_key(), which accepts every key (pass, return, or logging and adding the key). Accepting an unknown key lets anyone on the network path impersonate the server and read the credentials and commands sent to it (CWE-322). Use RejectPolicy with load_system_host_keys()/load_host_keys(), or a policy that checks the key against a pinned fingerprint. Not reported: RejectPolicy, a missing_host_key() that raises (for example when the key does not match a pin) or delegates to RejectPolicy, imports of the policy names, isinstance checks, and the names in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-019/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-019/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

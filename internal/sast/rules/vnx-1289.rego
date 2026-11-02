@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1289",
 	"name": "Improper Validation of Unsafe Equivalence in Input",
 	"description": "An uploaded file name is checked against a denylist of dangerous extensions with a case-sensitive comparison, so an equivalent name the server still treats as dangerous (shell.PHP, page.Html, run.EXE) passes the check. Reported in Python (Flask/Werkzeug FileStorage .filename, Django request.FILES[...].name, also through a file object assigned from request.FILES) and JavaScript/TypeScript (multer/formidable originalname/originalFilename, req.file(s) .name): .endswith()/.endsWith() with a dangerous extension literal (php, phtml, phar, exe, bat, cmd, sh, jsp, asp/aspx, py, pl, cgi, js, html/htm/shtml/svg, dll, jar/war, ps1, vbs, hta, htaccess and similar), membership of the name or its extension (os.path.splitext, path.extname) in an inline or module-level list/tuple/set of such extensions (in, .includes(), .has()), or == / === against one, applied to the upload name directly or through a variable assigned from it in the 15 lines above. Not reported: a name or extension lowered first (.lower(), .casefold(), .toLowerCase()), allowlist checks whose extensions are harmless (png, jpg, zip), extension tests on names that are not uploads (os.walk results, module paths), comments and string literals. Other unsafe equivalences (Unicode normalisation, trailing dots, alternate path separators) are not detected.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1289/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1289/",
 	"languages": ["python", "node"],
 	"severity": "low",
 	"level": "note",

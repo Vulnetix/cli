@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-140",
 	"name": "Improper Neutralization of Delimiters",
 	"description": "Reports Python and JavaScript/TypeScript code that writes a delimited record (CSV, TSV, pipe- or colon-separated line) to a file or stream by gluing request data together with the delimiter, without quoting or escaping it: f.write(f\"{name},{email}\\n\"), out.write(user + \":\" + role), \"|\".join([...]), \"%s,%s\" % (...), \"{},{}\".format(...), fs.appendFileSync('a.csv', `${req.body.a},${req.body.b}`), [..].join(','), either on the write itself or in a record variable built in the 6 lines above it. A value containing the delimiter (or a newline) then adds fields or records. The data must come from the request on that line (Flask/Django request.form/args/values/json/data/cookies/headers/GET/POST, Express/Koa req/ctx body/query/params/cookies/headers) or from a variable assigned from it in the 10 lines above. Sinks are .write(), .writelines(), print(..., file=...) and fs.appendFile/writeFile (and their Sync forms); HTTP response writes (res.write, response.write, self.wfile) are not this weakness and are not reported. Not reported: csv.writer/DictWriter, csv-stringify, json.dumps/JSON.stringify, values passed through .replace()/re.sub()/quote()/escape() first, constant header rows, data that does not come from the request, comments and string literals. Parsing the other way (splitting input on a delimiter) is VNX-166.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-140/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-140/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

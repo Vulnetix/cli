@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-603",
 	"name": "Datadog application key (app key)",
 	"description": "A Datadog application key assigned to an app-key context keyword was found. Combined with an API key it authorises management-level calls (dashboards, monitors, users) to the Datadog API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-603",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-603",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

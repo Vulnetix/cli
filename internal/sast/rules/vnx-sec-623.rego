@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-623",
 	"name": "Prometheus remote-write basic-auth URL",
 	"description": "A Prometheus remote-write or remote-read URL embedding HTTP basic-auth credentials was found. The embedded password authenticates pushes to the remote-write endpoint (e.g. Mimir, Thanos, Grafana Cloud).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-623",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-623",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

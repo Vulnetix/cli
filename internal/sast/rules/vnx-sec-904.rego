@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-904",
 	"name": "Mapbox secret access token (sk.)",
 	"description": "A Mapbox secret access token was found. Secret tokens are JWTs prefixed with sk. and grant scoped write access to the account, including token and dataset management; unlike public pk. tokens they must never be embedded client-side.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-904",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-904",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

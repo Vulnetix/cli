@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-98",
 	"name": "PHP Remote File Inclusion",
 	"description": "A PHP include, include_once, require or require_once statement (with or without parentheses) whose path carries request data: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, $_FILES), php://input, filter_input() or a Laravel/Symfony $request->input/get/query/post accessor, inline, interpolated, or through a variable assigned from one (or from such a variable) in the 25 lines above. str_replace() blacklists of ../ or http:// still count, because they are bypassable. That is Local File Inclusion, and Remote File Inclusion where allow_url_include is on; both run attacker-chosen code. Not reported: a path passed through basename(), intval() or an (int) cast, a variable checked against an allowlist (in_array, array_key_exists, isset($map[$x]), preg_match, ctype_*, is_numeric) between the read and the include, a path looked up in an application array by the request value ($routes[$_GET['p']]) or chosen by a match() on it, includes of constants, __DIR__ paths and variables not derived from the request in this file, and statements in comments or string literals. A path that crosses files (assigned in one, included in another) is not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-98/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-98/",
 	"languages": ["php"],
 	"severity": "critical",
 	"level": "error",

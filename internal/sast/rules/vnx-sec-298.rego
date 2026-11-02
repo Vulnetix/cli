@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-298",
 	"name": "Hugging Face token (assignment context)",
 	"description": "A Hugging Face token referenced via an HF_TOKEN or HUGGINGFACE_API_KEY assignment was found, confirming a live Hugging Face credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-298",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-298",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

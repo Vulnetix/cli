@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-108",
 	"name": "Scaleway secret key (UUID)",
 	"description": "A Scaleway API secret key assigned to a context keyword was found. Scaleway secret keys are UUIDs that sign API requests and grant access to the project's cloud resources.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-108",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-108",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

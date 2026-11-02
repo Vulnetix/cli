@@ -142,7 +142,7 @@ func runGHASetup(cmd *cobra.Command, args []string) error {
 		dctx.Logger.Warn("This repository has no 'origin' remote. GitHub Actions workflows only run on GitHub.")
 	case !remote.IsGitHub:
 		dctx.Logger.Warnf("The 'origin' remote is %s, not GitHub. GitHub Actions workflows only run on GitHub, so this file will have no effect there.", orUnknownHost(remote.Host))
-		dctx.Logger.Warn("For that platform see the CI/CD guides at https://docs.cli.vulnetix.com/docs/ci-cd/")
+		dctx.Logger.Warn("For that platform see the CI/CD guides at https://docs.vulnetix.com/cli/ci-cd/overview/")
 	}
 
 	path := filepath.Join(root, ghasetup.WorkflowPath)

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-843",
 	"name": "Printful API token",
 	"description": "A Printful API token was found. It grants access to the merchant's print-on-demand orders, products and fulfillment in Printful.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-843",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-843",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

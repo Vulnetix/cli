@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-391",
 	"name": "Unchecked Error Condition",
 	"description": "An exception is caught and silently discarded. In Java: a catch block whose body holds only a TODO/FIXME or auto-generated comment (with blanks or a discarded e.toString()/e.getMessage() call), or an empty or no-op body longer than VNX-390 looks. A Java catch that is plainly empty (on one line, across a few blank lines, or Allman style) or whose only statement is a discarded e.toString()/e.getMessage() is reported by VNX-390 instead, the same defect under CWE-390, so it is one finding. In Python: a bare except:, except Exception or except BaseException (alone or in a tuple) whose whole body is pass or an ellipsis, on the same line or below. The failure is lost: the caller continues as if the operation succeeded. Not reported: a catch or except that logs, rethrows, returns or records anything; a Java catch variable named ignored/ignore/expected/unused (an explicit discard); a body holding an explanatory comment, or a Python pass carrying a trailing comment other than TODO/FIXME (# nosec, # noqa, a reason), or an except line carrying one (a documented decision); a Python except of a specific exception type such as ImportError or KeyError; contextlib.suppress; test files, comments and string literals (a quoted catch clause is not matched).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-391/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-391/",
 	"languages": ["java", "python"],
 	"severity": "medium",
 	"level": "warning",

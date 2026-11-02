@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1125",
 	"name": "Split.io server-side API key",
 	"description": "A Split.io (Harness FME) server-side SDK API key was found. It grants server SDK access to feature-flag treatments and impression data for the environment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/monitoring/#vnx-sec-1125",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/monitoring/#vnx-sec-1125",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

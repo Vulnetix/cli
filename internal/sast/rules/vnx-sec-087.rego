@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-087",
 	"name": "Mistral AI API key",
 	"description": "A Mistral AI API key was found in source. It grants access to Mistral model inference billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-087",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-087",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

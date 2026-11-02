@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-193",
 	"name": "Off-by-one Error",
 	"description": "A C or C++ size or index is one too large or one too small for the terminator or the last element. Reported: malloc/xmalloc/g_malloc (or C++ new char[]) of strlen(s) (or a sum of strlen calls) with no + 1 whose result is then filled by strcpy/strcat/sprintf or terminated; a write to buf[sizeof(buf)] or to name[N] where name is declared name[N]; a for loop whose condition is i <= N or i <= sizeof(arr) and whose body indexes arr[i] where arr is declared arr[N] (or is the sizeof operand); strncat(dst, src, sizeof(dst)) and strncat(dst, src, sizeof(dst) - strlen(dst)), whose bound leaves no room for the terminator; and strncpy(dst, src, strlen(src)), which copies exactly the source length and never terminates the destination. Not reported: + 1 allocations, sizeof(x) - 1 bounds and indices, a malloc(strlen(s)) used for a length-prefixed copy with memcpy and no terminator, loops over an array declared with a larger bound, strings and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-193/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-193/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
 	"level": "warning",

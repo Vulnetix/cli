@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-316",
 	"name": "Pinecone API key (assignment context)",
 	"description": "A Pinecone API key referenced via a PINECONE_API_KEY assignment was found, confirming a live Pinecone credential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-316",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-316",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

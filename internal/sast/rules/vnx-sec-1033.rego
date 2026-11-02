@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1033",
 	"name": "Akeyless access ID (p-)",
 	"description": "An Akeyless access ID (p- prefix) was found. Paired with an access key it authenticates to the Akeyless secrets-management platform.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1033",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1033",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

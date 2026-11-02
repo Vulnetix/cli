@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1048",
 	"name": "Invokable Control Element with Large Number of Outward Calls",
 	"description": "A single function or method whose body calls 40 or more distinct functions or methods (CWE-1048, excessive fan-out). A function that reaches that many other units does too many jobs to be reviewed or tested as one, and a security check buried among them is easy to miss or bypass. Counted per function in Go, Java, JavaScript/TypeScript, PHP, Python and Ruby: each distinct callee name (receiver included, so db.Close and store.Close are two) in the body up to its closing brace, dedent or 'end', with string literals, PHP/Ruby heredoc text (a SQL query's COUNT( is not a call) and comment lines removed and language keywords ignored; Go and JavaScript/TypeScript signatures split over several lines and Java package-private methods are recognised; in Ruby a method sent without parentheses counts too. Repeated calls to the same function count once. Not reported: test files, vendored or minified code, AMD module wrappers and whole-page DOM-ready wrappers ($(document).ready(function () {, DOMContentLoaded listeners), functions whose body runs past 300 lines (measured only up to that window), and long functions that call few distinct things (a table-driven switch, a builder repeating one call).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1048/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1048/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "low",
 	"level": "note",

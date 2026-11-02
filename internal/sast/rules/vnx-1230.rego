@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1230",
 	"name": "Exposure of Sensitive Information Through Metadata",
 	"description": "Reports a handler that stores a user-uploaded image byte for byte, so the EXIF block it carries (GPS coordinates, device make and serial, capture time, sometimes the owner's name) is published with it when the image is served. Reported, in a file that handles images (an image/ MIME check, an image extension, or avatar/photo/picture naming) and never re-encodes or strips them (no sharp, jimp, gm, Pillow Image.open/ImageOps, piexif, exif or strip-metadata call in the file; Python's str.strip() does not count, and comment lines are ignored when judging image context): Node fs.writeFile/writeFileSync of an uploaded buffer (req.file.buffer, or a variable taken from req.file/req.files or a .buffer), express-fileupload .mv() on a req.files entry, multer({ dest }) and multer.diskStorage(); Python Flask request.files[...] .save() (directly, through a variable, or in a for loop over request.files.getlist()), Django default_storage/FileSystemStorage .save() of a request.FILES entry, and a chunks() loop copying one to disk. Not reported: images decoded and re-encoded or stripped in the same file, uploads in files with no image context (documents, CSV), comments and test files. Stripping performed in another module is not visible to this line-oriented rule.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1230/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1230/",
 	"languages": ["node", "python"],
 	"severity": "medium",
 	"level": "warning",

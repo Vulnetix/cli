@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-348",
 	"name": "GoCardless live access token (live_)",
 	"description": "A GoCardless live access token was found near a gocardless assignment using the live_ prefix. It authorizes live direct-debit mandate and payment operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-348",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-348",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

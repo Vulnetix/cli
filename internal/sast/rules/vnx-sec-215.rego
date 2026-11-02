@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-215",
 	"name": "Vercel deploy hook URL",
 	"description": "A Vercel deploy hook URL containing an embedded secret was found. Anyone with the URL can trigger production deployments of the project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-215",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-215",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

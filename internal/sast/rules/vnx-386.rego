@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-386",
 	"name": "Symbolic Name not Mapping to Correct Object",
 	"description": "A Java class is looked up by a name assembled at run time, so the symbolic name can resolve to a class other than the one the code expects, including any class on the classpath an attacker can name. Reported: Class.forName() and ClassLoader.loadClass() whose class-name argument is built by concatenation or String.format/formatted with a variable part (BASE + kind, pkg + \".\" + name, PREFIX + kind.toLowerCase(), also across a line break), or is a variable assigned in the 15 lines above from such a concatenation or from request data (getParameter, getHeader, getQueryString, getPathInfo, getCookies, readLine). Not reported: literal class names, ALL_CAPS constants, X.class.getName(), concatenations of literals only or of literals and calls with no variable receiver (getClass().getPackage().getName() + \".Impl\"), a lookup preceded in the 10 lines above by an allow-list check of the variable (ALLOWED.contains(kind), a validator, a matches() pattern), map-based registries that return Class objects, comments and string literals. Request-supplied class names are also reported by VNX-470 (unsafe reflection).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-386/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-386/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

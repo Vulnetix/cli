@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-506",
 	"name": "Framer API token",
 	"description": "A Framer API or plugin token was found. It grants access to manage Framer projects and resources for the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-506",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-506",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-162",
 	"name": "OVH application key (context)",
 	"description": "An OVH API application key under an OVH context keyword was found. The application key identifies the API application and pairs with the application secret and consumer key.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-162",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-162",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

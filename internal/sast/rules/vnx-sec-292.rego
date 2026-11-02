@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-292",
 	"name": "Replicate API token (assignment context)",
 	"description": "A Replicate API token referenced via a REPLICATE_API_TOKEN assignment was found, confirming a live Replicate credential in source.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-292",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-292",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

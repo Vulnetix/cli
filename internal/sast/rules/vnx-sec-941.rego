@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-941",
 	"name": "Agora App Certificate",
 	"description": "An Agora App Certificate was found near an agora assignment. It is a 32-character hex string used with the App ID to sign RTC/RTM tokens; leaking it lets an attacker mint valid join tokens.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-941",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-941",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

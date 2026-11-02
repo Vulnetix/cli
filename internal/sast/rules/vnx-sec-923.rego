@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-923",
 	"name": "Veriphone API key",
 	"description": "A Veriphone API key was found near a veriphone assignment. It is a high-entropy uppercase-alphanumeric string authorizing phone-number verification lookups.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-923",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-923",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-685",
 	"name": "Function Call With Incorrect Number of Arguments",
 	"description": "A C or C++ variadic call passes a different number of arguments than its format asks for, or omits an argument a flag makes mandatory. Reported: printf, fprintf, sprintf, snprintf, dprintf, asprintf, syslog, the BSD err/errx/warn/warnx (and the wide forms) with a literal format, on one line or continued over up to three following lines, whose conversions (counting * width and precision) differ from the arguments that follow, so the call reads stack values that were never passed (a disclosure, or a crash on %s) or drops one; scanf, fscanf and sscanf whose conversions (not counting %* suppressed ones, counting %[...] sets and %n) differ from the pointers passed, so a conversion writes through a garbage pointer; and open()/openat() with O_CREAT or O_TMPFILE but no mode argument, so the new file's permissions come from an indeterminate register. Not reported: calls that stay open beyond three continuation lines, formats built from macros (PRIu64) or using positional %n$ conversions, project wrapper functions, open() with a mode or without O_CREAT, comments and string literals. VNX-628 also reports the printf and open() shapes.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-685/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-685/",
 	"languages": ["c", "cpp"],
 	"severity": "low",
 	"level": "note",

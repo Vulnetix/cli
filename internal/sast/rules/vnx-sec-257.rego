@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-257",
 	"name": "Together AI API key",
 	"description": "A Together AI API key was found. It grants access to Together AI model inference and fine-tuning billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-257",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-257",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

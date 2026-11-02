@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-NODE-019",
 	"name": "Hardcoded JWT or session secret",
 	"description": "A string literal is the key that signs or verifies JWTs, session cookies or HMACs, so anyone with the source can forge them and the key cannot be rotated without a release. Reported, in JavaScript and TypeScript: the key argument of jwt.sign()/jwt.verify() (also across line breaks), secret/secretOrKey/secretOrPrivateKey given a literal (or an array of literals) inside express-session, cookie-session, express-jwt, koa-jwt, @fastify/jwt, NestJS JwtModule.register or a passport-jwt Strategy, cookieParser('...'), Koa signed-cookie keys (app.keys = ['...']) and cookie-session keys: ['...'], the key argument of crypto.createHmac(alg, '...'), a const/let/var holding a literal that one of those calls then uses as its key (reported at the assignment), and a config property or variable named for the purpose (jwtSecret, sessionSecret, cookieSecret, tokenSecret, authSecret, signingSecret, JWT_KEY) set to a literal. Not reported: keys from process.env or a config lookup, the literal fallback in process.env.X || '...', an empty string, a TOTP or per-user secret, a literal algorithm name, test files, examples/ directories, comments and calls written inside a string literal. Overlaps VNX-JWT-003 (jwt.sign/encode with a literal key).",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-019/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-node-019/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
 	"level": "error",

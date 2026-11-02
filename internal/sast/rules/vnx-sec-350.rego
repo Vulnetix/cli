@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-350",
 	"name": "Checkout.com secret key (sk_)",
 	"description": "A Checkout.com secret API key using the sk_ prefix was found. It authorizes server-side payment, refund and payout operations.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-350",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-350",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

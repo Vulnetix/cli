@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-SEC-057",
 	"name": "Grafana API / service account token",
 	"description": "Reports a Grafana credential written into a file: a service account token (glsa_ + 32 alphanumerics + _ + 8 hex), a Grafana Cloud access policy token (glc_ followed by the base64 JSON body, glc_eyJ...), or a legacy Grafana API key (the base64 of {\"k\":\", eyJrIjoi..., 70+ characters), each standing alone rather than inside a longer identifier. These grant access to dashboards, datasources, alerting and admin APIs, or push metrics and logs to Grafana Cloud. The snippet is redacted. Not reported: bare prefixes (\"glsa_\", \"glc_\" in a prefix check), placeholder bodies (xxxx, 0000, YOUR_TOKEN), low-entropy bodies, ordinary JWTs (eyJhbGci...), tokens read from the environment, and test, fixture and vendored paths.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-057/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-sec-057/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

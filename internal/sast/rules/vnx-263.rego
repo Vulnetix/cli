@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-263",
 	"name": "Password Aging with Long Expiration",
 	"description": "A maximum password age is configured, but at more than 180 days. Reported: Terraform max_password_age, boto3/AWS SDK for JavaScript MaxPasswordAge and AWS SDK for Java .maxPasswordAge(n) on an IAM account password policy; Linux PASS_MAX_DAYS (also written by sed with a \\t separator), chage -M/--maxdays and passwd -x/--maxdays, and Ansible password_expire_max and iam_password_policy pw_max_age; PowerShell Set-ADDefaultDomainPasswordPolicy -MaxPasswordAge (d.hh:mm:ss or New-TimeSpan -Days) and net accounts /maxpwage:n; Entra ID passwordValidityPeriodInDays; and an application setting whose name says it is a password's maximum age, expiry, lifetime, validity or rotation period in days (PASSWORD_EXPIRY_DAYS = 365, passwordMaxAgeDays: 400) or that is a timedelta(days=n) / Duration.ofDays(n). Not reported: an echo, printf or Write-Host line that only prints the setting (one that writes it with > or tee is reported), 180 days or fewer, 0, 99999 or -1 (aging disabled, which is VNX-262), other durations (sessions, tokens, certificates, password-reset links), comparisons (age > 365), and the settings in comments or string literals.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-263/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-263/",
 	"languages": ["python", "node", "java", "terraform", "bash", "docker", "powershell"],
 	"severity": "low",
 	"level": "note",

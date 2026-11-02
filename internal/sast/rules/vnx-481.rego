@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-481",
 	"name": "Assigning instead of Comparing",
 	"description": "Reports an if or while condition that is a bare assignment, if (x = y) or while (done = check()), in C, C++ and Java (where it compiles for booleans, if (isAdmin = true)): the condition takes the assigned value and the variable is overwritten, where a comparison (==) was almost always meant. Not reported: the conventional deliberate form with an extra pair of parentheses (if ((p = next())) and while ((c = getc(f)) != EOF)), comparisons (==, <=, >=, !=), the C++17 init-statement if (err = f(); err != 0), the comma operator, assignments in for headers or ordinary statements, and conditions inside strings and comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-481/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-481/",
 	"languages": ["c", "cpp", "java"],
 	"severity": "medium",
 	"level": "warning",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1027",
 	"name": "HashiCorp Vault batch token (hvb.)",
 	"description": "A HashiCorp Vault batch token (hvb. prefix) was found. It is a lightweight non-persistent Vault token that can read secrets within its policy scope until expiry.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1027",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1027",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

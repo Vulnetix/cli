@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-261",
 	"name": "Weak Encoding for Password",
 	"description": "A password is passed straight to a reversible encoding: base64 (Python base64.b64encode/urlsafe_b64encode/encodebytes, JavaScript btoa() and Buffer.from(...).toString('base64'|'hex'), including a Buffer.from( call broken across lines, Java Base64.getEncoder().encodeToString/encode, DatatypeConverter.printBase64Binary/printHexBinary, HexFormat.formatHex, commons-codec encodeBase64String/encodeHexString, Go base64.*Encoding.EncodeToString and hex.EncodeToString, PHP base64_encode/bin2hex, Ruby Base64.encode64/strict_encode64/urlsafe_encode64), hex (binascii.hexlify) or ROT13 (codecs.encode(..., 'rot13'), str_rot13). The argument names a password (an identifier ending in password, passwd, pwd or passphrase, or a password field of a request) directly, or through a variable assigned from one in the six lines above. Anyone who reads the stored or logged value can decode it. Not reported: HTTP Basic credentials (a user:password join, or an Authorization/Basic header on the line), a password that is hashed, derived, signed or encrypted before it is encoded, decoding, lookalike names (passwordHash, password_reset_token, compass), and the calls in comments.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-261/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-261/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "high",
 	"level": "error",

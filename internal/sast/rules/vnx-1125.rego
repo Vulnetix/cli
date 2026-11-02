@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-1125",
 	"name": "Excessive Attack Surface",
 	"description": "A Python remote-procedure server configured to expose far more than the functions it was written to serve: an XML-RPC register_instance(obj, allow_dotted_names=True) (every attribute reachable through dotted names, including module globals, a documented remote-code path); RPyC serving SlaveService, ClassicService or MasterService, or the classic server, through ThreadedServer/ForkingServer/ThreadPoolServer/OneShotServer (the whole Python runtime is remote-callable); RPyC protocol_config allow_all_attrs, allow_setattr or allow_delattr set to True; Pyro4 REQUIRE_EXPOSE = False (every method of every registered object is remote-callable); and registering eval, exec, compile, __import__, open, os.system, os.popen or a subprocess function as an RPC function, directly or wrapped in a lambda (register_function(lambda cmd: os.popen(cmd).read(), \"shell\")). A call split over several lines is read as one. Not reported: register_instance without dotted names, a custom rpyc.Service subclass with exposed_ methods, Pyro objects with @expose, ordinary register_function of the application's own handlers, web routes (a route is the intended surface, not an excessive one), comments, strings and test files.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1125/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1125/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",

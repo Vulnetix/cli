@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-175",
 	"name": "Railway project deploy token (context, base64)",
 	"description": "A Railway project/deploy token in opaque form under a Railway context was found. It authorizes CI deploys and access to the project's services and variables.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-175",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-175",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

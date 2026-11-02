@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-756",
 	"name": "Deel API token",
 	"description": "A Deel API token was found. It grants API access to the company's contractor, payroll and compliance data in Deel.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-756",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-756",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

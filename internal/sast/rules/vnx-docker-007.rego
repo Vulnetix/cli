@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-DOCKER-007",
 	"name": "Service image without a HEALTHCHECK",
 	"description": "The image's final stage runs a long-lived service but declares no HEALTHCHECK, so Docker, Compose and Swarm can only tell whether the process exists, not whether it still answers: a deadlocked or wedged service stays in rotation. A stage counts as a service when it, or an earlier stage it is built FROM, has an EXPOSE instruction or a CMD/ENTRYPOINT that starts a server (nginx, httpd/apache2, php-fpm, gunicorn, uvicorn, uwsgi, hypercorn, daphne, runserver, flask run, rails server, puma, unicorn, node, npm/yarn/pnpm start, java, catalina.sh, dotnet, redis-server, mongod, postgres, mysqld, caddy, traefik, haproxy, envoy, supervisord and similar). The finding is on the final FROM line. Not reported: a final stage with a HEALTHCHECK (HEALTHCHECK NONE is an explicit decision, for example when Kubernetes probes are used), one that inherits a HEALTHCHECK from an earlier stage (up to two levels), base and toolchain images with no service, one-shot CLI and job images (including node/java/dotnet started on a cli, migrate, seed, job, cron, backup or scripts/ entry point with no EXPOSE), a HEALTHCHECK only in a builder stage (it does not carry over, so that is reported), HEALTHCHECK text in comments or heredocs, test and .devcontainer images, and files that only mention Dockerfiles. A HEALTHCHECK defined by an external base image is not visible here.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-007/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-docker-007/",
 	"languages": ["docker"],
 	"severity": "low",
 	"level": "warning",

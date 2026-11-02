@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-271",
 	"name": "LangSmith service API key (lsv2_sk_)",
 	"description": "A LangSmith service/secret key (lsv2_sk_ prefix) was found. It grants programmatic access to LangSmith workspace data.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/ai/#vnx-sec-271",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/ai/#vnx-sec-271",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

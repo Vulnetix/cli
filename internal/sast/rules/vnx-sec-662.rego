@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-662",
 	"name": "Etherscan API key",
 	"description": "An Etherscan API key (34-character alphanumeric) assigned to an etherscan context was found. It authorises access to Etherscan's block-explorer API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-662",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-662",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

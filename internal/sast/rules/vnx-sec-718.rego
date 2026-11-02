@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-718",
 	"name": "Dune Analytics API key",
 	"description": "A Dune Analytics API key assigned to a dune context was found. It authorises access to Dune's blockchain analytics API billed to the account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-718",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-718",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

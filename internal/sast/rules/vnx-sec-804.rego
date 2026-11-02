@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-804",
 	"name": "Zoho CRM client secret",
 	"description": "A Zoho CRM OAuth client secret was found. Combined with the client ID it can mint access/refresh tokens granting API access to the user's Zoho CRM data. This complements the 1000.-prefixed token rule.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-804",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-804",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

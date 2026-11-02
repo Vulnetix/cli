@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1048",
 	"name": "Semgrep AppSec API token (assignment)",
 	"description": "A Semgrep AppSec Platform API token assigned to a semgrep field was found. It grants access to Semgrep scan findings, rules and project configuration via the Semgrep API and CLI login.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1048",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1048",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

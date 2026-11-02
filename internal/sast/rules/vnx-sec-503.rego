@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-503",
 	"name": "Typeform personal access token (tfp_)",
 	"description": "A Typeform personal access token (tfp_ prefix) was found. It grants API access to read and manage the user's forms and responses.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-503",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-503",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

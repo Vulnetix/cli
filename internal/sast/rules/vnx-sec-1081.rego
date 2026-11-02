@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1081",
 	"name": "Giphy API key",
 	"description": "A Giphy API key (32-character base62) was found. It authorizes GIF/sticker search and upload calls under the Giphy app rate limits.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1081",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1081",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

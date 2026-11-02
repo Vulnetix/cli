@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1046",
 	"name": "Mend/WhiteSource API key (assignment)",
 	"description": "A Mend (formerly WhiteSource) org/user API key assigned to a mend/whitesource field was found. It authenticates requests to the Mend SCA platform and can read project inventories and findings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1046",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1046",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

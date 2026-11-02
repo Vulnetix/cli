@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-767",
 	"name": "Access to Critical Private Variable via Public Method",
 	"description": "Reports a public no-argument Java method whose body returns, as is, a private field of the same file that holds key or secret material: a field typed PrivateKey, SecretKey, KeyPair, KeyStore or SecretKeySpec; a char[] or byte[] whose name says it is a password, secret, key, PIN or passphrase (the caller receives the live buffer and can read it or overwrite it, and the owner can no longer wipe it); or a String named for a secret, API key, private, signing, encryption or master key, client secret or passphrase. Making the field private achieved nothing once a public method hands it out. Every return statement in the body is read, so a getter that throws or returns early still counts. Not reported: public key bytes and key identifiers (publicKeyBytes, keyId), a getter that returns a copy (clone(), Arrays.copyOf), a method with @Override (a framework contract such as UserDetails.getPassword), private and package-private methods, String password and token fields (entity and DTO accessors, usually holding a hash or a value meant for the caller), returns of local variables, comments and test sources. Setters are not judged.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-767/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-767/",
 	"languages": ["java"],
 	"severity": "low",
 	"level": "note",

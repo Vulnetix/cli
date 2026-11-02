@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-120",
 	"name": "AWS Cognito app client secret",
 	"description": "An AWS Cognito user pool app client secret assigned to a context keyword was found. The client secret authenticates the app client and must remain confidential.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/cloud/#vnx-sec-120",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/cloud/#vnx-sec-120",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

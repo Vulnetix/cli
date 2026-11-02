@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-GO-038",
 	"name": "Potential mass assignment via struct binding",
 	"description": "An HTTP handler binds the request body straight into a value and then persists that same value, so a client can set every field the model has, including ones it should never control (role, is_admin, owner, balance). Reported at the bind: json.NewDecoder(r.Body).Decode(&x) (inline, wrapped onto the next line, or through a decoder variable), json.Unmarshal of r.Body or of a body read with io.ReadAll(r.Body), and the framework binders gin ShouldBind*/Bind*, echo c.Bind, fiber c.BodyParser and iris ReadJSON, when x is passed whole to a create/update call within the next 30 lines of the function (GORM Create/Save/Updates/Update/FirstOrCreate, Mongo InsertOne/UpdateOne/ReplaceOne including a bson.M{\"$set\": x} update, a repository Insert/Update/Upsert, with the call's arguments possibly wrapped over several lines). Not reported: a request DTO whose fields are copied into the model (x.Name), a write restricted with GORM Select or Omit, a bound value that is only read (search filters, responses), decoding a response from an API the program calls (resp.Body), test files, comments and string literals. Flows through other functions are not followed.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-038/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-go-038/",
 	"languages": ["go"],
 	"severity": "medium",
 	"level": "warning",

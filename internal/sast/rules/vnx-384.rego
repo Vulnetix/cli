@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-384",
 	"name": "Session Fixation",
 	"description": "A Java web application authenticates a user without issuing a new session identifier, so an attacker who planted a session id in the victim's browser before login is logged in alongside them (CWE-384). Reported: Spring Security configured to keep the pre-login session (sessionFixation().none(), sessionFixation(f -> f.none()), SessionFixationConfigurer::none, and session-fixation-protection=\"none\" in XML configuration); and a servlet or controller method that checks credentials (it mentions a password, authenticate, checkPassword, login or credentials) and then stores the authenticated identity in the existing session (setAttribute with a key such as user, userId, username, loggedIn, authenticated, principal, role or a constant naming the user or principal (SESSION_USER, LOGGED_IN; not AUTHENTICATION_CHALLENGE or USER_AGENT), on request.getSession(), getSession(true) or a session variable or parameter) without calling session.invalidate() or request.changeSessionId() earlier in that method. Not reported: migrateSession()/newSession()/changeSessionId() configuration (Spring's default protects), a method that invalidates or rotates the session before storing the user, session attributes unrelated to identity (cart, locale), updates in methods that check no credentials, methods for an already logged-in user that refresh the stored identity (named change/update/reset/set...Password, Profile or Account), comments, string literals and test code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-384/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-384/",
 	"languages": ["java", "xml"],
 	"severity": "medium",
 	"level": "warning",

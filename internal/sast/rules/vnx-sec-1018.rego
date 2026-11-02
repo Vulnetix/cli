@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1018",
 	"name": "GitGuardian personal access token (ggp_)",
 	"description": "A GitGuardian personal access token (ggp_ prefix) was found. It grants API access to scan results, incidents and sources for the GitGuardian workspace.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1018",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1018",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

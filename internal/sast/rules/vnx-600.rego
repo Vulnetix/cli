@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-600",
 	"name": "Servlet parses request input with no handler for the exception",
 	"description": "A servlet handler (doGet, doPost, doPut, doDelete, doHead, doOptions, doTrace or service taking an HttpServletRequest), or a JSP scriptlet, converts a request parameter, header, query string or path into a number, decimal, UUID or date (Integer/Long/Short/Double/Float parse or valueOf, new BigDecimal, new BigInteger, UUID.fromString, LocalDate/LocalDateTime/Instant.parse) outside any try block. Any malformed value throws a NumberFormatException, IllegalArgumentException or DateTimeParseException out of the servlet, which the container turns into a 500 page that can carry a stack trace and internal details, and which an attacker can trigger at will. The argument is the request read itself or a variable assigned from one within the 15 lines above that was not first checked for format (v.matches(..), isNumeric/isDigits/isCreatable(v), pattern.matcher(v).matches()). Not reported: conversions inside a try block, in a helper method that handles the exception, of constants or of non-request data (properties, argv), code outside servlet handlers, comments and string literals. Exceptions thrown by deeper calls are not traced.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-600/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-600/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

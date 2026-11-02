@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-229",
 	"name": "TeamCity superuser token",
 	"description": "A JetBrains TeamCity superuser authentication token was found. It grants full administrative access to the TeamCity server REST API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/source-control/#vnx-sec-229",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/source-control/#vnx-sec-229",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

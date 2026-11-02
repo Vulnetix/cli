@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-907",
 	"name": "Weatherbit API key",
 	"description": "A Weatherbit.io API key was found near a weatherbit assignment. It is a 32-character hex string authorizing current, forecast, and history weather endpoints.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-907",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-907",
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",

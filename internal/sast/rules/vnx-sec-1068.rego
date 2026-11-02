@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1068",
 	"name": "Vimeo access token (bearer)",
 	"description": "A Vimeo API personal access token (32-character lowercase hex bearer) was found. It authorizes uploads, edits and private-video access on the Vimeo account.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1068",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1068",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

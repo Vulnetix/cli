@@ -7,7 +7,7 @@ metadata := {
 	"id": "VNX-1089",
 	"name": "Large Data Table with Excessive Number of Indices",
 	"description": "A table defined in the project's SQL files that carries more than 8 secondary indices. Counted: distinct index names from `CREATE [UNIQUE] INDEX [CONCURRENTLY] [IF NOT EXISTS] name ON [schema.]table` across every .sql file (so indices added by later migrations count, a re-run `IF NOT EXISTS` does not count twice, and an index removed by `DROP INDEX` does not count), plus inline MySQL `KEY`/`INDEX`/`UNIQUE KEY`/`FULLTEXT KEY` definitions inside the `CREATE TABLE` body and MySQL `ALTER TABLE t ADD [UNIQUE|FULLTEXT] INDEX|KEY name (...)` (net of `ALTER TABLE t DROP INDEX name`). Every index is maintained on every write, so a heavily indexed table that grows large slows inserts and updates and can be pushed into exhausting I/O. One finding per table, at its first `CREATE TABLE` line, or at its first index when the table is created elsewhere. Not counted: the primary key, UNIQUE/CHECK constraints, columns named key or index, and statements in `--` comments, in `/* */` comments (including multi-line blocks) or inside string literals. The order of migrations is not modelled: a name dropped anywhere is not counted. CWE-1089 is about large tables, and a table's row count cannot be known statically, so every table over the index threshold is reported; CISQ, which CWE-1089 cites, suggests 3 indices for a table of a million rows, and this rule uses 8 so that it points at the outliers.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1089/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-1089/",
 	"languages": ["sql"],
 	"severity": "low",
 	"level": "note",

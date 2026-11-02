@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-365",
 	"name": "Authorize.net signature key",
 	"description": "An Authorize.Net signature key (64 hex chars used for webhook/SHA-512 verification) was found near an authorize.net assignment. Exposure lets attackers forge transaction signatures.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/payment/#vnx-sec-365",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/payment/#vnx-sec-365",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

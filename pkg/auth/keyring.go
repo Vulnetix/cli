@@ -14,7 +14,7 @@ const keyringService = "vulnetix"
 
 // KeychainSetupURL points users at documentation for enabling an OS keychain /
 // Secret Service backend when none is detected.
-const KeychainSetupURL = "https://vulnetix.com/docs/cli/keychain"
+const KeychainSetupURL = "https://docs.vulnetix.com/cli/authentication/storage/#no-keychain"
 
 // keyringProbeAccount is a reserved account name used only to detect whether a
 // usable keychain backend is present.

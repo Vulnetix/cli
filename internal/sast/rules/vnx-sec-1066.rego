@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1066",
 	"name": "PlayFab secret key",
 	"description": "A PlayFab title secret key was found. This server-side key grants full administrative access to the PlayFab title including player data, economy and server APIs.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1066",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1066",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-463",
 	"name": "Customer.io tracking site/API key pair",
 	"description": "A Customer.io tracking API key (the secret half of the site_id/api_key Basic Auth pair) was found near a customerio track assignment.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-463",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-463",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

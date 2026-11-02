@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-984",
 	"name": "Gemini API secret (master/account secret)",
 	"description": "A Gemini exchange API secret assigned to a Gemini secret field was found. Paired with the account- or master- API key it signs authenticated trading and transfer requests.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/crypto-blockchain/#vnx-sec-984",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/crypto-blockchain/#vnx-sec-984",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

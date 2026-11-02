@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-885",
 	"name": "Swell API secret key",
 	"description": "A Swell headless-commerce secret API key was found. It grants server-side access to the store's products, carts and orders in the Swell API.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-885",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-885",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-492",
 	"name": "Supabase service_role JWT",
 	"description": "A Supabase service_role JWT was found. It bypasses Row Level Security and grants full read/write access to the entire Postgres database behind the Supabase project.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-492",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-492",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

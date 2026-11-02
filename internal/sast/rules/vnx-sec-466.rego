@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-466",
 	"name": "PubNub secret/keyword key",
 	"description": "A PubNub secret/admin key was found near a pubnub assignment. PubNub admin keys grant full keyset control including Access Manager.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/communication/#vnx-sec-466",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/communication/#vnx-sec-466",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

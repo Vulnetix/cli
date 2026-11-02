@@ -9,7 +9,7 @@ metadata := {
 	"id": "VNX-SEC-1122",
 	"name": "CDN77 login token context",
 	"description": "A CDN77 login token in a cdn77 login context was found. It authorizes CDN77 API management of resources and purges.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/secrets/saas/#vnx-sec-1122",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/secrets/saas/#vnx-sec-1122",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-PY-016",
 	"name": "Django mass assignment via request data unpacking",
 	"description": "The whole request body reaches a model's fields: unpacked with ** (request.data, request.POST/GET, request.json/form/args/values, request.get_json(), json.loads(request.body), or a variable assigned from one of them) into Model.objects.create/get_or_create/update_or_create, a queryset .update(), a SQLAlchemy insert()/update() .values(), or a model constructor in a file that uses an ORM; passed as the dict of a SQLAlchemy Query .filter()/.filter_by()/.where() ... .update(<body>); copied onto an object with obj.__dict__.update() or vars(obj).update(); or written field by field with setattr() in a loop over the request keys with no allowlist check. Also reported: a DRF ModelSerializer or Django ModelForm whose Meta sets fields = \"__all__\" without making them read-only. An attacker can then set is_staff, role, price or any other column. Not reported: explicit keyword arguments, a dict built from an allowlist, serializer.validated_data or form.cleaned_data, pydantic or dataclass constructors, a setattr loop guarded by a membership test, and comments or strings that mention the pattern.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-016/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-py-016/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

@@ -8,7 +8,7 @@ metadata := {
 	"id": "VNX-RUBY-004",
 	"name": "Ruby SQL injection",
 	"description": "An ActiveRecord query method receives SQL text built from outside data: where/order/reorder/having/joins/find_by_sql/count_by_sql/execute/exec_query/select_all/select_value(s)/select_rows/select_one (with or without a receiver) and .select/.group/.from/.pluck/.lock/.not/.rewhere/.find_by/.exists?/.update_all/.delete_all (on a receiver) given a string whose interpolation (#{...}), concatenation (+) or format (%) inserts request input (params, request.*, cookies), a variable assigned from request input in the 15 lines above (up to two assignments), or a parameter of the enclosing method or lambda; a raw params[...] value passed as the SQL fragment (order(params[:sort])); or a variable holding such a SQL string built in the lines above. The SQL argument may sit on the line after the opening parenthesis, inside an array (find_by_sql([\"...\"])) or inside Arel.sql(...). Not reported: input checked against an allowlist on assignment (SORTABLE.include?(params[:s]) ? params[:s] : \"name\", a ternary between literals, CONST.fetch(params[:k])), placeholders (where(\"id = ?\", id)), hash conditions (where(id: params[:id])), values made safe with to_i/to_f/Integer(), quote/quote_table_name/sanitize_sql*, table_name/primary_key and constants, migrations under db/migrate, heredoc SQL (a documented gap), comments and strings.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-004/",
+	"help_uri": "https://docs.vulnetix.com/sast/rules/vnx-ruby-004/",
 	"languages": ["ruby"],
 	"severity": "critical",
 	"level": "error",
