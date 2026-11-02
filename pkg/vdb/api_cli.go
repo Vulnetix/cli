@@ -2148,3 +2148,49 @@ type CliApiSpecsResponse struct {
 func (c *Client) CliApiSpecs(ctx context.Context, env CliEnv, req CliApiSpecsRequest) (*CliResponse[CliApiSpecsResponse], error) {
 	return cliPostWithEnvContext[CliApiSpecsResponse](ctx, c, "cli.api-specs", env, req)
 }
+
+// ─── Surface liveness (attack surface) ────────────────────────────────────────
+
+// CliSurfaceTarget is one registered route, operation or host the liveness
+// check probes from inside the customer network.
+type CliSurfaceTarget struct {
+	ElementKey   string `json:"elementKey"`
+	Kind         string `json:"kind"`
+	Host         string `json:"host"`
+	Method       string `json:"method"`
+	PathTemplate string `json:"pathTemplate"`
+}
+
+// CliSurfaceTargetsResponse is the list the server returns.
+type CliSurfaceTargetsResponse struct {
+	Targets []CliSurfaceTarget `json:"targets"`
+}
+
+// CliSurfaceObservation is one live sighting the liveness check reports.
+type CliSurfaceObservation struct {
+	Host          string `json:"host"`
+	Port          int    `json:"port,omitempty"`
+	Method        string `json:"method,omitempty"`
+	Path          string `json:"path,omitempty"`
+	PathTemplate  string `json:"pathTemplate,omitempty"`
+	ObservedBy    string `json:"observedBy"`
+	Status        int    `json:"status,omitempty"`
+	AuthChallenge string `json:"authChallenge,omitempty"`
+	LatencyMs     int    `json:"latencyMs,omitempty"`
+	At            int64  `json:"at,omitempty"`
+}
+
+// CliSurfaceObservationsRequest is the POST /v2/cli.surface-observations body.
+type CliSurfaceObservationsRequest struct {
+	Observations []CliSurfaceObservation `json:"observations"`
+}
+
+// CliSurfaceTargets — POST /v2/cli.surface-targets. The elements to check.
+func (c *Client) CliSurfaceTargets(ctx context.Context, env CliEnv, repo string) (*CliResponse[CliSurfaceTargetsResponse], error) {
+	return cliPostWithEnvContext[CliSurfaceTargetsResponse](ctx, c, "cli.surface-targets", env, map[string]string{"repo": repo})
+}
+
+// CliSurfaceObservations — POST /v2/cli.surface-observations. The sightings.
+func (c *Client) CliSurfaceObservations(ctx context.Context, env CliEnv, req CliSurfaceObservationsRequest) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnvContext[map[string]any](ctx, c, "cli.surface-observations", env, req)
+}
