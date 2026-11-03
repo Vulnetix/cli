@@ -244,7 +244,8 @@ func TestTokenIsRefreshedBeforeItExpires(t *testing.T) {
 		}
 		return c.RegistryToken
 	}
-	if get() != "t1" || get() != "t1" || len(src.calls) != 1 {
+	first, second := get(), get() // two reads, one fetch: the token is reused
+	if first != "t1" || second != "t1" || len(src.calls) != 1 {
 		t.Fatalf("a fresh token is reused: %v", src.calls)
 	}
 	src.mu.Lock()
