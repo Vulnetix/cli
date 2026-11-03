@@ -446,7 +446,10 @@ func runDependencyGraphPublish(ctx context.Context, o dependencyGraphPublishOpti
 		}
 		client = github.NewClient(tok)
 	}
-	res, err := client.SubmitSnapshot(ctx, target.Repo, snap)
+	res, dropped, err := client.SubmitSnapshotLenient(ctx, target.Repo, snap)
+	for _, d := range dropped {
+		fmt.Fprintf(w, "  dependency graph: GitHub does not accept %s; left out\n", d)
+	}
 	if err != nil {
 		return fmt.Errorf("dependency graph: %w%s", err, permissionHint(err, "contents: write"))
 	}

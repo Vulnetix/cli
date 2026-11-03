@@ -19,10 +19,13 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -157,7 +160,7 @@ func BuildSnapshot(cdxJSON []byte, o SnapshotOptions) (*Snapshot, error) {
 	purlOf := map[string]string{}
 	for _, c := range flat {
 		if c.BOMRef != "" && c.Purl != "" {
-			purlOf[c.BOMRef] = c.Purl
+			purlOf[c.BOMRef] = GitHubPurl(c.Purl)
 		}
 	}
 	deps := map[string][]string{}
@@ -191,7 +194,8 @@ func BuildSnapshot(cdxJSON []byte, o SnapshotOptions) (*Snapshot, error) {
 		if !ok {
 			m = Manifest{Name: src, File: &ManifestFile{SourceLocation: src}, Resolved: map[string]ResolvedPackage{}}
 		}
-		rp := ResolvedPackage{PackageURL: c.Purl, Scope: snapshotScope(c)}
+		purl := GitHubPurl(c.Purl)
+		rp := ResolvedPackage{PackageURL: purl, Scope: snapshotScope(c)}
 		if haveRoot {
 			if direct[c.BOMRef] {
 				rp.Relationship = "direct"
@@ -205,7 +209,7 @@ func BuildSnapshot(cdxJSON []byte, o SnapshotOptions) (*Snapshot, error) {
 			}
 		}
 		sort.Strings(rp.Dependencies)
-		key := c.Purl
+		key := purl
 		if prev, dup := m.Resolved[key]; dup {
 			// The same package declared twice in one manifest: keep the
 			// stronger relationship and the union of dependencies.
@@ -291,4 +295,84 @@ func (s *Snapshot) PackageCount() int {
 		n += len(m.Resolved)
 	}
 	return n
+}
+
+// GitHubPurl rewrites a package URL into the form the dependency graph
+// accepts. GitHub Actions are pkg:githubactions/<owner>/<repo>@<ref> there;
+// this CLI's SBOMs carry pkg:github-actions/<owner>%2F<repo>@<ref>, which the
+// API rejects as an invalid type (HTTP 422) and which then fails the whole
+// snapshot. Every other purl is returned unchanged.
+func GitHubPurl(purl string) string {
+	rest, ok := strings.CutPrefix(purl, "pkg:github-actions/")
+	if !ok {
+		return purl
+	}
+	if dec, err := url.PathUnescape(rest); err == nil {
+		rest = dec
+	}
+	return "pkg:githubactions/" + rest
+}
+
+var rejectedPurl = regexp.MustCompile(`decoding "([^"]+)"`)
+
+// RejectedPurl returns the package URL a 422 from the snapshot API names as
+// invalid, or "".
+func RejectedPurl(err error) string {
+	var ae *APIError
+	if !errors.As(err, &ae) || ae.Status != http.StatusUnprocessableEntity || !strings.Contains(ae.Message, "invalid package url") {
+		return ""
+	}
+	if m := rejectedPurl.FindStringSubmatch(ae.Message); len(m) == 2 {
+		return m[1]
+	}
+	return ""
+}
+
+// Drop removes a package, and every reference to it, from the snapshot. It
+// reports whether the package was there.
+func (s *Snapshot) Drop(purl string) bool {
+	found := false
+	for name, m := range s.Manifests {
+		if _, ok := m.Resolved[purl]; ok {
+			delete(m.Resolved, purl)
+			found = true
+		}
+		for key, rp := range m.Resolved {
+			kept := rp.Dependencies[:0:0]
+			for _, d := range rp.Dependencies {
+				if d != purl {
+					kept = append(kept, d)
+				}
+			}
+			rp.Dependencies = kept
+			m.Resolved[key] = rp
+		}
+		if len(m.Resolved) == 0 {
+			delete(s.Manifests, name)
+		}
+	}
+	return found
+}
+
+// SubmitSnapshotLenient posts a snapshot and, when GitHub refuses one package
+// as invalid, drops that package and posts again, so one purl the API does not
+// know cannot cost the repository its whole dependency graph. It returns the
+// packages it left out.
+func (c *Client) SubmitSnapshotLenient(ctx context.Context, repo string, s *Snapshot) (*SnapshotResult, []string, error) {
+	var dropped []string
+	for attempt := 0; ; attempt++ {
+		res, err := c.SubmitSnapshot(ctx, repo, s)
+		if err == nil {
+			return res, dropped, nil
+		}
+		bad := RejectedPurl(err)
+		// The API may name the purl in the form it decoded; match either.
+		if bad == "" || attempt >= 25 || !(s.Drop(bad) || s.Drop(GitHubPurl(bad)) || s.Drop(strings.ReplaceAll(bad, "/", "%2F"))) {
+			return nil, dropped, err
+		}
+		dropped = append(dropped, bad)
+		if s.PackageCount() == 0 {
+			return nil, dropped, fmt.Errorf("GitHub accepted none of the packages: %w", err)
+		}
+	}
 }
