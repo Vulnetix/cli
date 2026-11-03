@@ -18,7 +18,8 @@ build_date := `date -u +%Y-%m-%dT%H:%M:%SZ`
 output_dir := "bin"
 binary := "vulnetix"
 ldflags := "-s -w -X github.com/vulnetix/cli/v4/cmd.version=" + version + " -X github.com/vulnetix/cli/v4/cmd.commit=" + commit + " -X github.com/vulnetix/cli/v4/cmd.buildDate=" + build_date
-extra_root := env("VULNETIX_EXTRA_ROOT", "/home/chris/GitHub/Vulnetix-extra")
+# Sibling of the Vulnetix workspace: ~/GitHub/Vulnetix/cli -> ~/GitHub/Vulnetix-extra
+extra_root := env("VULNETIX_EXTRA_ROOT", parent_directory(parent_directory(justfile_directory())) / "Vulnetix-extra")
 sast_fixtures := env("VULNETIX_SAST_FIXTURES", extra_root + "/sast-rule-evals")
 sca_fixtures := env("VULNETIX_SCA_FIXTURES", extra_root + "/sca-manifest-fixtures")
 fixture_rule_flags := "--rule Vulnetix/community-rules --rule Vulnetix/opa-fugue-regula --rule Vulnetix/opa-checkmarx-kics --rule Vulnetix/opa-cds-aws-tf --rule Vulnetix/opa-cigna-tf --rule Vulnetix/opa-aquasecurity-trivy"
