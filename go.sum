@@ -328,6 +328,8 @@ github.com/vulnetix/config-schemas v1.13.0 h1:7q7/fVAflwD1MtdM5171nGWVjtA2YTpCM+
 github.com/vulnetix/config-schemas v1.13.0/go.mod h1:ZzpFRYhOvxtd9a4fEFEujdAr73Z7NoOvhDb8/NggBxo=
 github.com/vulnetix/config-schemas v1.14.0 h1:L7nX4GKESGR8bwq6CbK9iW0J+WnOoC+0BUSNU9UMFdU=
 github.com/vulnetix/config-schemas v1.14.0/go.mod h1:ZzpFRYhOvxtd9a4fEFEujdAr73Z7NoOvhDb8/NggBxo=
+github.com/vulnetix/config-schemas v1.15.0 h1:PlM2A4s2R+wAORwznoQ5kiEUcNwvwobaH3k5lENJ8AY=
+github.com/vulnetix/config-schemas v1.15.0/go.mod h1:ZzpFRYhOvxtd9a4fEFEujdAr73Z7NoOvhDb8/NggBxo=
 github.com/vulnetix/malscan-engine v0.6.1 h1:ND2q5bu21p8DKIJbnyzZC9xqNN9GfmReTxqnJC4sAmc=
 github.com/vulnetix/malscan-engine v0.6.1/go.mod h1:gqHbbwWvHHS2mRmhSlAEB0g/U8SIMy77zO3gOrF/vbw=
 github.com/xanzy/ssh-agent v0.3.3 h1:+/15pJfg/RsTxqYcX6fHqOXZwwMP+2VyYWJeWM2qQFM=

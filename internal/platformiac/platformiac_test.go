@@ -162,3 +162,24 @@ func TestNormalizeAndFlatten(t *testing.T) {
 		t.Fatalf("flatten %+v", back)
 	}
 }
+
+func TestValidatorAcceptsOrganizationDriftProtection(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	write(t, root, map[string]string{
+		"ok.yaml":  "apiVersion: vulnetix.com/v1\nkind: Organization\nmetadata: {name: default}\nspec:\n  driftProtection: true\n",
+		"bad.yaml": "apiVersion: vulnetix.com/v1\nkind: Organization\nmetadata: {name: default}\nspec:\n  driftProtection: sometimes\n",
+	})
+	for name, valid := range map[string]bool{"ok.yaml": true, "bad.yaml": false} {
+		docs, err := Discover(Options{Root: root, Files: []string{filepath.Join(root, name)}})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if err := v.Validate(docs[0].Document); (err == nil) != valid {
+			t.Errorf("%s: valid=%v err=%v", name, valid, err)
+		}
+	}
+}

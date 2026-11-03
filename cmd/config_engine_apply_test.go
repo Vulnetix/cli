@@ -102,3 +102,24 @@ func TestConfigPlanIncludesWellKnownFiles(t *testing.T) {
 		t.Fatalf("LicensePolicy is validated here, not sent: sent %s\n%s", got, errOut)
 	}
 }
+
+// Organization.spec.driftProtection came with config-schemas v1.15.0: a CLI
+// that embeds an older release refuses the document, so it is held here.
+func TestConfigPlanSendsOrganizationDriftProtection(t *testing.T) {
+	f := newFakeEngine(t)
+	doc := writeConfigFile(t, t.TempDir(), "org.yaml", "apiVersion: vulnetix.com/v1\nkind: Organization\nmetadata: {name: default}\nspec:\n  driftProtection: true\n")
+	if _, errOut, err := runCmd(t, newConfigValidateCommand(), "", "-f", doc); err != nil {
+		t.Fatalf("validate: %v\n%s", err, errOut)
+	}
+	if _, errOut, err := runCmd(t, newConfigPlanCommand(), "", "-f", doc, "--manager", "gitops:acme/platform", "--token", "t"); err != nil {
+		t.Fatalf("plan: %v\n%s", err, errOut)
+	}
+	docs, _ := f.lastBody("/config/plan")["documents"].([]any)
+	if len(docs) != 1 {
+		t.Fatalf("documents %v", docs)
+	}
+	spec := docs[0].(map[string]any)["spec"].(map[string]any)
+	if spec["driftProtection"] != true {
+		t.Fatalf("spec %v", spec)
+	}
+}
