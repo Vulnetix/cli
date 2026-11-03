@@ -141,6 +141,7 @@ var authStatusCmd = &cobra.Command{
 		}
 
 		ctx.Logger.Result(display.Header(t, "Package Firewall"))
+		addons := liveAddonStatus(creds)
 		if home, err := os.UserHomeDir(); err == nil {
 			groups := groupEcosystems(home, auth.PackageFirewallHost)
 			if len(groups.Configured) > 0 {
@@ -157,7 +158,7 @@ var authStatusCmd = &cobra.Command{
 			if len(groups.Available) > 0 {
 				ctx.Logger.Result(display.Subheader(t, "Available to configure"))
 				for _, eco := range groups.Available {
-					hint := addonRequires(eco.Ecosystem, plan)
+					hint := addonRequires(eco.Ecosystem, plan, addons)
 					line := fmt.Sprintf("  %s %s %s",
 						display.Muted(t, "o"),
 						eco.Ecosystem.DisplayName,

@@ -47,6 +47,8 @@ var (
 	packageFirewallBaseURL  string
 	packageFirewallProxyURL string
 	packageFirewallDryRun   bool
+	// packageFirewallGoFailClosed writes GOPROXY as the firewall alone.
+	packageFirewallGoFailClosed bool
 )
 
 var packageFirewallCmd = &cobra.Command{
@@ -62,7 +64,12 @@ var packageFirewallGoCmd = &cobra.Command{
 
 This writes Basic auth credentials to netrc, then persists GOPROXY and GOAUTH in
 your shell configuration. If project config files are detected at the git root,
-they are updated as well.`,
+they are updated as well.
+
+GOPROXY is written as "<firewall>|https://proxy.golang.org|direct": the Go proxy
+needs the Package Firewall add-on and answers HTTP 402 without it, and the pipe
+lets go carry on instead of failing every build. Pass --fail-closed to write the
+firewall alone.`,
 	RunE: runPackageFirewallGo,
 }
 
@@ -80,6 +87,39 @@ type packageFirewallAction struct {
 	Target string
 	Result string
 }
+
+// goProxyFallback is what follows the firewall in a GOPROXY list.
+const goProxyFallback = "https://proxy.golang.org|direct"
+
+// goProxyList is the GOPROXY value written for a firewall at proxyURL.
+//
+// The default is "<firewall>|https://proxy.golang.org|direct". The pipe matters:
+// after a comma the go command moves to the next entry only on HTTP 404 or 410,
+// so a firewall that answers 402 (the Package Firewall add-on is not active) or
+// is down would fail every build. After a pipe it moves on after any error.
+// failClosed writes the firewall alone, so a refusal stops the build.
+func goProxyList(proxyURL string, failClosed bool) string {
+	p := strings.TrimRight(strings.TrimSpace(proxyURL), "/")
+	if failClosed {
+		return p
+	}
+	return p + "|" + goProxyFallback
+}
+
+// goProxyNotes explains what the written GOPROXY does when the firewall refuses.
+func goProxyNotes(failClosed bool) []string {
+	if failClosed {
+		return []string{
+			"GOPROXY is the firewall alone (--fail-closed). Without the Package Firewall add-on the proxy answers HTTP 402 and go stops: add the add-on at " + addonBillingPage + " or rerun without --fail-closed.",
+		}
+	}
+	return []string{
+		"GOPROXY falls back to proxy.golang.org and then direct (the | separator). The Go proxy needs the Package Firewall add-on: without it the firewall answers HTTP 402, and a comma-separated list would stop go with an error. Add it at " + addonBillingPage + ".",
+		"The fallback also applies when the firewall blocks a module by policy, so a blocked module can still be fetched. Use --fail-closed for GOPROXY=<firewall> alone.",
+	}
+}
+
+const addonBillingPage = "https://www.vulnetix.com/resolve/billing#addons"
 
 func runPackageFirewallGo(cmd *cobra.Command, args []string) error {
 	ctx := display.FromCommand(cmd)
@@ -112,13 +152,14 @@ func runPackageFirewallGo(cmd *cobra.Command, args []string) error {
 	}
 	actions = append(actions, packageFirewallAction{Target: netrcPath, Result: result})
 
-	shellActions, err := persistGoShellEnv(proxyURL, packageFirewallDryRun)
+	goproxy := goProxyList(proxyURL, packageFirewallGoFailClosed)
+	shellActions, err := persistGoShellEnv(goproxy, packageFirewallDryRun)
 	if err != nil {
 		return err
 	}
 	actions = append(actions, shellActions...)
 
-	projectActions, err := persistGoProjectEnv(proxyURL, packageFirewallDryRun)
+	projectActions, err := persistGoProjectEnv(goproxy, packageFirewallDryRun)
 	if err != nil {
 		return err
 	}
@@ -134,12 +175,17 @@ func runPackageFirewallGo(cmd *cobra.Command, args []string) error {
 		{Key: "Credential source", Value: credentialSource},
 		{Key: "Organization", Value: orgID},
 		{Key: "Proxy", Value: proxyURL},
+		{Key: "GOPROXY", Value: goproxy},
 		{Key: "GOAUTH", Value: "netrc"},
 		{Key: "API key", Value: maskSecret(apiKey)},
 	}) + "\n")
 	b.WriteString("\n" + display.Subheader(t, "Actions") + "\n")
 	for _, action := range actions {
 		b.WriteString(fmt.Sprintf("  %s: %s\n", action.Target, action.Result))
+	}
+	b.WriteString("\n" + display.Subheader(t, "Note") + "\n")
+	for _, n := range goProxyNotes(packageFirewallGoFailClosed) {
+		b.WriteString("  " + n + "\n")
 	}
 	ctx.Logger.Result(strings.TrimRight(b.String(), "\n"))
 	return nil
@@ -1000,6 +1046,7 @@ func credsLabel(remove bool) string {
 
 func init() {
 	addPackageFirewallFlags(packageFirewallGoCmd, "Go")
+	packageFirewallGoCmd.Flags().BoolVar(&packageFirewallGoFailClosed, "fail-closed", false, "Write GOPROXY as the firewall alone: no proxy.golang.org or direct fallback, so an HTTP 402 or a policy block stops go")
 	packageFirewallCmd.AddCommand(packageFirewallGoCmd)
 	addPackageFirewallFlags(packageFirewallGoDevCmd, "Go pkg.go.dev API")
 	packageFirewallCmd.AddCommand(packageFirewallGoDevCmd)

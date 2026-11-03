@@ -416,3 +416,41 @@ func readFile(t *testing.T, path string) string {
 	}
 	return string(data)
 }
+
+func TestGoProxyListFallsBackSoA402DoesNotBreakBuilds(t *testing.T) {
+	const fw = "https://packages.vulnetix.com"
+	if got, want := goProxyList(fw, false), fw+"|https://proxy.golang.org|direct"; got != want {
+		t.Errorf("fallback list = %q, want %q", got, want)
+	}
+	if got := goProxyList(fw+"/", false); got != fw+"|https://proxy.golang.org|direct" {
+		t.Errorf("a trailing slash must not leak into the list: %q", got)
+	}
+	if got := goProxyList(fw, true); got != fw {
+		t.Errorf("fail-closed list = %q, want the firewall alone", got)
+	}
+	// Go moves to the next entry on any error after '|', but only on 404/410
+	// after ','. A 402 needs the pipe.
+	if strings.Contains(goProxyList(fw, false), ","+"https://proxy.golang.org") {
+		t.Error("a comma would not fall back on a 402")
+	}
+}
+
+func TestGoProxyNotesExplainTheTradeoff(t *testing.T) {
+	open := strings.Join(goProxyNotes(false), "\n")
+	for _, want := range []string{"402", "Package Firewall add-on", "falls back", "--fail-closed"} {
+		if !strings.Contains(open, want) {
+			t.Errorf("fallback notes lack %q:\n%s", want, open)
+		}
+	}
+	closed := strings.Join(goProxyNotes(true), "\n")
+	if !strings.Contains(closed, "402") || strings.Contains(closed, "falls back") {
+		t.Errorf("fail-closed notes must warn that a 402 stops go and not promise a fallback:\n%s", closed)
+	}
+}
+
+func TestShellEnvBlockCarriesTheProxyList(t *testing.T) {
+	block := shellEnvBlock("sh", goProxyList("https://packages.vulnetix.com", false))
+	if !strings.Contains(block, `GOPROXY="https://packages.vulnetix.com|https://proxy.golang.org|direct"`) {
+		t.Errorf("GOPROXY list missing from the shell block:\n%s", block)
+	}
+}

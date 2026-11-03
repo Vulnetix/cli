@@ -81,14 +81,17 @@ func planBadge(t *display.Terminal, plan string) string {
 	}
 }
 
-// addonRequires is the hint printed next to an ecosystem the caller has not unlocked:
-// empty for a free ecosystem, for an Enterprise plan (which passes every add-on
-// check) and when the plan is not known.
-func addonRequires(eco pfw.Ecosystem, plan string) string {
+// addonRequires is the hint printed next to an ecosystem the caller has not
+// unlocked. It is printed only when the console said the add-on is enforced and
+// the org does NOT hold it. It is empty for a free ecosystem, for an Enterprise
+// plan, for an add-on holder, with the gate off, and whenever the state is
+// unknown (offline, older site, no credential): an unknown state is not a
+// reason to tell someone to buy something.
+func addonRequires(eco pfw.Ecosystem, plan string, st addonStatus) string {
 	if eco.Free || strings.EqualFold(strings.TrimSpace(plan), "enterprise") {
 		return ""
 	}
-	if strings.EqualFold(plan, "unknown") || strings.TrimSpace(plan) == "" {
+	if !st.Known || !st.Enforced || st.Entitled {
 		return ""
 	}
 	return pfw.AddonHint
