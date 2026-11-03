@@ -152,6 +152,12 @@ func Apply(bom *cdx.BOM, set *Set) *Result {
 	}
 
 	for _, st := range set.Statements() {
+		// The console holds every statement of the organisation for this
+		// repository, so most match nothing here and that says nothing about
+		// the document being about another product.
+		if st.Source.Format == FormatConsole {
+			continue
+		}
 		if !matchedStatements[statementKey(st)] {
 			res.Unmatched++
 		}

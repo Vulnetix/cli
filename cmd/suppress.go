@@ -228,8 +228,18 @@ func runSuppressList(cmd *cobra.Command, _ []string) error {
 		}
 		if resp, err := client.CliSuppressionsGet(envForCliWithGit(git), req); err == nil && resp != nil {
 			for _, s := range resp.Data.Suppressions {
-				fmt.Fprintf(tw, "remote\t%v\t%s\t%s\t%s\t%s\t%s\t%s\n",
-					s.IsActive, s.SuppressionType, suppressCategoryLabel(s.Category), suppressKeyLabel(s.RuleID, s.FindingUUID, s.TargetValue), s.FilePath, suppTruncate(s.Reason, 40), s.UUID)
+				// A rule a VexSource made is listed under its owner and by the
+				// vulnerability it is about: it has no rule id, and the source, not
+				// this command, is where it changes.
+				origin, anchor := "remote", suppressKeyLabel(s.RuleID, s.FindingUUID, s.TargetValue)
+				if s.VexSourceUUID != "" {
+					origin, anchor = "VexSource/"+s.Source, suppressKeyLabel("", s.VulnerabilityID, s.ProductPurl)
+					if s.ProductPurl != "" {
+						anchor = s.VulnerabilityID + " " + s.ProductPurl
+					}
+				}
+				fmt.Fprintf(tw, "%s\t%v\t%s\t%s\t%s\t%s\t%s\t%s\n",
+					origin, s.IsActive, s.SuppressionType, suppressCategoryLabel(s.Category), anchor, s.FilePath, suppTruncate(s.Reason, 40), s.UUID)
 			}
 		} else if err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not fetch remote rules (%v)\n", err)
@@ -261,6 +271,17 @@ func runSuppressRemove(cmd *cobra.Command, _ []string) error {
 		repoFullName = suppress.RepoFullName(git.RemoteURLs)
 	}
 
+	// A rule a VexSource made is not this command's to remove: the source's next
+	// refresh would put it back, and removing it here would hide where it
+	// really comes from. Say so before touching anything.
+	var owned map[string]vdb.CliSuppression
+	if client := newCliClient(); client != nil {
+		owned = vexOwnedRules(client, git)
+	}
+	if r, ok := owned[uuid]; ok && uuid != "" {
+		return vexOwnedError(r)
+	}
+
 	mem, err := memory.Load(vulnetixDir)
 	if err != nil {
 		return err
@@ -269,6 +290,19 @@ func runSuppressRemove(cmd *cobra.Command, _ []string) error {
 	// uuid or ruleId, and an inventory rule has no ruleId — without the uuids
 	// the local rule would go quiet while the org-wide one stayed in force.
 	remoteUUIDs := mem.MatchingSuppressionUUIDs(uuid, anchorID, repoFullName)
+	// A memory.yaml written by a CLI that synced every remote rule can hold a
+	// VexSource's rule under a local copy; the copy goes, the source's rule stays.
+	kept := remoteUUIDs[:0:0]
+	leftOwned := false
+	for _, id := range remoteUUIDs {
+		if r, ok := owned[id]; ok {
+			leftOwned = true
+			fmt.Fprintf(os.Stderr, "note: %s\n", vexOwnedError(r))
+			continue
+		}
+		kept = append(kept, id)
+	}
+	remoteUUIDs = kept
 	n := mem.DeactivateSuppression(uuid, anchorID, repoFullName)
 	if err := memory.Save(vulnetixDir, mem); err != nil {
 		return err
@@ -276,7 +310,7 @@ func runSuppressRemove(cmd *cobra.Command, _ []string) error {
 
 	if client := newCliClient(); client != nil {
 		reason, _ := cmd.Flags().GetString("reason")
-		if len(remoteUUIDs) == 0 {
+		if len(remoteUUIDs) == 0 && !leftOwned {
 			remoteUUIDs = []string{uuid}
 		}
 		for _, id := range remoteUUIDs {
@@ -316,7 +350,15 @@ func runSuppressSync(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	skippedVex := 0
 	for _, s := range remote {
+		// A VexSource's rules are the source's, and the scan reads them from
+		// Vulnetix each run; a local copy would only be one more thing to go
+		// stale, and `ignore remove` could not take it away.
+		if s.VexSourceUUID != "" {
+			skippedVex++
+			continue
+		}
 		mem.UpsertSuppression(memory.SuppressionRecord{
 			UUID:               s.UUID,
 			RuleID:             s.RuleID,
@@ -337,7 +379,10 @@ func runSuppressSync(cmd *cobra.Command, _ []string) error {
 	if err := memory.Save(vulnetixDir, mem); err != nil {
 		return err
 	}
-	fmt.Printf("Synced %d remote rule(s) into %s.\n", len(remote), filepath.Join(vulnetixDir, "memory.yaml"))
+	fmt.Printf("Synced %d remote rule(s) into %s.\n", len(remote)-skippedVex, filepath.Join(vulnetixDir, "memory.yaml"))
+	if skippedVex > 0 {
+		fmt.Printf("Left %d rule(s) owned by a VexSource where they are; a scan reads them from Vulnetix.\n", skippedVex)
+	}
 	return nil
 }
 
@@ -425,4 +470,39 @@ func init() {
 
 	suppressCmd.AddCommand(suppressAddCmd, suppressListCmd, suppressRemoveCmd, suppressSyncCmd)
 	rootCmd.AddCommand(suppressCmd)
+}
+
+// vexOwnedRules maps the uuid of each rule a VexSource owns to the rule, for
+// git's repository. Best effort: a server that cannot be reached, or one that
+// predates the VEX fields, gives none, and the server refuses such a
+// deactivation itself.
+func vexOwnedRules(client *vdb.Client, git *gitctx.GitContext) map[string]vdb.CliSuppression {
+	req := vdb.CliSuppressionsGetRequest{ActiveOnly: false}
+	if git != nil {
+		req.RepositoryFullName = suppress.RepoFullName(git.RemoteURLs)
+	}
+	resp, err := client.CliSuppressionsGet(envForCliWithGit(git), req)
+	if err != nil || resp == nil {
+		return nil
+	}
+	owned := map[string]vdb.CliSuppression{}
+	for _, s := range resp.Data.Suppressions {
+		if s.VexSourceUUID != "" {
+			owned[s.UUID] = s
+		}
+	}
+	return owned
+}
+
+// vexOwnedError says that a rule belongs to a VexSource and where to change it.
+func vexOwnedError(s vdb.CliSuppression) error {
+	what := s.VulnerabilityID
+	if s.ProductPurl != "" {
+		what += " for " + s.ProductPurl
+	}
+	src := "VexSource/" + s.Source
+	if s.SourceType != "" {
+		src += " (" + s.SourceType + ")"
+	}
+	return fmt.Errorf("the rule for %s belongs to %s and cannot be removed here: change or remove the statement at the source, or the VexSource, and the next refresh follows", what, src)
 }

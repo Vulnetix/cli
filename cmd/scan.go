@@ -2089,9 +2089,13 @@ func runLocalScan(
 		return vexResolveErr
 	}
 	defer vexCleanup()
-	if len(vexInputs) > 0 {
+	// What the console holds for this repository as VEX, including the sources
+	// it fetches itself (tea, s3, git) that no document here can stand in for.
+	// Authenticated runs only, and not under --no-vex.
+	consoleVEX := scanConsoleVEX(opts.VEXConfig && !noSCA, gitCtx, os.Stderr)
+	if len(vexInputs) > 0 || len(consoleVEX) > 0 {
 		var vexErr error
-		vexPass, vexErr = runVEXPass(VEXPassOptions{Paths: vexInputs, BOM: bom})
+		vexPass, vexErr = runVEXPass(VEXPassOptions{Paths: vexInputs, BOM: bom, Console: consoleVEX})
 		if vexErr != nil {
 			// A malformed VEX document must not silently widen the gate. Fail
 			// loudly rather than proceeding as though no statements existed.

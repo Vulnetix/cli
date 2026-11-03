@@ -25,8 +25,9 @@ import (
 //	                             without a second flag
 //
 // tea, s3 and git sources are fetched by the console, not here. Their
-// suppressions are the console's; point --vex at the same documents to have a
-// CI gate honour them.
+// statements are the console's rules, and an authenticated scan applies them
+// from there with the documents (scanConsoleVEX in vex.go). An unauthenticated
+// scan cannot; point --vex at the same documents to have it honour them.
 //
 // A declared source keeps the limits it was declared with. scope.repos applies
 // the source only to those repositories; trust.allowedAuthors drops documents
@@ -279,7 +280,12 @@ func resolveVEXInputs(ctx context.Context, o vexInputsOptions) ([]string, func()
 	if o.FromConfig {
 		for _, d := range vexSourceDecls(o.Root, o.Notes) {
 			if d.Unsupported != "" {
-				fmt.Fprintf(o.Notes, "  note: VexSource/%s reads a %s source, which the console fetches; pass its documents with --vex to honour them here\n", d.Name, d.Unsupported)
+				// The console holds this source's statements as rules, and an
+				// authenticated scan reads them from there (scanConsoleVEX). Only an
+				// unauthenticated one has to be told it is not applying them.
+				if isUnauthenticatedScan() {
+					fmt.Fprintf(o.Notes, "  note: VexSource/%s reads a %s source, which the console fetches; sign in (vulnetix auth login) to have a scan apply its statements, or pass its documents with --vex\n", d.Name, d.Unsupported)
+				}
 				continue
 			}
 			if !repoInScope(d.Repos, o.Repo) {

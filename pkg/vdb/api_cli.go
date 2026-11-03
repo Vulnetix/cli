@@ -1359,6 +1359,23 @@ type CliSuppression struct {
 	CreatedAt          int64  `json:"createdAt"`
 	ExpiresAt          int64  `json:"expiresAt"`
 	IsActive           bool   `json:"isActive"`
+
+	// The fields below describe the VEX statement behind a rule a VexSource (or
+	// an ingested VEX document) made; they are empty for every other rule and
+	// for a server that predates them.
+	VulnerabilityID  string `json:"vulnerabilityId,omitempty"`
+	ProductPurl      string `json:"productPurl,omitempty"`
+	ProductPurlBase  string `json:"productPurlBase,omitempty"`
+	Justification    string `json:"justification,omitempty"`
+	Status           string `json:"status,omitempty"` // OpenVEX status of the statement
+	SourceKind       string `json:"sourceKind,omitempty"`
+	VexSourceUUID    string `json:"vexSourceUuid,omitempty"`
+	Source           string `json:"source,omitempty"`     // the VexSource's name
+	SourceType       string `json:"sourceType,omitempty"` // tea, s3, git, path or urls
+	SourceRef        string `json:"sourceRef,omitempty"`  // the statement within its document
+	SourceDocumentID string `json:"sourceDocumentId,omitempty"`
+	// StatementTimestamp is when the statement was made, unix seconds.
+	StatementTimestamp int64 `json:"statementTimestamp,omitempty"`
 }
 
 // CliSuppressionsGetRequest scopes the read to a repo/branch/category.
@@ -1373,6 +1390,9 @@ type CliSuppressionsGetRequest struct {
 // CliSuppressionsListData is the data payload of cli.suppressions-get.
 type CliSuppressionsListData struct {
 	Suppressions []CliSuppression `json:"suppressions"`
+	// VexTruncated is true when the server held more VEX-sourced rules than it
+	// returns in one reply.
+	VexTruncated bool `json:"vexTruncated,omitempty"`
 }
 
 // CliSuppressionsGet — POST /v2/cli.suppressions-get. Read-only: repo-scoped

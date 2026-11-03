@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,7 +13,9 @@ import (
 	"github.com/vulnetix/cli/v4/internal/artifacts"
 	"github.com/vulnetix/cli/v4/internal/cdx"
 	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
 	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/suppress"
 	"github.com/vulnetix/cli/v4/internal/vex"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
@@ -72,6 +75,11 @@ type VEXPassOptions struct {
 	Paths []string
 	// BOM is the document to apply statements to. Modified in place.
 	BOM *cdx.BOM
+	// Console are the rules the Vulnetix console holds for the repository that
+	// came from VEX statements (see consoleVEXRules). They are applied with the
+	// documents, after those, and a statement a document already makes is not
+	// counted twice.
+	Console []vex.ConsoleRule
 }
 
 // VEXPassResult is what applying a statement set produced.
@@ -86,6 +94,11 @@ type VEXPassResult struct {
 	Skipped []string
 	// Problems are validation problems found in the supplied documents.
 	Problems map[string][]vex.Problem
+	// ConsoleStatements is how many console statements were applied alongside
+	// the documents, ConsoleDuplicates how many were left out because a document
+	// or another console rule already made them, and ConsoleSkipped how many
+	// rules had no status this CLI reads.
+	ConsoleStatements, ConsoleDuplicates, ConsoleSkipped int
 	// Raw holds the exact bytes of every document read, so a caller can send
 	// them to Vulnetix unchanged (see ingestVEX).
 	Raw []vexRawDocument
@@ -115,6 +128,16 @@ func runVEXPass(opts VEXPassOptions) (*VEXPassResult, error) {
 			if data, rerr := os.ReadFile(d.Path); rerr == nil {
 				res.Raw = append(res.Raw, vexRawDocument{Path: d.Path, Data: data})
 			}
+		}
+	}
+
+	if len(opts.Console) > 0 {
+		console, skippedRules := vex.ConsoleDocument(opts.Console)
+		console, dup := vex.DedupeConsole(console, docs)
+		res.ConsoleSkipped, res.ConsoleDuplicates = skippedRules, dup
+		res.ConsoleStatements = len(console.Statements)
+		if res.ConsoleStatements > 0 {
+			docs = append(docs, console)
 		}
 	}
 
@@ -179,8 +202,13 @@ func reportVEXPass(pass *VEXPassResult) {
 	// "VEX not affected", never "suppressed by rule": a statement is the
 	// publisher's assertion about this product, not an ignore rule anyone here
 	// wrote, and it is not reported to the server as a rule application.
-	fmt.Fprintf(os.Stderr, "\nVEX: %d statement(s) from %d document(s), %d hidden as VEX not affected, %d effective\n",
-		pass.Statements, pass.Documents, r.Suppressed, r.Effective)
+	if pass.ConsoleStatements > 0 {
+		fmt.Fprintf(os.Stderr, "\nVEX: %d statement(s) from %d document(s) and %d from Vulnetix, %d hidden as VEX not affected, %d effective\n",
+			pass.Statements-pass.ConsoleStatements, pass.Documents, pass.ConsoleStatements, r.Suppressed, r.Effective)
+	} else {
+		fmt.Fprintf(os.Stderr, "\nVEX: %d statement(s) from %d document(s), %d hidden as VEX not affected, %d effective\n",
+			pass.Statements, pass.Documents, r.Suppressed, r.Effective)
+	}
 	for _, a := range r.Applied {
 		if !a.Suppressed {
 			continue
@@ -699,6 +727,9 @@ func sourceName(path string) string {
 	if path == "" {
 		return "—"
 	}
+	if rest, ok := strings.CutPrefix(path, vex.ConsolePathPrefix); ok {
+		return "Vulnetix " + rest
+	}
 	return filepath.Base(path)
 }
 
@@ -714,4 +745,61 @@ func vexDocumentAuthor(path string) (string, error) {
 		return "", err
 	}
 	return doc.Author, nil
+}
+
+// consoleVEXRules are the rules a scan applies as VEX: those the console made
+// from a VEX statement (a VexSource of any type, or a VEX document ingested
+// from a scan or an upload). Every other rule is an ignore rule, applied by
+// internal/suppress.
+func consoleVEXRules(rows []vdb.CliSuppression, repo, branch string) []vex.ConsoleRule {
+	var out []vex.ConsoleRule
+	for _, s := range rows {
+		if !isConsoleVEXRule(s) || !s.IsActive {
+			continue
+		}
+		// The server narrows to the repository and branch it is told. A scan
+		// that does not know them (outside a git checkout) is told nothing and
+		// gets every repository's rules, so a rule scoped to a repository or a
+		// branch applies only where the scan knows it is that one.
+		if s.RepositoryFullName != "" && !strings.EqualFold(s.RepositoryFullName, repo) {
+			continue
+		}
+		if s.BranchName != "" && !strings.EqualFold(s.BranchName, branch) {
+			continue
+		}
+		out = append(out, vex.ConsoleRule{
+			VulnerabilityID: s.VulnerabilityID, ProductPurl: s.ProductPurl, ProductPurlBase: s.ProductPurlBase,
+			Status: s.Status, Justification: s.Justification, Reason: s.Reason,
+			Source: s.Source, SourceType: s.SourceType, SourceRef: s.SourceRef, DocumentID: s.SourceDocumentID,
+			Timestamp: s.StatementTimestamp,
+		})
+	}
+	return out
+}
+
+// isConsoleVEXRule reports whether a rule came from a VEX statement.
+func isConsoleVEXRule(s vdb.CliSuppression) bool {
+	return strings.EqualFold(s.SourceKind, "vex")
+}
+
+// scanConsoleVEX is the console's VEX statements for the repository a scan is
+// in, when the scan may use them: it is authenticated (community mode asks for
+// nothing) and VEX is on (--no-vex turns it off with the documents). The fetch
+// is the one the ignore rules already make, started when the scan began.
+func scanConsoleVEX(enabled bool, git *gitctx.GitContext, notes io.Writer) []vex.ConsoleRule {
+	if !enabled {
+		return nil
+	}
+	data := remoteConsoleVEX(git)
+	if len(data.VEX) == 0 {
+		return nil
+	}
+	repo, branch := "", ""
+	if git != nil {
+		repo, branch = suppress.RepoFullName(git.RemoteURLs), git.CurrentBranch
+	}
+	if data.VEXTruncated && notes != nil {
+		fmt.Fprintln(notes, "  note: Vulnetix holds more VEX statements for this repository than one reply carries; some are not applied here")
+	}
+	return consoleVEXRules(data.VEX, repo, branch)
 }

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
 func vexSourceYAML(name, body string) string {
@@ -44,6 +46,9 @@ func TestScanReadsAPathSourceDeclaredInConfig(t *testing.T) {
 }
 
 func TestDeclaredSourceKeepsItsScopeAndTrust(t *testing.T) {
+	orig := vdbCreds
+	vdbCreds = nil
+	t.Cleanup(func() { vdbCreds = orig })
 	root := vexConfigRepo(t, map[string]string{
 		"other-repo": "  path:\n    path: vex\n  scope:\n    repos: [acme/elsewhere]\n",
 		"stranger":   "  path:\n    path: vex\n  trust:\n    allowedAuthors: [someone-else]\n",
@@ -121,5 +126,29 @@ func TestScanCommandsAcceptVEXFlag(t *testing.T) {
 		if err != nil || !ok {
 			t.Errorf("vulnetix %s does not accept --vex (%v)", name, err)
 		}
+	}
+}
+
+// A console-fetched source is applied from Vulnetix by an authenticated scan, so
+// it is only an unauthenticated one that is told it is not being applied.
+func TestConsoleSourceNoteIsForUnauthenticatedScansOnly(t *testing.T) {
+	orig := vdbCreds
+	t.Cleanup(func() { vdbCreds = orig })
+	root := vexConfigRepo(t, map[string]string{"console": "  git:\n    url: https://example.com/vex.git\n"})
+
+	vdbCreds = nil
+	var notes bytes.Buffer
+	_, cleanup, _ := resolveVEXInputs(context.Background(), vexInputsOptions{FromConfig: true, Root: root, Notes: &notes})
+	cleanup()
+	if !strings.Contains(notes.String(), "sign in") || !strings.Contains(notes.String(), "git source") {
+		t.Errorf("unauthenticated notes:\n%s", notes.String())
+	}
+
+	vdbCreds = &auth.Credentials{OrgID: "real-org", APIKey: "real-key", Method: auth.DirectAPIKey}
+	notes.Reset()
+	_, cleanup, _ = resolveVEXInputs(context.Background(), vexInputsOptions{FromConfig: true, Root: root, Notes: &notes})
+	cleanup()
+	if notes.Len() != 0 {
+		t.Errorf("authenticated notes:\n%s", notes.String())
 	}
 }

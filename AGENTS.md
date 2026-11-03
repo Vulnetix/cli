@@ -229,7 +229,7 @@ Every match records its basis and source.
 
 **Nothing is deleted.** A suppressed finding keeps its entry, gains an analysis
 block and `vulnetix:vex/*` provenance properties, and is counted separately —
-total, suppressed, effective. `--vex-file`, `--vex` (path, directory or https URL) and `--no-vex` are family-wide, and `VexSource` documents under `.vulnetix/config` apply too (docs/vex-sources.md). They are applied
+total, suppressed, effective. `--vex-file`, `--vex` (path, directory or https URL) and `--no-vex` are family-wide, and `VexSource` documents under `.vulnetix/config` apply too, and an authenticated scan also applies the statements the console holds as rules, tea, s3 and git sources included (`scanConsoleVEX`, docs/vex-sources.md). They are applied
 in **one place immediately before the gates** (`filterVEXSuppressed`), so every
 gate honours VEX by construction; filtering per gate would leave one that could
 be forgotten, and the forgotten one fails a build over a finding the vendor

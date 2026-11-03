@@ -61,7 +61,7 @@ func buildScanSuppressionSet(mem *memory.Memory, git *gitctx.GitContext) *suppre
 // so the request overlaps the local scan instead of following it.
 var (
 	remoteSuppressionsMu sync.Mutex
-	remoteSuppressions   = map[string]*future[[]suppress.Rule]{}
+	remoteSuppressions   = map[string]*future[remoteSuppressionData]{}
 )
 
 // prefetchRemoteSuppressions starts the backend fetch for git's repo and branch.
@@ -69,7 +69,7 @@ func prefetchRemoteSuppressions(git *gitctx.GitContext) {
 	remoteSuppressionFuture(git)
 }
 
-func remoteSuppressionFuture(git *gitctx.GitContext) *future[[]suppress.Rule] {
+func remoteSuppressionFuture(git *gitctx.GitContext) *future[remoteSuppressionData] {
 	client := newCliClient()
 	if client == nil {
 		return nil
@@ -81,7 +81,7 @@ func remoteSuppressionFuture(git *gitctx.GitContext) *future[[]suppress.Rule] {
 	if f, ok := remoteSuppressions[key]; ok {
 		return f
 	}
-	f := startFuture(func() []suppress.Rule { return fetchRemoteSuppressionRules(client, git, req) })
+	f := startFuture(func() remoteSuppressionData { return fetchRemoteSuppressions(client, git, req) })
 	remoteSuppressions[key] = f
 	return f
 }
@@ -89,16 +89,43 @@ func remoteSuppressionFuture(git *gitctx.GitContext) *future[[]suppress.Rule] {
 // remoteSuppressionRules returns the backend's active rules for git's repo and
 // branch (best-effort: none when the backend cannot be reached).
 func remoteSuppressionRules(git *gitctx.GitContext) []suppress.Rule {
+	return remoteSuppressionFuture(git).get().Rules
+}
+
+// remoteSuppressionData is what one fetch of the backend's rules holds: the
+// ignore rules internal/suppress matches, and the rules the console made from
+// VEX statements, which a scan applies as VEX (consoleVEXRules).
+type remoteSuppressionData struct {
+	Rules        []suppress.Rule
+	VEX          []vdb.CliSuppression
+	VEXTruncated bool
+}
+
+// remoteConsoleVEX returns the VEX-sourced rules for git's repo and branch, to
+// authenticated callers only. The community credential is shared by every
+// anonymous caller and has no organisation to hold rules, so it asks nothing
+// beyond the ignore-rule fetch it always made.
+func remoteConsoleVEX(git *gitctx.GitContext) remoteSuppressionData {
+	if isUnauthenticatedScan() {
+		return remoteSuppressionData{}
+	}
 	return remoteSuppressionFuture(git).get()
 }
 
-func fetchRemoteSuppressionRules(client *vdb.Client, git *gitctx.GitContext, req vdb.CliSuppressionsGetRequest) []suppress.Rule {
+func fetchRemoteSuppressions(client *vdb.Client, git *gitctx.GitContext, req vdb.CliSuppressionsGetRequest) remoteSuppressionData {
 	resp, err := client.CliSuppressionsGet(envForCliWithGit(git), req)
 	if err != nil || resp == nil {
-		return nil
+		return remoteSuppressionData{}
 	}
+	data := remoteSuppressionData{VEXTruncated: resp.Data.VexTruncated}
 	rules := make([]suppress.Rule, 0, len(resp.Data.Suppressions))
 	for _, s := range resp.Data.Suppressions {
+		if isConsoleVEXRule(s) {
+			// A statement, not an ignore rule: it has no rule id, file or target
+			// value to match on, and is applied by the VEX pass.
+			data.VEX = append(data.VEX, s)
+			continue
+		}
 		rules = append(rules, suppress.Rule{
 			UUID:               s.UUID,
 			RuleID:             s.RuleID,
@@ -116,7 +143,8 @@ func fetchRemoteSuppressionRules(client *vdb.Client, git *gitctx.GitContext, req
 			Source:             suppress.SourceRemote,
 		})
 	}
-	return rules
+	data.Rules = rules
+	return data
 }
 
 // scanSuppressionSetLoad loads local memory + remote rules into a matcher,
