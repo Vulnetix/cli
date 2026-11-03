@@ -90,9 +90,9 @@ var actions = []action{
 			{Name: "tea-visibility", Desc: "Visibility once published: private, shared or public. Public cannot be undone", Flag: "--visibility"},
 			{Name: "tea-dry-run", Desc: "Print what would be published and exit: true or false", Default: "false", Flag: "bool:--dry-run"},
 		}},
-	{Name: "config-plan", Title: "Config plan", Desc: "Plan Platform IaC documents against the config engine and comment the plan on the pull request (vulnetix config plan).",
+	{Name: "config-plan", Title: "Config plan", Desc: "Plan Platform IaC documents against the config engine and comment the plan on the pull request (vulnetix config plan). Authenticate with org-id and the api-key of an owner, an admin or an admin service account, or with api-token.",
 		Script: "config", Inputs: configInputs(true)},
-	{Name: "config-apply", Title: "Config apply", Desc: "Apply Platform IaC documents through the config engine (vulnetix config apply).",
+	{Name: "config-apply", Title: "Config apply", Desc: "Apply Platform IaC documents through the config engine (vulnetix config apply). Authenticate with org-id and the api-key of an owner, an admin or an admin service account, or with api-token.",
 		Script: "config", Inputs: configInputs(false)},
 	{Name: "attest", Title: "Attest verify", Desc: "Verify an artefact's signature, identity and provenance (vulnetix attest verify).",
 		Command: []string{"attest", "verify"},
@@ -109,7 +109,6 @@ var actions = []action{
 			{Name: "sbom", Desc: "CycloneDX SBOM to submit to the dependency graph (default: .vulnetix/sbom.cdx.json under path)"},
 			{Name: "campaigns", Desc: "Mirror Vulnetix remediation campaigns (Pro) as GitHub security campaigns (vulnetix gha publish campaigns). Run it as an organization-level scheduled job after code scanning has published: true or false", Default: "false"},
 			{Name: "campaigns-org", Desc: "GitHub organization that owns the campaigns; defaults to the repository owner"},
-			{Name: "campaigns-token", Desc: "Vulnetix config management token (vmt_...) with the campaigns read scope. Passed to the CLI as VULNETIX_CONFIG_TOKEN, never on the command line"},
 			{Name: "campaigns-github-token", Desc: "GitHub token of an organization owner or security manager (a PAT or GitHub App token); the workflow token cannot manage campaigns. Defaults to github-token"},
 			{Name: "campaigns-recreate", Desc: "Close and recreate a GitHub campaign whose Vulnetix cohort changed, because GitHub cannot change a campaign's alerts: true or false", Default: "false"},
 			{Name: "campaigns-dry-run", Desc: "Print what would change and write nothing: true or false", Default: "false"},
@@ -118,7 +117,6 @@ var actions = []action{
 
 func configInputs(plan bool) []input {
 	in := []input{
-		{Name: "config-token", Desc: "Config management token (vmt_...). Passed to the CLI as VULNETIX_CONFIG_TOKEN, never on the command line"},
 		{Name: "config-path", Desc: "Config documents, one file or directory per line (default: .vulnetix/config)"},
 		{Name: "config-manager", Desc: "Manager the documents are declared by (default: gitops:<owner/repo> of this repository)"},
 		{Name: "config-prune", Desc: "Delete objects this manager owns that the documents no longer declare: true or false", Default: "false"},

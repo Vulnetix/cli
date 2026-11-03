@@ -24,7 +24,7 @@ func TestConfigPlanSendsDetectionRuleFileAsBody(t *testing.T) {
 	rule := "title: Brute force\nlogsource: {product: linux}\ndetection: {selection: {a: 1}, condition: selection}\n"
 	writeConfigFile(t, filepath.Join(dir, ".vulnetix", "config", "siem", "rules"), "brute-force.yml", rule)
 	writeConfigFile(t, filepath.Join(dir, ".vulnetix", "config"), "rule.yaml", detectionRuleDoc)
-	if _, _, err := runCmd(t, newConfigPlanCommand(), "", "--manager", "gitops:acme/platform", "--token", "t"); err != nil {
+	if _, _, err := runCmd(t, newConfigPlanCommand(), "", "--manager", "gitops:acme/platform"); err != nil {
 		t.Fatal(err)
 	}
 	docs, _ := f.lastBody("/config/plan")["documents"].([]any)

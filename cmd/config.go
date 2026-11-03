@@ -134,8 +134,8 @@ func runConfigSetPackageFirewall(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// The policy form goes through the config engine, which a config
-	// management token alone can reach; the legacy endpoint needs the stored
+	// The policy form goes through the config engine, which an owner or admin
+	// ApiKey or bearer token alone can reach; the legacy endpoint needs the stored
 	// credential, so the engine is tried before the client is built.
 	if built.Kind == packageFirewallPolicyRequest {
 		handled, reason, err := packageFirewallPolicyViaEngine(cmd, built.Config)

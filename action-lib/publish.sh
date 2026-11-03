@@ -63,8 +63,8 @@ if [ "${VX_IN_CAMPAIGNS:-}" = "true" ]; then
   if [ "${VX_IN_CAMPAIGNS_RECREATE:-}" = "true" ]; then args+=(--recreate-on-scope-change); fi
   if [ "${VX_IN_CAMPAIGNS_DRY_RUN:-}" = "true" ]; then args+=(--dry-run); fi
   # Campaigns need an organization owner's or security manager's token; the
-  # workflow token cannot manage them. VULNETIX_CONFIG_TOKEN (the Vulnetix
-  # side) is already in the environment.
+  # workflow token cannot manage them. VULNETIX_API_KEY and VULNETIX_ORG_ID (or
+  # VULNETIX_API_TOKEN), the Vulnetix side, are already in the environment.
   if ! GITHUB_TOKEN="${VX_IN_CAMPAIGNS_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}" vulnetix "${args[@]}"; then
     echo "::warning::GitHub security campaigns failed; see the log above"
     status=1

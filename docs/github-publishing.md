@@ -129,7 +129,7 @@ organization-level scheduled job, after code scanning has published the alerts i
 
 | Rule | Detail |
 |---|---|
-| Source | `GET /api/site/v1/campaigns` and `.../{id}/items` through the shared `siteClient` (`cmd/site_client.go`, the same client and credential the config engine uses). A `vmt_` config management token (`--token` or `VULNETIX_CONFIG_TOKEN`) needs the `campaigns` read scope; a token only ever reads there |
+| Source | `GET /api/site/v1/campaigns` and `.../{id}/items` through the shared `siteClient` (`cmd/site_client.go`, the same client and credential the config engine uses). It uses the same credentials as every other command (`vulnetix auth login`, `VULNETIX_API_KEY` with `VULNETIX_ORG_ID`, or `VULNETIX_API_TOKEN`); an owner, an admin or an admin service account. It only ever reads there |
 | Entitlement | A non-Pro organization gets HTTP 200 with a `planLocked` marker body, not an error. It is reported as a note and the command exits 0 |
 | Mapping | An open item maps to an open code scanning alert of this CLI (category `vulnetix/...`) in the item's repository where `rule.id == findingId`; when the item names a package, the alert message must name it too. A dependency item maps to a `vulnetix/sca/` alert naming the package. Items in repositories outside `--org`, items whose alerts cannot be read, and done items are not mapped. Nothing matching means no campaign is created |
 | Name and fields | `[Vulnetix] <name>` (at most 50 characters); `ends_at` from `deadlineAt`, else `--default-days` (90) after creation; `contact_link` is the campaign in the Vulnetix console |
@@ -141,5 +141,5 @@ organization-level scheduled job, after code scanning has published the alerts i
 
 `--dry-run` reads from Vulnetix and GitHub and prints what would be created, updated or closed;
 it writes nothing. The `github-publish` action runs it with `campaigns: true`
-(`campaigns-token`, `campaigns-github-token`, `campaigns-org`, `campaigns-recreate`,
+(`campaigns-github-token`, `campaigns-org`, `campaigns-recreate`,
 `campaigns-dry-run`).

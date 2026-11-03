@@ -2,7 +2,9 @@
 # config-plan and config-apply: Platform IaC through the config engine.
 #
 #   $1                     config-plan or config-apply
-#   VULNETIX_CONFIG_TOKEN  read by the CLI itself, never placed on argv
+#   VULNETIX_API_KEY + VULNETIX_ORG_ID, or VULNETIX_API_TOKEN: read by the CLI
+#                          itself, never placed on argv (an owner, an admin or
+#                          an admin service account)
 #   VX_IN_CONFIG_PATH      documents, one file or directory per line
 #   VX_IN_CONFIG_MANAGER   --manager
 #   VX_IN_CONFIG_PRUNE     true: --prune

@@ -301,14 +301,12 @@ type configCommon struct {
 	files   []string
 	manager string
 	prune   bool
-	token   string
 }
 
 func (c *configCommon) bind(cmd *cobra.Command) {
 	cmd.Flags().StringArrayVarP(&c.files, "file", "f", nil, "file or directory of documents (repeatable; - for stdin; default .vulnetix/config)")
 	cmd.Flags().StringVar(&c.manager, "manager", "", "who declares these documents: terraform, console or gitops:<owner/repo> (default: gitops:<this GitHub repo>)")
 	cmd.Flags().BoolVar(&c.prune, "prune", false, "delete objects this manager owns that the documents no longer declare")
-	cmd.Flags().StringVar(&c.token, "token", "", "config management token (default: $"+configTokenEnv+", then the stored credential)")
 }
 
 // configSession is one plan (and maybe apply) against the engine.
@@ -327,7 +325,7 @@ func newConfigSession(cmd *cobra.Command, c *configCommon) (*configSession, erro
 	if err != nil {
 		return nil, err
 	}
-	a, err := resolveConfigAuth(c.token)
+	a, err := resolveConfigAuth()
 	if err != nil {
 		return nil, configUsage("%v", err)
 	}
@@ -358,9 +356,9 @@ func explainConfigAuth(err error, a configAuth, hints ...string) error {
 	}
 	switch he.Status {
 	case 401:
-		return fmt.Errorf("%w (credential from %s was not accepted; use a config management token via --token or %s)", err, a.Source, configTokenEnv)
+		return fmt.Errorf("%w (credential from %s was not accepted; %s)", err, a.Source, configAuthHelp)
 	case 403:
-		msg := fmt.Errorf("%w (credential from %s is not an owner or admin, or the token does not allow this kind)", err, a.Source)
+		msg := fmt.Errorf("%w (credential from %s is not an owner or admin; use an owner or admin, or an admin service account's VULNETIX_API_KEY and VULNETIX_ORG_ID)", err, a.Source)
 		for _, h := range hints {
 			if h != "" {
 				msg = fmt.Errorf("%w; %s", msg, h)
@@ -647,8 +645,8 @@ func writeConfigJSON(w io.Writer, raw []byte, in *configInput) error {
 
 func newConfigExportCommand() *cobra.Command {
 	var (
-		kind, name, manager, format, outFile, token string
-		files                                       []string
+		kind, name, manager, format, outFile string
+		files                                []string
 	)
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -672,7 +670,7 @@ which converts YAML to HCL or a script without applying anything.`,
 			default:
 				return configUsage("--format must be yaml, hcl or sh")
 			}
-			a, err := resolveConfigAuth(token)
+			a, err := resolveConfigAuth()
 			if err != nil {
 				return configUsage("%v", err)
 			}
@@ -697,7 +695,7 @@ which converts YAML to HCL or a script without applying anything.`,
 			if err != nil {
 				hint := ""
 				if ownerOnlyKinds[kind] {
-					hint = kind + " can only be exported with an owner token"
+					hint = kind + " can only be exported by an owner"
 				}
 				return explainConfigAuth(err, a, hint)
 			}
@@ -723,7 +721,6 @@ which converts YAML to HCL or a script without applying anything.`,
 	cmd.Flags().StringVar(&format, "format", "yaml", "yaml, hcl or sh")
 	cmd.Flags().StringVarP(&outFile, "output", "o", "", "write to this file instead of standard output")
 	cmd.Flags().StringArrayVarP(&files, "file", "f", nil, "render these documents (a draft) instead of the live state")
-	cmd.Flags().StringVar(&token, "token", "", "config management token (default: $"+configTokenEnv+", then the stored credential)")
 	_ = cmd.RegisterFlagCompletionFunc("format", cobra.FixedCompletions([]string{"yaml", "hcl", "sh"}, cobra.ShellCompDirectiveNoFileComp))
 	return cmd
 }

@@ -59,7 +59,7 @@ func packageFirewallSpecFromRequest(req vdb.CliPackageFirewallConfigRequest) map
 // packageFirewallPolicyViaEngine applies the policy through the config engine.
 // handled is false when the legacy endpoint must run, with the reason.
 func packageFirewallPolicyViaEngine(cmd *cobra.Command, req vdb.CliPackageFirewallConfigRequest) (handled bool, reason string, err error) {
-	a, aerr := resolveConfigAuth("")
+	a, aerr := resolveConfigAuth()
 	if aerr != nil {
 		return false, "no credential for the config engine", nil
 	}
@@ -102,7 +102,7 @@ func packageFirewallPolicyViaEngine(cmd *cobra.Command, req vdb.CliPackageFirewa
 
 // renderPackageFirewallAfterEngine prints what the legacy command printed: the
 // stored policy, read back through the same /v2 read the legacy path uses. If
-// that read is not possible (a config token only), it prints the spec sent.
+// that read is not possible (an unreadable credential), it prints the spec sent.
 func renderPackageFirewallAfterEngine(cmd *cobra.Command, req vdb.CliPackageFirewallConfigRequest) error {
 	ctx := display.FromCommand(cmd)
 	data := map[string]any{"config": packageFirewallSpecFromRequest(req)}

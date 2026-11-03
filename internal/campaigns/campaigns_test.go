@@ -38,7 +38,7 @@ func (g httpGetter) Get(ctx context.Context, path string, q url.Values) ([]byte,
 
 func TestListAndDeadline(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer vmt_x" {
+		if r.Header.Get("Authorization") != "Bearer authentik-jwt" {
 			t.Errorf("auth %q", r.Header.Get("Authorization"))
 		}
 		if r.URL.Path != "/campaigns" || r.URL.Query().Get("includeArchived") != "true" {
@@ -50,7 +50,7 @@ func TestListAndDeadline(t *testing.T) {
 			{"uuid":"u3","name":"Done","status":"COMPLETED"}]}`)
 	}))
 	defer srv.Close()
-	got, err := New(httpGetter{srv.URL, "vmt_x"}).List(context.Background(), true)
+	got, err := New(httpGetter{srv.URL, "authentik-jwt"}).List(context.Background(), true)
 	if err != nil || len(got) != 3 {
 		t.Fatalf("%v %+v", err, got)
 	}

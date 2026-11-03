@@ -25,7 +25,7 @@ Without `org-id` and a credential the CLI runs in community mode.
 ## Credentials
 
 Credentials are passed to the CLI only as step environment variables
-(`VULNETIX_ORG_ID`, `VULNETIX_API_KEY`, `VULNETIX_API_TOKEN`, `VULNETIX_CONFIG_TOKEN`),
+(`VULNETIX_ORG_ID`, `VULNETIX_API_KEY`, `VULNETIX_API_TOKEN`),
 which `pkg/auth/credentials.go` reads before any stored file. The action never runs
 `auth login`, so no `.vulnetix/credentials.json` is written into the workspace, and no
 credential appears on a command line or in an uploaded artifact.

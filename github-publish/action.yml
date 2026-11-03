@@ -67,9 +67,6 @@ inputs:
   campaigns-org:
     description: 'GitHub organization that owns the campaigns; defaults to the repository owner'
     required: false
-  campaigns-token:
-    description: 'Vulnetix config management token (vmt_...) with the campaigns read scope. Passed to the CLI as VULNETIX_CONFIG_TOKEN, never on the command line'
-    required: false
   campaigns-github-token:
     description: 'GitHub token of an organization owner or security manager (a PAT or GitHub App token); the workflow token cannot manage campaigns. Defaults to github-token'
     required: false
@@ -132,7 +129,6 @@ runs:
         VX_IN_SBOM: ${{ inputs.sbom }}
         VX_IN_CAMPAIGNS: ${{ inputs.campaigns }}
         VX_IN_CAMPAIGNS_ORG: ${{ inputs.campaigns-org }}
-        VULNETIX_CONFIG_TOKEN: ${{ inputs.campaigns-token }}
         VX_IN_CAMPAIGNS_GITHUB_TOKEN: ${{ inputs.campaigns-github-token }}
         VX_IN_CAMPAIGNS_RECREATE: ${{ inputs.campaigns-recreate }}
         VX_IN_CAMPAIGNS_DRY_RUN: ${{ inputs.campaigns-dry-run }}

@@ -12,10 +12,10 @@ import (
 
 // Client for the Platform IaC config engine, served by vdb-site under
 // /api/site/v1/config/*. It is a different backend from the VDB API the rest
-// of the CLI talks to (/v2/cli.*), and it takes a different credential: the
+// of the CLI talks to (/v2/cli.*), but it takes the same credentials: the
 // engine changes tenant policy, so it needs an owner or admin. A service
-// account's ApiKey is only a member, which is why a vmt_ config management
-// token exists.
+// account's ApiKey works when the account is an admin or owner; a member
+// service account gets 403.
 
 // configEngineClient calls the engine, over the shared site client.
 type configEngineClient struct{ *siteClient }

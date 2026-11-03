@@ -4,7 +4,7 @@ package cmd
 // GitHub security campaigns.
 //
 // Vulnetix campaigns are read from the console (/api/site/v1/campaigns) with a
-// vmt_ config token that carries the campaigns read scope. Each active
+// stored or environment credentials (see resolveConfigAuth). Each active
 // campaign's open cohort items are matched to this organization's open code
 // scanning alerts (rule.id == findingId, and the package for dependency
 // items), which only exist once `gha publish code-scanning` has published
@@ -40,7 +40,6 @@ import (
 
 var (
 	campOrg         string
-	campToken       string
 	campRecreate    bool
 	campDryRun      bool
 	campDefaultDays int
@@ -67,15 +66,17 @@ a new one when the Vulnetix cohort has changed.
 
 Two credentials are needed:
 
-  Vulnetix  a config management token (vmt_...) with the campaigns read scope:
-            --token, or VULNETIX_CONFIG_TOKEN. A token only ever reads here.
+  Vulnetix  the same credentials as the other commands: 'vulnetix auth login',
+            or VULNETIX_API_KEY and VULNETIX_ORG_ID (an owner or admin, or an
+            admin service account), or VULNETIX_API_TOKEN (an Authentik access
+            token). Only reads happen here.
   GitHub    GITHUB_TOKEN, GH_TOKEN or 'gh auth token': an organization owner or
             security manager, as a PAT or GitHub App, on an organization with
             GitHub Advanced Security. The workflow GITHUB_TOKEN cannot manage
             campaigns.
 
 Run it as an organization-level scheduled job, not on every push.`,
-	Example: `  VULNETIX_CONFIG_TOKEN=vmt_... GH_TOKEN=$ORG_PAT vulnetix gha publish campaigns --org acme
+	Example: `  VULNETIX_API_KEY=... VULNETIX_ORG_ID=... GH_TOKEN=$ORG_PAT vulnetix gha publish campaigns --org acme
   vulnetix gha publish campaigns --org acme --dry-run
   vulnetix gha publish campaigns --org acme --recreate-on-scope-change`,
 	Args: cobra.NoArgs,
@@ -92,7 +93,7 @@ Run it as an organization-level scheduled job, not on every push.`,
 		if org == "" {
 			return configUsage("pass --org (the GitHub organization that owns the repositories)")
 		}
-		a, err := resolveConfigAuth(campToken)
+		a, err := resolveConfigAuth()
 		if err != nil {
 			return err
 		}
@@ -325,7 +326,7 @@ func runCampaignsPublish(ctx context.Context, o campaignsOptions, w io.Writer) e
 		}
 		var he *configHTTPError
 		if errors.As(err, &he) && (he.Status == 401 || he.Status == 403) {
-			return fmt.Errorf("%w (use a vmt_ config token with the campaigns read scope: --token or %s)", err, configTokenEnv)
+			return fmt.Errorf("%w (%s)", err, configAuthHelp)
 		}
 		return err
 	}
@@ -493,7 +494,6 @@ func sameInstant(s string, t time.Time) bool {
 func init() {
 	f := ghaPublishCampaignsCmd.Flags()
 	f.StringVar(&campOrg, "org", "", "GitHub organization (default: GITHUB_REPOSITORY_OWNER)")
-	f.StringVar(&campToken, "token", "", "Vulnetix config management token (vmt_...) with the campaigns read scope (default: VULNETIX_CONFIG_TOKEN)")
 	f.BoolVar(&campRecreate, "recreate-on-scope-change", false, "Close and recreate a GitHub campaign whose Vulnetix cohort changed (GitHub cannot change a campaign's alerts)")
 	f.BoolVar(&campDryRun, "dry-run", false, "Read from Vulnetix and GitHub and print what would change; write nothing")
 	f.IntVar(&campDefaultDays, "default-days", 90, "Days until a campaign with no Vulnetix deadline ends")

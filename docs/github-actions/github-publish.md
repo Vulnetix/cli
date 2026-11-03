@@ -24,7 +24,6 @@ Publish existing results into GitHub: code scanning, the dependency graph, relea
 | `sbom` | CycloneDX SBOM to submit to the dependency graph (default: .vulnetix/sbom.cdx.json under path) | - |
 | `campaigns` | Mirror Vulnetix remediation campaigns (Pro) as GitHub security campaigns (vulnetix gha publish campaigns). Run it as an organization-level scheduled job after code scanning has published: true or false | `false` |
 | `campaigns-org` | GitHub organization that owns the campaigns; defaults to the repository owner | - |
-| `campaigns-token` | Vulnetix config management token (vmt_...) with the campaigns read scope. Passed to the CLI as VULNETIX_CONFIG_TOKEN, never on the command line | - |
 | `campaigns-github-token` | GitHub token of an organization owner or security manager (a PAT or GitHub App token); the workflow token cannot manage campaigns. Defaults to github-token | - |
 | `campaigns-recreate` | Close and recreate a GitHub campaign whose Vulnetix cohort changed, because GitHub cannot change a campaign's alerts: true or false | `false` |
 | `campaigns-dry-run` | Print what would change and write nothing: true or false | `false` |
@@ -48,7 +47,7 @@ Publish existing results into GitHub: code scanning, the dependency graph, relea
 - `contents: write` with `dependency-graph: true`
 - `id-token: write` and `attestations: write` with `attest: true`
 - `contents: write` with `release-tag`
-- no workflow permission for `campaigns: true`: `campaigns-github-token` must be a PAT or GitHub App token of an organization owner or security manager (the organization needs GitHub Advanced Security), and `campaigns-token` a Vulnetix `vmt_` token with the campaigns read scope
+- no workflow permission for `campaigns: true`: `campaigns-github-token` must be a PAT or GitHub App token of an organization owner or security manager (the organization needs GitHub Advanced Security), and the Vulnetix credentials (`org-id` with `api-key`, or `api-token`) must be an owner or admin
 
 ## Example
 

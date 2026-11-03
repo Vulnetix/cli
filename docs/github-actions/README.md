@@ -21,8 +21,8 @@ One composite action per CLI command, used as `Vulnetix/cli/<name>@v4`. The root
 | [`upload`](upload.md) | Upload one artifact file to Vulnetix (vulnetix upload). |
 | [`gha-upload`](gha-upload.md) | Upload every artifact of this workflow run to Vulnetix (vulnetix gha upload). |
 | [`tea-release`](tea-release.md) | Publish a product release and its artifacts to the Transparency Exchange API (vulnetix tea release). |
-| [`config-plan`](config-plan.md) | Plan Platform IaC documents against the config engine and comment the plan on the pull request (vulnetix config plan). |
-| [`config-apply`](config-apply.md) | Apply Platform IaC documents through the config engine (vulnetix config apply). |
+| [`config-plan`](config-plan.md) | Plan Platform IaC documents against the config engine and comment the plan on the pull request (vulnetix config plan). Authenticate with org-id and the api-key of an owner, an admin or an admin service account, or with api-token. |
+| [`config-apply`](config-apply.md) | Apply Platform IaC documents through the config engine (vulnetix config apply). Authenticate with org-id and the api-key of an owner, an admin or an admin service account, or with api-token. |
 | [`attest`](attest.md) | Verify an artefact's signature, identity and provenance (vulnetix attest verify). |
 | [`jail`](jail.md) | Assess the repository against the organisation's jail policy (vulnetix jail). |
 | [`vex`](vex.md) | Work with VEX documents: validate, list, merge or apply (vulnetix vex <vex-command>). |
@@ -44,4 +44,4 @@ true, so the artifact, attestation and publish steps run either way.
 | Release assets | `contents: write` |
 | config-plan pull request comment | `pull-requests: write` |
 | Repository advisories | A PAT or GitHub App token with repository advisories write |
-| Security campaigns | A PAT or GitHub App token of an organization owner or security manager, with GitHub Advanced Security, plus a Vulnetix `vmt_` token with the campaigns read scope |
+| Security campaigns | A PAT or GitHub App token of an organization owner or security manager, with GitHub Advanced Security, plus the Vulnetix credentials (`org-id` with the `api-key` of an owner or admin, or an admin service account, or `api-token`) |

@@ -10,7 +10,7 @@ import (
 )
 
 func applyArgs(t *testing.T) []string {
-	return []string{"-f", gateFile(t, ""), "--manager", "gitops:acme/platform", "--token", "t", "--auto-approve"}
+	return []string{"-f", gateFile(t, ""), "--manager", "gitops:acme/platform", "--auto-approve"}
 }
 
 // A 207 from apply, or an object whose phase is Failed, is a failed step.
@@ -60,7 +60,7 @@ func TestConfigPlanForbiddenNamesOwnerOnlyKinds(t *testing.T) {
 	f.status["/config/plan"] = 403
 	f.errBody = map[string]any{"error": "this token's role is admin; plan, apply and export need owner or admin"}
 	doc := writeConfigFile(t, t.TempDir(), "org.yaml", "apiVersion: vulnetix.com/v1\nkind: Organization\nmetadata: {name: default}\nspec: {}\n")
-	_, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", doc, "--manager", "gitops:acme/platform", "--token", "t")
+	_, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", doc, "--manager", "gitops:acme/platform")
 	if err == nil {
 		t.Fatal("expected a refusal")
 	}
@@ -86,7 +86,7 @@ func TestConfigPlanIncludesWellKnownFiles(t *testing.T) {
 	}
 	lpYAML, _ := yaml.Marshal(lpDocs[0].Value)
 	writeConfigFile(t, filepath.Join(dir, ".vulnetix"), "license-policy.yaml", string(lpYAML))
-	_, errOut, err := runCmd(t, newConfigPlanCommand(), "", "--manager", "gitops:acme/platform", "--token", "t")
+	_, errOut, err := runCmd(t, newConfigPlanCommand(), "", "--manager", "gitops:acme/platform")
 	if err != nil {
 		t.Fatalf("%v\n%s", err, errOut)
 	}
@@ -111,7 +111,7 @@ func TestConfigPlanSendsOrganizationDriftProtection(t *testing.T) {
 	if _, errOut, err := runCmd(t, newConfigValidateCommand(), "", "-f", doc); err != nil {
 		t.Fatalf("validate: %v\n%s", err, errOut)
 	}
-	if _, errOut, err := runCmd(t, newConfigPlanCommand(), "", "-f", doc, "--manager", "gitops:acme/platform", "--token", "t"); err != nil {
+	if _, errOut, err := runCmd(t, newConfigPlanCommand(), "", "-f", doc, "--manager", "gitops:acme/platform"); err != nil {
 		t.Fatalf("plan: %v\n%s", err, errOut)
 	}
 	docs, _ := f.lastBody("/config/plan")["documents"].([]any)

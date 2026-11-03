@@ -29,7 +29,7 @@ const aiFirewallManager = "console"
 
 // aiFirewallDeprecation is printed when the legacy endpoints are used.
 func aiFirewallLegacy(cmd *cobra.Command, command, reason string) {
-	fmt.Fprintf(cmd.ErrOrStderr(), "Deprecated: the legacy AI Firewall endpoints behind 'vulnetix ai-firewall %s' will be removed; use a config management token (%s) so it runs through the config engine.\nUsing the legacy endpoints: %s.\n", command, configTokenEnv, reason)
+	fmt.Fprintf(cmd.ErrOrStderr(), "Deprecated: the legacy AI Firewall endpoints behind 'vulnetix ai-firewall %s' will be removed; sign in as an owner or admin, or set VULNETIX_API_KEY and VULNETIX_ORG_ID for an admin service account, so it runs through the config engine.\nUsing the legacy endpoints: %s.\n", command, reason)
 }
 
 // aiFirewallDocument loads the policy document the alias sends: the file named
@@ -72,7 +72,7 @@ func aiFirewallApplyViaEngine(cmd *cobra.Command) (handled bool, reason string, 
 	if c, _ := cmd.Flags().GetString("catalog"); c != "" {
 		return false, "a local --catalog baseline has no document form", nil
 	}
-	a, aerr := resolveConfigAuth("")
+	a, aerr := resolveConfigAuth()
 	if aerr != nil {
 		return false, "no credential for the config engine", nil
 	}
@@ -161,7 +161,7 @@ func aiFirewallApplyViaEngine(cmd *cobra.Command) (handled bool, reason string, 
 // aiFirewallExportViaEngine runs `ai-firewall export` through the config
 // engine's export of the AiFirewallPolicy kind.
 func aiFirewallExportViaEngine(cmd *cobra.Command) (handled bool, reason string, err error) {
-	a, aerr := resolveConfigAuth("")
+	a, aerr := resolveConfigAuth()
 	if aerr != nil {
 		return false, "no credential for the config engine", nil
 	}

@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -17,13 +16,13 @@ import (
 
 // siteClient calls the Vulnetix console's site API (/api/site/v1/*), which
 // vdb-site serves. The config engine (/config/*) and the campaigns routes
-// (/campaigns) both live there and take the same credential: a vmt_ token
-// from --token or VULNETIX_CONFIG_TOKEN, or whatever the CLI has stored. It is
-// a different backend from the VDB API the rest of the CLI talks to
-// (/v2/cli.*).
+// (/campaigns) both live there and take the same credentials as the rest of
+// the CLI (see resolveConfigAuth). It is a different backend from the VDB API
+// the rest of the CLI talks to (/v2/cli.*).
 
-// configTokenEnv holds a config management token (vmt_...) for CI.
-const configTokenEnv = "VULNETIX_CONFIG_TOKEN"
+// configAuthHelp says which credentials the config engine takes. It ends the
+// "no credential" and "not accepted" messages.
+const configAuthHelp = "run 'vulnetix auth login' or set VULNETIX_API_KEY and VULNETIX_ORG_ID (an owner or admin, or an admin service account)"
 
 // siteBase is the site API base URL. It follows the console base, so
 // VULNETIX_WEB_URL points both device login and the engine at a local stack.
@@ -35,25 +34,20 @@ type configAuth struct {
 	Source string
 }
 
-// resolveConfigAuth picks the credential in the same spirit as
-// auth.LoadCredentials: the most explicit source wins. --token, then
-// VULNETIX_CONFIG_TOKEN, then whatever the CLI already has stored (a Bearer
-// token or an ApiKey). The stored credential is a fallback for people at a
-// terminal; whether the engine accepts it depends on the caller's role.
-func resolveConfigAuth(flagToken string) (configAuth, error) {
-	if t := strings.TrimSpace(flagToken); t != "" {
-		return configAuth{Header: "Bearer " + t, Source: "--token"}, nil
-	}
-	if t := strings.TrimSpace(os.Getenv(configTokenEnv)); t != "" {
-		return configAuth{Header: "Bearer " + t, Source: configTokenEnv}, nil
-	}
+// resolveConfigAuth uses the same credentials as every other command, through
+// auth.LoadCredentials: VULNETIX_API_TOKEN (sent as Bearer: an Authentik access
+// token or a session JWT), then VULNETIX_API_KEY with VULNETIX_ORG_ID (sent as
+// "ApiKey org:key"), then whatever 'vulnetix auth login' stored. The engine
+// accepts the credential when its role is owner or admin; a member service
+// account gets 403.
+func resolveConfigAuth() (configAuth, error) {
 	creds, err := auth.LoadCredentials()
 	if err != nil {
-		return configAuth{}, fmt.Errorf("no config credential: pass --token, set %s, or run 'vulnetix auth login': %w", configTokenEnv, err)
+		return configAuth{}, fmt.Errorf("no credential for the config engine: %s: %w", configAuthHelp, err)
 	}
 	h := auth.GetAuthHeader(creds)
 	if h == "" {
-		return configAuth{}, fmt.Errorf("the stored credential (%s) cannot authenticate to the config engine; pass --token or set %s", creds.Method, configTokenEnv)
+		return configAuth{}, fmt.Errorf("the stored credential (%s) cannot authenticate to the config engine; %s", creds.Method, configAuthHelp)
 	}
 	return configAuth{Header: h, Source: auth.CredentialSource()}, nil
 }

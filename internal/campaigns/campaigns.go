@@ -4,8 +4,8 @@
 //
 // The routes are Pro. A caller who is not entitled gets HTTP 200 with a marker
 // body ({"planLocked": true, ...}) instead of an error so the console can show
-// an upgrade prompt; that is surfaced here as ErrNotEntitled. A vmt_ token
-// needs the "campaigns" read scope.
+// an upgrade prompt; that is surfaced here as ErrNotEntitled. The caller
+// authenticates as for the config engine (an owner or admin credential).
 package campaigns
 
 import (

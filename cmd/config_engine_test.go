@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
 const testTenant = "11111111-1111-4111-8111-111111111111"
@@ -53,7 +54,14 @@ func newFakeEngine(t *testing.T) *fakeEngine {
 	f.srv = httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.srv.Close)
 	t.Setenv("VULNETIX_WEB_URL", f.srv.URL)
-	t.Setenv(configTokenEnv, "")
+	// The config engine takes the CLI's usual credentials. Default to an admin
+	// service account's ApiKey and keep stored credentials out of the test.
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("VULNETIX_API_TOKEN", "")
+	t.Setenv("VVD_ORG", "")
+	t.Setenv("VVD_SECRET", "")
+	t.Setenv("VULNETIX_API_KEY", "svc-key")
+	t.Setenv("VULNETIX_ORG_ID", "org-1")
 	t.Setenv("GITHUB_REPOSITORY", "")
 	t.Setenv("GITHUB_SHA", "abc123")
 	return f
@@ -144,7 +152,7 @@ func gateFile(t *testing.T, body string) string {
 
 func TestConfigPlanRendersTheEnginePlan(t *testing.T) {
 	f := newFakeEngine(t)
-	out, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "gitops:acme/platform", "--token", "vmt_abc")
+	out, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "gitops:acme/platform")
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
@@ -153,7 +161,7 @@ func TestConfigPlanRendersTheEnginePlan(t *testing.T) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}
 	}
-	if got := f.auth["/config/plan"]; got != "Bearer vmt_abc" {
+	if got := f.auth["/config/plan"]; got != "ApiKey org-1:svc-key" {
 		t.Fatalf("Authorization %q", got)
 	}
 	body := f.lastBody("/config/plan")
@@ -166,20 +174,83 @@ func TestConfigPlanRendersTheEnginePlan(t *testing.T) {
 	}
 }
 
-func TestConfigPlanTokenFromEnvironment(t *testing.T) {
+// VULNETIX_API_TOKEN (an Authentik access token or a session JWT) is sent as a
+// Bearer and wins over the ApiKey pair.
+func TestConfigPlanBearerFromAPIToken(t *testing.T) {
 	f := newFakeEngine(t)
-	t.Setenv(configTokenEnv, "vmt_env")
+	t.Setenv("VULNETIX_API_TOKEN", "authentik-jwt")
 	if _, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.auth["/config/plan"]; got != "Bearer vmt_env" {
+	if got := f.auth["/config/plan"]; got != "Bearer authentik-jwt" {
 		t.Fatalf("Authorization %q", got)
+	}
+}
+
+// A pasted "<org>:<key>" ApiKey is normalised, as for every other command.
+func TestConfigPlanApiKeyPastedWithOrgPrefix(t *testing.T) {
+	f := newFakeEngine(t)
+	t.Setenv("VULNETIX_API_KEY", "org-1:svc-key")
+	if _, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform"); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.auth["/config/plan"]; got != "ApiKey org-1:svc-key" {
+		t.Fatalf("Authorization %q", got)
+	}
+}
+
+// 'vulnetix auth login' credentials are used when no environment credential is
+// set.
+func TestConfigPlanStoredCredentials(t *testing.T) {
+	f := newFakeEngine(t)
+	t.Setenv("VULNETIX_API_KEY", "")
+	t.Setenv("VULNETIX_ORG_ID", "")
+	if err := auth.SaveCredentials(&auth.Credentials{OrgID: "org-stored", APIKey: "stored-key", Method: auth.DirectAPIKey}, auth.StoreHome); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform"); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.auth["/config/plan"]; got != "ApiKey org-stored:stored-key" {
+		t.Fatalf("Authorization %q", got)
+	}
+}
+
+func TestConfigPlanWithoutACredential(t *testing.T) {
+	f := newFakeEngine(t)
+	t.Setenv("VULNETIX_API_KEY", "")
+	t.Setenv("VULNETIX_ORG_ID", "")
+	t.Chdir(t.TempDir())
+	_, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform")
+	if err == nil || !strings.Contains(err.Error(), "vulnetix auth login") || !strings.Contains(err.Error(), "VULNETIX_API_KEY and VULNETIX_ORG_ID") {
+		t.Fatalf("err %v", err)
+	}
+	if f.called("POST /config/plan") != 0 {
+		t.Fatalf("calls %v", f.calls)
+	}
+}
+
+// The management token is gone: its environment variable is not read, and --token
+// is not a flag.
+func TestConfigTokenIsNoLongerRead(t *testing.T) {
+	f := newFakeEngine(t)
+	t.Setenv("VULNETIX_CONFIG"+"_TOKEN", "legacy-management-credential")
+	if _, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform"); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.auth["/config/plan"]; got != "ApiKey org-1:svc-key" {
+		t.Fatalf("the config token must be ignored, Authorization %q", got)
+	}
+	for name, c := range map[string]*cobra.Command{"plan": newConfigPlanCommand(), "apply": newConfigApplyCommand(), "export": newConfigExportCommand()} {
+		if c.Flags().Lookup("token") != nil {
+			t.Errorf("config %s still has a --token flag", name)
+		}
 	}
 }
 
 func TestConfigPlanJSON(t *testing.T) {
 	newFakeEngine(t)
-	out, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "--token", "t", "-o", "json")
+	out, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "-o", "json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +264,7 @@ func TestConfigPlanBlockingExitsThree(t *testing.T) {
 	f := newFakeEngine(t)
 	f.plan["blocking"] = []any{map[string]any{"code": "managed_by_other", "kind": "QualityGate", "name": "default",
 		"message": "managed by terraform; only that manager can change it"}}
-	out, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "gitops:acme/platform", "--token", "t")
+	out, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gateFile(t, ""), "--manager", "gitops:acme/platform")
 	if err == nil {
 		t.Fatal("want an error")
 	}
@@ -208,7 +279,7 @@ func TestConfigPlanBlockingExitsThree(t *testing.T) {
 func TestConfigPlanRefusesInvalidDocumentsLocally(t *testing.T) {
 	f := newFakeEngine(t)
 	p := gateFile(t, "apiVersion: vulnetix.com/v1\nkind: QualityGate\nmetadata: {name: default}\nspec: {severity: urgent}\n")
-	_, stderr, err := runCmd(t, newConfigPlanCommand(), "", "-f", p, "--manager", "terraform", "--token", "t")
+	_, stderr, err := runCmd(t, newConfigPlanCommand(), "", "-f", p, "--manager", "terraform")
 	if err == nil || !strings.Contains(stderr, "/spec/severity") {
 		t.Fatalf("err %v stderr %q", err, stderr)
 	}
@@ -221,7 +292,7 @@ func TestConfigPlanRequiresManagerOutsideAGitHubRepo(t *testing.T) {
 	newFakeEngine(t)
 	gate := gateFile(t, "")
 	t.Chdir(t.TempDir())
-	_, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gate, "--token", "t")
+	_, _, err := runCmd(t, newConfigPlanCommand(), "", "-f", gate)
 	if err == nil || ExitCode(err) != ExitUsage || !strings.Contains(err.Error(), "--manager is required") {
 		t.Fatalf("err %v", err)
 	}
@@ -249,7 +320,7 @@ func TestConfigManagerDefaultsToTheGitHubRepo(t *testing.T) {
 
 func TestConfigApplyAutoApproveSendsThePlanHash(t *testing.T) {
 	f := newFakeEngine(t)
-	out, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "gitops:acme/platform", "--token", "t", "--auto-approve")
+	out, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "gitops:acme/platform", "--auto-approve")
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
@@ -267,17 +338,17 @@ func TestConfigApplyAsksOnATerminal(t *testing.T) {
 	t.Cleanup(func() { configStdinIsTerminal = old })
 
 	configStdinIsTerminal = func() bool { return false }
-	_, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "--token", "t")
+	_, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform")
 	if ExitCode(err) != ExitUsage || f.called("POST /config/apply") != 0 {
 		t.Fatalf("without a terminal: %v", err)
 	}
 
 	configStdinIsTerminal = func() bool { return true }
-	_, _, err = runCmd(t, newConfigApplyCommand(), "no\n", "-f", gateFile(t, ""), "--manager", "terraform", "--token", "t")
+	_, _, err = runCmd(t, newConfigApplyCommand(), "no\n", "-f", gateFile(t, ""), "--manager", "terraform")
 	if err == nil || f.called("POST /config/apply") != 0 {
 		t.Fatalf("declined: %v", err)
 	}
-	_, _, err = runCmd(t, newConfigApplyCommand(), "yes\n", "-f", gateFile(t, ""), "--manager", "terraform", "--token", "t")
+	_, _, err = runCmd(t, newConfigApplyCommand(), "yes\n", "-f", gateFile(t, ""), "--manager", "terraform")
 	if err != nil || f.called("POST /config/apply") != 1 {
 		t.Fatalf("approved: %v", err)
 	}
@@ -288,7 +359,7 @@ func TestConfigApplyStateChanged409(t *testing.T) {
 	f.status["/config/apply"] = http.StatusConflict
 	f.errBody = map[string]any{"error": "plan_changed", "message": "the plan changed since it was reviewed; plan again",
 		"plan": map[string]any{"summary": map[string]any{"create": 0, "update": 2, "delete": 0, "noop": 0}}}
-	_, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "--token", "t", "--auto-approve")
+	_, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "--auto-approve")
 	if err == nil || !strings.Contains(err.Error(), "changed after this plan was made") || !strings.Contains(err.Error(), "2 to update") {
 		t.Fatalf("err %v", err)
 	}
@@ -300,7 +371,7 @@ func TestConfigApplyStateChanged409(t *testing.T) {
 func TestConfigApplyBlockedPlanIsNotApplied(t *testing.T) {
 	f := newFakeEngine(t)
 	f.plan["blocking"] = []any{map[string]any{"code": "invalid", "message": "document 1: bad"}}
-	_, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "--token", "t", "--auto-approve")
+	_, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "--auto-approve")
 	if ExitCode(err) != ExitPlanBlocked || f.called("POST /config/apply") != 0 {
 		t.Fatalf("err %v", err)
 	}
@@ -308,11 +379,11 @@ func TestConfigApplyBlockedPlanIsNotApplied(t *testing.T) {
 
 func TestConfigApplyPlanHashMismatch(t *testing.T) {
 	f := newFakeEngine(t)
-	_, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "--token", "t", "--plan-hash", "hash-0")
+	_, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "--plan-hash", "hash-0")
 	if err == nil || f.called("POST /config/apply") != 0 {
 		t.Fatalf("err %v", err)
 	}
-	if _, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "--token", "t", "--plan-hash", "hash-1"); err != nil {
+	if _, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", gateFile(t, ""), "--manager", "terraform", "--plan-hash", "hash-1"); err != nil {
 		t.Fatal(err)
 	}
 	if f.called("POST /config/apply") != 1 {
@@ -324,7 +395,7 @@ func TestConfigApplyRefusesAnotherTenantsDocument(t *testing.T) {
 	f := newFakeEngine(t)
 	other := "22222222-2222-4222-8222-222222222222"
 	p := gateFile(t, "apiVersion: vulnetix.com/v1\nkind: QualityGate\nmetadata: {name: default, org: "+other+"}\nspec: {severity: high}\n")
-	_, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", p, "--manager", "terraform", "--token", "t", "--auto-approve")
+	_, _, err := runCmd(t, newConfigApplyCommand(), "", "-f", p, "--manager", "terraform", "--auto-approve")
 	if err == nil || !strings.Contains(err.Error(), "metadata.org "+other) || f.called("POST /config/apply") != 0 {
 		t.Fatalf("err %v", err)
 	}
@@ -332,7 +403,7 @@ func TestConfigApplyRefusesAnotherTenantsDocument(t *testing.T) {
 
 func TestConfigExport(t *testing.T) {
 	f := newFakeEngine(t)
-	out, _, err := runCmd(t, newConfigExportCommand(), "", "--kind", "QualityGate", "--format", "hcl", "--token", "t")
+	out, _, err := runCmd(t, newConfigExportCommand(), "", "--kind", "QualityGate", "--format", "hcl")
 	if err != nil || out != f.exportOK {
 		t.Fatalf("%v %q", err, out)
 	}
@@ -341,14 +412,14 @@ func TestConfigExport(t *testing.T) {
 	}
 
 	dst := filepath.Join(t.TempDir(), "out", "gate.yaml")
-	if _, _, err := runCmd(t, newConfigExportCommand(), "", "-o", dst, "--token", "t"); err != nil {
+	if _, _, err := runCmd(t, newConfigExportCommand(), "", "-o", dst); err != nil {
 		t.Fatal(err)
 	}
 	if b, _ := os.ReadFile(dst); string(b) != f.exportOK {
 		t.Fatalf("file %q", b)
 	}
 
-	if _, _, err := runCmd(t, newConfigExportCommand(), "", "-f", gateFile(t, ""), "--format", "sh", "--token", "t"); err != nil {
+	if _, _, err := runCmd(t, newConfigExportCommand(), "", "-f", gateFile(t, ""), "--format", "sh"); err != nil {
 		t.Fatal(err)
 	}
 	if f.called("POST /config/export") != 1 || len(f.lastBody("/config/export")["documents"].([]any)) != 1 {
@@ -393,7 +464,6 @@ func TestResolveValueFrom(t *testing.T) {
 
 func TestQualityGateAliasUsesTheEngine(t *testing.T) {
 	f := newFakeEngine(t)
-	t.Setenv(configTokenEnv, "vmt_alias")
 	t.Setenv("VULNETIX_API_TOKEN", "legacy")
 	f.plan["manager"] = "console"
 	_, stderr, err := runCmd(t, newConfigSetQualityGateCommand(), "", "--severity", "high", "--cooldown", "3", "--base-url", f.srv.URL, "-o", "json")

@@ -198,16 +198,9 @@ func actionYAML(a action) string {
 		b.WriteString("        VX_CODE_SCANNING: ${{ inputs.github-code-scanning }}\n        VX_DEPENDENCY_GRAPH: ${{ inputs.dependency-graph }}\n")
 	}
 	if a.Script == "config" {
-		b.WriteString("        VULNETIX_CONFIG_TOKEN: ${{ inputs.config-token }}\n        VX_EVENT_NAME: ${{ github.event_name }}\n")
+		b.WriteString("        VX_EVENT_NAME: ${{ github.event_name }}\n")
 	}
 	for _, in := range a.Inputs {
-		if in.Name == "config-token" {
-			continue
-		}
-		if in.Name == "campaigns-token" {
-			b.WriteString("        VULNETIX_CONFIG_TOKEN: ${{ inputs.campaigns-token }}\n")
-			continue
-		}
 		fmt.Fprintf(&b, "        %s: ${{ inputs.%s }}\n", envName(in.Name), in.Name)
 	}
 	b.WriteString("      run: bash \"$GITHUB_ACTION_PATH/../action-lib/run.sh\"\n")
@@ -401,7 +394,7 @@ true, so the artifact, attestation and publish steps run either way.
 | Release assets | ` + "`contents: write`" + ` |
 | config-plan pull request comment | ` + "`pull-requests: write`" + ` |
 | Repository advisories | A PAT or GitHub App token with repository advisories write |
-| Security campaigns | A PAT or GitHub App token of an organization owner or security manager, with GitHub Advanced Security, plus a Vulnetix ` + "`vmt_`" + ` token with the campaigns read scope |
+| Security campaigns | A PAT or GitHub App token of an organization owner or security manager, with GitHub Advanced Security, plus the Vulnetix credentials (` + "`org-id`" + ` with the ` + "`api-key`" + ` of an owner or admin, or an admin service account, or ` + "`api-token`" + `) |
 `)
 	return b.String()
 }
@@ -439,7 +432,7 @@ func docsPage(a action) string {
 		perms = append(perms, "`id-token: write` with `sign: true`")
 	}
 	if a.Name == "github-publish" {
-		perms = append(perms, "no workflow permission for `campaigns: true`: `campaigns-github-token` must be a PAT or GitHub App token of an organization owner or security manager (the organization needs GitHub Advanced Security), and `campaigns-token` a Vulnetix `vmt_` token with the campaigns read scope")
+		perms = append(perms, "no workflow permission for `campaigns: true`: `campaigns-github-token` must be a PAT or GitHub App token of an organization owner or security manager (the organization needs GitHub Advanced Security), and the Vulnetix credentials (`org-id` with `api-key`, or `api-token`) must be an owner or admin")
 	}
 	for _, p := range perms {
 		fmt.Fprintf(&b, "- %s\n", p)
@@ -464,9 +457,6 @@ func example(a action) string {
 		with = "          subject: dist/app.tar.gz\n"
 	case a.Name == "config-plan":
 		perms += "      pull-requests: write\n"
-		with = "          config-token: ${{ secrets.VULNETIX_CONFIG_TOKEN }}\n"
-	case a.Name == "config-apply":
-		with = "          config-token: ${{ secrets.VULNETIX_CONFIG_TOKEN }}\n"
 	}
 	if a.CodeScanning {
 		perms += "      security-events: write\n"

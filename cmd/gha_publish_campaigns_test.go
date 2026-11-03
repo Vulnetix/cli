@@ -44,12 +44,12 @@ type campaignsFixture struct {
 func newCampaignsFixture(t *testing.T) *campaignsFixture {
 	f := &campaignsFixture{t: t, patches: map[int]map[string]any{}, items: map[string]string{}}
 	f.site = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer vmt_tok" {
+		if r.Header.Get("Authorization") != "ApiKey org-1:svc-key" {
 			t.Errorf("site auth %q", r.Header.Get("Authorization"))
 		}
 		if f.siteCode != 0 {
 			w.WriteHeader(f.siteCode)
-			fmt.Fprint(w, `{"error":"forbidden","message":"token lacks the campaigns scope"}`)
+			fmt.Fprint(w, `{"error":"forbidden","message":"the credential is not an owner or admin"}`)
 			return
 		}
 		if f.locked {
@@ -115,7 +115,7 @@ func newCampaignsFixture(t *testing.T) *campaignsFixture {
 func (f *campaignsFixture) options(dry, recreate bool) campaignsOptions {
 	gh := github.NewClient("ghtok")
 	gh.BaseURL = f.gh.URL
-	sc := newSiteClient(configAuth{Header: "Bearer vmt_tok"}, "campaigns")
+	sc := newSiteClient(configAuth{Header: "ApiKey org-1:svc-key"}, "campaigns")
 	sc.BaseURL = f.site.URL + "/api/site/v1"
 	return campaignsOptions{
 		Org: "acme", DryRun: dry, Recreate: recreate, DefaultDays: 90,
@@ -320,7 +320,7 @@ func TestCampaignsMissingScopeNamesTheToken(t *testing.T) {
 	f := newCampaignsFixture(t)
 	f.siteCode = http.StatusForbidden
 	err := runCampaignsPublish(context.Background(), f.options(false, false), io.Discard)
-	if err == nil || !strings.Contains(err.Error(), "campaigns read scope") || !strings.Contains(err.Error(), "HTTP 403") {
+	if err == nil || !strings.Contains(err.Error(), "VULNETIX_API_KEY and VULNETIX_ORG_ID") || !strings.Contains(err.Error(), "HTTP 403") {
 		t.Fatalf("err %v", err)
 	}
 }

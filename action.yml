@@ -63,9 +63,6 @@ inputs:
     description: 'Print what would be published and exit: true or false (used with task: tea-release)'
     required: false
     default: 'false'
-  config-token:
-    description: 'Config management token (vmt_...) for config-plan and config-apply. Passed to the CLI as VULNETIX_CONFIG_TOKEN, never on the command line'
-    required: false
   config-path:
     description: 'Config documents to plan or apply, one file or directory per line (default: .vulnetix/config)'
     required: false
@@ -165,7 +162,6 @@ runs:
         VULNETIX_ORG_ID: ${{ inputs.org-id }}
         VULNETIX_API_KEY: ${{ inputs.api-key }}
         VULNETIX_API_TOKEN: ${{ inputs.api-token }}
-        VULNETIX_CONFIG_TOKEN: ${{ inputs.config-token }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
         VX_EVENT_NAME: ${{ github.event_name }}
         VX_PATH: ${{ inputs.path }}

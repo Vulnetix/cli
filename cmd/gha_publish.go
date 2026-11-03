@@ -38,7 +38,7 @@ var ghaPublishCmd = &cobra.Command{
 
 The token is GITHUB_TOKEN, then GH_TOKEN, then 'gh auth token'. GITHUB_API_URL
 selects a GitHub Enterprise Server. Publishing to GitHub needs no Vulnetix
-credentials (campaigns reads Vulnetix campaigns and takes a vmt_ token), and
+credentials (campaigns reads Vulnetix campaigns with the stored or environment credentials), and
 sending to Vulnetix (gha upload) is unaffected by it.`,
 }
 

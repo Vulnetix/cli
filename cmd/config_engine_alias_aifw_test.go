@@ -36,7 +36,6 @@ func aiFirewallPolicyFile(t *testing.T) {
 func TestAiFirewallApplyDryRunIsAnEnginePlan(t *testing.T) {
 	f := newFakeEngine(t)
 	aiFirewallPolicyFile(t)
-	t.Setenv(configTokenEnv, "vmt_tok")
 	cmd := newAiFirewallApplyCommand()
 	out, errOut, err := runCmd(t, cmd, "", "--dry-run", "--force")
 	if err != nil {
@@ -61,7 +60,6 @@ func TestAiFirewallApplyDryRunIsAnEnginePlan(t *testing.T) {
 func TestAiFirewallApplyAppliesThePlanHash(t *testing.T) {
 	f := newFakeEngine(t)
 	aiFirewallPolicyFile(t)
-	t.Setenv(configTokenEnv, "vmt_tok")
 	if _, _, err := runCmd(t, newAiFirewallApplyCommand(), "", "--force"); err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +71,6 @@ func TestAiFirewallApplyAppliesThePlanHash(t *testing.T) {
 func TestAiFirewallApplyRefusedCredentialFallsBack(t *testing.T) {
 	f := newFakeEngine(t)
 	aiFirewallPolicyFile(t)
-	t.Setenv(configTokenEnv, "vmt_tok")
 	f.status["/config/plan"] = 403
 	f.errBody = map[string]any{"error": "only an owner or admin"}
 	cmd := newAiFirewallApplyCommand()
@@ -88,7 +85,6 @@ func TestAiFirewallApplyRefusedCredentialFallsBack(t *testing.T) {
 func TestAiFirewallApplyLocalCatalogStaysLegacy(t *testing.T) {
 	newFakeEngine(t)
 	aiFirewallPolicyFile(t)
-	t.Setenv(configTokenEnv, "vmt_tok")
 	cmd := newAiFirewallApplyCommand()
 	if err := cmd.Flags().Set("catalog", "baseline.json"); err != nil {
 		t.Fatal(err)
@@ -101,7 +97,6 @@ func TestAiFirewallApplyLocalCatalogStaysLegacy(t *testing.T) {
 func TestAiFirewallExportWritesTheEngineExport(t *testing.T) {
 	f := newFakeEngine(t)
 	t.Chdir(t.TempDir())
-	t.Setenv(configTokenEnv, "vmt_tok")
 	f.exportOK = "apiVersion: vulnetix.com/v1\nkind: AiFirewallPolicy\nmetadata: {name: default}\nspec: {}\n"
 	if _, _, err := runCmd(t, newAiFirewallExportCommand(), "", "--stdout"); err != nil {
 		t.Fatal(err)
@@ -114,7 +109,6 @@ func TestAiFirewallExportWritesTheEngineExport(t *testing.T) {
 func TestAiFirewallApplyRefusesAnotherOrgWithoutForce(t *testing.T) {
 	newFakeEngine(t)
 	aiFirewallPolicyFile(t)
-	t.Setenv(configTokenEnv, "vmt_tok")
 	_, _, err := runCmd(t, newAiFirewallApplyCommand(), "")
 	if err == nil || !strings.Contains(err.Error(), "metadata.org") {
 		t.Fatalf("err %v", err)

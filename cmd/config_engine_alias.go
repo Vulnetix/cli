@@ -93,7 +93,7 @@ func setQualityGate(cmd *cobra.Command, command, title string, req vdb.CliQualit
 	if why != "" {
 		return legacy(why)
 	}
-	a, err := resolveConfigAuth("")
+	a, err := resolveConfigAuth()
 	if err != nil {
 		return legacy("no credential for the config engine")
 	}
@@ -141,8 +141,8 @@ func engineFallbackReason(err error, a configAuth) string {
 	}
 	switch he.Status {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return fmt.Sprintf("the config engine refused the credential from %s (HTTP %d: %s); a config management token (%s) or an owner/admin sign-in uses the engine",
-			a.Source, he.Status, he.Message, configTokenEnv)
+		return fmt.Sprintf("the config engine refused the credential from %s (HTTP %d: %s); %s",
+			a.Source, he.Status, he.Message, configAuthHelp)
 	case http.StatusNotFound:
 		return "the config engine is not available at " + siteBase()
 	}
@@ -151,7 +151,7 @@ func engineFallbackReason(err error, a configAuth) string {
 
 // renderQualityGateAfterEngine prints what the legacy command printed: the
 // stored row, read back through the same /v2 read the legacy path uses. If
-// that read is not possible (a config token only), it prints the spec sent.
+// that read is not possible (an unreadable credential), it prints the spec sent.
 func renderQualityGateAfterEngine(cmd *cobra.Command, title string, spec map[string]any) error {
 	ctx := display.FromCommand(cmd)
 	data := map[string]any{"config": spec}

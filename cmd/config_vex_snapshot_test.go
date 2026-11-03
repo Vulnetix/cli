@@ -33,7 +33,7 @@ func vexRepo(t *testing.T) string {
 func TestApplyUploadsAPathSourceSnapshot(t *testing.T) {
 	f := newFakeEngine(t)
 	vexRepo(t)
-	out, _, err := runCmd(t, newConfigApplyCommand(), "", "--manager", "gitops:acme/platform", "--token", "t", "--auto-approve")
+	out, _, err := runCmd(t, newConfigApplyCommand(), "", "--manager", "gitops:acme/platform", "--auto-approve")
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
@@ -62,7 +62,7 @@ func TestNothingToApplyStillUploadsTheSnapshot(t *testing.T) {
 	f.plan["summary"] = map[string]any{"create": 0, "update": 0, "delete": 0, "noop": 1}
 	f.plan["items"] = []any{}
 	vexRepo(t)
-	out, _, err := runCmd(t, newConfigApplyCommand(), "", "--manager", "gitops:acme/platform", "--token", "t", "--auto-approve")
+	out, _, err := runCmd(t, newConfigApplyCommand(), "", "--manager", "gitops:acme/platform", "--auto-approve")
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
@@ -77,7 +77,7 @@ func TestPathSourceWithNoVEXFailsTheApply(t *testing.T) {
 	if err := os.Remove(filepath.Join(dir, "vex", "openvex.json")); err != nil {
 		t.Fatal(err)
 	}
-	out, _, err := runCmd(t, newConfigApplyCommand(), "", "--manager", "gitops:acme/platform", "--token", "t", "--auto-approve")
+	out, _, err := runCmd(t, newConfigApplyCommand(), "", "--manager", "gitops:acme/platform", "--auto-approve")
 	if err == nil || !strings.Contains(out, "holds no VEX documents") {
 		t.Fatalf("err %v\n%s", err, out)
 	}

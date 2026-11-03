@@ -7,7 +7,6 @@ import (
 
 func TestPackageFirewallPolicySetGoesThroughTheEngine(t *testing.T) {
 	f := newFakeEngine(t)
-	t.Setenv(configTokenEnv, "vmt_tok")
 	t.Setenv("HOME", t.TempDir())
 	_, errOut, err := runCmd(t, newConfigSetPackageFirewallCommand(), "", "--cvss-threshold", "7", "--block-malware", "--cooldown-days", "3", "-o", "json")
 	if err != nil {
