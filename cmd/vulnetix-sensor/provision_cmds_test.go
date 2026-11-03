@@ -300,3 +300,33 @@ func TestEnrollPrintWritesNothing(t *testing.T) {
 		t.Fatalf("enroll without root: %v", err)
 	}
 }
+
+func TestUnreadableSnapshotNamesWhatStatusCannotSee(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads every directory")
+	}
+	dir := t.TempDir()
+	open := filepath.Join(dir, "config.json")
+	if err := os.WriteFile(open, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	locked := filepath.Join(dir, "state")
+	if err := os.Mkdir(locked, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	hidden := filepath.Join(locked, "config.json")
+	if err := os.WriteFile(hidden, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+
+	if got := unreadableSnapshot([]string{open, hidden}); got != hidden {
+		t.Fatalf("unreadableSnapshot = %q, want %q", got, hidden)
+	}
+	if got := unreadableSnapshot([]string{open, filepath.Join(dir, "absent.json")}); got != "" {
+		t.Fatalf("unreadableSnapshot = %q for readable and absent paths, want none", got)
+	}
+}

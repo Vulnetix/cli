@@ -429,6 +429,9 @@ func statusCmd(args []string) error {
 		fmt.Printf("protection   %s\n", snap.Config.Level())
 		fmt.Printf("mode         %s\n", orDefault(snap.Config.Mode, "monitor"))
 		fmt.Printf("config etag  %s (%s)\n", orDefault(snap.ConfigEtag, "(none)"), path)
+		if hidden := unreadableSnapshot(snapshotPaths(store, *c.stateDir)); hidden != "" {
+			fmt.Printf("note         %s exists but is not readable by this user, and the running sensor writes its live config there, so the etag above may be the one from enrolment; run with sudo to see the live config\n", hidden)
+		}
 	} else {
 		fmt.Printf("profile      none (%v)\n", snapErr)
 	}
@@ -731,4 +734,22 @@ func subcommandFlagSets() []*flag.FlagSet {
 	mk("inventory", func(fs *flag.FlagSet) { defineInventoryFlags(fs) })
 
 	return out
+}
+
+// unreadableSnapshot names a snapshot path that exists but this user cannot
+// open. The running sensor keeps its live config in a state directory only root
+// reads, and LoadSnapshot skips what it cannot stat, so an ordinary user's
+// status would otherwise show the enrolment copy as if it were current.
+func unreadableSnapshot(paths []string) string {
+	for _, p := range paths {
+		_, err := os.Stat(p)
+		if err == nil || errors.Is(err, iofs.ErrNotExist) {
+			continue
+		}
+		if errors.Is(err, iofs.ErrPermission) {
+			return p
+		}
+	}
+
+	return ""
 }
