@@ -28,6 +28,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/sast"
 	"github.com/vulnetix/cli/v4/internal/scan"
 	"github.com/vulnetix/cli/v4/internal/scanopts"
+	"github.com/vulnetix/cli/v4/internal/suppress"
 	"github.com/vulnetix/cli/v4/internal/testsuite"
 	"github.com/vulnetix/cli/v4/internal/triage"
 	"github.com/vulnetix/cli/v4/internal/tui"
@@ -2077,9 +2078,20 @@ func runLocalScan(
 	// report: they are still in the BOM, annotated with the statement and its
 	// provenance, and still counted in the total/suppressed/effective split.
 	var vexPass *VEXPassResult
-	if len(opts.VEXFiles) > 0 {
+	vexRepo := ""
+	if gitCtx != nil {
+		vexRepo = suppress.RepoFullName(gitCtx.RemoteURLs)
+	}
+	vexInputs, vexCleanup, vexResolveErr := resolveVEXInputs(ctx, vexInputsOptions{
+		Explicit: opts.VEXFiles, FromConfig: opts.VEXConfig, Root: rootPath, Repo: vexRepo, Notes: os.Stderr,
+	})
+	if vexResolveErr != nil {
+		return vexResolveErr
+	}
+	defer vexCleanup()
+	if len(vexInputs) > 0 {
 		var vexErr error
-		vexPass, vexErr = runVEXPass(VEXPassOptions{Paths: opts.VEXFiles, BOM: bom})
+		vexPass, vexErr = runVEXPass(VEXPassOptions{Paths: vexInputs, BOM: bom})
 		if vexErr != nil {
 			// A malformed VEX document must not silently widen the gate. Fail
 			// loudly rather than proceeding as though no statements existed.
@@ -4187,7 +4199,9 @@ func addScanFlags(cmd *cobra.Command) {
 	// finding does not apply must be honoured whichever scanner surfaced it.
 	cmd.Flags().StringArray("vex-file", nil,
 		"Apply VEX statements from this file or directory before gates are evaluated (repeatable)")
-	cmd.Flags().Bool("no-vex", false, "Ignore --vex-file and apply no third-party VEX")
+	cmd.Flags().StringArray("vex", nil,
+		"Apply VEX statements from this file, directory or https URL before gates are evaluated (repeatable). VexSource documents under .vulnetix/config (path and urls sources) apply too")
+	cmd.Flags().Bool("no-vex", false, "Ignore --vex-file, --vex and the VexSource documents, and apply no third-party VEX")
 	// Licence governance, family-wide so `scan --evaluate-licenses` and
 	// `license` reach the same verdict from the same policy.
 	addLicenseGovernanceFlags(cmd)

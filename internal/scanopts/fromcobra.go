@@ -80,7 +80,8 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	// checks one thing (are there files) instead of two (are there files AND is
 	// the feature on), which is the shape that lets a toggle be forgotten.
 	if !getBool("no-vex") {
-		opts.VEXFiles = getStrings("vex-file")
+		opts.VEXFiles = append(getStrings("vex-file"), getStrings("vex")...)
+		opts.VEXConfig = true
 	}
 
 	// --paths is the deprecated spelling; either one enables the behaviour.

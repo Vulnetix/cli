@@ -706,3 +706,12 @@ func sourceName(path string) string {
 // document. The config and source helpers ask here instead of importing
 // internal/vex, so this file stays the one owner of VEX consumption.
 func isVEXDocument(data []byte) bool { return vex.Detect(data) != vex.FormatUnknown }
+
+// vexDocumentAuthor parses a VEX file and returns its author.
+func vexDocumentAuthor(path string) (string, error) {
+	doc, err := vex.Load(path)
+	if err != nil {
+		return "", err
+	}
+	return doc.Author, nil
+}

@@ -70,7 +70,8 @@ var flagToOption = map[string]string{
 	// Third-party VEX. --no-vex is resolved into VEXFiles by scanopts rather
 	// than carried separately, so the engine checks one thing instead of two.
 	"vex-file": "VEXFiles",
-	"no-vex":   "VEXFiles",
+	"vex":      "VEXFiles",
+	"no-vex":   "VEXConfig",
 	// BOM authoring identity. --bom-manufacturer lands among the candidate
 	// sources rather than a resolved value, because the last fallback is the git
 	// remote and resolving it here would walk the repository a second time.

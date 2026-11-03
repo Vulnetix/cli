@@ -64,6 +64,10 @@ type Options struct {
 	// passed, so the engine has one thing to check rather than two.
 	VEXFiles []string
 
+	// VEXConfig reads the VexSource documents declared under .vulnetix/config
+	// (path and urls sources) as well. False when --no-vex was passed.
+	VEXConfig bool
+
 	// ── Feature toggles ─────────────────────────────────────────────────────
 	//
 	// Negative names throughout, matching the flags they come from. The scan

@@ -36,6 +36,7 @@ var replayedForExplain = map[string]string{
 	"no-ci-package-analysis":     "which packages are found",
 	"no-shell-package-analysis":  "which packages are found",
 	"vex-file":                   "which findings VEX settles",
+	"vex":                        "which findings VEX settles",
 	"no-vex":                     "which findings VEX settles",
 	"strict":                     "how a verdict is counted",
 	"accept-defended":            "how a verdict is counted",
