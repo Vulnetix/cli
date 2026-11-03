@@ -20,6 +20,7 @@ Scan infrastructure as code (vulnetix iac).
 | `github-token` | Token for GitHub publishing, release assets and pull request comments | `${{ github.token }}` |
 | `attest` | Attest the written files with GitHub artifact attestations (needs id-token: write and attestations: write): true or false | `false` |
 | `release-tag` | Attach every file the command wrote to the GitHub release with this tag (needs contents: write) | - |
+| `vex` | VEX documents to apply before the gates, one path, directory or https URL per line (passed as --vex). VexSource documents under .vulnetix/config apply too | - |
 
 ## Outputs
 

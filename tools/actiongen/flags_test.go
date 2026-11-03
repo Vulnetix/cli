@@ -53,7 +53,7 @@ func TestEveryFlagAnActionPassesIsAccepted(t *testing.T) {
 			flags = append(flags, "github-publish", "github-publish-dry-run")
 		}
 		for _, in := range a.Inputs {
-			f := strings.TrimPrefix(in.Flag, "bool:")
+			f := strings.TrimPrefix(strings.TrimPrefix(in.Flag, "bool:"), "lines:")
 			if name, ok := strings.CutPrefix(f, "--"); ok {
 				flags = append(flags, name)
 			}

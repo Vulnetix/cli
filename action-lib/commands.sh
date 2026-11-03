@@ -16,26 +16,31 @@ vx_build() {
       cmd=(sca)
       vx_scan=true
       vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
       ;;
     sast)
       cmd=(sast)
       vx_scan=true
       vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
       ;;
     secrets)
       cmd=(secrets)
       vx_scan=true
       vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
       ;;
     iac)
       cmd=(iac)
       vx_scan=true
       vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
       ;;
     containers)
       cmd=(containers)
       vx_scan=true
       vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
       ;;
     license)
       cmd=(license)
@@ -107,6 +112,16 @@ vx_flag() {
 # vx_bool NAME VALUE adds NAME when VALUE is true.
 vx_bool() {
   if [ "$2" = "true" ]; then cmd+=("$1"); fi
+}
+
+# vx_flag_lines NAME VALUE adds NAME and each non-empty line, trimmed, once per line.
+vx_flag_lines() {
+  local line
+  while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    if [ -n "$line" ]; then cmd+=("$1" "$line"); fi
+  done <<<"$2"
 }
 
 # vx_lines VALUE adds each non-empty line, trimmed, as one argument.

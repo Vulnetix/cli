@@ -10,6 +10,7 @@ package main
 //	"--name"      a flag with the value, when the value is not empty
 //	"bool:--name" the flag alone, when the value is "true"
 //	"lines"       one positional argument per non-empty line
+//	"lines:--name" the flag repeated, once per non-empty line, each with that line
 //	""            not passed to the CLI (read by a script)
 type input struct {
 	Name, Desc, Default, Flag string
@@ -40,18 +41,22 @@ type action struct {
 	Extra string // extra prose for the docs page
 }
 
+// vexInputs is the vex input of the scan actions: VEX documents, paths or https
+// URLs, one per line, each passed to the scan as --vex.
+var vexInputs = []input{{Name: "vex", Desc: "VEX documents to apply before the gates, one path, directory or https URL per line (passed as --vex). VexSource documents under .vulnetix/config apply too", Flag: "lines:--vex"}}
+
 var actions = []action{
 	{Name: "setup", Title: "Setup", Desc: "Install the Vulnetix CLI and put it on PATH for later steps.", Setup: true},
 	{Name: "sca", Title: "SCA", Desc: "Scan dependencies for known vulnerabilities (vulnetix sca).",
-		Command: []string{"sca"}, Path: true, Scan: true, CodeScanning: true, DependencyGraph: true},
+		Command: []string{"sca"}, Path: true, Scan: true, CodeScanning: true, DependencyGraph: true, Inputs: vexInputs},
 	{Name: "sast", Title: "SAST", Desc: "Scan source code with the SAST rules (vulnetix sast).",
-		Command: []string{"sast"}, Path: true, Scan: true, CodeScanning: true},
+		Command: []string{"sast"}, Path: true, Scan: true, CodeScanning: true, Inputs: vexInputs},
 	{Name: "secrets", Title: "Secrets", Desc: "Scan for committed secrets (vulnetix secrets).",
-		Command: []string{"secrets"}, Path: true, Scan: true, CodeScanning: true},
+		Command: []string{"secrets"}, Path: true, Scan: true, CodeScanning: true, Inputs: vexInputs},
 	{Name: "iac", Title: "IaC", Desc: "Scan infrastructure as code (vulnetix iac).",
-		Command: []string{"iac"}, Path: true, Scan: true, CodeScanning: true},
+		Command: []string{"iac"}, Path: true, Scan: true, CodeScanning: true, Inputs: vexInputs},
 	{Name: "containers", Title: "Containers", Desc: "Scan container files and images (vulnetix containers).",
-		Command: []string{"containers"}, Path: true, Scan: true, CodeScanning: true},
+		Command: []string{"containers"}, Path: true, Scan: true, CodeScanning: true, Inputs: vexInputs},
 	{Name: "license", Title: "License", Desc: "Evaluate dependency licences against the licence policy (vulnetix license).",
 		Command: []string{"license"}, Path: true, CodeScanning: true},
 	{Name: "malscan", Title: "Malscan", Desc: "Scan installed dependencies for malicious code (vulnetix malscan).",

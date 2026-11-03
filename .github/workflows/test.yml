@@ -411,6 +411,8 @@ jobs:
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           path: ${{ steps.fixture.outputs.dir }}
+          vex: |
+            ${{ steps.fixture.outputs.dir }}/fixture.openvex.json
           github-code-scanning: 'true'
           dependency-graph: 'true'
           args: --no-banner --no-progress --github-publish-dry-run

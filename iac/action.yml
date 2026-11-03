@@ -53,6 +53,9 @@ inputs:
   release-tag:
     description: 'Attach every file the command wrote to the GitHub release with this tag (needs contents: write)'
     required: false
+  vex:
+    description: 'VEX documents to apply before the gates, one path, directory or https URL per line (passed as --vex). VexSource documents under .vulnetix/config apply too'
+    required: false
 
 outputs:
   files:
@@ -100,6 +103,7 @@ runs:
         VX_PATH: ${{ inputs.path }}
         VX_ARGS: ${{ inputs.args }}
         VX_CODE_SCANNING: ${{ inputs.github-code-scanning }}
+        VX_IN_VEX: ${{ inputs.vex }}
       run: bash "$GITHUB_ACTION_PATH/../action-lib/run.sh"
 
     - name: Upload the written files as an artifact

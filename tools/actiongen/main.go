@@ -327,6 +327,8 @@ vx_build() {
 			switch {
 			case in.Flag == "lines":
 				fmt.Fprintf(&b, "      vx_lines %s\n", v)
+			case strings.HasPrefix(in.Flag, "lines:"):
+				fmt.Fprintf(&b, "      vx_flag_lines %s %s\n", strings.TrimPrefix(in.Flag, "lines:"), v)
 			case strings.HasPrefix(in.Flag, "bool:"):
 				fmt.Fprintf(&b, "      vx_bool %s %s\n", strings.TrimPrefix(in.Flag, "bool:"), v)
 			case in.Flag != "":
@@ -349,6 +351,16 @@ vx_flag() {
 # vx_bool NAME VALUE adds NAME when VALUE is true.
 vx_bool() {
   if [ "$2" = "true" ]; then cmd+=("$1"); fi
+}
+
+# vx_flag_lines NAME VALUE adds NAME and each non-empty line, trimmed, once per line.
+vx_flag_lines() {
+  local line
+  while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    if [ -n "$line" ]; then cmd+=("$1" "$line"); fi
+  done <<<"$2"
 }
 
 # vx_lines VALUE adds each non-empty line, trimmed, as one argument.

@@ -1,0 +1,15 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://example.com/vex/action-fixture/1",
+  "author": "action-fixture",
+  "timestamp": "2026-01-01T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {"name": "CVE-2021-23337"},
+      "products": [{"@id": "pkg:npm/lodash@4.17.20"}],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path"
+    }
+  ]
+}
