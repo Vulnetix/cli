@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vulnetix/cli/v4/internal/sensor/addongate"
 	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
@@ -131,5 +133,57 @@ func TestSensorCredentialAndGoodbye(t *testing.T) {
 	}
 	if _, sent := rec.bodies["/v1/runtime/sensors/register"]; sent {
 		t.Fatal("a stopped uplink sends nothing")
+	}
+}
+
+// denial serves every runtime route with the add-on denial the site sends:
+// a real 402, or the soft HTTP 200 marker.
+func denialServer(t *testing.T, status int) *Client {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(`{"error":"add-on required","addon":"soc_intelligence","planLocked":true,"_entitlements":{"addon":"soc_intelligence"}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	return &Client{Endpoint: srv.URL, Creds: &auth.Credentials{Method: auth.SigV4, OrgID: "org", Secret: "s"}, Version: "test"}
+}
+
+func TestAddonDenialIsAnErrorOnEveryCall(t *testing.T) {
+	for _, status := range []int{http.StatusPaymentRequired, http.StatusOK} {
+		c := denialServer(t, status)
+		ctx := context.Background()
+
+		accepted, _, err := c.PostEvents(ctx, "k", []Event{{EventKey: "e"}})
+		if !addongate.Is(err) || accepted != 0 {
+			t.Errorf("status %d PostEvents: accepted=%d err=%v; a denial must not look like a send", status, accepted, err)
+		}
+		if _, err := c.Register(ctx, Registration{SensorKey: "k"}); !addongate.Is(err) {
+			t.Errorf("status %d Register err = %v", status, err)
+		}
+		if _, err := c.PostInventory(ctx, "k", nil); !addongate.Is(err) {
+			t.Errorf("status %d PostInventory err = %v", status, err)
+		}
+		page, err := c.PollDecisionPage(ctx, "k", 7, time.Second)
+		if !addongate.Is(err) || page.Cursor != 7 || len(page.Decisions) != 0 {
+			t.Errorf("status %d PollDecisionPage: %+v %v", status, page, err)
+		}
+		var ae *addongate.Error
+		if errors.As(err, &ae) {
+			if ae.Addon != "soc_intelligence" || strings.Contains(err.Error(), "sensorKey") {
+				t.Errorf("status %d: addon=%q msg=%q (the query string must not leak into the message)", status, ae.Addon, err.Error())
+			}
+		}
+	}
+}
+
+func TestOrdinaryFailuresAreNotAddonDenials(t *testing.T) {
+	for _, status := range []int{http.StatusBadGateway, http.StatusConflict, http.StatusForbidden} {
+		c := denialServer(t, status)
+		_, _, err := c.PostEvents(context.Background(), "k", []Event{{EventKey: "e"}})
+		if err == nil || addongate.Is(err) {
+			t.Errorf("status %d: err = %v, want a plain error", status, err)
+		}
 	}
 }

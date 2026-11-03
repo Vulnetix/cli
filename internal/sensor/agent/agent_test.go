@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vulnetix/cli/v4/internal/sensor/addongate"
 	"github.com/vulnetix/cli/v4/internal/sensor/decide"
 	"github.com/vulnetix/cli/v4/internal/sensor/feed"
 	"github.com/vulnetix/cli/v4/internal/sensor/host"
@@ -31,6 +33,9 @@ type platform struct {
 	registers []map[string]json.RawMessage
 	events    []uplink.Event
 	failPosts bool
+	// denyAddon, when non-zero, answers every runtime route with the add-on
+	// denial at that status (402, or 200 with the planLocked marker).
+	denyAddon int
 	decisions []uplink.Decision
 	files     map[string][]byte
 	inventory []byte
@@ -52,6 +57,12 @@ func (p *platform) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		src = zr
 	}
 	body, _ := io.ReadAll(src)
+	if p.denyAddon != 0 && strings.HasPrefix(r.URL.Path, "/v1/runtime/") {
+		w.WriteHeader(p.denyAddon)
+		_, _ = w.Write([]byte(`{"error":"add-on required","addon":"soc_intelligence","planLocked":true}`))
+
+		return
+	}
 	switch {
 	case strings.HasPrefix(r.URL.Path, "/feed/"):
 		b, ok := p.files[strings.TrimPrefix(r.URL.Path, "/feed/")]
@@ -263,5 +274,71 @@ func TestHostChecksQueueOncePerDay(t *testing.T) {
 	}
 	if a.queue[0].EventKey != a.queue[1].EventKey || a.queue[1].EventKey == a.queue[2].EventKey {
 		t.Fatal("the same failure on the same day is one event; the next day is a new one")
+	}
+}
+
+// A missing add-on is a denial, not a send: the events stay queued, posts back
+// off exponentially, the operator is told once which add-on, and when the
+// add-on arrives the retained events go out.
+func TestEventsSurviveAnAddonDenial(t *testing.T) {
+	for _, status := range []int{http.StatusPaymentRequired, http.StatusOK} {
+		a, p := newAgent(t, decide.Monitor)
+		var logs []string
+		a.cfg.Logf = func(f string, args ...any) { logs = append(logs, fmt.Sprintf(f, args...)) }
+		ctx := context.Background()
+
+		p.denyAddon = status
+		for _, k := range []string{"a", "b", "c"} {
+			a.Enqueue(uplink.Event{EventKey: k})
+		}
+		a.Flush(ctx)
+		first := a.flushAfter
+		if len(a.queue) != 3 || a.dropped != 0 {
+			t.Fatalf("status %d: queue = %d dropped = %d; a denial must retain every event", status, len(a.queue), a.dropped)
+		}
+		if a.flushFails != 1 || !first.After(time.Now()) {
+			t.Fatalf("status %d: flushFails=%d flushAfter=%v; the post must back off", status, a.flushFails, first)
+		}
+
+		a.Flush(ctx)
+		if a.flushFails != 2 || !a.flushAfter.After(first) {
+			t.Errorf("status %d: second denial: flushFails=%d, backoff must grow", status, a.flushFails)
+		}
+		denials := 0
+		for _, l := range logs {
+			if strings.Contains(l, "SOC Intelligence add-on") {
+				denials++
+			}
+		}
+		if denials != 1 {
+			t.Errorf("status %d: the add-on message was logged %d times, want once: %q", status, denials, logs)
+		}
+
+		p.mu.Lock()
+		p.denyAddon = 0
+		p.mu.Unlock()
+		a.Flush(ctx)
+		if len(p.events) != 3 || len(a.queue) != 0 {
+			t.Errorf("status %d: after the add-on arrived posted=%d queued=%d, want 3 and 0", status, len(p.events), len(a.queue))
+		}
+		if a.flushFails != 0 {
+			t.Errorf("status %d: a good post must clear the backoff", status)
+		}
+	}
+}
+
+func TestRegisterAndDecisionsKeepWorkingStateUnderAnAddonDenial(t *testing.T) {
+	a, p := newAgent(t, decide.Guard)
+	p.denyAddon = http.StatusOK
+	a.cursor = 12
+	before := a.Verdicts.Mode()
+	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel()
+	a.decisionLoop(ctx)
+	if a.cursor != 12 || a.Verdicts.Mode() != before {
+		t.Errorf("a denied poll moved state: cursor=%d mode=%s", a.cursor, a.Verdicts.Mode())
+	}
+	if err := a.register(context.Background(), nil); !addongate.Is(err) {
+		t.Errorf("register err = %v, want an add-on denial", err)
 	}
 }

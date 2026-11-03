@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vulnetix/cli/v4/internal/sensor/addongate"
 )
 
 // DefaultEndpoint is the site API.
@@ -220,7 +222,12 @@ func PollConfig(ctx context.Context, endpoint, authHeader, etag, sensorKey strin
 	case err != nil:
 		return Snapshot{}, false, err
 	}
-	if out.ConfigEtag != "" && out.ConfigEtag == etag {
+	if out.ConfigEtag == "" {
+		// A snapshot with no etag cannot be told from the one running, and an
+		// empty body must never replace a config that works.
+		return Snapshot{}, false, errors.New("the site returned a profile config with no etag; keeping the config in use")
+	}
+	if out.ConfigEtag == etag {
 		return out, false, nil
 	}
 
@@ -283,6 +290,11 @@ func call(ctx context.Context, endpoint, method, path, authHeader string, header
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if resp.StatusCode == http.StatusNotModified {
 		return resp.StatusCode, nil
+	}
+	// A missing add-on is a denial whether the site said 402 or the soft 200
+	// marker; the 200 form would otherwise decode into an empty config.
+	if denied := addongate.FromResponse(method, req.URL.Path, resp.StatusCode, data); denied != nil {
+		return resp.StatusCode, denied
 	}
 	if resp.StatusCode/100 != 2 {
 		e := &HTTPError{Method: method, Path: path, Status: resp.StatusCode}

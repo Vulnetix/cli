@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vulnetix/cli/v4/internal/sensor/addongate"
 	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
@@ -269,6 +270,12 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte, out a
 	}
 	defer func() { _ = resp.Body.Close() }()
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	// A missing add-on is a denial, whether the site said 402 or the soft 200
+	// marker. It must never be read as an answer: a 200 planLocked parsed as
+	// success makes PostEvents report the batch sent and the caller drop it.
+	if denied := addongate.FromResponse(method, req.URL.Path, resp.StatusCode, data); denied != nil {
+		return denied
+	}
 	if out == nil && resp.StatusCode == http.StatusNoContent {
 		return nil
 	}

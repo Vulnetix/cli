@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/vulnetix/cli/v4/internal/sensor/addongate"
 	"github.com/vulnetix/cli/v4/internal/sensor/agent"
 	"github.com/vulnetix/cli/v4/internal/sensor/decide"
 	"github.com/vulnetix/cli/v4/internal/sensor/provision"
@@ -141,6 +142,7 @@ func diffConfig(old, cur provision.Config, explicit map[string]bool) liveChange 
 func configPoller(endpoint string, cred provision.Credential, snap provision.Snapshot, explicit map[string]bool, statePath string, flagFeeds []string, flagFeedKey, sensorKey string, site *uplink.Client) func(context.Context, *agent.Agent) bool {
 	etag, current := snap.ConfigEtag, snap.Config
 	revoked := false
+	addonNoted := false
 
 	return func(ctx context.Context, a *agent.Agent) bool {
 		if revoked {
@@ -156,13 +158,25 @@ func configPoller(endpoint string, cred provision.Credential, snap provision.Sna
 			a.StopReporting()
 
 			return false
+		case addongate.Is(err):
+			// A missing add-on is not a config. Keep the last good one running and
+			// say so once, naming the add-on, until a pull succeeds again.
+			if !addonNoted {
+				addonNoted = true
+				log.Printf("sensor: profile config not pulled: %v. The sensor keeps the config it has until the add-on is active", err)
+			}
+
+			return false
 		case err != nil:
 			log.Printf("sensor: profile config not pulled: %v", err)
 
 			return false
 		case !changed:
+			addonNoted = false
+
 			return false
 		}
+		addonNoted = false
 		if err := provision.SaveSnapshotAt(statePath, next); err != nil {
 			log.Printf("sensor: profile config not saved to %s: %v", statePath, err)
 		}

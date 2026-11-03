@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/vulnetix/cli/v4/internal/binpkg"
+	"github.com/vulnetix/cli/v4/internal/sensor/addongate"
 	"github.com/vulnetix/cli/v4/internal/sensor/decide"
 	"github.com/vulnetix/cli/v4/internal/sensor/dnsguard"
 	"github.com/vulnetix/cli/v4/internal/sensor/engine"
@@ -154,6 +155,11 @@ type Agent struct {
 	// minutes rather than every FlushEvery.
 	flushFails int
 	flushAfter time.Time
+
+	// addonNoted is set once the operator has been told, in the log, that the
+	// platform wants an add-on; it clears on the next answer that is not a
+	// denial, so a lapse that recurs is announced again.
+	addonNoted bool
 }
 
 // New builds an agent. The proxies in cfg are wired to its verdict engine and
@@ -694,7 +700,9 @@ func (a *Agent) Flush(ctx context.Context) {
 			a.flushFails++
 			a.flushAfter = time.Now().Add(flushBackoff(a.flushFails))
 			a.mu.Unlock()
-			a.cfg.Logf("sensor: event post failed, %d kept for retry: %v", len(batch), err)
+			if !a.noteAddonDenial(err, "events", fmt.Sprintf("%d events are kept and posts back off", len(batch))) {
+				a.cfg.Logf("sensor: event post failed, %d kept for retry: %v", len(batch), err)
+			}
 
 			return
 		} else if len(rejected) > 0 {
@@ -703,6 +711,7 @@ func (a *Agent) Flush(ctx context.Context) {
 		a.mu.Lock()
 		a.flushFails, a.flushAfter = 0, time.Time{}
 		a.mu.Unlock()
+		a.clearAddonDenial()
 	}
 }
 
@@ -721,6 +730,7 @@ func (a *Agent) decisionLoop(ctx context.Context) {
 		page, err := a.cfg.Uplink.PollDecisionPage(ctx, a.cfg.SensorKey, a.cursor, 25*time.Second)
 		ds, cursor := page.Decisions, page.Cursor
 		if err != nil {
+			a.noteAddonDenial(err, "decisions", "decisions are not applied and the sensor keeps the rules it has")
 			select {
 			case <-ctx.Done():
 				return
@@ -731,6 +741,7 @@ func (a *Agent) decisionLoop(ctx context.Context) {
 			continue
 		}
 		backoff = time.Second
+		a.clearAddonDenial()
 		modeBefore := a.Verdicts.Mode()
 		for _, d := range ds {
 			a.Verdicts.Apply(ToDecision(d))
@@ -855,4 +866,29 @@ func (a *Agent) ReportHostChecks(now time.Time) int {
 	}
 
 	return len(findings)
+}
+
+// noteAddonDenial logs, once while it lasts, that the platform refused a call
+// for want of an add-on, naming the add-on and what the sensor does meanwhile.
+// It reports whether err was such a denial. The caller has already kept its
+// state: a denial is never a reason to drop events or apply an empty answer.
+func (a *Agent) noteAddonDenial(err error, what, consequence string) bool {
+	if !addongate.Is(err) {
+		return false
+	}
+	a.mu.Lock()
+	first := !a.addonNoted
+	a.addonNoted = true
+	a.mu.Unlock()
+	if first {
+		a.cfg.Logf("sensor: %s refused: %v. %s until the add-on is active", what, err, strings.ToUpper(consequence[:1])+consequence[1:])
+	}
+
+	return true
+}
+
+func (a *Agent) clearAddonDenial() {
+	a.mu.Lock()
+	a.addonNoted = false
+	a.mu.Unlock()
 }

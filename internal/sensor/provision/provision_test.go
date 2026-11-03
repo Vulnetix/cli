@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vulnetix/cli/v4/internal/sensor/addongate"
 )
 
 func TestEnrollMessageIsTheContractsLines(t *testing.T) {
@@ -282,5 +284,47 @@ func TestApiKeyDevicesNameTheirSensorKey(t *testing.T) {
 	}
 	if q != "etag=e1&sensorKey=sk" {
 		t.Fatalf("query = %q", q)
+	}
+}
+
+func TestPollConfigTreatsAnAddonDenialAsAnErrorNotAnEmptyConfig(t *testing.T) {
+	for _, status := range []int{http.StatusPaymentRequired, http.StatusOK} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte(`{"error":"add-on required","addon":"soc_intelligence","planLocked":true,"_entitlements":{"addon":"soc_intelligence"}}`))
+		}))
+		sn, changed, err := PollConfig(context.Background(), srv.URL, "Sensor d:s", "e1", "")
+		srv.Close()
+		if !addongate.Is(err) {
+			t.Fatalf("status %d: err = %v, want an add-on denial", status, err)
+		}
+		if changed || sn.ConfigEtag != "" || sn.Config.Mode != "" {
+			t.Fatalf("status %d: an empty snapshot came back as a change: %+v changed=%v", status, sn, changed)
+		}
+		if !strings.Contains(err.Error(), "SOC Intelligence add-on") {
+			t.Errorf("status %d: the message must name the add-on: %v", status, err)
+		}
+	}
+}
+
+func TestPollConfigRefusesASnapshotWithNoEtag(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	sn, changed, err := PollConfig(context.Background(), srv.URL, "Sensor d:s", "e1", "")
+	if err == nil || changed || sn.ConfigEtag != "" {
+		t.Fatalf("an empty 200 must not replace a running config: %+v changed=%v err=%v", sn, changed, err)
+	}
+}
+
+func TestEnrollNamesTheMissingAddon(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"planLocked":true,"addon":"soc_intelligence"}`))
+	}))
+	defer srv.Close()
+	_, err := EnrollWithPerson(context.Background(), srv.URL, "ApiKey o:k", EnrollRequest{SensorKey: "sk"})
+	if !addongate.Is(err) {
+		t.Fatalf("err = %v, want an add-on denial rather than 'no device credential'", err)
 	}
 }
