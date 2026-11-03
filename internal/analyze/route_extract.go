@@ -35,6 +35,11 @@ type route struct {
 	start, end int
 	// registered is the line of the registration (call, decorator or annotation).
 	registered int
+	// hStart and hEnd are the 1-based lines of the handler BODY: an inline function, a
+	// named function declared once in this file, a decorated Python function or a Spring
+	// method. 0 when the handler is not in this file or its extent could not be read; never
+	// a guess.
+	hStart, hEnd int
 }
 
 var (
@@ -76,18 +81,26 @@ var (
 // extractRoutes returns the routes a source file serves, with mount prefixes applied where
 // the mount is visible in the file. src is comment-stripped with its lines intact.
 func extractRoutes(src, language string) []route {
+	var out []route
 	switch language {
 	case "go":
-		return extractGoRoutes(src)
+		out = extractGoRoutes(src)
 	case "javascript", "typescript", "tsx":
-		return extractJSRoutes(src)
+		out = extractJSRoutes(src)
 	case "python":
-		return extractPyRoutes(src)
+		out = extractPyRoutes(src)
 	case "java", "kotlin":
-		return extractJavaRoutes(src)
+		out = extractJavaRoutes(src, language)
+	}
+	// A handler range must lie inside the file; anything else is dropped, not clamped.
+	total := strings.Count(src, "\n") + 1
+	for i := range out {
+		if r := &out[i]; r.hStart < 1 || r.hEnd < r.hStart || r.hEnd > total {
+			r.hStart, r.hEnd = 0, 0
+		}
 	}
 
-	return nil
+	return out
 }
 
 // ---- helpers ----------------------------------------------------------------------------
@@ -465,21 +478,25 @@ func extractGoRoutes(src string) []route {
 		}
 		prefixes = capStrings(prefixes, 4)
 
-		handler, inline, ident := goHandler(src, m[5], closeIdx)
+		handler, _, ident := goHandler(src, m[5], closeIdx)
 		reg := lines.line(m[0])
 		start, end := reg, reg
 		if closeIdx > 0 {
 			end = lines.line(closeIdx)
 		}
-		if !inline && ident != "" {
+		var hStart, hEnd int
+		if ident != "" {
 			if s, e, ok := goHandlerDecl(src, lines, funcs, ident); ok {
 				start, end = s, e
+				hStart, hEnd = s, e
 			}
+		} else if s, e, ok := inlineHandlerSpan(src, m[0]+1+len(method), closeIdx, "go"); ok {
+			hStart, hEnd = lines.line(s), lines.line(e)
 		}
 		for _, pp := range prefixes {
 			out = append(out, route{
 				method: strings.ToUpper(method), path: joinPrefix(pp, p), handler: handler,
-				prefix: pp, start: start, end: end, registered: reg,
+				prefix: pp, start: start, end: end, registered: reg, hStart: hStart, hEnd: hEnd,
 			})
 		}
 	}
@@ -574,10 +591,13 @@ func goHandlerDecl(src string, lines lineIndex, _ []funcScope, ident string) (st
 	if i := strings.LastIndex(ident, "."); i >= 0 {
 		name = ident[i+1:]
 	}
+	// A selector (h.List) names a method and a bare name names a function: a function
+	// declared here is never what a selector on some other package or value refers to.
+	wantMethod := strings.Contains(ident, ".")
 	var found []int
 	n := 0
 	for _, m := range goFuncDecl.FindAllStringSubmatchIndex(src, -1) {
-		if src[m[2]:m[3]] == name {
+		if src[m[2]:m[3]] == name && strings.Contains(src[m[0]:m[2]], "(") == wantMethod {
 			found = m
 			n++
 		}
@@ -589,7 +609,7 @@ func goHandlerDecl(src string, lines lineIndex, _ []funcScope, ident string) (st
 	if bodyOpen < 0 {
 		return 0, 0, false
 	}
-	closeIdx := matchBracket(src, bodyOpen)
+	closeIdx := scanBlock(src, bodyOpen, "go")
 	if closeIdx < 0 {
 		return 0, 0, false
 	}
@@ -638,16 +658,20 @@ func extractJSRoutes(src string) []route {
 		if closeIdx > 0 {
 			end = lines.line(closeIdx)
 		}
-		handler, inline, ident := jsHandler(src, m[5], closeIdx)
-		if !inline && ident != "" {
-			if s, e, ok := jsHandlerDecl(src, lines, ident); ok {
-				start, end = s, e
+		handler, _, ident := jsHandler(src, m[5], closeIdx)
+		var hStart, hEnd int
+		if ident != "" {
+			if s, e, ok := jsNamedHandlerSpan(src, ident, "javascript"); ok {
+				hStart, hEnd = lines.line(s), lines.line(e)
+				start, end = hStart, hEnd
 			}
+		} else if s, e, ok := inlineHandlerSpan(src, m[0]+1+len(method), closeIdx, "javascript"); ok {
+			hStart, hEnd = lines.line(s), lines.line(e)
 		}
 		for _, pp := range capStrings(tbl.prefixes(recv, m[0], 0), 4) {
 			out = append(out, route{
 				method: strings.ToUpper(method), path: joinPrefix(pp, p), handler: handler,
-				prefix: pp, start: start, end: end, registered: reg,
+				prefix: pp, start: start, end: end, registered: reg, hStart: hStart, hEnd: hEnd,
 			})
 		}
 	}
@@ -679,43 +703,6 @@ func jsHandler(src string, afterPath, closeIdx int) (token string, inline bool, 
 	}
 
 	return token, false, ""
-}
-
-// jsHandlerDecl finds `function name(` or `const name = (…) =>` for the last segment of
-// ident, when there is exactly one in the file, and returns its extent.
-func jsHandlerDecl(src string, lines lineIndex, ident string) (start, end int, ok bool) {
-	name := ident
-	if i := strings.LastIndex(ident, "."); i >= 0 {
-		name = ident[i+1:]
-	}
-	q := regexp.QuoteMeta(name)
-	forms := []*regexp.Regexp{
-		regexp.MustCompile(`(?m)(?:^|[^\w$.])(?:async\s+)?function\s*\*?\s*` + q + `\s*\(`),
-		regexp.MustCompile(`(?m)(?:const|let|var)\s+` + q + `\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*(?::\s*[\w<>\[\], ]+)?\s*=>|[A-Za-z_$][\w$]*\s*=>)`),
-	}
-	var heads [][]int
-	for _, re := range forms {
-		heads = append(heads, re.FindAllStringIndex(src, -1)...)
-	}
-	if len(heads) != 1 {
-		return 0, 0, false
-	}
-	h := heads[0]
-	open := strings.Index(src[h[1]-1:], "{")
-	if open < 0 {
-		return 0, 0, false
-	}
-	closeIdx := matchBracket(src, h[1]-1+open)
-	if closeIdx < 0 {
-		return 0, 0, false
-	}
-
-	st := h[0]
-	for st < h[1] && (src[st] == '\n' || src[st] == ' ' || src[st] == '\t') {
-		st++
-	}
-
-	return lines.line(st), lines.line(closeIdx), true
 }
 
 // ---- Python -----------------------------------------------------------------------------
@@ -823,9 +810,11 @@ func extractPyRoutes(src string) []route {
 		}
 		reg := lines.line(m[0])
 		handler, defLine := pyHandlerAfter(srcLines, reg)
-		start, end := reg, reg
+		start, end, hStart, hEnd := reg, reg, 0, 0
 		if defLine > 0 {
 			end = pyBlockEnd(srcLines, defLine)
+			// The decorator is part of the handler: a finding on it is in the route.
+			hStart, hEnd = reg, end
 		}
 		for _, pp := range prefixes {
 			full := joinPrefix(pp, p)
@@ -835,7 +824,7 @@ func extractPyRoutes(src string) []route {
 			for _, mt := range methods {
 				out = append(out, route{
 					method: mt, path: full, handler: handler,
-					prefix: pp, start: start, end: end, registered: reg,
+					prefix: pp, start: start, end: end, registered: reg, hStart: hStart, hEnd: hEnd,
 				})
 			}
 		}
@@ -864,30 +853,9 @@ func pyHandlerAfter(lines []string, reg int) (name string, defLine int) {
 	return "", 0
 }
 
-// pyBlockEnd is the last non-blank line of the block whose header is on defLine (1-based):
-// every following line indented deeper than the header belongs to it, and a signature's
-// closing `)` at the header's indent is still the header.
-func pyBlockEnd(lines []string, defLine int) int {
-	header := lines[defLine-1]
-	indent := len(header) - len(strings.TrimLeft(header, " \t"))
-	end := defLine
-	for i := defLine; i < len(lines); i++ {
-		l := lines[i]
-		if strings.TrimSpace(l) == "" {
-			continue
-		}
-		if len(l)-len(strings.TrimLeft(l, " \t")) <= indent && !strings.HasPrefix(strings.TrimSpace(l), ")") {
-			break
-		}
-		end = i + 1
-	}
-
-	return end
-}
-
 // ---- Java / Kotlin (Spring) -------------------------------------------------------------
 
-func extractJavaRoutes(src string) []route {
+func extractJavaRoutes(src, language string) []route {
 	lines := newLineIndex(src)
 	type classRange struct {
 		start, end int
@@ -926,6 +894,7 @@ func extractJavaRoutes(src string) []route {
 		}
 		reg := lines.line(m[0])
 		start, end, handler := reg, reg, ""
+		hStart, hEnd := 0, 0
 		// The annotation's own closing paren, then the method it decorates.
 		annoClose := matchBracket(src, m[0]+strings.Index(src[m[0]:], "("))
 		if annoClose > 0 {
@@ -933,8 +902,9 @@ func extractJavaRoutes(src string) []route {
 				handler = src[annoClose+1+nm[2] : annoClose+1+nm[3]]
 				if pc := matchBracket(src, annoClose+nm[1]); pc > 0 {
 					if body := strings.IndexAny(src[pc:], "{;="); body >= 0 && src[pc+body] == '{' {
-						if be := matchBracket(src, pc+body); be > 0 {
+						if be := scanBlock(src, pc+body, language); be > 0 {
 							end = lines.line(be)
+							hStart, hEnd = reg, end
 						}
 					}
 				}
@@ -942,7 +912,7 @@ func extractJavaRoutes(src string) []route {
 		}
 		out = append(out, route{
 			method: strings.ToUpper(kind), path: joinPrefix(prefix, p), handler: handler,
-			prefix: prefix, start: start, end: end, registered: reg,
+			prefix: prefix, start: start, end: end, registered: reg, hStart: hStart, hEnd: hEnd,
 		})
 	}
 
@@ -1005,6 +975,12 @@ func addRouteSites(sites []routeSite, add func(CrossRepoEdge, Node)) {
 			props := map[string]any{"method": s.route.method, "registeredLine": s.route.registered}
 			if s.route.handler != "" {
 				props["handler"] = s.route.handler
+			}
+			if s.route.hStart > 0 && s.route.hEnd >= s.route.hStart {
+				// The handler body, so a finding inside it is "inside the handler" and not
+				// merely in the same file. Absent when the handler is not read from this file.
+				props["handlerStartLine"] = s.route.hStart
+				props["handlerEndLine"] = s.route.hEnd
 			}
 			if s.route.prefix != "" {
 				props["mountPrefix"] = s.route.prefix
