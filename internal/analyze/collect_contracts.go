@@ -31,17 +31,7 @@ import (
 )
 
 var (
-	// Go: chi/gin/echo/mux all spell it `r.Get("/path", ...)` or `r.HandleFunc("/path", ...)`.
-	goRoute = regexp.MustCompile(`(?m)\.(Get|Post|Put|Patch|Delete|Head|Options|Handle|HandleFunc)\(\s*"([^"]+)"`)
-
-	// Express / Fastify / Koa.
-	jsRoute = regexp.MustCompile(`(?m)\.(get|post|put|patch|delete|all)\(\s*['"` + "`" + `]([^'"` + "`" + `]+)`)
-
-	// FastAPI / Flask decorators.
-	pyRoute = regexp.MustCompile(`(?m)@\w+\.(get|post|put|patch|delete|route)\(\s*['"]([^'"]+)`)
-
-	// Spring.
-	javaRoute = regexp.MustCompile(`(?m)@(Get|Post|Put|Patch|Delete|Request)Mapping\(\s*(?:value\s*=\s*)?"([^"]+)"`)
+	// Route patterns live in route_extract.go.
 
 	// Publish/subscribe, across the common client libraries.
 	publishCall   = regexp.MustCompile(`(?i)\b(?:publish|produce|send_message|sendmessage|emit)\s*\(\s*['"]([\w.\-/]+)['"]`)
@@ -109,6 +99,7 @@ func collectContracts(b *Builder, root string, files *fileStats, deps *depStats,
 		}
 	}
 
+	var sites []routeSite
 	if files != nil {
 		for _, f := range files.files {
 			// A mock server in a test does not serve an org route, and a topic name in a fixture
@@ -144,16 +135,7 @@ func collectContracts(b *Builder, root string, files *fileStats, deps *depStats,
 				if key == "" {
 					continue
 				}
-				id := "route:" + key
-				add(CrossRepoEdge{
-					ID:          "xr-provides-" + safeID(key),
-					LocalNodeID: id,
-					JoinKind:    "http_route",
-					JoinKey:     key,
-					Role:        "provides",
-					Confidence:  0.8, // a route matched by pattern, not by understanding the framework
-					Properties:  map[string]any{"path": f.Path},
-				}, Node{ID: id, Kind: "route", Name: key, Path: f.Path, Exported: true})
+				sites = append(sites, routeSite{key: key, file: f.Path, language: f.Language, route: r})
 			}
 
 			for _, topic := range publishCall.FindAllStringSubmatch(src, -1) {
@@ -192,6 +174,8 @@ func collectContracts(b *Builder, root string, files *fileStats, deps *depStats,
 		}
 	}
 
+	addRouteSites(sites, add)
+
 	collectImages(root, add)
 	collectInfrastructure(root, add)
 	collectRegistries(root, add)
@@ -200,11 +184,6 @@ func collectContracts(b *Builder, root string, files *fileStats, deps *depStats,
 	emitContractMetrics(b, st)
 
 	return st
-}
-
-type route struct {
-	method string
-	path   string
 }
 
 // serverSignals are the constructions that mean "this file serves HTTP". A file that has one
@@ -247,7 +226,11 @@ func stripComments(src, language string) string {
 	case "python", "ruby", "bash", "yaml":
 		return hashComment.ReplaceAllString(src, "")
 	default:
-		src = blockComment.ReplaceAllString(src, "")
+		// A block comment keeps its newlines, so a line number computed on the stripped
+		// text is the line number in the file.
+		src = blockComment.ReplaceAllStringFunc(src, func(c string) string {
+			return strings.Repeat("\n", strings.Count(c, "\n"))
+		})
 
 		return lineComment.ReplaceAllString(src, "")
 	}
@@ -287,33 +270,6 @@ func servesHTTP(src, language string) bool {
 	}
 
 	return false
-}
-
-func extractRoutes(src, language string) []route {
-	var re *regexp.Regexp
-	switch language {
-	case "go":
-		re = goRoute
-	case "javascript", "typescript", "tsx":
-		re = jsRoute
-	case "python":
-		re = pyRoute
-	case "java", "kotlin":
-		re = javaRoute
-	default:
-		return nil
-	}
-
-	var out []route
-	for _, m := range re.FindAllStringSubmatch(src, -1) {
-		p := m[2]
-		if !strings.HasPrefix(p, "/") {
-			continue
-		}
-		out = append(out, route{method: strings.ToUpper(m[1]), path: p})
-	}
-
-	return out
 }
 
 // normaliseRoute is what makes a cross-repo route edge possible at all.
@@ -667,12 +623,15 @@ func collectTerraform(abs, rel string, identities *terraformIdentityIndex, decla
 		return
 	}
 	src := string(body)
-	for _, m := range terraformResource.FindAllStringSubmatch(src, -1) {
-		typ, name := m[1], m[2]
+	for _, loc := range terraformResource.FindAllStringSubmatchIndex(src, -1) {
+		typ, name := src[loc[2]:loc[3]], src[loc[4]:loc[5]]
 		provider := strings.SplitN(typ, "_", 2)[0]
 		key := "terraform:" + typ + ":" + name
 		id := "iac_resource:" + key
 		props := map[string]any{"path": rel, "platform": "terraform", "resourceType": typ, "provider": provider}
+		if exposure, ok := terraformExposure(typ, terraformBodyAfter(src, loc[1])); ok {
+			props["exposure"] = exposure
+		}
 		joinKey := key
 		qualifiedName := ""
 		address := typ + "." + name
@@ -924,6 +883,9 @@ func collectYAMLInfrastructure(abs, rel string, add func(CrossRepoEdge, Node)) {
 				key := platform + ":" + typ + ":" + logicalID
 				id := "iac_resource:" + key
 				props := map[string]any{"path": rel, "platform": platform, "resourceType": typ}
+				if exposure, ok := cloudFormationExposure(typ, res); ok {
+					props["exposure"] = exposure
+				}
 				add(CrossRepoEdge{
 					ID:          "xr-provides-iac-" + safeID(key),
 					LocalNodeID: id,
@@ -945,6 +907,9 @@ func collectYAMLInfrastructure(abs, rel string, add func(CrossRepoEdge, Node)) {
 			key := "kubernetes:" + kind + ":" + name
 			id := "iac_resource:" + key
 			props := map[string]any{"path": rel, "platform": "kubernetes", "resourceType": kind, "apiVersion": apiVersion}
+			if exposure, ok := kubernetesExposure(kind, doc); ok {
+				props["exposure"] = exposure
+			}
 			add(CrossRepoEdge{
 				ID:          "xr-provides-iac-" + safeID(key),
 				LocalNodeID: id,
