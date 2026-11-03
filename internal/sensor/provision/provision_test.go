@@ -335,3 +335,59 @@ func TestAllowMajorUpdateIsOffUnlessTheProfileSaysTrue(t *testing.T) {
 		t.Fatal("allowMajorUpdate defaults to off")
 	}
 }
+
+func TestNormalizeFleet(t *testing.T) {
+	for in, want := range map[string]string{"": "", "  ": "", "GitHub-Runner-X64": "github-runner-x64", "ci.pool_1": "ci.pool_1"} {
+		if got, err := NormalizeFleet(in); err != nil || got != want {
+			t.Errorf("NormalizeFleet(%q) = %q, %v; want %q", in, got, err, want)
+		}
+	}
+	for _, bad := range []string{"-lead", "has space", "a/b", "a:b", strings.Repeat("a", 64)} {
+		if _, err := NormalizeFleet(bad); err == nil {
+			t.Errorf("NormalizeFleet(%q) accepted a name the site refuses", bad)
+		}
+	}
+}
+
+// The fleet rides in both enrol bodies and is outside the signed message: the
+// site verifies the signature over the contract's lines, and a fleet name in
+// them would break every MDM install that predates fleets.
+func TestEnrollSendsTheFleetOutsideTheSignature(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mdm mdmEnrollBody
+	var person EnrollRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		if strings.HasSuffix(r.URL.Path, "/enroll-mdm") {
+			_ = json.Unmarshal(raw, &mdm)
+		} else {
+			_ = json.Unmarshal(raw, &person)
+		}
+		_, _ = w.Write([]byte(`{"deviceUuid":"dev-1","profile":{"uuid":"p","name":"Runners"},"fleet":"github-runner-x64",
+			"credential":{"scheme":"Sensor","value":"dev-1:s3cret"},"config":{},"configEtag":"e1"}`))
+	}))
+	defer srv.Close()
+	req := EnrollRequest{SensorKey: "sk", MDMDeviceID: "i-0abc", Hostname: "h", ComputeKind: "host", OS: "linux", Arch: "arm64", Version: "v1", Fleet: "github-runner-x64"}
+
+	res, err := EnrollWithMDM(context.Background(), srv.URL, priv.Seed(), "int-1", "k1", "prof", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mdm.Fleet != "github-runner-x64" || res.Fleet != "github-runner-x64" {
+		t.Fatalf("the fleet is sent and echoed: sent %q, echoed %q", mdm.Fleet, res.Fleet)
+	}
+	sig, _ := base64.StdEncoding.DecodeString(mdm.Signature)
+	if !ed25519.Verify(pub, EnrollMessage(mdm.Integration, mdm.Kid, mdm.Profile, mdm.SensorKey, mdm.MDMDeviceID, mdm.TS, mdm.Nonce), sig) {
+		t.Fatal("the signature must verify over the contract's message, which has no fleet")
+	}
+
+	if _, err := EnrollWithPerson(context.Background(), srv.URL, "ApiKey a:b", req); err != nil {
+		t.Fatal(err)
+	}
+	if person.Fleet != "github-runner-x64" {
+		t.Fatalf("a person enrol sends the fleet too: %+v", person)
+	}
+}

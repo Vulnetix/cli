@@ -86,6 +86,7 @@ type enrollOptions struct {
 	apiKey, orgID                   *string
 	mdmKey, integration, kid, mdmID *string
 	profile, protection             *string
+	fleet                           *string
 	noStart, print                  *bool
 }
 
@@ -100,6 +101,7 @@ func defineEnrollFlags(fs *flag.FlagSet) *enrollOptions {
 		kid:          fs.String("kid", "", "MDM key id, with --mdm-key"),
 		mdmID:        fs.String("mdm-device-id", "", "the device's serial or MDM device id, with --mdm-key (default: the DMI serial, else /etc/machine-id)"),
 		profile:      fs.String("profile", "", "ask for this provisioning profile uuid (it must still match)"),
+		fleet:        fs.String("fleet", "", "name a group of interchangeable short-lived hosts, such as an autoscaled runner pool: the site reports them as one repository and retires members that stop reporting"),
 		protection:   fs.String("protection", "", "with --print and no enrolled config: preview standard, hardened or locked"),
 		noStart:      fs.Bool("no-start", false, "write the credential, config and units but do not enable or start them"),
 		print:        fs.Bool("print", false, "print the units for the enrolled config (or --protection) and exit; contacts nothing and writes nothing"),
@@ -136,6 +138,10 @@ func enrollCmd(args []string) error {
 		return err
 	}
 
+	fleet, err := provision.NormalizeFleet(*o.fleet)
+	if err != nil {
+		return fmt.Errorf("--fleet: %w", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	sensorKey, err := host.SensorKey(*o.stateDir)
@@ -145,7 +151,7 @@ func enrollCmd(args []string) error {
 	facts := host.Probe(ctx, nil, "/", nil)
 	req := provision.EnrollRequest{
 		SensorKey: sensorKey, Hostname: facts.Hostname, ComputeKind: facts.ComputeKind,
-		OS: runtime.GOOS, Arch: runtime.GOARCH, Version: version, Profile: *o.profile,
+		OS: runtime.GOOS, Arch: runtime.GOARCH, Version: version, Profile: *o.profile, Fleet: fleet,
 	}
 	endpoint := *o.endpoint
 	if endpoint == "" {
@@ -228,6 +234,13 @@ func enrollCmd(args []string) error {
 
 	fmt.Printf("Enrolled %s as device %s\n", facts.Hostname, res.DeviceUUID)
 	fmt.Printf("  profile     %s (%s)\n", res.Profile.Name, res.Profile.UUID)
+	if fleet != "" {
+		if res.Fleet == fleet {
+			fmt.Printf("  fleet       %s\n", fleet)
+		} else {
+			fmt.Fprintf(os.Stderr, "warning: the site did not record fleet %q (it predates fleets): this host reports as an ordinary host\n", fleet)
+		}
+	}
 	fmt.Printf("  credential  %s, in %s\n", res.Credential.Scheme, store.CredentialPath())
 	fmt.Printf("  mode        %s\n", orDefault(snap.Config.Mode, "monitor"))
 	fmt.Printf("  protection  %s\n", level)

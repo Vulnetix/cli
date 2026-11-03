@@ -41,6 +41,10 @@ type EnrollRequest struct {
 	Profile string `json:"profile"`
 	// MDMDeviceID is the serial or MDM device id, MDM enrolls only.
 	MDMDeviceID string `json:"mdmDeviceId,omitempty"`
+	// Fleet names a group of interchangeable short-lived hosts (an autoscaled
+	// runner pool). The site files their findings under one repository and
+	// retires members that stop reporting. Empty for an ordinary host.
+	Fleet string `json:"fleet,omitempty"`
 }
 
 // EnrollResponse is the site's answer to an enroll.
@@ -53,6 +57,9 @@ type EnrollResponse struct {
 	} `json:"credential"`
 	Config     Config `json:"config"`
 	ConfigEtag string `json:"configEtag"`
+	// Fleet is the fleet the site recorded. A site that predates fleets leaves it
+	// empty, which enroll reports.
+	Fleet string `json:"fleet"`
 }
 
 // StoredCredential is the response's credential, to store for endpoint.
@@ -119,9 +126,11 @@ type mdmEnrollBody struct {
 	OS          string `json:"os"`
 	Arch        string `json:"arch"`
 	Version     string `json:"version"`
-	TS          int64  `json:"ts"`
-	Nonce       string `json:"nonce"`
-	Signature   string `json:"signature"`
+	// Fleet is not in the signed message: it is a label, not an identity.
+	Fleet     string `json:"fleet,omitempty"`
+	TS        int64  `json:"ts"`
+	Nonce     string `json:"nonce"`
+	Signature string `json:"signature"`
 }
 
 // now is the clock MDM enrolls sign with.
@@ -149,7 +158,7 @@ func signMDMEnroll(privKey []byte, integration, kid, profile string, req EnrollR
 	b := mdmEnrollBody{
 		Integration: integration, Kid: kid, Profile: profile,
 		SensorKey: req.SensorKey, MDMDeviceID: req.MDMDeviceID,
-		Hostname: req.Hostname, ComputeKind: req.ComputeKind, OS: req.OS, Arch: req.Arch, Version: req.Version,
+		Hostname: req.Hostname, ComputeKind: req.ComputeKind, OS: req.OS, Arch: req.Arch, Version: req.Version, Fleet: req.Fleet,
 		TS: now().UnixMilli(), Nonce: hex.EncodeToString(n[:]),
 	}
 	msg := EnrollMessage(b.Integration, b.Kid, b.Profile, b.SensorKey, b.MDMDeviceID, b.TS, b.Nonce)
