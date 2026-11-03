@@ -897,3 +897,19 @@ act workflow="test" *args="":
 hooks:
     git config core.hooksPath .githooks
     @echo "core.hooksPath -> .githooks (bypass a hook with: git commit --no-verify)"
+
+# ---- Terraform (state in S3: vdb-manager-terraform-state, key cli/terraform.tfstate) ----
+# Runs from any operator machine (Vulnetix/ops RUNBOOK): AWS credentials for the
+# state bucket, and the Cloudflare token from Bitwarden, in memory only.
+
+# terraform init against the S3 backend
+tf-init:
+    terraform -chdir=terraform init -input=false
+
+# Show what would change
+tf-plan: tf-init
+    vx-secrets run shared -- terraform -chdir=terraform plan -input=false
+
+# Apply (asks for confirmation)
+tf-apply: tf-init
+    vx-secrets run shared -- terraform -chdir=terraform apply -input=false

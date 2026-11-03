@@ -1,5 +1,14 @@
 terraform {
-  required_version = ">= 1.5"
+  required_version = ">= 1.10" # S3 backend native locking (use_lockfile)
+
+  # Shared state, the same bucket and convention as the other Vulnetix roots.
+  backend "s3" {
+    bucket       = "vdb-manager-terraform-state"
+    key          = "cli/terraform.tfstate"
+    region       = "ap-southeast-2"
+    encrypt      = true
+    use_lockfile = true
+  }
 
   required_providers {
     cloudflare = {
