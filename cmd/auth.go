@@ -149,7 +149,7 @@ var authStatusCmd = &cobra.Command{
 					ctx.Logger.Result(fmt.Sprintf("  %s %s %s %s",
 						display.CheckMark(t),
 						display.Success(t, eco.Ecosystem.DisplayName),
-						tierBadge(t, eco.Ecosystem.Tier),
+						freeBadge(t, eco.Ecosystem),
 						display.Teal(t, eco.Path),
 					))
 				}
@@ -157,11 +157,11 @@ var authStatusCmd = &cobra.Command{
 			if len(groups.Available) > 0 {
 				ctx.Logger.Result(display.Subheader(t, "Available to configure"))
 				for _, eco := range groups.Available {
-					hint := tierRequiresPlan(eco.Ecosystem.Tier, plan)
+					hint := addonRequires(eco.Ecosystem, plan)
 					line := fmt.Sprintf("  %s %s %s",
 						display.Muted(t, "o"),
 						eco.Ecosystem.DisplayName,
-						tierBadge(t, eco.Ecosystem.Tier),
+						freeBadge(t, eco.Ecosystem),
 					)
 					if hint != "" {
 						line += " " + display.Muted(t, hint)

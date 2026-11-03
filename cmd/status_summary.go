@@ -56,18 +56,12 @@ func authSourceLabel(source string) string {
 	}
 }
 
-func tierBadge(t *display.Terminal, tier pfw.Tier) string {
-	label := "[" + strings.ToUpper(string(tier)) + "]"
-	switch tier {
-	case pfw.TierCommunity:
-		return display.Success(t, label)
-	case pfw.TierPro:
-		return display.Accent(t, label)
-	case pfw.TierEnterprise:
-		return display.Muted(t, label)
-	default:
-		return display.Muted(t, label)
+// freeBadge marks an ecosystem as free, or as one that needs the Package Firewall add-on.
+func freeBadge(t *display.Terminal, eco pfw.Ecosystem) string {
+	if eco.Free {
+		return display.Success(t, "[FREE]")
 	}
+	return display.Accent(t, "[ADD-ON]")
 }
 
 func planBadge(t *display.Terminal, plan string) string {
@@ -87,53 +81,17 @@ func planBadge(t *display.Terminal, plan string) string {
 	}
 }
 
-func tierRequiresPlan(tier pfw.Tier, plan string) string {
+// addonRequires is the hint printed next to an ecosystem the caller has not unlocked:
+// empty for a free ecosystem, for an Enterprise plan (which passes every add-on
+// check) and when the plan is not known.
+func addonRequires(eco pfw.Ecosystem, plan string) string {
+	if eco.Free || strings.EqualFold(strings.TrimSpace(plan), "enterprise") {
+		return ""
+	}
 	if strings.EqualFold(plan, "unknown") || strings.TrimSpace(plan) == "" {
 		return ""
 	}
-	if tierRank(tier) <= planRank(plan) {
-		return ""
-	}
-	return "requires " + requiredPlan(tier)
-}
-
-func tierRank(tier pfw.Tier) int {
-	switch tier {
-	case pfw.TierCommunity:
-		return 0
-	case pfw.TierPro:
-		return 1
-	case pfw.TierEnterprise:
-		return 3
-	default:
-		return 3
-	}
-}
-
-func planRank(plan string) int {
-	switch strings.ToUpper(strings.TrimSpace(plan)) {
-	case "COMMUNITY":
-		return 0
-	case "PRO":
-		return 1
-	case "TEAMS":
-		return 2
-	case "ENTERPRISE":
-		return 3
-	default:
-		return -1
-	}
-}
-
-func requiredPlan(tier pfw.Tier) string {
-	switch tier {
-	case pfw.TierPro:
-		return "Pro"
-	case pfw.TierEnterprise:
-		return "Enterprise"
-	default:
-		return "Community"
-	}
+	return pfw.AddonHint
 }
 
 func openBrowser(url string) error {

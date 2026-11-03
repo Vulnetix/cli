@@ -101,3 +101,49 @@ func TestV2FieldGatedResponseIsNotPlanLocked(t *testing.T) {
 		t.Fatal("a field-gated response must not be treated as plan-locked; the counts are still owed to the caller")
 	}
 }
+
+// When the server withholds a feature because an add-on is missing, it adds
+// `_entitlements.addon`. The error must name the add-on rather than a plan.
+func TestPlanLockedNamesTheAddon(t *testing.T) {
+	body := []byte(`{"planLocked":true,"feature":"attack-surface","requiredPlan":"","addon":"soc_intelligence","upgrade":true,` +
+		`"_entitlements":{"plan":"pro","addon":"soc_intelligence","gated":[{"feature":"attack-surface","requiredPlan":"","addon":"soc_intelligence"}]}}`)
+
+	_, err := decodeCliResponse[map[string]any](body)
+	var locked *PlanLockedError
+	if !errors.As(err, &locked) {
+		t.Fatalf("error type = %T, want *PlanLockedError", err)
+	}
+	if locked.Addon != "soc_intelligence" {
+		t.Errorf("Addon = %q, want soc_intelligence", locked.Addon)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "attack-surface requires the SOC Intelligence add-on") || !strings.Contains(msg, "nothing was changed") {
+		t.Errorf("message = %q, should name the add-on and say nothing changed", msg)
+	}
+	if strings.Contains(msg, "plan") {
+		t.Errorf("message = %q, should not talk about a plan tier", msg)
+	}
+}
+
+func TestPlanLockedPackageFirewallAddon(t *testing.T) {
+	body := []byte(`{"planLocked":true,"feature":"package-firewall-registries","_entitlements":{"addon":"package_firewall"}}`)
+	locked, ok := decodePlanLocked(body)
+	if !ok || locked.Addon != "package_firewall" {
+		t.Fatalf("decode = %+v ok=%v", locked, ok)
+	}
+	if msg := locked.Error(); !strings.Contains(msg, "requires the Package Firewall add-on") {
+		t.Errorf("message = %q", msg)
+	}
+}
+
+// A marker without an add-on keeps the plan wording, and a malformed
+// `_entitlements` can never hide the lock.
+func TestPlanLockedWithoutAddonKeepsPlanWording(t *testing.T) {
+	locked, ok := decodePlanLocked([]byte(`{"planLocked":true,"feature":"countermeasures","requiredPlan":"pro","_entitlements":"odd"}`))
+	if !ok {
+		t.Fatal("a marker with an unexpected _entitlements shape must still be recognised")
+	}
+	if locked.Addon != "" || !strings.Contains(locked.Error(), "requires the pro plan") {
+		t.Errorf("got %+v / %q", locked, locked.Error())
+	}
+}

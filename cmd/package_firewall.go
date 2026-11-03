@@ -291,6 +291,10 @@ func runPackageFirewallEcosystem(cmd *cobra.Command, eco pfw.Ecosystem) error {
 		b.WriteString("  Add that line to your shell profile (e.g. ~/.zshrc or ~/.bashrc) to persist it.\n")
 	}
 
+	if note := pfw.AddonNote(eco); note != "" {
+		b.WriteString("\n" + note + "\n")
+	}
+
 	ctx.Logger.Result(strings.TrimRight(b.String(), "\n"))
 	return nil
 }

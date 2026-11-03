@@ -1124,12 +1124,34 @@ func decodeCliResponse[T any](raw []byte) (*CliResponse[T], error) {
 type PlanLockedError struct {
 	Feature      string
 	RequiredPlan string
+	// Addon is the add-on kind the server says is missing ("package_firewall" or
+	// "soc_intelligence"), read from `_entitlements.addon`. Empty when the lock is
+	// a plan tier.
+	Addon string
+}
+
+// addonBillingURL is where an add-on is bought.
+const addonBillingURL = "https://www.vulnetix.com/resolve/billing#addons"
+
+// addonDisplayName is the product name of an add-on kind.
+func addonDisplayName(kind string) string {
+	switch kind {
+	case "package_firewall":
+		return "Package Firewall"
+	case "soc_intelligence":
+		return "SOC Intelligence"
+	default:
+		return kind
+	}
 }
 
 func (e *PlanLockedError) Error() string {
 	feature := e.Feature
 	if feature == "" {
 		feature = "this feature"
+	}
+	if e.Addon != "" {
+		return fmt.Sprintf("%s requires the %s add-on; nothing was changed. See %s", feature, addonDisplayName(e.Addon), addonBillingURL)
 	}
 	plan := e.RequiredPlan
 	if plan == "" {
@@ -1142,15 +1164,26 @@ func (e *PlanLockedError) Error() string {
 // decodePlanLocked reports whether a body is the plan-locked marker.
 func decodePlanLocked(raw []byte) (*PlanLockedError, bool) {
 	var marker struct {
-		PlanLocked   bool   `json:"planLocked"`
-		Feature      string `json:"feature"`
-		RequiredPlan string `json:"requiredPlan"`
+		PlanLocked   bool            `json:"planLocked"`
+		Feature      string          `json:"feature"`
+		RequiredPlan string          `json:"requiredPlan"`
+		Addon        string          `json:"addon"`
+		Entitlements json.RawMessage `json:"_entitlements"`
 	}
 	if err := json.Unmarshal(raw, &marker); err != nil || !marker.PlanLocked {
 		return nil, false
 	}
+	// Read separately so an unexpected `_entitlements` shape can never hide the lock.
+	var ent struct {
+		Addon string `json:"addon"`
+	}
+	_ = json.Unmarshal(marker.Entitlements, &ent)
+	addon := ent.Addon
+	if addon == "" {
+		addon = marker.Addon
+	}
 
-	return &PlanLockedError{Feature: marker.Feature, RequiredPlan: marker.RequiredPlan}, true
+	return &PlanLockedError{Feature: marker.Feature, RequiredPlan: marker.RequiredPlan, Addon: addon}, true
 }
 
 // ─── Typed methods (one per /v2/cli.* route) ─────────────────────────────
