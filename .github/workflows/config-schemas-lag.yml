@@ -1,0 +1,58 @@
+name: Config schemas lag
+
+# The CLI embeds a config-schemas release, and `config validate|plan|apply`
+# refuse any kind or field newer than it (Organization.spec.driftProtection
+# came in v1.15.0 while the CLI shipped v1.14.0). This fails every night while a
+# newer release exists, so a failed run is the reminder to bump the dependency
+# (go get github.com/vulnetix/config-schemas@latest, a test, a push). It does
+# not open a pull request: this repository works on main.
+
+on:
+  schedule:
+    - cron: '17 19 * * *' # 06:17 Australia/Sydney, after the day's releases
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  lag:
+    name: Embedded config-schemas is current
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Configure private fetch of vdb-sca-match and vdb-manifest (not yet in module proxy)
+        run: |
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-manifest".insteadOf "https://github.com/Vulnetix/vdb-manifest"
+
+      - name: The embedded release is the newest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mod=github.com/vulnetix/config-schemas
+          have=$(go list -m -f '{{.Version}}' "$mod")
+          # .Update is set only when the module proxy lists a newer release.
+          latest=$(go list -m -u -f '{{with .Update}}{{.Version}}{{end}}' "$mod")
+          {
+            echo "### config-schemas"
+            echo "- embedded: \`$have\`"
+            echo "- newest: \`${latest:-$have}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$latest" ]; then
+            echo "::error title=config-schemas is behind::the CLI embeds $have and $latest is released. Run: go get $mod@$latest && go build ./... && go test ./cmd ./internal/platformiac, then push."
+            exit 1
+          fi
+          echo "config-schemas $have is the newest release"
