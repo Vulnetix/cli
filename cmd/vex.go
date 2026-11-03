@@ -701,3 +701,8 @@ func sourceName(path string) string {
 	}
 	return filepath.Base(path)
 }
+
+// isVEXDocument reports whether data is an OpenVEX, CycloneDX VEX or CSAF VEX
+// document. The config and source helpers ask here instead of importing
+// internal/vex, so this file stays the one owner of VEX consumption.
+func isVEXDocument(data []byte) bool { return vex.Detect(data) != vex.FormatUnknown }

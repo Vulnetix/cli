@@ -93,6 +93,8 @@ func (f *fakeEngine) serve(w http.ResponseWriter, r *http.Request) {
 	case "/config/export":
 		w.Header().Set("Content-Type", "application/yaml")
 		_, _ = io.WriteString(w, f.exportOK)
+	case "/config/vex-sources/ci-vex/snapshot":
+		_, _ = io.WriteString(w, `{"snapshot":{"documents":1}}`)
 	case "/v2/cli.quality-gate-config", "/v2/cli.quality-gate-get":
 		_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"config": map[string]any{"severity": "high"}}})
 	default:

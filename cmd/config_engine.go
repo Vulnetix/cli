@@ -478,7 +478,8 @@ left.`,
 			}
 			if !p.needsApply() {
 				fmt.Fprintln(out, "Nothing to apply.")
-				return nil
+				// A path source's files can change while its document does not.
+				return uploadVexSnapshots(cmd.Context(), s.client, s.in.Docs, configRoots(c.files), out)
 			}
 			if planHash == "" && !autoApprove {
 				if err := confirmConfigApply(cmd, c.files); err != nil {
@@ -495,7 +496,7 @@ left.`,
 			if res.incomplete() {
 				return &configApplyIncompleteError{failed: len(res.failedItems()), partial: res.Partial, counted: res.Failed}
 			}
-			return nil
+			return uploadVexSnapshots(cmd.Context(), s.client, s.in.Docs, configRoots(c.files), out)
 		},
 	}
 	c.bind(cmd)
