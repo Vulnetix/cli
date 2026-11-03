@@ -214,6 +214,11 @@ openssl pkey -in feed-signing-key.pem -pubout -outform DER | tail -c 32 | base64
 Keep the PEM file offline or in your secrets manager, not in a repository.
 Republish each feed after the secret is set, so its manifest is signed.
 
+The current key's PEM is in Bitwarden (`signing/VULNETIX_FEED_SIGNING_KEY_PEM`, with the
+public key in `signing/VULNETIX_FEED_PUBLIC_KEY_TXT`); its seed is in AWS Secrets Manager
+`prod/vdb-site-api/secrets:VULNETIX_FEED_SIGNING_KEY`, which vdb-site reads. No machine keeps
+a copy. To rotate it, follow BREAK-GLASS 6.1 in the private Vulnetix/ops repository.
+
 ## Enroll with a provisioning profile
 
 On a host (a laptop, a VM, an EC2 instance you manage yourself), enroll the
