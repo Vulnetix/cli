@@ -141,8 +141,11 @@ After=network-online.target
 
 [Service]
 Type=oneshot
+# The previous binary checks first, so a release that cannot start (and so cannot
+# run its own guard) is still rolled back. Absent or unable to run is ignored.
+ExecStartPre=-%s.prev guard-rescue --config-dir %s
 ExecStart=%s guard-check --config-dir %s
-`, binPath, o.ConfigDir)
+`, binPath, o.ConfigDir, binPath, o.ConfigDir)
 
 	var timer strings.Builder
 	timer.WriteString("# Written by vulnetix-sensor enroll.\n[Unit]\nDescription=Run the Vulnetix sensor guard every minute\n")

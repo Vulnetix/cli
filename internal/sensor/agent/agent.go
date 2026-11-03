@@ -63,6 +63,10 @@ type Config struct {
 	DNSListen   string
 	DNSUpstream string
 
+	// OnHealthy is called once, after the first report the server accepts. The
+	// self-update treats a new release as sound only after this.
+	OnHealthy func()
+
 	// TetragonExport is Tetragon's JSON export file. When set, every process
 	// start is checked against the feeds' file-hash indicators.
 	TetragonExport string
@@ -118,6 +122,7 @@ type Config struct {
 
 // Agent is a running sensor.
 type Agent struct {
+	healthy  sync.Once
 	cfg      Config
 	Verdicts *decide.Engine
 	Rules    *proxy.Rules
@@ -641,6 +646,9 @@ func (a *Agent) register(ctx context.Context, loads []uplink.RuleLoad) error {
 		RuleLoads:     loads,
 		Metrics:       a.metrics(time.Now()),
 	})
+	if err == nil && a.cfg.OnHealthy != nil {
+		a.healthy.Do(a.cfg.OnHealthy)
+	}
 
 	return err
 }

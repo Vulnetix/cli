@@ -51,6 +51,10 @@ type Config struct {
 	// AutoUpdate lets the guard replace the sensor with the latest release.
 	// Absent means on; false pins the fleet to the installed version.
 	AutoUpdate *bool `json:"autoUpdate,omitempty"`
+	// AllowMajorUpdate lets the guard take a release with a higher major version.
+	// Absent or false holds the sensor on its major version: a major release can
+	// change the profile format, the units and the protocol.
+	AllowMajorUpdate *bool `json:"allowMajorUpdate,omitempty"`
 }
 
 // Level is the protection level, standard when unset or unknown.
@@ -296,3 +300,7 @@ func writeFile(path string, data []byte, mode os.FileMode) error {
 // AutoUpdateOn reports whether the sensor keeps itself current: on unless
 // the profile says false.
 func (c Config) AutoUpdateOn() bool { return c.AutoUpdate == nil || *c.AutoUpdate }
+
+// AllowMajorUpdateOn reports whether the guard may cross a major version: off
+// unless the profile says true.
+func (c Config) AllowMajorUpdateOn() bool { return c.AllowMajorUpdate != nil && *c.AllowMajorUpdate }

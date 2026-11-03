@@ -72,7 +72,7 @@ func TestSelfUpdateReplacesTheBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Now()
-	tag, err := maybeSelfUpdate(context.Background(), true, "v3.158.0", target, dir, now)
+	tag, err := maybeSelfUpdate(context.Background(), true, false, "v3.158.0", target, dir, now)
 	if err != nil || tag != "v3.200.0" {
 		t.Fatalf("tag %q err %v", tag, err)
 	}
@@ -83,7 +83,7 @@ func TestSelfUpdateReplacesTheBinary(t *testing.T) {
 		t.Fatal("previous binary was not kept for rollback")
 	}
 	// Checked just now: the next call within the interval does nothing.
-	if tag, err := maybeSelfUpdate(context.Background(), true, "v3.158.0", target, dir, now.Add(time.Hour)); tag != "" || err != nil {
+	if tag, err := maybeSelfUpdate(context.Background(), true, false, "v3.158.0", target, dir, now.Add(time.Hour)); tag != "" || err != nil {
 		t.Fatalf("rechecked inside the interval: %q %v", tag, err)
 	}
 }
@@ -95,7 +95,7 @@ func TestSelfUpdateRefusesABadChecksum(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "vulnetix-sensor")
 	_ = os.WriteFile(target, []byte("old"), 0o755)
-	tag, err := maybeSelfUpdate(context.Background(), true, "v3.158.0", target, dir, time.Now())
+	tag, err := maybeSelfUpdate(context.Background(), true, false, "v3.158.0", target, dir, time.Now())
 	if err == nil || tag != "" {
 		t.Fatalf("a checksum mismatch installed %q (err %v)", tag, err)
 	}
@@ -115,7 +115,7 @@ func TestSelfUpdateOffAndDevAndCurrent(t *testing.T) {
 		on  bool
 		cur string
 	}{"opted out": {false, "v3.158.0"}, "dev build": {true, "dev"}, "already current": {true, "v3.200.0"}} {
-		if tag, err := maybeSelfUpdate(context.Background(), c.on, c.cur, target, dir, time.Now()); tag != "" || err != nil {
+		if tag, err := maybeSelfUpdate(context.Background(), c.on, false, c.cur, target, dir, time.Now()); tag != "" || err != nil {
 			t.Errorf("%s: %q %v", name, tag, err)
 		}
 		_ = os.Remove(filepath.Join(dir, updateStamp))

@@ -328,3 +328,10 @@ func TestEnrollNamesTheMissingAddon(t *testing.T) {
 		t.Fatalf("err = %v, want an add-on denial rather than 'no device credential'", err)
 	}
 }
+
+func TestAllowMajorUpdateIsOffUnlessTheProfileSaysTrue(t *testing.T) {
+	yes, no := true, false
+	if (Config{}).AllowMajorUpdateOn() || (Config{AllowMajorUpdate: &no}).AllowMajorUpdateOn() || !(Config{AllowMajorUpdate: &yes}).AllowMajorUpdateOn() {
+		t.Fatal("allowMajorUpdate defaults to off")
+	}
+}

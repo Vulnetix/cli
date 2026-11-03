@@ -45,6 +45,37 @@ type updateState struct {
 	CheckedAt time.Time `json:"checkedAt"`
 	Latest    string    `json:"latest,omitempty"`
 	Failed    string    `json:"failed,omitempty"`
+	// Held is why a newer release was not taken (a new major version the profile
+	// has not allowed, or a release that was rolled back).
+	Held string `json:"held,omitempty"`
+	// Pending is an update that has been swapped in and has not yet proved
+	// itself; see updatehealth.go.
+	Pending *pendingUpdate `json:"pending,omitempty"`
+	// Bad lists releases that were rolled back. They are never taken again; a
+	// newer release is.
+	Bad []string `json:"bad,omitempty"`
+	// Outcome is the last update's result, for the console.
+	Outcome *updateOutcome `json:"outcome,omitempty"`
+}
+
+// crossesMajor reports whether latest is a higher major version than current.
+// A major release can change the profile format, the units and the protocol, so
+// it is taken only when the profile says allowMajorUpdate.
+func crossesMajor(current, latest string) bool {
+	c, _, cok := parseVersion(current)
+	l, _, lok := parseVersion(latest)
+
+	return cok && lok && l[0] > c[0]
+}
+
+func containsString(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+
+	return false
 }
 
 // parseVersion reads vX.Y.Z (a pre-release or build suffix is ignored, and
@@ -186,7 +217,9 @@ func downloadRelease(ctx context.Context, tag, dir string) (string, error) {
 
 // selfTest runs the downloaded binary and checks it reports the tag.
 func selfTest(path, tag string) error {
-	out, err := exec.Command(path, "--version").CombinedOutput()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, path, "--version").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("new binary does not start: %v", err)
 	}
@@ -223,11 +256,22 @@ func swapBinary(src, target string) error {
 
 		return err
 	}
+	// On disk before it is renamed into place: a power cut between the rename and
+	// the write-back would otherwise leave a zero-length sensor.
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+
+		return err
+	}
 	if err := tmp.Close(); err != nil {
 		return err
 	}
+	// The old binary is what a rollback restores. If it cannot be kept, the update
+	// is not made: an update that cannot be undone is not worth the risk.
 	if old, err := os.ReadFile(target); err == nil {
-		_ = os.WriteFile(target+".prev", old, 0o755)
+		if err := writeFileAtomic(target+".prev", old, 0o755); err != nil {
+			return fmt.Errorf("keeping the current binary for rollback: %w", err)
+		}
 	}
 
 	return os.Rename(tmp.Name(), target)
@@ -250,8 +294,14 @@ func saveUpdateState(dir string, s updateState) {
 
 // maybeSelfUpdate is the guard's update step. It reports whether it replaced
 // the binary (the caller signals the service). enabled is the profile's
-// autoUpdate; target is the installed binary; stateDir holds the stamp.
-func maybeSelfUpdate(ctx context.Context, enabled bool, current, target, stateDir string, now time.Time) (string, error) {
+// autoUpdate and allowMajor its allowMajorUpdate; target is the installed
+// binary; stateDir holds the stamp.
+//
+// The swap is not the end of the update: it is recorded as pending, and the
+// update counts only once the new sensor has reached the server
+// (updatehealth.go). Until then a rollback is possible, and a release that was
+// rolled back is never taken again.
+func maybeSelfUpdate(ctx context.Context, enabled, allowMajor bool, current, target, stateDir string, now time.Time) (string, error) {
 	if !enabled {
 		return "", nil
 	}
@@ -259,11 +309,15 @@ func maybeSelfUpdate(ctx context.Context, enabled bool, current, target, stateDi
 		return "", nil // a development build is never replaced
 	}
 	st := loadUpdateState(stateDir)
+	if st.Pending != nil {
+		return "", nil // the last update has not proved itself yet
+	}
 	if !st.CheckedAt.IsZero() && now.Sub(st.CheckedAt) < updateEvery {
 		return "", nil
 	}
 	st.CheckedAt = now
 	st.Failed = ""
+	st.Held = ""
 	defer func() { saveUpdateState(stateDir, st) }()
 
 	tag, err := latestTag(ctx)
@@ -274,6 +328,16 @@ func maybeSelfUpdate(ctx context.Context, enabled bool, current, target, stateDi
 	}
 	st.Latest = tag
 	if !newerVersion(current, tag) {
+		return "", nil
+	}
+	if containsString(st.Bad, tag) {
+		st.Held = tag + " was rolled back on this host and is not taken again; the next release is"
+
+		return "", nil
+	}
+	if crossesMajor(current, tag) && !allowMajor {
+		st.Held = tag + " is a new major version: set allowMajorUpdate in the profile to take it"
+
 		return "", nil
 	}
 	dir, err := os.MkdirTemp(filepath.Dir(target), ".vulnetix-update.*")
@@ -288,7 +352,14 @@ func maybeSelfUpdate(ctx context.Context, enabled bool, current, target, stateDi
 		err = selfTest(path, tag)
 	}
 	if err == nil {
+		// Recorded before the swap, so a crash between the two leaves a pending
+		// update the health check resolves, not a swapped binary nobody is watching.
+		st.Pending = &pendingUpdate{From: current, To: tag, At: now}
+		saveUpdateState(stateDir, st)
 		err = swapBinary(path, target)
+		if err != nil {
+			st.Pending = nil
+		}
 	}
 	if err != nil {
 		st.Failed = err.Error()

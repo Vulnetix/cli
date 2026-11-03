@@ -535,7 +535,17 @@ func guardCheckCmd(args []string) error {
 		}
 		fmt.Printf("guard: units updated for protection %s\n", snap.Config.Level())
 	}
-	if tag, err := maybeSelfUpdate(context.Background(), snap.Config.AutoUpdateOn(), version, binPath, *c.stateDir, time.Now()); err != nil {
+	unlock, locked := lockUpdate(*c.stateDir)
+	if !locked {
+		return nil // the rescue or an earlier guard is mid-update
+	}
+	defer unlock()
+	if action, outcome, err := reconcilePending(*c.stateDir, binPath, time.Now(), serviceFailed(), serverReachable(c, store)); err != nil {
+		fmt.Fprintf(os.Stderr, "guard: rollback failed: %v\n", err)
+	} else if action != "" {
+		announceOutcome(c, store, outcome)
+	}
+	if tag, err := maybeSelfUpdate(context.Background(), snap.Config.AutoUpdateOn(), snap.Config.AllowMajorUpdateOn(), version, binPath, *c.stateDir, time.Now()); err != nil {
 		fmt.Fprintf(os.Stderr, "guard: self-update not applied: %v\n", err)
 	} else if tag != "" {
 		if cred, err := store.LoadCredential(); err == nil {

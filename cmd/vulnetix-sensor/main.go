@@ -101,6 +101,8 @@ func main() {
 			run, args = goodbyeCmd, args[1:]
 		case "guard-check":
 			run, args = guardCheckCmd, args[1:]
+		case "guard-rescue":
+			run, args = guardRescueCmd, args[1:]
 		}
 	}
 	err := run(args)
@@ -340,6 +342,12 @@ func runSensor(args []string, guard bool) error {
 
 	cfg := agent.Config{
 		SensorKey: sensorKey, Version: version, Mode: decide.Mode(*mode), Hold: *hold, Facts: facts,
+	}
+	// The first report the server accepts is the proof a self-update waits for.
+	cfg.OnHealthy = func() {
+		if err := writeHealth(*stateDir, version); err != nil {
+			log.Printf("sensor: health stamp: %v", err)
+		}
 	}
 	var cred *provision.Credential
 	if !*offline {
