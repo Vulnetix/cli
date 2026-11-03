@@ -101,7 +101,10 @@ func main() {
 			run, args = goodbyeCmd, args[1:]
 		case "guard-check":
 			run, args = guardCheckCmd, args[1:]
-		case "guard-rescue":
+		// The flag form is what the guard unit runs. A binary from before this
+		// existed rejects an unknown flag and exits, where it would have taken the
+		// subcommand for nothing and started as a second sensor.
+		case "--guard-rescue", "guard-rescue":
 			run, args = guardRescueCmd, args[1:]
 		}
 	}

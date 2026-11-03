@@ -143,8 +143,13 @@ After=network-online.target
 Type=oneshot
 # The previous binary checks first, so a release that cannot start (and so cannot
 # run its own guard) is still rolled back. Absent or unable to run is ignored.
-ExecStartPre=-%s.prev guard-rescue --config-dir %s
+# It is a flag, not a subcommand: a previous binary that predates the check
+# rejects the flag and exits, where a subcommand it did not know would have
+# started it as a second sensor and hung this unit.
+ExecStartPre=-%s.prev --guard-rescue --config-dir %s
 ExecStart=%s guard-check --config-dir %s
+# A guard that does not finish must not stop the next one from running.
+TimeoutStartSec=300
 `, binPath, o.ConfigDir, binPath, o.ConfigDir)
 
 	var timer strings.Builder

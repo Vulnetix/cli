@@ -45,9 +45,17 @@ func TestRenderUnitsStandard(t *testing.T) {
 	// A release that cannot start cannot run its own guard, so the previous binary
 	// checks first; the dash makes its absence (a first install) harmless.
 	guard := unitByName(files, GuardServiceUnit)
-	pre := strings.Index(guard, "ExecStartPre=-/usr/local/bin/vulnetix-sensor.prev guard-rescue --config-dir /etc/vulnetix-sensor")
+	pre := strings.Index(guard, "ExecStartPre=-/usr/local/bin/vulnetix-sensor.prev --guard-rescue --config-dir /etc/vulnetix-sensor")
 	if pre < 0 || pre > strings.Index(guard, "ExecStart=/usr/local/bin/vulnetix-sensor guard-check") {
 		t.Errorf("the guard runs the previous binary's rescue before guard-check:\n%s", guard)
+	}
+	// A previous binary that predates the rescue must not take it for a request to
+	// run: only a flag, which it rejects, is safe to hand it.
+	if strings.Contains(guard, ".prev guard-rescue") {
+		t.Errorf("the rescue is passed as a subcommand an old binary would ignore and run as a sensor:\n%s", guard)
+	}
+	if !strings.Contains(guard, "TimeoutStartSec=") {
+		t.Error("a guard that hangs would block every later one")
 	}
 	if !strings.Contains(unitByName(files, GuardTimerUnit), "OnUnitActiveSec=1min") {
 		t.Error("the guard runs every minute")
