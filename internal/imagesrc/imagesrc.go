@@ -4,9 +4,11 @@
 //
 // Registry credentials come from the user's own docker configuration and
 // credential helpers (authn.DefaultKeychain), the same ones `docker pull` uses;
-// nothing is stored or sent anywhere else. A local image is exported with the
-// engine's own `save` command rather than through a daemon client library,
-// which keeps the engine's API out of the CLI.
+// nothing is stored or sent anywhere else. A signed in run may first ask Vulnetix
+// for a short-lived pull token for the organisation's own registry connection
+// (tenantauth.go); the login behind it never reaches the CLI. A local image is
+// exported with the engine's own `save` command rather than through a daemon
+// client library, which keeps the engine's API out of the CLI.
 package imagesrc
 
 import (
@@ -44,6 +46,13 @@ type Options struct {
 	// Platform is os/arch[/variant], e.g. linux/amd64; empty means the host's
 	// linux architecture.
 	Platform string
+	// Tenant, when set, is asked for a short-lived pull token before the user's
+	// own docker credentials are used, for a registry read (tenantauth.go).
+	Tenant TokenSource
+	// Warn receives a one line note when the organisation's connection could not
+	// be used and the run fell back to the user's credentials. It never carries a
+	// credential. Nil prints nothing.
+	Warn func(string)
 	// TempDir holds a local engine's export while it is read.
 	TempDir string
 }
@@ -93,7 +102,7 @@ func Open(ctx context.Context, ref string, opts Options) (*Image, error) {
 	case SourceDocker, SourcePodman:
 		return openEngine(ctx, string(opts.Source), ref, plat, opts.TempDir)
 	case SourceRegistry:
-		return openRegistry(ctx, ref, plat)
+		return openRegistry(ctx, ref, plat, keychainFor(ctx, opts))
 	case SourceAuto:
 		if st, err := os.Stat(ref); err == nil && !st.IsDir() {
 			return openArchive(ref, ref, plat)
@@ -103,7 +112,7 @@ func Open(ctx context.Context, ref string, opts Options) (*Image, error) {
 				return openEngine(ctx, engine, ref, plat, opts.TempDir)
 			}
 		}
-		return openRegistry(ctx, ref, plat)
+		return openRegistry(ctx, ref, plat, keychainFor(ctx, opts))
 	default:
 		return nil, fmt.Errorf("unknown image source %q (auto, registry, docker, podman, archive)", opts.Source)
 	}
@@ -120,12 +129,12 @@ func parsePlatform(s string) (*v1.Platform, error) {
 	return p, nil
 }
 
-func openRegistry(ctx context.Context, ref string, plat *v1.Platform) (*Image, error) {
+func openRegistry(ctx context.Context, ref string, plat *v1.Platform, kc authn.Keychain) (*Image, error) {
 	r, err := name.ParseReference(ref)
 	if err != nil {
 		return nil, fmt.Errorf("image reference %q: %w", ref, err)
 	}
-	desc, err := remote.Get(r, remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain), remote.WithPlatform(*plat))
+	desc, err := remote.Get(r, remote.WithContext(ctx), remote.WithAuthFromKeychain(kc), remote.WithPlatform(*plat))
 	if err != nil {
 		return nil, explainRegistryError(ref, err)
 	}
@@ -247,7 +256,7 @@ func explainRegistryError(ref string, err error) error {
 	}
 	s := err.Error()
 	if strings.Contains(s, "UNAUTHORIZED") || strings.Contains(s, "DENIED") || strings.Contains(s, "401") {
-		return fmt.Errorf("the registry refused access to %s: log in with `docker login %s` (your own credentials are used, never sent to Vulnetix): %w",
+		return fmt.Errorf("the registry refused access to %s: log in with `docker login %s` (your own docker credentials are used; a signed in run also tries your organisation's registry connection): %w",
 			ref, registryOf(ref), err)
 	}
 	return fmt.Errorf("fetch %s: %w", ref, err)

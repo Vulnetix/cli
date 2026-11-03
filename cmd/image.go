@@ -30,9 +30,14 @@ so the Container curation page can compare its base image with the equivalent
 images on other registries.
 
 The image is read from a local docker or podman image store when one holds it,
-otherwise from its registry with your own docker credentials (docker login and
-credential helpers; nothing is sent to Vulnetix but the inventory), or from an
-archive made by docker save or podman save.
+otherwise from its registry, or from an archive made by docker save or podman
+save. A registry is read with your own docker credentials (docker login and
+credential helpers). When you are signed in, a private registry that your
+organisation has connected (Registries in Resolve) is tried first: Vulnetix
+issues a short-lived read-only token for that one repository and the stored
+login never reaches this machine; a registry with no token service, or one that
+is not connected, uses your docker credentials as before. That request names the
+registry and repository, so --no-upload and community runs do not make it.
 
 Examples:
   vulnetix image node:20.11.1-alpine3.19
@@ -71,7 +76,11 @@ func runImage(cmd *cobra.Command, args []string) error {
 	noUpload, _ := cmd.Flags().GetBool("no-upload")
 	noLang, _ := cmd.Flags().GetBool("no-language-packages")
 
-	img, err := imagesrc.Open(ctx, ref, imagesrc.Options{Source: imagesrc.Source(source), Platform: platform})
+	img, err := imagesrc.Open(ctx, ref, imagesrc.Options{
+		Source: imagesrc.Source(source), Platform: platform,
+		Tenant: imageTenantTokens(noUpload),
+		Warn:   func(m string) { fmt.Fprintln(os.Stderr, "note: "+m) },
+	})
 	if err != nil {
 		return err
 	}
