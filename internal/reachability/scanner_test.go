@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // writeTempProject creates a temp dir populated with the given relative-path →

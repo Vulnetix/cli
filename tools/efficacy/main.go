@@ -32,7 +32,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/versions"
+	"github.com/vulnetix/cli/v4/internal/versions"
 )
 
 type repo struct {

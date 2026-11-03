@@ -23,7 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
 // DefaultEndpoint is the site API.

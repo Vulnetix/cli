@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v4/internal/display"
 )
 
 // BinaryRow is one ELF file the container scan inspected.

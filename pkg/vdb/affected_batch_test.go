@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
 func TestV2AffectedBatchDecodesEachAnswer(t *testing.T) {

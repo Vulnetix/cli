@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // The server now re-decomposes every submitted SARIF document with the shared

@@ -21,10 +21,10 @@ import (
 
 	"golang.org/x/net/dns/dnsmessage"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/engine"
-	"github.com/vulnetix/cli/v3/internal/sensor/siem"
-	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/engine"
+	"github.com/vulnetix/cli/v4/internal/sensor/siem"
+	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
 )
 
 // Guard forwards DNS over UDP.

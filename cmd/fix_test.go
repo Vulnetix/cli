@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	autofix "github.com/vulnetix/cli/v3/internal/fix"
+	autofix "github.com/vulnetix/cli/v4/internal/fix"
 )
 
 func resetFixFlags(t *testing.T) {

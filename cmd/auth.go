@@ -13,11 +13,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/analytics"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/upload"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/analytics"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/upload"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 var (

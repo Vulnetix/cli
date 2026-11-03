@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
 )
 
 // Target is the repository, commit and ref a publish applies to.

@@ -10,15 +10,15 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vulnetix/cli/v3/internal/analytics"
-	"github.com/vulnetix/cli/v3/internal/artifacts"
-	"github.com/vulnetix/cli/v3/internal/buildinfo"
-	"github.com/vulnetix/cli/v3/internal/config"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/update"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/cache"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/analytics"
+	"github.com/vulnetix/cli/v4/internal/artifacts"
+	"github.com/vulnetix/cli/v4/internal/buildinfo"
+	"github.com/vulnetix/cli/v4/internal/config"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/update"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/cache"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 var (
@@ -34,9 +34,9 @@ var (
 	noAnalytics   bool
 
 	// Build metadata (injected via ldflags)
-	version   = "1.0.0"   // -X github.com/vulnetix/cli/v3/cmd.version=
-	commit    = "unknown" // -X github.com/vulnetix/cli/v3/cmd.commit=
-	buildDate = "unknown" // -X github.com/vulnetix/cli/v3/cmd.buildDate=
+	version   = "1.0.0"   // -X github.com/vulnetix/cli/v4/cmd.version=
+	commit    = "unknown" // -X github.com/vulnetix/cli/v4/cmd.commit=
+	buildDate = "unknown" // -X github.com/vulnetix/cli/v4/cmd.buildDate=
 )
 
 // Packages below cmd cannot import it, but internal/cdx has to name a real

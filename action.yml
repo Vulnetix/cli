@@ -11,9 +11,9 @@ inputs:
     required: false
     default: ''
   version:
-    description: 'Release of the Vulnetix CLI to install: an exact tag (v3.111.0), a major channel (v3, the newest v3 release) or latest. The default is the major channel matching this action, so a workflow pinned to @v3 keeps a v3 binary after v4 ships'
+    description: 'Release of the Vulnetix CLI to install: an exact tag (v4.0.0), a major channel (v4, the newest v4 release) or latest. The default is the major channel matching this action, so a workflow pinned to @v3 keeps a v3 binary and one pinned to @v4 gets v4'
     required: false
-    default: 'v3'
+    default: 'v4'
   binary-path:
     description: 'Path to an already-built vulnetix binary to use instead of downloading a release, for example one built earlier in the same job'
     required: false

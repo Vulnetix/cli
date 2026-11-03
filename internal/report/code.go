@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/scaview"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/scaview"
 )
 
 // CodeFinding is one finding from the rule engine: static analysis, secrets,

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	autofix "github.com/vulnetix/cli/v3/internal/fix"
-	"github.com/vulnetix/cli/v3/internal/scan"
+	autofix "github.com/vulnetix/cli/v4/internal/fix"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 // Every npm-family lockfile names the package manager that installs it, and a

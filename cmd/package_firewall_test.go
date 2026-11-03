@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	pfw "github.com/vulnetix/cli/v3/pkg/packagefirewall"
+	pfw "github.com/vulnetix/cli/v4/pkg/packagefirewall"
 )
 
 func TestUpsertNetrcMachine(t *testing.T) {

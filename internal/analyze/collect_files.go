@@ -23,8 +23,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/reachability"
-	"github.com/vulnetix/cli/v3/internal/treesitter"
+	"github.com/vulnetix/cli/v4/internal/reachability"
+	"github.com/vulnetix/cli/v4/internal/treesitter"
 )
 
 // decisionQueries count cyclomatic complexity the way gitvoyant does: one point per decision

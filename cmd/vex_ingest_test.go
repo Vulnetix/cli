@@ -14,12 +14,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/internal/suppress"
-	"github.com/vulnetix/cli/v3/internal/vex"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/suppress"
+	"github.com/vulnetix/cli/v4/internal/vex"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 const testOpenVEX = `{"@context":"https://openvex.dev/ns/v0.2.0","@id":"urn:x","author":"a","timestamp":"2026-01-01T00:00:00Z","version":1,"statements":[{"vulnerability":{"name":"CVE-1"},"status":"not_affected","justification":"component_not_present","products":[{"@id":"pkg:npm/a@1"}]}]}`

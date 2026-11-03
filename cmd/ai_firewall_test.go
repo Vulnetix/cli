@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	aifw "github.com/vulnetix/cli/v3/pkg/aifirewall"
+	aifw "github.com/vulnetix/cli/v4/pkg/aifirewall"
 )
 
 // A provider drops out of the wiring targets for opposite reasons — no stored

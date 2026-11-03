@@ -11,7 +11,7 @@ pipelines:
         name: Vulnetix Security Scan
         image: golang:1.25
         script:
-          - go install github.com/vulnetix/cli/v3@latest
+          - go install github.com/vulnetix/cli/v4@latest
           - vulnetix auth login --api-key "$VULNETIX_API_KEY" --org-id "$VULNETIX_ORG_ID" --store project
           - vulnetix
 ```

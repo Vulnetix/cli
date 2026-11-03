@@ -26,13 +26,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/internal/license"
-	"github.com/vulnetix/cli/v3/internal/memory"
-	"github.com/vulnetix/cli/v3/internal/reachability"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/license"
+	"github.com/vulnetix/cli/v4/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/reachability"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // cliSCABatchTimeoutDefault must sit ABOVE the ~60s CDN edge timeout: a cold

@@ -18,7 +18,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // policyRule is one compliance check. Globs are matched case-insensitively against the

@@ -212,7 +212,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # The Go module path (github.com/vulnetix/cli/v3, /v4 after the cut),
+      # The Go module path (github.com/vulnetix/cli/v4),
       # read from go.mod rather than written into this workflow, so a major
       # bump needs no edit here. The same line `go list -m` prints; this job
       # has no Go toolchain, and the jobs that do call `go list -m`.

@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // newScanLikeCommand registers the subset of scan-family flags FromCommand

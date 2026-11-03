@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/regexlit"
+	"github.com/vulnetix/cli/v4/internal/regexlit"
 )
 
 // The source pass skips a catalog pattern on a file that holds none of the

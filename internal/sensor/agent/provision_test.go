@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
 )
 
 func TestRunNotifiesSystemdAndRestartsOnAProfileChange(t *testing.T) {

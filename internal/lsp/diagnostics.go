@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
-	"github.com/vulnetix/cli/v3/internal/lsp/rangefix"
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/lsp/protocol"
+	"github.com/vulnetix/cli/v4/internal/lsp/rangefix"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // sourceForKind is the Diagnostic.source per rule kind.

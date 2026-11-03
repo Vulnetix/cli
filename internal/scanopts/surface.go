@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/vulnetix/cli/v3/internal/report"
-	"github.com/vulnetix/cli/v3/internal/scaview"
+	"github.com/vulnetix/cli/v4/internal/report"
+	"github.com/vulnetix/cli/v4/internal/scaview"
 )
 
 // AddSurfaceFlags registers the output and gating vocabulary on a scan-family

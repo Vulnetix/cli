@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/scanopts"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/scanopts"
 )
 
 // reportCmd owns replaying stored scan results. It is the report view over

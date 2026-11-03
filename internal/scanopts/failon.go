@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/pipeline"
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/pipeline"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 // FailOnRules are the values `--fail-on` accepts, for help and completion.

@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	aifw "github.com/vulnetix/cli/v3/pkg/aifirewall"
-	"github.com/vulnetix/cli/v3/pkg/kiroauth"
+	aifw "github.com/vulnetix/cli/v4/pkg/aifirewall"
+	"github.com/vulnetix/cli/v4/pkg/kiroauth"
 )
 
 // fakeVault records the calls saveKiroLogin makes.

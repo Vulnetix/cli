@@ -7,7 +7,7 @@ import (
 
 	manifest "github.com/Vulnetix/vdb-manifest"
 
-	vers "github.com/vulnetix/cli/v3/internal/versions"
+	vers "github.com/vulnetix/cli/v4/internal/versions"
 )
 
 // Satisfies reports whether version satisfies an npm-style constraint

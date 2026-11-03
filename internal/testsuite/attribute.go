@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // Config is a test-runner configuration file detected on disk. It is metadata

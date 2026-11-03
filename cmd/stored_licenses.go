@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
-	"github.com/vulnetix/cli/v3/internal/license"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/license"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // storedLicensesTimeout bounds the API lookup; past it the scan resolves the

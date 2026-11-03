@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/vulnetix/cli/v3/internal/analyze"
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/analyze"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // postScannerGraphInsights publishes the tech-stack graph discovered alongside SCA,

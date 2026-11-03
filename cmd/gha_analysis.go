@@ -14,11 +14,11 @@ import (
 	"github.com/Vulnetix/vdb-sca-match/ghaudit"
 	"github.com/Vulnetix/vdb-sca-match/sarif"
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/analyze/forge"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/ghtasks"
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/analyze/forge"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/ghtasks"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // The gha analysis tasks: GitHub posture checks from the shared engine

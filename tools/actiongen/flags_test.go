@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/cmd"
+	"github.com/vulnetix/cli/v4/cmd"
 )
 
 // splitArgv separates a command's subcommand path from the flags in it.

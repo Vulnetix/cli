@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/memory"
-	"github.com/vulnetix/cli/v3/internal/vex"
+	"github.com/vulnetix/cli/v4/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/vex"
 )
 
 type openVEXDoc struct {

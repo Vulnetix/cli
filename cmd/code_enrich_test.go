@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/report"
+	"github.com/vulnetix/cli/v4/internal/report"
 )
 
 func TestResourceAt(t *testing.T) {

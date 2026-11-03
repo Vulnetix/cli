@@ -3,7 +3,7 @@ package report
 import (
 	"encoding/json"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/cdx"
 )
 
 // JSONSchema names the shape RenderJSON emits. It changes only by adding fields.

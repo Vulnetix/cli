@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 func v(id, sev string, cvss, epss float64, kev bool, exploits int) scan.EnrichedVuln {

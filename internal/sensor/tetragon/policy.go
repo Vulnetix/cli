@@ -22,7 +22,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/feed"
+	"github.com/vulnetix/cli/v4/internal/sensor/feed"
 )
 
 // PolicyName is the TracingPolicy's name, and how the sensor recognises the

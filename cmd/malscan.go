@@ -34,11 +34,11 @@ import (
 	"github.com/vulnetix/malscan-engine/detect"
 	"github.com/vulnetix/malscan-engine/iocscan"
 
-	"github.com/vulnetix/cli/v3/internal/artifacts"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/ecosystems"
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/artifacts"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/ecosystems"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/memory"
 )
 
 const (

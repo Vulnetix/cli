@@ -24,9 +24,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/engine"
-	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/engine"
+	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
 )
 
 // Rules is the compiled set the proxies read, swapped atomically when a feed

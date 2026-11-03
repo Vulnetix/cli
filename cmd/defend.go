@@ -14,14 +14,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
-	"github.com/vulnetix/cli/v3/internal/defences"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/report"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/internal/scanopts"
-	"github.com/vulnetix/cli/v3/internal/triage"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/defences"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/report"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scanopts"
+	"github.com/vulnetix/cli/v4/internal/triage"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // defendCmd is what to do about a finding that has no fix. Virtual patches block

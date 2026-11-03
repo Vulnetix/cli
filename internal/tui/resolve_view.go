@@ -16,7 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/vulnetix/cli/v3/internal/triage"
+	"github.com/vulnetix/cli/v4/internal/triage"
 )
 
 // resolveModalState is the step the modal is currently on.

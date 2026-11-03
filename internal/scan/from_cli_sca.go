@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/versions"
+	"github.com/vulnetix/cli/v4/internal/versions"
 )
 
 // epssSeverity tiers EPSS probability into the legacy severity ladder.

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/cdx"
 )
 
 // quality.go answers "is this SBOM any good?" as a field-presence report.

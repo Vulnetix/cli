@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
-	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/lsp/protocol"
+	"github.com/vulnetix/cli/v4/internal/memory"
 )
 
 // writeMemory puts a memory.yaml with the given suppressions in a temp repo.

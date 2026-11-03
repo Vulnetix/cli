@@ -17,10 +17,10 @@ import (
 	"time"
 
 	"github.com/go-git/go-git/v5"
-	"github.com/vulnetix/cli/v3/internal/gitopen"
+	"github.com/vulnetix/cli/v4/internal/gitopen"
 
-	"github.com/vulnetix/cli/v3/internal/analyze/forge"
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/analyze/forge"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 type Options struct {

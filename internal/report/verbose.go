@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/scaview"
-	"github.com/vulnetix/cli/v3/internal/versions"
+	"github.com/vulnetix/cli/v4/internal/scaview"
+	"github.com/vulnetix/cli/v4/internal/versions"
 )
 
 // renderAdvisoryDetail is what -v adds under a package: each advisory with its

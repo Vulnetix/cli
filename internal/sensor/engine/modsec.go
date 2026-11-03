@@ -12,8 +12,8 @@ import (
 
 	"github.com/corazawaf/coraza/v3"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/feed"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/feed"
 )
 
 // The ModSecurity engine, on Coraza.

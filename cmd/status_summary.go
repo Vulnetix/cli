@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/display"
-	pfw "github.com/vulnetix/cli/v3/pkg/packagefirewall"
+	"github.com/vulnetix/cli/v4/internal/display"
+	pfw "github.com/vulnetix/cli/v4/pkg/packagefirewall"
 )
 
 type EcoGroups struct {

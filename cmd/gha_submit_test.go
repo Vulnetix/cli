@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // newTestSubmitter builds a submitter that publishes nothing, which is enough to

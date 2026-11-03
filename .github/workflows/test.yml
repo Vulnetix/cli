@@ -98,7 +98,7 @@ jobs:
           VERSION="test-$(git rev-parse --short HEAD)"
           mkdir -p bin
           go build \
-            -ldflags "-s -w -X github.com/vulnetix/cli/v3/cmd.version=${VERSION} -X github.com/vulnetix/cli/v3/cmd.commit=$(git rev-parse --short HEAD)" \
+            -ldflags "-s -w -X github.com/vulnetix/cli/v4/cmd.version=${VERSION} -X github.com/vulnetix/cli/v4/cmd.commit=$(git rev-parse --short HEAD)" \
             -o "bin/vulnetix-${OS}-${ARCH}" .
         shell: bash
         env:
@@ -174,14 +174,17 @@ jobs:
           org-id: '123e4567-e89b-12d3-a456-426614174000'
           binary-path: ${{ steps.branch-bin.outputs.path }}
 
-      # The default the action installs: the newest release of the v3 channel.
+      # The default the action installs is the newest release of the v4 channel;
+      # the v3 channel stays frozen at its last release.
       - name: install.sh resolves a major channel
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           dir="$RUNNER_TEMP/channel"
-          VULNETIX_NO_ANALYTICS=1 sh install.sh --install-dir "$dir" --version v3 | tee "$RUNNER_TEMP/channel.log"
-          grep -E '^info: channel v3 resolved to v3\.[0-9]+\.[0-9]+$' "$RUNNER_TEMP/channel.log"
+          for major in v4 v3; do
+            VULNETIX_NO_ANALYTICS=1 sh install.sh --install-dir "$dir" --version "$major" | tee "$RUNNER_TEMP/channel-$major.log"
+            grep -E "^info: channel $major resolved to $major\.[0-9]+\.[0-9]+\$" "$RUNNER_TEMP/channel-$major.log"
+          done
         shell: bash
 
       - name: The action used the branch build and stored no credentials

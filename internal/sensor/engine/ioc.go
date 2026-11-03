@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
 )
 
 // IOCSet is the indicators the sensor can check without a rule engine: a

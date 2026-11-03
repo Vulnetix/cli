@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 func TestEnrichCliEnvForSCAResolvesSourceFilesFromScanRoot(t *testing.T) {

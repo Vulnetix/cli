@@ -18,10 +18,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/artifacts"
-	"github.com/vulnetix/cli/v3/internal/github"
-	"github.com/vulnetix/cli/v3/internal/pipeline"
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/artifacts"
+	"github.com/vulnetix/cli/v4/internal/github"
+	"github.com/vulnetix/cli/v4/internal/pipeline"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 var ghaPublishCmd = &cobra.Command{

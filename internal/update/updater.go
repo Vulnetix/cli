@@ -60,7 +60,7 @@ var goInstallRunner = defaultUpdateViaGoInstall
 
 func defaultUpdateViaGoInstall() error {
 	fmt.Println("Updating via go install...")
-	cmd := exec.Command("go", "install", "github.com/vulnetix/cli/v3@latest")
+	cmd := exec.Command("go", "install", "github.com/vulnetix/cli/v4@latest")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/spf13/pflag"
-	"github.com/vulnetix/cli/v3/internal/pipeline"
+	"github.com/vulnetix/cli/v4/internal/pipeline"
 )
 
 // The scan family's analysis inputs travel as a single pipeline.Options rather

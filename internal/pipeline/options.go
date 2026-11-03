@@ -1,12 +1,12 @@
 package pipeline
 
 import (
-	"github.com/vulnetix/cli/v3/internal/cdx"
-	"github.com/vulnetix/cli/v3/internal/fix"
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/internal/sast"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/internal/triage"
+	"github.com/vulnetix/cli/v4/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/fix"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/triage"
 )
 
 // Options is everything an analysis run needs, as named fields.

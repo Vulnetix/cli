@@ -13,12 +13,12 @@ import (
 
 	"github.com/Vulnetix/vdb-sca-match/parse"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
-	"github.com/vulnetix/cli/v3/internal/lsp/anchor"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/cache"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/lsp/anchor"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/cache"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // scaChunkSize is how many purls go in one cli.sca request.

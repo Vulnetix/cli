@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 func TestResolveTargetStableClosestSafeNoDowngrade(t *testing.T) {

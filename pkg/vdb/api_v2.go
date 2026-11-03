@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/cache"
+	"github.com/vulnetix/cli/v4/pkg/cache"
 )
 
 // V2QueryParams holds common context-filter query parameters for V2 endpoints.

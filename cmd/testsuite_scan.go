@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/internal/sast"
-	"github.com/vulnetix/cli/v3/internal/testsuite"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/testsuite"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // testConfigsToWire converts detected test-runner config files into the typed

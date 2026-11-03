@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	manifest "github.com/Vulnetix/vdb-manifest"
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 func Apply(root string, plans []FixCandidate) error {

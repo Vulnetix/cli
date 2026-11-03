@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/fix"
-	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
-	"github.com/vulnetix/cli/v3/internal/lsp/rangefix"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/fix"
+	"github.com/vulnetix/cli/v4/internal/lsp/protocol"
+	"github.com/vulnetix/cli/v4/internal/lsp/rangefix"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // maxFixAlternatives caps how many versions are offered beyond the recommended

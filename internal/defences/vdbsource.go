@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // API is the part of the vulnerability database client the source uses. It is an

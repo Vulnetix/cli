@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // ToWire turns a report into an insights submission.

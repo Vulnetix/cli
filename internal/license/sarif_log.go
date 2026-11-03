@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // BuildLog returns the analysis as a GitHub-ready SARIF log with the code

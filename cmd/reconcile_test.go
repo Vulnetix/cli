@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/internal/license"
-	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/license"
+	"github.com/vulnetix/cli/v4/internal/memory"
 )
 
 // withMemoryEnabled restores the global --disable-memory flag after the test.

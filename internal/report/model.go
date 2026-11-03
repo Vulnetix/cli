@@ -15,8 +15,8 @@ package report
 import (
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/defences"
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/defences"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 // Group says what to do about a package, which is not the same as how severe it

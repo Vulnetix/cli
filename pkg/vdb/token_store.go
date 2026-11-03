@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
 // The exchanged JWT is shared by every Client holding the same credentials.

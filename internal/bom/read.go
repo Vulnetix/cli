@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/cdx"
 )
 
 // Property names stamped onto a parsed document's metadata.

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/versions"
+	"github.com/vulnetix/cli/v4/internal/versions"
 )
 
 // match.go decides whether a statement speaks about a finding.

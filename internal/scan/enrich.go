@@ -3,7 +3,7 @@ package scan
 import (
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/versions"
+	"github.com/vulnetix/cli/v4/internal/versions"
 )
 
 // AffectedSymbols carries the lower-efficacy symbol-level fallback shipped on

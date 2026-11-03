@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/cdx"
 )
 
 func TestBuildPkgFromComponentDerivesIdentityFromPURL(t *testing.T) {

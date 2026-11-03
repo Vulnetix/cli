@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	vdbcdx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/cdx"
 )
 
 // TestPopulateLicenses_InvalidSPDXIDStillValidates is the end-to-end regression

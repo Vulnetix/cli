@@ -3,8 +3,8 @@ package lsp
 import (
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
-	"github.com/vulnetix/cli/v3/internal/scaview"
+	"github.com/vulnetix/cli/v4/internal/lsp/protocol"
+	"github.com/vulnetix/cli/v4/internal/scaview"
 )
 
 // Feature names the server uses in its tier-gating map.

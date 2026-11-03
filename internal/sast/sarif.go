@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
-	"github.com/vulnetix/cli/v3/internal/artifacts"
+	"github.com/vulnetix/cli/v4/internal/artifacts"
 )
 
 // SARIF 2.1.0 types now live in the shared module

@@ -26,7 +26,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/binpkg"
+	"github.com/vulnetix/cli/v4/internal/binpkg"
 )
 
 // States.

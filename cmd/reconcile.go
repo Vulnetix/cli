@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/internal/memory"
-	"github.com/vulnetix/cli/v3/internal/triage"
+	"github.com/vulnetix/cli/v4/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/triage"
 )
 
 // This file holds the machinery every scan-family subcommand shares to

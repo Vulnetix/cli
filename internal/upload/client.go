@@ -15,8 +15,8 @@ import (
 	"time"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 const (

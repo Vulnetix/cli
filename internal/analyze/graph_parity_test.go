@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/vulnetix/cli/v3/internal/reachability"
+	"github.com/vulnetix/cli/v4/internal/reachability"
 )
 
 func newTestEngine() *reachability.Engine { return reachability.NewEngine() }

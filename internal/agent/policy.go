@@ -8,7 +8,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/vulnetix/cli/v3/internal/fix"
+	"github.com/vulnetix/cli/v4/internal/fix"
 )
 
 // PolicyFile is where a repository states what its agents may do without being

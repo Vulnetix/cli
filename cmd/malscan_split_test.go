@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vulnetix/cli/v3/internal/ecosystems"
+	"github.com/vulnetix/cli/v4/internal/ecosystems"
 	"github.com/vulnetix/malscan-engine/iocscan"
 )
 

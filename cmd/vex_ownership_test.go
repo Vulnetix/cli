@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/internal/vex"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/vex"
 )
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ import (
 // TestVEXConsumptionHasOneOwner asserts internal/vex is imported only by its
 // owner file.
 func TestVEXConsumptionHasOneOwner(t *testing.T) {
-	const vexPkg = `"github.com/vulnetix/cli/v3/internal/vex"`
+	const vexPkg = `"github.com/vulnetix/cli/v4/internal/vex"`
 	const owner = "vex.go"
 
 	files, err := filepath.Glob("*.go")

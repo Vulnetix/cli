@@ -24,8 +24,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/reachability"
-	"github.com/vulnetix/cli/v3/internal/treesitter"
+	"github.com/vulnetix/cli/v4/internal/reachability"
+	"github.com/vulnetix/cli/v4/internal/treesitter"
 )
 
 // maxEgressHosts caps the node count. A repository past this is not going to be
@@ -325,7 +325,7 @@ func stripEgressComments(src, language string) string {
 // egress destinations that do not exist. In code a bare host therefore only
 // counts when a string literal contains NOTHING BUT that host (optionally with a
 // port). Anything reached through a scheme still counts wherever it appears, and
-// an import path like "github.com/vulnetix/cli/v3" correctly does not — that is
+// an import path like "github.com/vulnetix/cli/v4" correctly does not — that is
 // where the module came from, not somewhere this code calls.
 func scanEgressText(text, source, path string, quotedOnly bool, evidence string,
 	record egressRecorder) {

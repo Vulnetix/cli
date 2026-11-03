@@ -13,10 +13,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vulnetix/cli/v3/internal/pipeline"
-	"github.com/vulnetix/cli/v3/internal/reachability"
-	"github.com/vulnetix/cli/v3/internal/sast"
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/pipeline"
+	"github.com/vulnetix/cli/v4/internal/reachability"
+	"github.com/vulnetix/cli/v4/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 // FromCommand reads every scan-family flag that maps directly onto an analysis

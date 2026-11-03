@@ -11,11 +11,11 @@ import (
 	"github.com/spf13/cobra"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/internal/cdx"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/imagesrc"
-	"github.com/vulnetix/cli/v3/internal/sysinv"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/imagesrc"
+	"github.com/vulnetix/cli/v4/internal/sysinv"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // imageCmd inventories one container image and records it for container

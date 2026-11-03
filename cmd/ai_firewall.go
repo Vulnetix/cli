@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/managedfile"
-	aifw "github.com/vulnetix/cli/v3/pkg/aifirewall"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/managedfile"
+	aifw "github.com/vulnetix/cli/v4/pkg/aifirewall"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // The AI Firewall (guardrails.vulnetix.com) is an OpenAI-compatible gateway that

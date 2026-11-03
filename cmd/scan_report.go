@@ -15,14 +15,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/vulnetix/cli/v3/internal/defences"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/pipeline"
-	"github.com/vulnetix/cli/v3/internal/report"
-	"github.com/vulnetix/cli/v3/internal/sast"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/internal/scanopts"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/defences"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/pipeline"
+	"github.com/vulnetix/cli/v4/internal/report"
+	"github.com/vulnetix/cli/v4/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scanopts"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // activeSurface is the parsed output vocabulary for the running command. It is

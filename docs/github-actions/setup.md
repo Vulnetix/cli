@@ -7,7 +7,7 @@ Install the Vulnetix CLI and put it on PATH for later steps.
 
 | Input | Description | Default |
 |---|---|---|
-| `version` | Release of the Vulnetix CLI to install: an exact tag (v3.158.0), a major channel (v3, the newest v3 release) or latest | `v3` |
+| `version` | Release of the Vulnetix CLI to install: an exact tag (v4.0.0), a major channel (v4, the newest v4 release) or latest | `v4` |
 | `binary-path` | Path to an already-built vulnetix binary to use instead of downloading a release | - |
 
 ## Outputs
@@ -25,6 +25,6 @@ Install the Vulnetix CLI and put it on PATH for later steps.
 ```yaml
 steps:
   - uses: actions/checkout@v5
-  - uses: Vulnetix/cli/setup@v3
+  - uses: Vulnetix/cli/setup@v4
   - run: vulnetix sca --no-banner
 ```

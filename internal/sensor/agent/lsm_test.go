@@ -3,8 +3,8 @@ package agent
 import (
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/feed"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/feed"
 )
 
 func TestLSMEntriesFollowTheEffectiveMode(t *testing.T) {

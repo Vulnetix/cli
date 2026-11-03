@@ -16,13 +16,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/display"
-	autofix "github.com/vulnetix/cli/v3/internal/fix"
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/internal/memory"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/internal/triage"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/display"
+	autofix "github.com/vulnetix/cli/v4/internal/fix"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/triage"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 func printAutofixProposal(plans []autofix.FixCandidate, counts autofix.ProofCounts) {

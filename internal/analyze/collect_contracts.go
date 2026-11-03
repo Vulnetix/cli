@@ -26,7 +26,7 @@ import (
 
 	oasroute "github.com/Vulnetix/vdb-openapi/route"
 
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scan"
 	"gopkg.in/yaml.v3"
 )
 

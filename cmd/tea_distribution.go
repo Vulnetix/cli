@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/pkg/tea"
+	"github.com/vulnetix/cli/v4/pkg/tea"
 )
 
 func newTeaDistributionCommand() *cobra.Command {

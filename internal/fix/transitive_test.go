@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 // TestImmediateParentsDedupesAndStaysReachable verifies the replacement for the

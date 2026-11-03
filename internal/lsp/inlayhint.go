@@ -3,8 +3,8 @@ package lsp
 import (
 	"fmt"
 
-	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
-	"github.com/vulnetix/cli/v3/internal/lsp/rangefix"
+	"github.com/vulnetix/cli/v4/internal/lsp/protocol"
+	"github.com/vulnetix/cli/v4/internal/lsp/rangefix"
 )
 
 // Inline markers. Text rather than icons: an inlay hint is a string, and these

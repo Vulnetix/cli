@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/defences"
-	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v4/internal/defences"
+	"github.com/vulnetix/cli/v4/internal/display"
 )
 
 // Layout tiers. A tier drops whole fields in a fixed order; it never clips a

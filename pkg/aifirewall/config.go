@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/vulnetix/cli/v3/internal/managedfile"
+	"github.com/vulnetix/cli/v4/internal/managedfile"
 	"gopkg.in/yaml.v3"
 )
 

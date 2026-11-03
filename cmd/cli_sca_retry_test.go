@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // testSCAClient builds a vdb.Client pointed at a test server. It uses DirectAPIKey

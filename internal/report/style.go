@@ -4,9 +4,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/scaview"
-	"github.com/vulnetix/cli/v3/internal/tui"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/scaview"
+	"github.com/vulnetix/cli/v4/internal/tui"
 )
 
 // glyphs are the symbols the renderers draw with. Each has a plain-ASCII twin so

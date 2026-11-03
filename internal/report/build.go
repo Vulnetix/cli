@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/defences"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/internal/scaview"
-	"github.com/vulnetix/cli/v3/internal/versions"
+	"github.com/vulnetix/cli/v4/internal/defences"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scaview"
+	"github.com/vulnetix/cli/v4/internal/versions"
 )
 
 // Input is everything Build needs. Nothing in it is read from the environment.

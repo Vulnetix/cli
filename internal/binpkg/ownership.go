@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/sysinv"
+	"github.com/vulnetix/cli/v4/internal/sysinv"
 )
 
 // Owner identifies the OS package that installed a file inside a container root

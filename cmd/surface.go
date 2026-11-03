@@ -19,8 +19,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Vulnetix/vdb-openapi/route"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 var surfaceCmd = &cobra.Command{

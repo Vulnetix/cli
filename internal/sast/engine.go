@@ -13,7 +13,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
-	"github.com/vulnetix/cli/v3/internal/secretscan"
+	"github.com/vulnetix/cli/v4/internal/secretscan"
 )
 
 // Sharded compilation tuning. One OPA compiler is single-threaded: the full

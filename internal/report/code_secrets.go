@@ -10,8 +10,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/scaview"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/scaview"
 )
 
 // The four rule-engine scanners share the SAST grammar (a verdict line, groups

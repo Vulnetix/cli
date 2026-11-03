@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/scaview"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/scaview"
 )
 
 // containerFixes are the one-line fixes for the built-in container rules. They

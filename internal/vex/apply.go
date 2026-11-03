@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/cdx"
 )
 
 // apply.go folds matched statements onto a CycloneDX document.

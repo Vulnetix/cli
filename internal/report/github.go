@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/defences"
+	"github.com/vulnetix/cli/v4/internal/defences"
 )
 
 // RenderGitHub emits workflow commands that GitHub Actions turns into

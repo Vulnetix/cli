@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/memory"
 )
 
 // maxPromptIDs caps how many advisories one prompt is answered about.

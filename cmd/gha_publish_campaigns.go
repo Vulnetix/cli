@@ -34,8 +34,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/campaigns"
-	"github.com/vulnetix/cli/v3/internal/github"
+	"github.com/vulnetix/cli/v4/internal/campaigns"
+	"github.com/vulnetix/cli/v4/internal/github"
 )
 
 var (

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
 // siteClient calls the Vulnetix console's site API (/api/site/v1/*), which

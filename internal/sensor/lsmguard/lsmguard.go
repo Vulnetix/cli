@@ -18,7 +18,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
 )
 
 //go:generate clang -O2 -g -target bpfel -c bpf/exec_guard.c -o bpf/exec_guard.o

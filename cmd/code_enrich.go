@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/report"
+	"github.com/vulnetix/cli/v4/internal/report"
 )
 
 // blameLimit bounds the git calls a secrets report makes. Each is cheap, but a

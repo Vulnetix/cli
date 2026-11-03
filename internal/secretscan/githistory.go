@@ -17,7 +17,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/vulnetix/cli/v3/internal/gitopen"
+	"github.com/vulnetix/cli/v4/internal/gitopen"
 )
 
 // zlibInflate is a small wrapper around compress/zlib for use in the

@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vulnetix/cli/v3/internal/lsp"
-	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
+	"github.com/vulnetix/cli/v4/internal/lsp"
+	"github.com/vulnetix/cli/v4/internal/lsp/protocol"
 )
 
 var (

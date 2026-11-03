@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // requireV2 guards the commands that exist only on the v2 API. v2 is the default,

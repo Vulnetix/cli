@@ -25,9 +25,9 @@ import (
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/Vulnetix/vdb-sca-match/sarif"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
-	"github.com/vulnetix/cli/v3/internal/upload"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/upload"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // ghaMaxResults is the server's per-request cap; larger reports are chunked.

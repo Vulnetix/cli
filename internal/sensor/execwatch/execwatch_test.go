@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/engine"
-	"github.com/vulnetix/cli/v3/internal/sensor/feed"
-	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/engine"
+	"github.com/vulnetix/cli/v4/internal/sensor/feed"
+	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
 )
 
 const execLine = `{"process_exec":{"process":{"pid":4242,"binary":"/tmp/.x/miner","arguments":"--pool x","pod":{"namespace":"web","name":"api-7d"}}},"node_name":"n1","time":"2026-10-28T12:00:00Z"}`

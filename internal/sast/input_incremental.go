@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/secretscan"
+	"github.com/vulnetix/cli/v4/internal/secretscan"
 )
 
 // Overlay returns a shallow copy of base whose FileContents holds exactly the

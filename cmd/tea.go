@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/tea"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/tea"
 )
 
 func newTeaCommand() *cobra.Command {

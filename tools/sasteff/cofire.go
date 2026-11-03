@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/sast/efficacy"
+	"github.com/vulnetix/cli/v4/internal/sast/efficacy"
 )
 
 // runCofire finds rules that report the same lines. Two rules that fire on

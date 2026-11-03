@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vulnetix/cli/v3/internal/treesitter"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/treesitter"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // MaxFileSize is the largest file the scanner will parse. Files above

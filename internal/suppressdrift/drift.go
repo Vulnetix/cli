@@ -15,7 +15,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/vulnetix/cli/v3/internal/gitopen"
+	"github.com/vulnetix/cli/v4/internal/gitopen"
 )
 
 // storeErrStop short-circuits a go-git ForEach without signalling a real error.

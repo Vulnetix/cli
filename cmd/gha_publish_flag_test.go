@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/pipeline"
+	"github.com/vulnetix/cli/v4/internal/pipeline"
 )
 
 // Every scan-family command a generated action wraps takes --github-publish.

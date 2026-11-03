@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	configschemas "github.com/vulnetix/config-schemas"
 
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // `config set quality-gate` and `config set eol-policy` are deprecated aliases

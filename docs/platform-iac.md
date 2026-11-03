@@ -39,8 +39,18 @@ its file's kind, so an older repository keeps working.
 Wiring:
 
 - `config validate` reads the folder and the well-known files.
-- `config plan` and `config apply` read the folder only, in v3: sending the well-known files to
-  the engine is the v4 change. A well-known file named with `-f` is planned now.
+- `config plan` and `config apply` read the folder and, with no `-f`, the well-known files (v4).
+  `ai-firewall.yaml` (AiFirewallPolicy) is sent to the engine, so `config apply --prune` adopts it;
+  `license-policy.yaml` and `license-exceptions.yaml` are validated here and never sent (see Local
+  kinds). A singleton defined both in a well-known file and in the folder under the same name is a
+  duplicate and refused.
+- Commands that are aliases of the declarative path (engine first; the legacy endpoint stays, with
+  a deprecation warning, when the engine refuses the credential): `config set quality-gate`,
+  `config set eol-policy`, `config set package-firewall` (policy form), `ai-firewall apply` and
+  `ai-firewall export`. These stay imperative or read-only and are not deprecated:
+  `config set package-firewall` (mirror form), `config set jail`,
+  `config set ai-firewall provider|model|guardrail`, and every `config get`. The declarative path
+  is `config plan`, `config apply` and `config export`.
 - `ai-firewall apply` reads its policy through `LoadSingleton` (`pkg/aifirewall`
   `ParsePolicyValue`) unless `-f` names a file.
 - `license` and `scan --evaluate-licenses` read the licence policy and exceptions through
@@ -48,9 +58,8 @@ Wiring:
 
 ## Local kinds
 
-`LicenseExceptions` is a local kind: validated by
-`internal/platformiac/schemas/LicenseExceptions.schema.json` (matching
-`internal/license/exceptions.go`), never sent to the config engine, and reported by `config plan`
-with a note. When config-schemas releases the kind, delete the embedded schema and its
-`LocalKinds` entry so the config-schemas copy is used; when vdb-site has an adapter for it, it
-becomes a full kind.
+A kind whose config-schemas schema carries `x-vulnetix.validateOnly` (`LicenseExceptions`,
+`LicensePolicy`) is validated here, never sent to the config engine, and reported by `config plan`
+with a note (`platformiac.IsLocal`). The schema comes from config-schemas; nothing is embedded in
+the CLI. When vdb-site stores the kind the flag is cleared in a config-schemas release and the CLI
+sends it with no change.

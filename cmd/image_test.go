@@ -11,8 +11,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 
-	"github.com/vulnetix/cli/v3/internal/imagesrc"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/imagesrc"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 func TestRepoFromSourceLabel(t *testing.T) {

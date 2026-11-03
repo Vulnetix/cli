@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/regexlit"
+	"github.com/vulnetix/cli/v4/internal/regexlit"
 )
 
 // Matcher evaluates paths against a stack of .gitignore files

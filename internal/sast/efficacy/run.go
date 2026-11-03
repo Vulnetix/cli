@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // Rules is a rule directory read from disk: the shared library modules every

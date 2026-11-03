@@ -20,8 +20,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/reachability"
-	"github.com/vulnetix/cli/v3/internal/treesitter"
+	"github.com/vulnetix/cli/v4/internal/reachability"
+	"github.com/vulnetix/cli/v4/internal/treesitter"
 )
 
 // symbolQueries extract definitions and imports. Different grammars, different node names,

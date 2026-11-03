@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/memory"
 )
 
 // VerifyLocationGone returns true when the finding evidence at loc is no

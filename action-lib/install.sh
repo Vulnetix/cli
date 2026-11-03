@@ -2,7 +2,7 @@
 # Installs the Vulnetix CLI for the composite actions in this repository.
 #
 # Inputs arrive as environment variables, never as ${{ }} expressions:
-#   VX_VERSION      release tag (v3.158.0), major channel (v3) or latest
+#   VX_VERSION      release tag (v4.0.0), major channel (v4) or latest
 #   VX_BINARY_PATH  an already-built binary to use instead of a download
 #
 # The binary is a release download, not a build from source: building needs

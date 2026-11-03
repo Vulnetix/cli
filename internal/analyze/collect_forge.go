@@ -29,7 +29,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/analyze/forge"
+	"github.com/vulnetix/cli/v4/internal/analyze/forge"
 )
 
 // maxCommitReviewChecks bounds the compliance pass. Each commit costs at least one API call

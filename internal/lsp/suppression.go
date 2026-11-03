@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
-	"github.com/vulnetix/cli/v3/internal/memory"
-	"github.com/vulnetix/cli/v3/internal/suppress"
+	"github.com/vulnetix/cli/v4/internal/lsp/protocol"
+	"github.com/vulnetix/cli/v4/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/suppress"
 )
 
 // vulnetixDirName is the per-repository state directory holding memory.yaml.

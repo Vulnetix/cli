@@ -32,8 +32,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sast"
-	"github.com/vulnetix/cli/v3/internal/sast/efficacy"
+	"github.com/vulnetix/cli/v4/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/sast/efficacy"
 )
 
 func main() {

@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/scanopts"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/scanopts"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // ─────────────────────────────────────────────────────────────────────────

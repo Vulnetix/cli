@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/feed"
-	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v4/internal/sensor/feed"
+	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
 )
 
 func TestFeedSourcesReadsEveryReferenceForm(t *testing.T) {

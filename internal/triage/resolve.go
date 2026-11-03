@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/memory"
 )
 
 // AccountActor names the Vulnetix account the CLI is signed in as, or ""

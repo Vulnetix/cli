@@ -7,11 +7,11 @@ How releases are built and published. Installing a release is documented at **[d
 | Method | Automation | Installation |
 |--------|-----------|-------------|
 | GitHub Releases | Automated on tags | Direct binary download |
-| Go Install | Automated | `go install github.com/vulnetix/cli/v3@latest` |
+| Go Install | Automated | `go install github.com/vulnetix/cli/v4@latest` |
 | Homebrew Tap | Automated on release | `brew install vulnetix/tap/vulnetix` |
 | Scoop Bucket | Automated on release | `scoop install vulnetix` |
 | Nix Flake | Automated on release | `nix profile install github:Vulnetix/cli` |
-| GitHub Actions | In-repo | `uses: Vulnetix/cli@v3` (the major tag moves to each newest release of that major; the action installs the newest release of the same major by default) |
+| GitHub Actions | In-repo | `uses: Vulnetix/cli@v4` (the major tag moves to each newest release of that major; the action installs the newest release of the same major by default) |
 
 See [Install](https://docs.vulnetix.com/cli/get-started/install/) for every channel's install steps.
 

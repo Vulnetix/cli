@@ -12,11 +12,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vulnetix/cli/v3/internal/display"
-	aifw "github.com/vulnetix/cli/v3/pkg/aifirewall"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/kiroauth"
-	"github.com/vulnetix/cli/v3/pkg/tty"
+	"github.com/vulnetix/cli/v4/internal/display"
+	aifw "github.com/vulnetix/cli/v4/pkg/aifirewall"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/kiroauth"
+	"github.com/vulnetix/cli/v4/pkg/tty"
 )
 
 // --- kiro ---

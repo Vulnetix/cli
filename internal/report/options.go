@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/scaview"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/scaview"
 )
 
 // Views are the names `--view` accepts. "table" is the legacy eighteen-column

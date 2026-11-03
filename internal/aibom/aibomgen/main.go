@@ -23,7 +23,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/aibom"
+	"github.com/vulnetix/cli/v4/internal/aibom"
 )
 
 func main() {

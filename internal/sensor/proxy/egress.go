@@ -8,8 +8,8 @@ import (
 	"net/http/httptrace"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/siem"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/siem"
 )
 
 // Egress is a forward proxy for a workload's outbound calls: HTTP CONNECT for

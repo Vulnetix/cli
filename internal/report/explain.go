@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v4/internal/display"
 )
 
 // FindExplain returns the packages (and the advisory, when the query named one)

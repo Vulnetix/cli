@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 func aliasAdv(id string, v scan.Verdict, aliases ...string) Advisory {

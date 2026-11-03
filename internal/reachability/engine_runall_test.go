@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/treesitter"
+	"github.com/vulnetix/cli/v4/internal/treesitter"
 )
 
 func TestRunAllMatchesRunningEachQuery(t *testing.T) {

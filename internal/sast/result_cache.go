@@ -7,7 +7,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/vulnetix/cli/v3/internal/filecache"
+	"github.com/vulnetix/cli/v4/internal/filecache"
 )
 
 // Result cache: the findings of rules whose input has not changed since an

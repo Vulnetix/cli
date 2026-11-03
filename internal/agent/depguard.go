@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/fix"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/internal/scaview"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/fix"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scaview"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // Assessment is everything known about one package the agent is about to add.

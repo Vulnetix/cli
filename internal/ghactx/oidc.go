@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // OIDCAudience is the audience vdb-api checks on a GitHub Actions id token.

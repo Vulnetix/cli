@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/report"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/report"
 )
 
 func malscanReportFrom(res *malscanResult) report.MalscanReport {

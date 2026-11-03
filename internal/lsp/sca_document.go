@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/lsp/anchor"
-	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
-	"github.com/vulnetix/cli/v3/internal/lsp/rangefix"
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/lsp/anchor"
+	"github.com/vulnetix/cli/v4/internal/lsp/protocol"
+	"github.com/vulnetix/cli/v4/internal/lsp/rangefix"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 // maxRollupDepth bounds how far a transitive chain is followed when attributing

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // Regressions from the second efficacy sweep. Each of these was found by

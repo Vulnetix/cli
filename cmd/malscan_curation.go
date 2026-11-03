@@ -3,7 +3,7 @@ package cmd
 import (
 	"encoding/json"
 
-	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
 	"github.com/vulnetix/malscan-engine/curation"
 )
 

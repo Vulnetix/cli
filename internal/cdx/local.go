@@ -11,7 +11,7 @@ import (
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 // LocalScanResult holds the parsed packages and found vulnerabilities for one manifest file.

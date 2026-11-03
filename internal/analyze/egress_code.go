@@ -30,8 +30,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/reachability"
-	"github.com/vulnetix/cli/v3/internal/treesitter"
+	"github.com/vulnetix/cli/v4/internal/reachability"
+	"github.com/vulnetix/cli/v4/internal/treesitter"
 )
 
 // Evidence tiers, strongest first. Recorded on the node rather than used to drop

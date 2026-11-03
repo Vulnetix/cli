@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/versions"
+	"github.com/vulnetix/cli/v4/internal/versions"
 )
 
 // AffectedFetcher returns the structured affected-version data for one advisory

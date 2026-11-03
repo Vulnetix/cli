@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/cache"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/cache"
 )
 
 func TestMain(m *testing.M) {

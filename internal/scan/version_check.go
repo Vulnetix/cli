@@ -1,7 +1,7 @@
 package scan
 
 import (
-	"github.com/vulnetix/cli/v3/internal/versions"
+	"github.com/vulnetix/cli/v4/internal/versions"
 )
 
 // IsVersionAffected checks whether installedVersion falls within the affected

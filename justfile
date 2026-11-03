@@ -17,7 +17,7 @@ commit := `git rev-parse --short HEAD 2>/dev/null || echo "unknown"`
 build_date := `date -u +%Y-%m-%dT%H:%M:%SZ`
 output_dir := "bin"
 binary := "vulnetix"
-ldflags := "-s -w -X github.com/vulnetix/cli/v3/cmd.version=" + version + " -X github.com/vulnetix/cli/v3/cmd.commit=" + commit + " -X github.com/vulnetix/cli/v3/cmd.buildDate=" + build_date
+ldflags := "-s -w -X github.com/vulnetix/cli/v4/cmd.version=" + version + " -X github.com/vulnetix/cli/v4/cmd.commit=" + commit + " -X github.com/vulnetix/cli/v4/cmd.buildDate=" + build_date
 extra_root := env("VULNETIX_EXTRA_ROOT", "/home/chris/GitHub/Vulnetix-extra")
 sast_fixtures := env("VULNETIX_SAST_FIXTURES", extra_root + "/sast-rule-evals")
 sca_fixtures := env("VULNETIX_SCA_FIXTURES", extra_root + "/sca-manifest-fixtures")
@@ -37,7 +37,7 @@ build:
 dev:
     @echo "Building development version..."
     @mkdir -p {{output_dir}}
-    CGO_ENABLED=1 go build -ldflags "-X github.com/vulnetix/cli/v3/cmd.version={{version}}-dev -X github.com/vulnetix/cli/v3/cmd.commit={{commit}} -X github.com/vulnetix/cli/v3/cmd.buildDate={{build_date}}" -o {{output_dir}}/{{binary}} .
+    CGO_ENABLED=1 go build -ldflags "-X github.com/vulnetix/cli/v4/cmd.version={{version}}-dev -X github.com/vulnetix/cli/v4/cmd.commit={{commit}} -X github.com/vulnetix/cli/v4/cmd.buildDate={{build_date}}" -o {{output_dir}}/{{binary}} .
     @echo "Built {{output_dir}}/{{binary}} (dev)"
 
 # Install zig (the C cross-compiler used for cross-target CGO builds)
@@ -603,7 +603,7 @@ run: build
 #   5. Dispatches release.yml via workflow_dispatch
 #   6. release.yml builds binaries for all platforms, generates checksums,
 #      and publishes a GitHub Release with auto-generated release notes
-#   7. test-go-install job verifies `go install github.com/vulnetix/cli/v3@latest` works
+#   7. test-go-install job verifies `go install github.com/vulnetix/cli/v4@latest` works
 #
 # Manual release:
 #   just release v1.2.3          — tag locally and push (triggers release.yml)
@@ -883,7 +883,7 @@ tea-release VERSION="":
         --channel "name=Homebrew: brew install Vulnetix/tap/vulnetix,url=https://github.com/Vulnetix/homebrew-tap" \
         --channel "name=Scoop: scoop bucket add vulnetix https://github.com/Vulnetix/scoop-bucket,url=https://github.com/Vulnetix/scoop-bucket" \
         --channel "name=Nix flake: nix run github:Vulnetix/cli,url=https://github.com/Vulnetix/cli/blob/main/flake.nix" \
-        --channel "name=go install github.com/vulnetix/cli/v3@${VER},purl=pkg:golang/github.com/vulnetix/cli/v3@${VER}" \
+        --channel "name=go install github.com/vulnetix/cli/v4@${VER},purl=pkg:golang/github.com/vulnetix/cli/v4@${VER}" \
         --channel "name=Install script: curl -fsSL https://cli.vulnetix.com/install.sh | sh,url=https://cli.vulnetix.com/install.sh" \
         --visibility public
 

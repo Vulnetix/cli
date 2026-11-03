@@ -28,7 +28,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
 )
 
 // DefaultURL is Guardian's per-tenant events route.

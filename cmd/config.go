@@ -10,10 +10,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/vulnetix/cli/v3/internal/display"
-	autofix "github.com/vulnetix/cli/v3/internal/fix"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/display"
+	autofix "github.com/vulnetix/cli/v4/internal/fix"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 type packageFirewallRequestKind string
@@ -37,6 +37,17 @@ var configCmd = &cobra.Command{
 var configSetCmd = &cobra.Command{
 	Use:   "set",
 	Short: "Set Vulnetix configuration",
+	Long: `Change one setting at a time from the command line.
+
+The declarative path is documents in .vulnetix/config/ with 'vulnetix config
+plan', 'config apply' and 'config export'. Of these commands, quality-gate,
+eol-policy and the policy form of package-firewall are aliases of 'config
+apply': they use the config engine and fall back to the legacy endpoint, with a
+deprecation warning, when the engine refuses the credential.
+
+These stay imperative, because they change one thing at a time and have no
+document form: package-firewall mirrors, jail, and ai-firewall provider, model
+and guardrail.`,
 }
 
 // eolPolicySeverities is the validated lowercase severity enum for the
@@ -121,6 +132,20 @@ func runConfigSetPackageFirewall(cmd *cobra.Command, args []string) error {
 	built, err := buildPackageFirewallRequest(cmd, args)
 	if err != nil {
 		return err
+	}
+
+	// The policy form goes through the config engine, which a config
+	// management token alone can reach; the legacy endpoint needs the stored
+	// credential, so the engine is tried before the client is built.
+	if built.Kind == packageFirewallPolicyRequest {
+		handled, reason, err := packageFirewallPolicyViaEngine(cmd, built.Config)
+		if handled {
+			if err != nil {
+				return err
+			}
+			return renderPackageFirewallAfterEngine(cmd, built.Config)
+		}
+		fmt.Fprintf(cmd.ErrOrStderr(), "Deprecated: the legacy package-firewall endpoint will be removed; declare a PackageFirewallPolicy document in .vulnetix/config/ and run 'vulnetix config apply'.\nUsing the legacy endpoint: %s.\n", reason)
 	}
 
 	client, err := newPackageFirewallConfigClient(cmd)
@@ -909,6 +934,11 @@ func isBoolLiteral(s string) bool {
 var configGetCmd = &cobra.Command{
 	Use:   "get",
 	Short: "Show Vulnetix configuration",
+	Long: `Show one setting as the console renders it. These are read commands and
+stay as they are.
+
+To read configuration as code, use 'vulnetix config export' (YAML, HCL or a
+script); 'vulnetix config plan' compares a repository with the live state.`,
 }
 
 func init() {

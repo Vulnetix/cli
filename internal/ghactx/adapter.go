@@ -3,7 +3,7 @@ package ghactx
 import (
 	"context"
 
-	"github.com/vulnetix/cli/v3/internal/github"
+	"github.com/vulnetix/cli/v4/internal/github"
 )
 
 // CollectorLookup adapts *github.ArtifactCollector to RESTLookup. It lives here

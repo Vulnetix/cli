@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/Vulnetix/vdb-sca-match/ghaudit"
-	"github.com/vulnetix/cli/v3/internal/ghtasks"
+	"github.com/vulnetix/cli/v4/internal/ghtasks"
 )
 
 const ghaTestWorkflow = "on: pull_request_target\npermissions: {}\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n" +

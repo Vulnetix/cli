@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/defences"
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/defences"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files")

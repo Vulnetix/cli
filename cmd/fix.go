@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/display"
-	autofix "github.com/vulnetix/cli/v3/internal/fix"
+	"github.com/vulnetix/cli/v4/internal/display"
+	autofix "github.com/vulnetix/cli/v4/internal/fix"
 )
 
 // fixCmd owns remediation. Autofix used to be reachable only as

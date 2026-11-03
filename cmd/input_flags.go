@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"github.com/spf13/pflag"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // inputFlags holds one command's input-kind flags.

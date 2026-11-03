@@ -24,7 +24,7 @@ import (
 	"github.com/vulnetix/malscan-engine/ioc"
 	"github.com/vulnetix/malscan-engine/iocscan"
 
-	"github.com/vulnetix/cli/v3/internal/ecosystems"
+	"github.com/vulnetix/cli/v4/internal/ecosystems"
 )
 
 // manifestSpec describes how to find and read one ecosystem's package manifests.

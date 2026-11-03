@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // TestScaBatchTimeout covers the env override + clamp for the per-request

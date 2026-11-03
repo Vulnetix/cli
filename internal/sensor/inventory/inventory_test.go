@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/binpkg"
+	"github.com/vulnetix/cli/v4/internal/binpkg"
 )
 
 func proc(t *testing.T, root string, pid, exe, maps string) {

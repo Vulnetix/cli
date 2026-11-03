@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/agent"
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/feed"
-	"github.com/vulnetix/cli/v3/internal/sensor/host"
-	"github.com/vulnetix/cli/v3/internal/sensor/lambdaext"
-	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
-	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
-	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v4/internal/sensor/agent"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/feed"
+	"github.com/vulnetix/cli/v4/internal/sensor/host"
+	"github.com/vulnetix/cli/v4/internal/sensor/lambdaext"
+	"github.com/vulnetix/cli/v4/internal/sensor/proxy"
+	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
 // lambdaExtensionCmd runs the sensor as a Lambda external extension. It is

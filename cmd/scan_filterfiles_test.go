@@ -3,7 +3,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 // A committed CycloneDX/SPDX SBOM (ManifestInfo == nil) is SCA content. It must

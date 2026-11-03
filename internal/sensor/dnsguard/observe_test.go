@@ -6,9 +6,9 @@ import (
 
 	"golang.org/x/net/dns/dnsmessage"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/engine"
-	"github.com/vulnetix/cli/v3/internal/sensor/siem"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/engine"
+	"github.com/vulnetix/cli/v4/internal/sensor/siem"
 )
 
 type observed struct {

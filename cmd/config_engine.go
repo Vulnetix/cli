@@ -15,8 +15,8 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/internal/platformiac"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/platformiac"
 )
 
 // Config-as-code against the server: plan, apply and export. Documents are
@@ -82,10 +82,12 @@ type configInput struct {
 // loadConfigInput reads and validates the documents named by -f, and with
 // resolve reads the secrets their valueFrom references name.
 func loadConfigInput(cmd *cobra.Command, files []string, resolve bool) (*configInput, error) {
-	// The well-known files (.vulnetix/ai-firewall.yaml and the licence files)
-	// are validated by config validate but not yet planned: sending them to
-	// the engine is the v4 change. Name one with -f to plan it now.
-	docs, _, err := discoverConfigDocuments(cmd, files, false)
+	// With no -f the well-known files are part of the input, as they are for
+	// config validate: .vulnetix/ai-firewall.yaml (AiFirewallPolicy, sent) and
+	// .vulnetix/license-policy.yaml and license-exceptions.yaml (validated here
+	// and not sent, since config-schemas marks them validateOnly). A kind
+	// defined both there and under .vulnetix/config is a duplicate and refused.
+	docs, _, err := discoverConfigDocuments(cmd, files, true)
 	if err != nil {
 		return nil, err
 	}

@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/provision"
+	"github.com/vulnetix/cli/v4/internal/sensor/provision"
 )
 
 func parseSensorFlags(t *testing.T, args ...string) (*flag.FlagSet, *options) {

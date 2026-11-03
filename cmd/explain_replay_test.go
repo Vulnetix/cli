@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/vulnetix/cli/v3/internal/scanopts"
+	"github.com/vulnetix/cli/v4/internal/scanopts"
 )
 
 // replayedForExplain lists the flags a suggested command repeats, with why. A

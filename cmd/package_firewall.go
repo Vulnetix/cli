@@ -10,11 +10,11 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/managedfile"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	pfw "github.com/vulnetix/cli/v3/pkg/packagefirewall"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/managedfile"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	pfw "github.com/vulnetix/cli/v4/pkg/packagefirewall"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 const (

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/fix"
+	"github.com/vulnetix/cli/v4/internal/fix"
 )
 
 // Settings is the validated view of the editor's `vulnetix.*` configuration.

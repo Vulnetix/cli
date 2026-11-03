@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
 )
 
 var at = time.Date(2026, 10, 30, 9, 15, 0, 0, time.FixedZone("AEST", 10*3600))

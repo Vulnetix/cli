@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/feed"
+	"github.com/vulnetix/cli/v4/internal/sensor/feed"
 )
 
 func sigma(uuid, mode, body string) feed.Rule {

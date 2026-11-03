@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/platformiac"
-	aifw "github.com/vulnetix/cli/v3/pkg/aifirewall"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/platformiac"
+	aifw "github.com/vulnetix/cli/v4/pkg/aifirewall"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // --- baseline ---
@@ -174,6 +174,11 @@ Run with --dry-run first: it prints the plan and changes nothing.`,
 func runAiFirewallApply(cmd *cobra.Command, args []string) error {
 	if err := initAiFirewallOutput(cmd); err != nil {
 		return err
+	}
+	if handled, reason, err := aiFirewallApplyViaEngine(cmd); handled {
+		return err
+	} else {
+		aiFirewallLegacy(cmd, "apply", reason)
 	}
 	ctx := display.FromCommand(cmd)
 
@@ -458,6 +463,11 @@ Provider keys are never written: the server does not return them.`,
 func runAiFirewallExport(cmd *cobra.Command, args []string) error {
 	if err := initAiFirewallOutput(cmd); err != nil {
 		return err
+	}
+	if handled, reason, err := aiFirewallExportViaEngine(cmd); handled {
+		return err
+	} else {
+		aiFirewallLegacy(cmd, "export", reason)
 	}
 	ctx := display.FromCommand(cmd)
 

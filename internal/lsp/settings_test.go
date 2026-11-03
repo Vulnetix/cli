@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/fix"
+	"github.com/vulnetix/cli/v4/internal/fix"
 )
 
 // The settings file is user-editable, so every value here is something someone

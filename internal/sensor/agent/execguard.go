@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/execguard"
-	"github.com/vulnetix/cli/v3/internal/sensor/execwatch"
+	"github.com/vulnetix/cli/v4/internal/sensor/execguard"
+	"github.com/vulnetix/cli/v4/internal/sensor/execwatch"
 )
 
 // errRefused is the answer the guard turns into EPERM.

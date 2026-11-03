@@ -21,7 +21,7 @@ func writeEgressFixture(t *testing.T) string {
 		".env.example":                  "WEBHOOK_URL=https://hooks.acme-chat.app/services/x\n",
 		"internal/client.go": `package internal
 
-import "github.com/vulnetix/cli/v3/internal/scan"
+import "github.com/vulnetix/cli/v4/internal/scan"
 
 // See https://www.w3.org/TR/xml/ and https://en.wikipedia.org/wiki/HTTP for background.
 const endpoint = "https://api.acme-payments.com/v1/charge"

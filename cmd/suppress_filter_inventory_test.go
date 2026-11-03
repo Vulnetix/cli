@@ -5,7 +5,7 @@ import (
 	"time"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/internal/suppress"
+	"github.com/vulnetix/cli/v4/internal/suppress"
 )
 
 func inventorySet(rules ...suppress.Rule) *suppress.Set {

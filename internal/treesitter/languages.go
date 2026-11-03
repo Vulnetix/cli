@@ -28,7 +28,7 @@ import (
 	"github.com/smacker/go-tree-sitter/swift"
 	"github.com/smacker/go-tree-sitter/typescript/tsx"
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
-	lua "github.com/vulnetix/cli/v3/third_party/treesitter-lua"
+	lua "github.com/vulnetix/cli/v4/third_party/treesitter-lua"
 )
 
 // LanguageID is the canonical identifier emitted by vdb-manager in the

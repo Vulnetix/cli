@@ -21,9 +21,9 @@ import (
 	"strings"
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
-	"github.com/vulnetix/cli/v3/internal/display"
-	"github.com/vulnetix/cli/v3/internal/upload"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/internal/upload"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // uploadPublishable reports whether a detected format has a typed endpoint.

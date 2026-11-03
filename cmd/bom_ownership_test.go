@@ -53,7 +53,7 @@ var bomFamilyFiles = map[string]bool{
 // the loader directly, is the beginning of a second parser — and the second
 // parser is always the one that forgets the envelope unwrapping.
 func TestBOMParsingHasOneOwner(t *testing.T) {
-	const bomPkg = `"github.com/vulnetix/cli/v3/internal/bom"`
+	const bomPkg = `"github.com/vulnetix/cli/v4/internal/bom"`
 
 	files, err := filepath.Glob("*.go")
 	if err != nil {

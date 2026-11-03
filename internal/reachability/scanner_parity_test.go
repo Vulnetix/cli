@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // TestScanRoot_ConcurrencyParity proves the parallel file scan produces the

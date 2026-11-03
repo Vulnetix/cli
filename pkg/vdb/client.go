@@ -17,9 +17,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/cache"
-	"github.com/vulnetix/cli/v3/pkg/tty"
+	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/cache"
+	"github.com/vulnetix/cli/v4/pkg/tty"
 )
 
 // Verbose controls whether transient retry/backoff progress messages

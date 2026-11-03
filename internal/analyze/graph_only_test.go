@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vulnetix/cli/v3/internal/reachability"
+	"github.com/vulnetix/cli/v4/internal/reachability"
 )
 
 func TestRunGraphOnlyCollectsScannerGraphSurfaces(t *testing.T) {

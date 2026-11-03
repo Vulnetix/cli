@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/defences"
-	"github.com/vulnetix/cli/v3/internal/report"
-	"github.com/vulnetix/cli/v3/internal/scanopts"
+	"github.com/vulnetix/cli/v4/internal/defences"
+	"github.com/vulnetix/cli/v4/internal/report"
+	"github.com/vulnetix/cli/v4/internal/scanopts"
 )
 
 var defendNow = time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC)

@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	cdx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/internal/regexlit"
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/regexlit"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // detectSource scans source files for cryptographic API usage. Two mechanisms:

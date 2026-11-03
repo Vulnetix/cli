@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/secretscan"
+	"github.com/vulnetix/cli/v4/internal/secretscan"
 )
 
 // File scoping. A rule is a claim about the source it understands, and many of

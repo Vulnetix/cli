@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/proxy"
-	"github.com/vulnetix/cli/v3/internal/sensor/siem"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/proxy"
+	"github.com/vulnetix/cli/v4/internal/sensor/siem"
 )
 
 func TestNewWiresTheEgressProxyToTheSIEM(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/vulnetix/cli/v3/internal/tui"
+	"github.com/vulnetix/cli/v4/internal/tui"
 )
 
 // structToMap converts any JSON-serialisable value to a map[string]any via a

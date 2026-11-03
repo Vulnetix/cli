@@ -3,7 +3,7 @@ package vex
 import (
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/cdx"
 )
 
 // testBOM is a small document whose entries the fixture statements reach.

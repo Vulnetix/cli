@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
 type recorder struct {

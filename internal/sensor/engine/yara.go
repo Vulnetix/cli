@@ -10,7 +10,7 @@ import (
 
 	binregexp "rsc.io/binaryregexp"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
 )
 
 // YARA rules over files, in pure Go.

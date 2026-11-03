@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/feed"
+	"github.com/vulnetix/cli/v4/internal/sensor/feed"
 )
 
 func yaraRuleEntry(uuid, body string) feed.Rule {

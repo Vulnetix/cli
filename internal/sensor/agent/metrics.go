@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
-	"github.com/vulnetix/cli/v3/internal/sysinv"
+	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v4/internal/sysinv"
 )
 
 // passes records how each periodic piece of work last went, for the metrics

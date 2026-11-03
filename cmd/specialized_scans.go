@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v4/internal/display"
 )
 
 // pullCliRules was the pre-scan rule-pack pre-fetch path. After Phase-2 the

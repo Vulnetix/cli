@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // BuildSARIF returns the report's SCA findings as a single-run SARIF log with

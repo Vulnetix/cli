@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/host"
-	"github.com/vulnetix/cli/v3/internal/sensor/provision"
-	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
-	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v4/internal/sensor/host"
+	"github.com/vulnetix/cli/v4/internal/sensor/provision"
+	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
 // systemctl runs systemctl; replaced in tests.

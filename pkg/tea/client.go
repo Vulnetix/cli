@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/auth"
 )
 
 // DefaultServer is Vulnetix's own TEA root, at the current specification. It is

@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/internal/buildinfo"
-	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/buildinfo"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
 )
 
 // ── The two judgement calls this CLI owns ────────────────────────────────────

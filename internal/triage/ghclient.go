@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/github"
+	"github.com/vulnetix/cli/v4/internal/github"
 )
 
 // GitHubClient is a native Go HTTP client for the GitHub REST API.

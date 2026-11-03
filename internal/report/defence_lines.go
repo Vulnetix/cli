@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/defences"
+	"github.com/vulnetix/cli/v4/internal/defences"
 )
 
 // renderDefenceLines is the no-fix block: which of the situations holds, and the

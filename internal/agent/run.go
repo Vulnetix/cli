@@ -9,7 +9,7 @@ import (
 
 	"github.com/Vulnetix/vdb-sca-match/parse"
 
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 // Runner answers one hook invocation.

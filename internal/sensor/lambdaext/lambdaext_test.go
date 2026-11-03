@@ -9,10 +9,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/engine"
-	"github.com/vulnetix/cli/v3/internal/sensor/feed"
-	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/engine"
+	"github.com/vulnetix/cli/v4/internal/sensor/feed"
+	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
 )
 
 // fakeRuntime serves queued invocations and records responses.

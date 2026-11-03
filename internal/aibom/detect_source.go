@@ -5,8 +5,8 @@ import (
 	"slices"
 
 	cdx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/internal/regexlit"
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/regexlit"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // detectSource scans file contents for AI-SDK usage and extracts the model-name

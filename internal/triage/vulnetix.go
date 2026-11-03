@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/memory"
-	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/internal/versions"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/internal/versions"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 func init() {

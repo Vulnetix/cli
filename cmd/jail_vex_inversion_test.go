@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/triage"
+	"github.com/vulnetix/cli/v4/internal/triage"
 )
 
 // TestOpenVEXDoesNotInvertAffected feeds triage.GenerateOpenVEX the shape a

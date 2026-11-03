@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/campaigns"
-	"github.com/vulnetix/cli/v3/internal/github"
+	"github.com/vulnetix/cli/v4/internal/campaigns"
+	"github.com/vulnetix/cli/v4/internal/github"
 )
 
 const (

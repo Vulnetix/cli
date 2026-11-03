@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: Vulnetix/cli@v3
+      - uses: Vulnetix/cli@v4
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -60,7 +60,7 @@ See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/github-actions/
 ## One action per command
 
 Each CLI command also has its own composite action in a subdirectory of this repository, used as
-`Vulnetix/cli/<name>@v3`: `setup`, `sca`, `sast`, `secrets`, `iac`, `containers`, `license`,
+`Vulnetix/cli/<name>@v4`: `setup`, `sca`, `sast`, `secrets`, `iac`, `containers`, `license`,
 `malscan`, `analyze`, `cbom`, `aibom`, `sbom`, `upload`, `gha-upload`, `tea-release`,
 `config-plan`, `config-apply`, `attest`, `jail`, `vex` and `github-publish`. Their inputs,
 outputs, permissions and examples are in [`github-actions/`](github-actions/README.md).

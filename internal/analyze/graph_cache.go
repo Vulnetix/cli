@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/vulnetix/cli/v3/internal/filecache"
+	"github.com/vulnetix/cli/v4/internal/filecache"
 )
 
 const graphCacheVersion = 1

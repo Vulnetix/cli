@@ -3,7 +3,7 @@ package cbom
 import (
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 // Normalize folds a cryptographic-algorithm token to a canonical comparison key:

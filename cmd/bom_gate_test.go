@@ -3,7 +3,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/bom"
+	"github.com/vulnetix/cli/v4/internal/bom"
 )
 
 func TestParseBOMFailOn(t *testing.T) {

@@ -16,9 +16,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/artifacts"
-	"github.com/vulnetix/cli/v3/internal/github"
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/artifacts"
+	"github.com/vulnetix/cli/v4/internal/github"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 func TestParseGitHubPublish(t *testing.T) {

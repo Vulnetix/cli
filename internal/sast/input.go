@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/ignore"
-	"github.com/vulnetix/cli/v3/internal/secretscan"
+	"github.com/vulnetix/cli/v4/internal/ignore"
+	"github.com/vulnetix/cli/v4/internal/secretscan"
 )
 
 // ScanInput is serialized to JSON and passed as the OPA input document.

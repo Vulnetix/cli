@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/treesitter"
+	"github.com/vulnetix/cli/v4/internal/treesitter"
 )
 
 // A parse halted by cancellation leaves the parser holding its half-built

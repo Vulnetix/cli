@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/ecosystems"
+	"github.com/vulnetix/cli/v4/internal/ecosystems"
 )
 
 // fixtureRoot builds a malware test tree in a temp dir. It is created at runtime

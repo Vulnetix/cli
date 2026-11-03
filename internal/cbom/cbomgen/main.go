@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/cbom"
+	"github.com/vulnetix/cli/v4/internal/cbom"
 )
 
 func main() {

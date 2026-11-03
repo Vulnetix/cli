@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/license"
+	"github.com/vulnetix/cli/v4/internal/license"
 )
 
 func TestLookupStoredLicensesUsesPersistenceKeys(t *testing.T) {

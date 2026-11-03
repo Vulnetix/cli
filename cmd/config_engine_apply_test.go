@@ -1,6 +1,10 @@
 package cmd
 
 import (
+	"bytes"
+	configschemas "github.com/vulnetix/config-schemas"
+	"gopkg.in/yaml.v3"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -62,5 +66,39 @@ func TestConfigPlanForbiddenNamesOwnerOnlyKinds(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Organization can only be planned and applied with an owner token") {
 		t.Fatalf("no owner hint: %v", err)
+	}
+}
+
+// With no -f, plan reads .vulnetix/config and the well-known files.
+func TestConfigPlanIncludesWellKnownFiles(t *testing.T) {
+	f := newFakeEngine(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeConfigFile(t, filepath.Join(dir, ".vulnetix", "config"), "gate.yaml", validGate)
+	writeConfigFile(t, filepath.Join(dir, ".vulnetix"), "ai-firewall.yaml", "apiVersion: vulnetix.com/v1\nkind: AiFirewallPolicy\nspec: {}\n")
+	lp, err := configschemas.Example("LicensePolicy", configschemas.Examples("LicensePolicy")[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	lpDocs, err := configschemas.Decode(bytes.NewReader(lp))
+	if err != nil || len(lpDocs) == 0 {
+		t.Fatal(err)
+	}
+	lpYAML, _ := yaml.Marshal(lpDocs[0].Value)
+	writeConfigFile(t, filepath.Join(dir, ".vulnetix"), "license-policy.yaml", string(lpYAML))
+	_, errOut, err := runCmd(t, newConfigPlanCommand(), "", "--manager", "gitops:acme/platform", "--token", "t")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, errOut)
+	}
+	var kinds []string
+	for _, d := range f.lastBody("/config/plan")["documents"].([]any) {
+		kinds = append(kinds, d.(map[string]any)["kind"].(string))
+	}
+	got := strings.Join(kinds, ",")
+	if !strings.Contains(got, "QualityGate") || !strings.Contains(got, "AiFirewallPolicy") {
+		t.Fatalf("sent %s", got)
+	}
+	if strings.Contains(got, "LicensePolicy") || !strings.Contains(errOut, "LicensePolicy") {
+		t.Fatalf("LicensePolicy is validated here, not sent: sent %s\n%s", got, errOut)
 	}
 }

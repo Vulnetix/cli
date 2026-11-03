@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v4/internal/cdx"
 )
 
 // tree.go turns the flat CycloneDX dependency array into a walkable tree.

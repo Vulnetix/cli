@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
 )
 
 func TestResolveManufacturerCascade(t *testing.T) {

@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/regexlit"
+	"github.com/vulnetix/cli/v4/internal/regexlit"
 
 	cdx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
 func itoa(i int) string { return strconv.Itoa(i) }

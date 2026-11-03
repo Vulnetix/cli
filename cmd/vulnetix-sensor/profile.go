@@ -10,10 +10,10 @@ import (
 	"slices"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/sensor/agent"
-	"github.com/vulnetix/cli/v3/internal/sensor/decide"
-	"github.com/vulnetix/cli/v3/internal/sensor/provision"
-	"github.com/vulnetix/cli/v3/internal/sensor/uplink"
+	"github.com/vulnetix/cli/v4/internal/sensor/agent"
+	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/internal/sensor/provision"
+	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
 )
 
 // snapshotPaths is where a config snapshot can be: the one enroll writes,

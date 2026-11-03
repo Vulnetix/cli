@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // Provider identifies the CI system in the collected context.

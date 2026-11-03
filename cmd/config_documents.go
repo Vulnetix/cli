@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/internal/platformiac"
+	"github.com/vulnetix/cli/v4/internal/platformiac"
 	configschemas "github.com/vulnetix/config-schemas"
 )
 

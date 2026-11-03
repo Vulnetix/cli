@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/ecosystems"
-	"github.com/vulnetix/cli/v3/internal/ignore"
+	"github.com/vulnetix/cli/v4/internal/ecosystems"
+	"github.com/vulnetix/cli/v4/internal/ignore"
 )
 
 // WalkOptions configures the filesystem walk behavior.

@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/gitctx"
-	"github.com/vulnetix/cli/v3/internal/suppress"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/suppress"
+	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
 // VEX documents the CLI read or wrote are sent to /v2/cli.vex-ingest, where the

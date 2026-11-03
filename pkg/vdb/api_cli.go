@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
-	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/gitctx"
 )
 
 // ─── Envelope types (mirror vdb-api/internal/handler/v2_cli_common.go) ────

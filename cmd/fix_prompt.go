@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/term"
 
-	autofix "github.com/vulnetix/cli/v3/internal/fix"
+	autofix "github.com/vulnetix/cli/v4/internal/fix"
 )
 
 func chooseAutofixManifest(plans []autofix.FixCandidate, manifest string, yes, pathExplicit bool) (string, error) {
