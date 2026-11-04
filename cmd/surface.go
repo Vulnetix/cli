@@ -84,25 +84,18 @@ func runSurfaceLiveness(cmd *cobra.Command, _ []string) error {
 			continue
 		}
 		start := time.Now()
-		o := vdb.CliSurfaceObservation{
-			Host: t.Host, Method: method, PathTemplate: t.PathTemplate,
-			ObservedBy: "cli_liveness", At: time.Now().UnixMilli(),
-		}
 		req, reqErr := http.NewRequestWithContext(ctx, method, url, nil)
 		if reqErr != nil {
 			continue
 		}
 		req.Header.Set("User-Agent", "Vulnetix-CLI-Liveness/1")
 		resp, doErr := probe.Do(req)
-		o.LatencyMs = int(time.Since(start).Milliseconds())
-		if doErr != nil {
-			o.Status = 0 // unreachable
-		} else {
-			o.Status = resp.StatusCode
-			o.AuthChallenge = resp.Header.Get("WWW-Authenticate")
+		status, challenge := 0, "" // 0: the dial failed
+		if doErr == nil {
+			status, challenge = resp.StatusCode, resp.Header.Get("WWW-Authenticate")
 			resp.Body.Close()
 		}
-		obs = append(obs, o)
+		obs = append(obs, livenessObservation(t, method, status, challenge, int(time.Since(start).Milliseconds()), time.Now().UnixMilli()))
 	}
 
 	if len(obs) == 0 {
@@ -119,6 +112,16 @@ func runSurfaceLiveness(cmd *cobra.Command, _ []string) error {
 // livenessRequest builds the concrete URL and safe method for a target. A route
 // or operation path with a {param} is filled with a neutral placeholder; a
 // method that is not idempotent is checked with OPTIONS, never sent for real.
+// livenessObservation is what one check reports. Method is the element's (a POST
+// route), ProbeMethod what was sent (OPTIONS), so the server never takes an OPTIONS
+// answer as the route's own. Status 0 is sent as 0: a failed dial, not "no status".
+func livenessObservation(t vdb.CliSurfaceTarget, probeMethod string, status int, challenge string, latencyMs int, at int64) vdb.CliSurfaceObservation {
+	return vdb.CliSurfaceObservation{
+		Host: t.Host, Method: strings.ToUpper(strings.TrimSpace(t.Method)), ProbeMethod: probeMethod, PathTemplate: t.PathTemplate,
+		ObservedBy: "cli_liveness", Status: &status, AuthChallenge: challenge, LatencyMs: latencyMs, At: at,
+	}
+}
+
 func livenessRequest(scheme string, t vdb.CliSurfaceTarget) (url, method string, ok bool) {
 	path := "/"
 	if t.PathTemplate != "" {

@@ -2221,13 +2221,16 @@ type CliSurfaceTargetsResponse struct {
 
 // CliSurfaceObservation is one live sighting the liveness check reports.
 type CliSurfaceObservation struct {
-	Host          string `json:"host"`
-	Port          int    `json:"port,omitempty"`
-	Method        string `json:"method,omitempty"`
-	Path          string `json:"path,omitempty"`
-	PathTemplate  string `json:"pathTemplate,omitempty"`
-	ObservedBy    string `json:"observedBy"`
-	Status        int    `json:"status,omitempty"`
+	Host string `json:"host"`
+	Port int    `json:"port,omitempty"`
+	// Method is the element's; ProbeMethod is what the check sent (OPTIONS for a POST route).
+	Method       string `json:"method,omitempty"`
+	ProbeMethod  string `json:"probeMethod,omitempty"`
+	Path         string `json:"path,omitempty"`
+	PathTemplate string `json:"pathTemplate,omitempty"`
+	ObservedBy   string `json:"observedBy"`
+	// Status is a pointer so a failed dial (0) is sent as 0 and never dropped as empty.
+	Status        *int   `json:"status,omitempty"`
 	AuthChallenge string `json:"authChallenge,omitempty"`
 	LatencyMs     int    `json:"latencyMs,omitempty"`
 	At            int64  `json:"at,omitempty"`
