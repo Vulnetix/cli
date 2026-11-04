@@ -207,33 +207,88 @@ var serverSignals = map[string][]string{
 	"ruby":       {"Rails.application.routes", "Sinatra::Base"},
 }
 
-var (
-	lineComment  = regexp.MustCompile(`(?m)//.*$`)
-	hashComment  = regexp.MustCompile(`(?m)#.*$`)
-	blockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
-)
-
 // stripComments removes comments so that an example in a doc comment is not mistaken for a
 // route somebody serves.
 //
-// This is a lexical approximation, not a parser: a `//` inside a string literal (a URL, say)
-// will take the rest of that line with it. That trade is deliberate. Losing a route because
-// its line contained a URL is a missing edge; publishing every framework example in every
-// doc comment is a graph full of endpoints nobody serves. Of the two, the false positive is
-// the one that makes the org graph useless.
+// It is a small lexer, not a parser: it knows string literals ("…", '…', `…`, and
+// Python's triple quotes), so a `//`, `#` or `/*` inside a string ("http://…", a
+// "#fragment") is kept, where a line-based regex took the rest of the line and the route
+// with it. Every newline is kept, comments' included, so a line number computed on the
+// stripped text is the line number in the file. A regular-expression literal in
+// JavaScript holding `//` is still read as a comment; that loses at most that line.
 func stripComments(src, language string) string {
+	hash := false
 	switch language {
 	case "python", "ruby", "bash", "yaml":
-		return hashComment.ReplaceAllString(src, "")
-	default:
-		// A block comment keeps its newlines, so a line number computed on the stripped
-		// text is the line number in the file.
-		src = blockComment.ReplaceAllStringFunc(src, func(c string) string {
-			return strings.Repeat("\n", strings.Count(c, "\n"))
-		})
-
-		return lineComment.ReplaceAllString(src, "")
+		hash = true
 	}
+	triple := language == "python"
+
+	var b strings.Builder
+	b.Grow(len(src))
+	n := len(src)
+	for i := 0; i < n; {
+		c := src[i]
+		switch {
+		case hash && c == '#':
+			for i < n && src[i] != '\n' {
+				i++
+			}
+		case !hash && c == '/' && i+1 < n && src[i+1] == '/':
+			for i < n && src[i] != '\n' {
+				i++
+			}
+		case !hash && c == '/' && i+1 < n && src[i+1] == '*':
+			end := strings.Index(src[i+2:], "*/")
+			stop := n
+			if end >= 0 {
+				stop = i + 2 + end + 2
+			}
+			b.WriteString(strings.Repeat("\n", strings.Count(src[i:stop], "\n")))
+			i = stop
+		case c == '"' || c == '\'' || (c == '`' && !hash):
+			j := stringEnd(src, i, triple)
+			b.WriteString(src[i:j])
+			i = j
+		default:
+			b.WriteByte(c)
+			i++
+		}
+	}
+
+	return b.String()
+}
+
+// stringEnd is the index just past the string literal that starts at i. A backslash
+// escapes the next byte except in a backtick string; an unterminated "…" or '…' ends at
+// the line's end (a stray apostrophe in prose must not swallow the file), a backtick or
+// triple-quoted string at the file's end.
+func stringEnd(src string, i int, triple bool) int {
+	n := len(src)
+	q := src[i]
+	if triple && i+2 < n && src[i+1] == q && src[i+2] == q {
+		if end := strings.Index(src[i+3:], strings.Repeat(string(q), 3)); end >= 0 {
+			return i + 3 + end + 3
+		}
+
+		return n
+	}
+	for j := i + 1; j < n; j++ {
+		switch src[j] {
+		case '\\':
+			if q != '`' {
+				j++
+			}
+		case q:
+			return j + 1
+		case '\n':
+			if q != '`' {
+				return j
+			}
+		}
+	}
+
+	return n
 }
 
 // isTestPath reports whether a file is test code, in any of the conventions people actually

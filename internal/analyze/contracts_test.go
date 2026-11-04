@@ -3,6 +3,7 @@ package analyze
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -177,6 +178,45 @@ func TestStripComments(t *testing.T) {
 	py := `# @app.get("/v1/users")
 	x = 1`
 	require.NotContains(t, stripComments(py, "python"), "/v1/users")
+}
+
+// A comment marker inside a string is part of the string. The regexes this replaced took
+// the rest of the line from a "//" in a URL or a "#" in a path, and the route with it.
+func TestStripCommentsKeepsStrings(t *testing.T) {
+	goSrc := "r.Get(\"/v1/proxy\", proxyTo(\"http://upstream/x\")) // the upstream\n" +
+		"r.Get(`/v1/raw/*`, raw) /* why */\n" +
+		"r.Post(\"/v1/notes/*/items\", h)\n"
+	out := stripComments(goSrc, "go")
+	require.Contains(t, out, `proxyTo("http://upstream/x"))`)
+	require.NotContains(t, out, "the upstream")
+	require.Contains(t, out, "r.Get(`/v1/raw/*`, raw)")
+	require.NotContains(t, out, "why")
+	require.Contains(t, out, `r.Post("/v1/notes/*/items", h)`)
+	require.Equal(t, strings.Count(goSrc, "\n"), strings.Count(out, "\n"), "line numbers are kept")
+
+	js := "router.get('/a//b', h) // x\nconst s = 'it\\'s /* not */ a comment'\n"
+	jo := stripComments(js, "javascript")
+	require.Contains(t, jo, "router.get('/a//b', h)")
+	require.Contains(t, jo, `'it\'s /* not */ a comment'`)
+
+	pySrc := "@app.get(\"/v1/items#frag\")  # a comment\n" +
+		"@app.get('/v1/tags')\n" +
+		"\"\"\"A docstring with a # and \"quotes\" across\nlines\"\"\"\n" +
+		"x = 1  # @app.get(\"/v1/fake\")\n"
+	po := stripComments(pySrc, "python")
+	require.Contains(t, po, `@app.get("/v1/items#frag")`)
+	require.NotContains(t, po, "a comment")
+	require.Contains(t, po, "@app.get('/v1/tags')")
+	require.Contains(t, po, "A docstring with a # and \"quotes\" across\nlines")
+	require.NotContains(t, po, "/v1/fake")
+	require.Equal(t, strings.Count(pySrc, "\n"), strings.Count(po, "\n"))
+
+	// A stray apostrophe in a comment-free line ends at the line, not the file.
+	require.Contains(t, stripComments("x = don't\ny = 2 // gone\n", "go"), "y = 2 ")
+	require.NotContains(t, stripComments("x = don't\ny = 2 // gone\n", "go"), "gone")
+
+	// An unterminated block comment ends the file and keeps its newlines.
+	require.Equal(t, "a\n\n", stripComments("a\n/* open\nforever", "go"))
 }
 
 // A mock server in a test does not serve an org route. Test files stand up HTTP handlers
