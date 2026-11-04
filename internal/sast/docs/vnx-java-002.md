@@ -11,7 +11,7 @@ This rule detects Spring Boot configuration files (`application.properties`, `ap
 
 ## Why This Matters
 
-Spring Boot Actuator ships with endpoints that are extraordinarily powerful in a development context but dangerous when exposed to the internet or to untrusted internal networks. The `/actuator/heapdump` endpoint produces a full Java heap snapshot that can be analysed offline with tools like Eclipse Memory Analyzer to extract plaintext passwords, JWTs, database credentials, and private keys that happen to be live objects at the time of the dump.
+Spring Boot Actuator ships with endpoints that expose the application's internal state. That is useful in development and dangerous when the endpoints are exposed to the internet or to untrusted internal networks. The `/actuator/heapdump` endpoint produces a full Java heap snapshot that can be analysed offline with tools like Eclipse Memory Analyzer to extract plaintext passwords, JWTs, database credentials, and private keys that happen to be live objects at the time of the dump.
 
 The `/actuator/env` endpoint lists every environment variable, system property, and `@ConfigurationProperties` value — including those that Spring partially masks but that can sometimes be unmasked by other endpoints. The `/actuator/shutdown` endpoint, when enabled, lets any unauthenticated caller terminate the JVM process. The `/actuator/loggers` endpoint allows changing log levels at runtime, which can be abused to force verbose logging of secrets. Real-world breaches (including incidents tied to Alibaba Cloud and misconfigured Kubernetes deployments) have involved exposed actuator endpoints as initial access vectors.
 
