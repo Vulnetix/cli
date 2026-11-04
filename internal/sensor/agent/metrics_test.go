@@ -148,3 +148,12 @@ func TestWithInstalledKeepsEachArchAndTheNewVersion(t *testing.T) {
 		}
 	}
 }
+
+func TestFirstFiles(t *testing.T) {
+	if got := firstFiles([]string{"a", "b", "c"}, 2); len(got) != 2 || got[1] != "b" {
+		t.Errorf("firstFiles = %v", got)
+	}
+	if got := firstFiles(nil, 5); got != nil {
+		t.Errorf("firstFiles(nil) = %v", got)
+	}
+}

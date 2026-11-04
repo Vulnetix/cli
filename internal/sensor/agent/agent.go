@@ -875,7 +875,7 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 		}
 		pkgs = append(pkgs, uplink.InventoryPackage{
 			Name: p.Name, Version: p.Version, Ecosystem: p.Ecosystem, State: p.State,
-			Processes: max(p.ProcessCount, len(p.Processes)), Examples: examples,
+			Processes: max(p.ProcessCount, len(p.Processes)), Examples: examples, Files: firstFiles(p.Files, 5),
 		})
 	}
 	sys := sysinv.Collect(root)

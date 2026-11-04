@@ -313,6 +313,10 @@ type InventoryPackage struct {
 	// Arch is the package's architecture: a host may carry one package for
 	// two (libc6 for amd64 and i386).
 	Arch string `json:"arch,omitempty"`
+	// Files are up to 5 of the package's files a running process has mapped
+	// (its shared libraries, not only the executable): where a flaw in it is
+	// loaded.
+	Files []string `json:"files,omitempty"`
 }
 
 // InventoryReport is one inventory post. Complete, Warnings and Unsupported say

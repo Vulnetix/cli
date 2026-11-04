@@ -137,3 +137,12 @@ func installedMatch(sys sysinv.Result, ecosystem, name, version string) (sysinv.
 
 	return sysinv.Package{}, false
 }
+
+// firstFiles is at most n of a package's mapped files, in the order found.
+func firstFiles(files []string, n int) []string {
+	if len(files) > n {
+		return append([]string(nil), files[:n]...)
+	}
+
+	return files
+}
