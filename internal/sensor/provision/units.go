@@ -150,7 +150,10 @@ ExecStartPre=-%s.prev --guard-rescue --config-dir %s
 ExecStart=%s guard-check --config-dir %s
 # A guard that does not finish must not stop the next one from running.
 TimeoutStartSec=300
-`, binPath, o.ConfigDir, binPath, o.ConfigDir)
+# The same environment as the sensor, so a proxy set there reaches the update
+# download too.
+EnvironmentFile=-%s
+`, binPath, o.ConfigDir, binPath, o.ConfigDir, LegacyEnvFile)
 
 	var timer strings.Builder
 	timer.WriteString("# Written by vulnetix-sensor enroll.\n[Unit]\nDescription=Run the Vulnetix sensor guard every minute\n")

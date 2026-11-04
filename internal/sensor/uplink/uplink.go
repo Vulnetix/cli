@@ -109,6 +109,9 @@ type Registration struct {
 	RulesetEtag   string          `json:"rulesetEtag,omitempty"`
 	// Metrics is what the sensor costs the host and how its periodic work went.
 	Metrics *Metrics `json:"metrics,omitempty"`
+	// UpdateState is the outcome of the last self-update the guard recorded
+	// ({"state","from","to","reason","at"}); nil when there is none.
+	UpdateState json.RawMessage `json:"updateState,omitempty"`
 	// RuleLoads nil leaves the server's list as it is; an empty slice says
 	// the sensor loads nothing. Encoded by Register.
 	RuleLoads []RuleLoad `json:"-"`

@@ -101,6 +101,8 @@ func main() {
 			run, args = goodbyeCmd, args[1:]
 		case "guard-check":
 			run, args = guardCheckCmd, args[1:]
+		case "selfcheck":
+			run, args = selfcheckCmd, args[1:]
 		// The flag form is what the guard unit runs. A binary from before this
 		// existed rejects an unknown flag and exits, where it would have taken the
 		// subcommand for nothing and started as a second sensor.
@@ -346,6 +348,7 @@ func runSensor(args []string, guard bool) error {
 	cfg := agent.Config{
 		SensorKey: sensorKey, Version: version, Mode: decide.Mode(*mode), Hold: *hold, Facts: facts,
 	}
+	cfg.UpdateState = func() json.RawMessage { return lastUpdateOutcome(*stateDir) }
 	// The first report the server accepts is the proof a self-update waits for.
 	cfg.OnHealthy = func() {
 		if err := writeHealth(*stateDir, version); err != nil {

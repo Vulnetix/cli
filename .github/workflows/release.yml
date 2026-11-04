@@ -100,6 +100,10 @@ jobs:
           # variable, not a secret: it is public by design. Empty leaves sensors
           # needing --feed-key.
           VULNETIX_FEED_PUBLIC_KEY: ${{ vars.VULNETIX_FEED_PUBLIC_KEY }}
+          # Ed25519 public key (base64, 32 bytes) the sensor pins to verify a
+          # release's checksums.txt.sig before it updates itself. Empty: the
+          # sensor accepts an unsigned release, as before.
+          VULNETIX_RELEASE_PUBLIC_KEY: ${{ vars.VULNETIX_RELEASE_PUBLIC_KEY }}
         run: |
           VERSION=${{ needs.version.outputs.version }}
           COMMIT=$(git rev-parse --short HEAD)
@@ -132,7 +136,7 @@ jobs:
           for arch in amd64 arm64; do
             echo "Building vulnetix-sensor linux/${arch}..."
             CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" \
-              go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.pinnedFeedKey=${VULNETIX_FEED_PUBLIC_KEY}" \
+              go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.pinnedFeedKey=${VULNETIX_FEED_PUBLIC_KEY} -X main.releaseSigningKey=${VULNETIX_RELEASE_PUBLIC_KEY}" \
               -o "bin/vulnetix-sensor-linux-${arch}" ./cmd/vulnetix-sensor
             # The same binary as a Lambda layer (deploy/sensor/lambda).
             sh deploy/sensor/lambda/build-layer.sh "${arch}" "${VERSION}" bin
@@ -270,6 +274,34 @@ jobs:
         run: |
           cd bin
           sha256sum * > checksums.txt
+
+      # A sensor built with VULNETIX_RELEASE_PUBLIC_KEY refuses an update whose
+      # checksums.txt is not signed by the matching private key, so a release
+      # built with the key set must be signed: a missing secret fails it here
+      # rather than stranding every pinned sensor on this version. The secret
+      # is the Ed25519 private key as PEM (openssl genpkey -algorithm ed25519).
+      - name: Sign checksums
+        env:
+          RELEASE_PUBLIC_KEY: ${{ vars.VULNETIX_RELEASE_PUBLIC_KEY }}
+          RELEASE_SIGNING_KEY: ${{ secrets.VULNETIX_RELEASE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$RELEASE_PUBLIC_KEY" ]; then
+            echo "No release public key pinned: checksums.txt is not signed."
+            exit 0
+          fi
+          if [ -z "$RELEASE_SIGNING_KEY" ]; then
+            echo "::error::VULNETIX_RELEASE_PUBLIC_KEY is set but the VULNETIX_RELEASE_SIGNING_KEY secret is not" >&2
+            exit 1
+          fi
+          umask 077
+          printf '%s\n' "$RELEASE_SIGNING_KEY" > "$RUNNER_TEMP/release-key.pem"
+          openssl pkeyutl -sign -inkey "$RUNNER_TEMP/release-key.pem" -rawin -in bin/checksums.txt | base64 -w0 > bin/checksums.txt.sig
+          rm -f "$RUNNER_TEMP/release-key.pem"
+          # Verify against the pinned public key before anything is published.
+          { printf '\x30\x2a\x30\x05\x06\x03\x2b\x65\x70\x03\x21\x00'; printf '%s' "$RELEASE_PUBLIC_KEY" | base64 -d; } > "$RUNNER_TEMP/release-pub.der"
+          base64 -d bin/checksums.txt.sig > "$RUNNER_TEMP/checksums.sig.raw"
+          openssl pkeyutl -verify -pubin -keyform DER -inkey "$RUNNER_TEMP/release-pub.der" -rawin -in bin/checksums.txt -sigfile "$RUNNER_TEMP/checksums.sig.raw"
 
       # The subject list for the provenance job: the same bytes as the release
       # asset, so the signed statement names exactly what a user downloads.

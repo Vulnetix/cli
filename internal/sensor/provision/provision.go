@@ -55,6 +55,10 @@ type Config struct {
 	// Absent or false holds the sensor on its major version: a major release can
 	// change the profile format, the units and the protocol.
 	AllowMajorUpdate *bool `json:"allowMajorUpdate,omitempty"`
+	// UpdateBaseURL is an https mirror of the release layout
+	// (<base>/latest, <base>/download/<tag>/checksums.txt and the binaries) for
+	// hosts that cannot reach GitHub. Empty means GitHub.
+	UpdateBaseURL string `json:"updateBaseUrl,omitempty"`
 }
 
 // Level is the protection level, standard when unset or unknown.

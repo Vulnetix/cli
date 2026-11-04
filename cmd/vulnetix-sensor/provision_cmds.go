@@ -87,7 +87,7 @@ type enrollOptions struct {
 	mdmKey, integration, kid, mdmID *string
 	profile, protection             *string
 	fleet                           *string
-	noStart, print                  *bool
+	noStart, print, noBinaryCopy    *bool
 }
 
 func defineEnrollFlags(fs *flag.FlagSet) *enrollOptions {
@@ -105,6 +105,7 @@ func defineEnrollFlags(fs *flag.FlagSet) *enrollOptions {
 		protection:   fs.String("protection", "", "with --print and no enrolled config: preview standard, hardened or locked"),
 		noStart:      fs.Bool("no-start", false, "write the credential, config and units but do not enable or start them"),
 		print:        fs.Bool("print", false, "print the units for the enrolled config (or --protection) and exit; contacts nothing and writes nothing"),
+		noBinaryCopy: fs.Bool("no-binary-copy", false, "use the sensor already installed at "+provision.DefaultBinPath+" (a baked image) instead of copying this binary there"),
 	}
 }
 
@@ -202,8 +203,13 @@ func enrollCmd(args []string) error {
 	// What the previous enrolment pulled is not this profile's.
 	_ = os.Remove(filepath.Join(*o.stateDir, "config.json"))
 
-	binPath, err := installBinary(binTarget)
-	if err != nil {
+	binPath := binTarget
+	if *o.noBinaryCopy {
+		// A baked image installed the binary already; enroll only checks it is there.
+		if info, err := os.Stat(binTarget); err != nil || info.IsDir() || info.Mode()&0o111 == 0 {
+			return fmt.Errorf("--no-binary-copy: no executable sensor at %s", binTarget)
+		}
+	} else if binPath, err = installBinary(binTarget); err != nil {
 		return err
 	}
 	if legacyEnvHasCredentials() {
@@ -561,7 +567,23 @@ func guardCheckCmd(args []string) error {
 	} else if action != "" {
 		announceOutcome(c, store, outcome)
 	}
-	if tag, err := maybeSelfUpdate(context.Background(), snap.Config.AutoUpdateOn(), snap.Config.AllowMajorUpdateOn(), version, binPath, *c.stateDir, time.Now()); err != nil {
+	releaseBaseURL = updateBase(snap.Config)
+	selfcheckArgs = []string{"selfcheck", "--config-dir", *c.configDir, "--state-dir", *c.stateDir}
+	autoUpdate := snap.Config.AutoUpdateOn()
+	if exe, err := os.Executable(); autoUpdate && err == nil {
+		// The binary is replaced only when the guard is the unit's own binary
+		// and it can be written; units are never repointed. The reason is
+		// recorded once, not printed every minute.
+		if reason := updateSkipReason(exe, binPath); reason != "" {
+			autoUpdate = false
+			if st := loadUpdateState(*c.stateDir); st.Held != reason {
+				st.Held = reason
+				saveUpdateState(*c.stateDir, st)
+				fmt.Fprintf(os.Stderr, "guard: self-update skipped: %s\n", reason)
+			}
+		}
+	}
+	if tag, err := maybeSelfUpdate(context.Background(), autoUpdate, snap.Config.AllowMajorUpdateOn(), version, binPath, *c.stateDir, time.Now()); err != nil {
 		fmt.Fprintf(os.Stderr, "guard: self-update not applied: %v\n", err)
 	} else if tag != "" {
 		if cred, err := store.LoadCredential(); err == nil {

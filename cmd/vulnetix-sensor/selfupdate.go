@@ -56,6 +56,8 @@ type updateState struct {
 	Bad []string `json:"bad,omitempty"`
 	// Outcome is the last update's result, for the console.
 	Outcome *updateOutcome `json:"outcome,omitempty"`
+	// FailCount is how many checks in a row failed; it sets the backoff.
+	FailCount int `json:"failCount,omitempty"`
 }
 
 // crossesMajor reports whether latest is a higher major version than current.
@@ -185,6 +187,9 @@ func downloadRelease(ctx context.Context, tag, dir string) (string, error) {
 	if err := fetch(ctx, base+"/checksums.txt", &sums); err != nil {
 		return "", err
 	}
+	if err := verifyChecksums(ctx, releaseBaseURL, tag, []byte(sums.String())); err != nil {
+		return "", err
+	}
 	want := ""
 	for _, line := range strings.Split(sums.String(), "\n") {
 		f := strings.Fields(line)
@@ -225,6 +230,10 @@ func selfTest(path, tag string) error {
 	}
 	if !strings.Contains(string(out), strings.TrimPrefix(tag, "v")) {
 		return fmt.Errorf("new binary reports %q, not %s", strings.TrimSpace(string(out)), tag)
+	}
+	// It must also accept the installed credential and profile config.
+	if out, err := exec.CommandContext(ctx, path, selfcheckArgs...).CombinedOutput(); err != nil {
+		return fmt.Errorf("new binary rejects the installed config: %v: %s", err, strings.TrimSpace(string(out)))
 	}
 
 	return nil
@@ -288,7 +297,9 @@ func loadUpdateState(dir string) updateState {
 
 func saveUpdateState(dir string, s updateState) {
 	if b, err := json.Marshal(s); err == nil {
-		_ = os.WriteFile(filepath.Join(dir, updateStamp), b, 0o600)
+		// 0644: the sensor (another user) reads the outcome to report it; it holds
+		// no secret.
+		_ = writeFileAtomic(filepath.Join(dir, updateStamp), b, 0o644)
 	}
 }
 
@@ -312,13 +323,27 @@ func maybeSelfUpdate(ctx context.Context, enabled, allowMajor bool, current, tar
 	if st.Pending != nil {
 		return "", nil // the last update has not proved itself yet
 	}
-	if !st.CheckedAt.IsZero() && now.Sub(st.CheckedAt) < updateEvery {
+	// A failed check is retried sooner than a good one, backing off to the usual
+	// six hours.
+	gap := updateEvery
+	if st.Failed != "" {
+		gap = failureBackoff(st.FailCount)
+	}
+	if !st.CheckedAt.IsZero() && now.Sub(st.CheckedAt) < gap {
 		return "", nil
 	}
+	sweepStaleUpdates(filepath.Dir(target), now)
 	st.CheckedAt = now
 	st.Failed = ""
 	st.Held = ""
-	defer func() { saveUpdateState(stateDir, st) }()
+	defer func() {
+		if st.Failed != "" {
+			st.FailCount++
+		} else {
+			st.FailCount = 0
+		}
+		saveUpdateState(stateDir, st)
+	}()
 
 	tag, err := latestTag(ctx)
 	if err != nil {

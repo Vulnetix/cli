@@ -12,6 +12,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -66,6 +67,9 @@ type Config struct {
 	// OnHealthy is called once, after the first report the server accepts. The
 	// self-update treats a new release as sound only after this.
 	OnHealthy func()
+	// UpdateState returns the last self-update outcome to report with each
+	// register; nil when there is none.
+	UpdateState func() json.RawMessage
 
 	// TetragonExport is Tetragon's JSON export file. When set, every process
 	// start is checked against the feeds' file-hash indicators.
@@ -645,6 +649,7 @@ func (a *Agent) register(ctx context.Context, loads []uplink.RuleLoad) error {
 		RulesetEtag:   etag,
 		RuleLoads:     loads,
 		Metrics:       a.metrics(time.Now()),
+		UpdateState:   a.updateState(),
 	})
 	if err == nil && a.cfg.OnHealthy != nil {
 		a.healthy.Do(a.cfg.OnHealthy)
@@ -933,4 +938,12 @@ func (a *Agent) clearAddonDenial() {
 	a.mu.Lock()
 	a.addonNoted = false
 	a.mu.Unlock()
+}
+
+func (a *Agent) updateState() json.RawMessage {
+	if a.cfg.UpdateState == nil {
+		return nil
+	}
+
+	return a.cfg.UpdateState()
 }

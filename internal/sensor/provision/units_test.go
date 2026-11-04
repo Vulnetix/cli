@@ -54,6 +54,9 @@ func TestRenderUnitsStandard(t *testing.T) {
 	if strings.Contains(guard, ".prev guard-rescue") {
 		t.Errorf("the rescue is passed as a subcommand an old binary would ignore and run as a sensor:\n%s", guard)
 	}
+	if !strings.Contains(guard, "EnvironmentFile=-"+LegacyEnvFile) {
+		t.Errorf("guard unit must read the sensor's environment file (a proxy reaches the update download):\n%s", guard)
+	}
 	if !strings.Contains(guard, "TimeoutStartSec=") {
 		t.Error("a guard that hangs would block every later one")
 	}
