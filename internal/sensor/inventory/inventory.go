@@ -51,6 +51,9 @@ type Package struct {
 	State     string    `json:"state"`
 	Processes []Process `json:"processes"`
 	Files     []string  `json:"files"`
+	// ProcessCount is how many processes map the package. Processes holds at
+	// most a few of them as examples; this is the true number.
+	ProcessCount int `json:"processCount"`
 }
 
 // Result is one scan.
@@ -99,6 +102,7 @@ func Scan(root string, idx binpkg.OwnerIndex) Result {
 
 		memfd := false
 		seenInProc := map[string]bool{}
+		counted := map[pkgKey]bool{}
 		sc := bufio.NewScanner(f)
 		sc.Buffer(make([]byte, 64*1024), 1<<20)
 		for sc.Scan() {
@@ -139,6 +143,10 @@ func Scan(root string, idx binpkg.OwnerIndex) Result {
 			}
 			if len(p.Files) < listCap && !contains(p.Files, file) {
 				p.Files = append(p.Files, file)
+			}
+			if !counted[k] {
+				counted[k] = true
+				p.ProcessCount++
 			}
 			if len(p.Processes) < listCap && !hasPID(p.Processes, pid) {
 				p.Processes = append(p.Processes, proc)

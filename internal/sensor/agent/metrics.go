@@ -93,38 +93,47 @@ func flushBackoff(fails int) time.Duration {
 // withInstalled adds every installed OS package no process maps, as state
 // "installed", so the site holds the host's whole package list (what a host
 // SBOM is built from) and not only what is loaded. A package already reported
-// as loaded keeps that state.
+// as loaded keeps that state. A package is one name, version and arch: libc6
+// for amd64 and for i386 are two, and a stale-loaded old version does not hide
+// the version installed now.
 func withInstalled(loaded []uplink.InventoryPackage, sys sysinv.Result) []uplink.InventoryPackage {
-	installed := sys.Packages
-	seen := make(map[string]bool, len(loaded))
-	for i, p := range loaded {
-		seen[p.Ecosystem+"|"+p.Name] = true
-		loaded[i].Purl = purlFor(sys, p.Ecosystem, p.Name, p.Version)
+	key := func(eco, name, version, arch string) string {
+		return eco + "|" + name + "|" + version + "|" + arch
 	}
-	for _, p := range installed {
-		if p.Name == "" || seen[p.Ecosystem+"|"+p.Name] {
+	seen := make(map[string]bool, len(loaded)+len(sys.Packages))
+	for i, p := range loaded {
+		if m, ok := installedMatch(sys, p.Ecosystem, p.Name, p.Version); ok {
+			loaded[i].Purl, loaded[i].Arch = m.Purl(sys.Distro), m.Arch
+		}
+		seen[key(p.Ecosystem, p.Name, p.Version, loaded[i].Arch)] = true
+	}
+	for _, p := range sys.Packages {
+		k := key(p.Ecosystem, p.Name, p.Version, p.Arch)
+		if p.Name == "" || seen[k] {
 			continue
 		}
-		seen[p.Ecosystem+"|"+p.Name] = true
+		seen[k] = true
 		loaded = append(loaded, uplink.InventoryPackage{
 			Name: p.Name, Version: p.Version, Ecosystem: p.Ecosystem, State: "installed",
-			Purl: p.Purl(sys.Distro),
+			Purl: p.Purl(sys.Distro), Arch: p.Arch,
 		})
 	}
 
 	return loaded
 }
 
-// purlFor is the distro-qualified purl of the installed package that a loaded
-// one names, or "" when the OS database does not list it (the site then falls
-// back to a plain purl and does not send the host for analysis, because a
-// match without the distro would read as clean).
-func purlFor(sys sysinv.Result, ecosystem, name, version string) string {
+// installedMatch is the installed package a loaded one names, for its
+// distro-qualified purl and arch. When the OS database does not list it there
+// is none: the site then falls back to a plain purl and does not send the host
+// for analysis, because a match without the distro would read as clean. The
+// ownership index does not record arch, so a package installed for two arches
+// takes the first listed.
+func installedMatch(sys sysinv.Result, ecosystem, name, version string) (sysinv.Package, bool) {
 	for _, p := range sys.Packages {
 		if p.Ecosystem == ecosystem && p.Name == name && p.Version == version {
-			return p.Purl(sys.Distro)
+			return p, true
 		}
 	}
 
-	return ""
+	return sysinv.Package{}, false
 }

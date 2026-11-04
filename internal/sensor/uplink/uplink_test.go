@@ -208,3 +208,12 @@ func TestPostInventoryReportSaysHowCompleteItIs(t *testing.T) {
 		}
 	}
 }
+
+func TestPostInventoryReportSendsSeqAndArch(t *testing.T) {
+	c, rec := client(t)
+	_, _ = c.PostInventoryReport(context.Background(), "k", InventoryReport{Seq: 1730700000000, Packages: []InventoryPackage{{Name: "libc6", Arch: "i386"}}})
+	body := rec.bodies["/v1/runtime/inventory"]
+	if !strings.Contains(body, `"seq":1730700000000`) || !strings.Contains(body, `"arch":"i386"`) {
+		t.Fatalf("sent = %s", body)
+	}
+}

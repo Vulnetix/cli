@@ -307,6 +307,9 @@ type InventoryPackage struct {
 	// Purl is the package URL carrying the host's real distro, architecture
 	// and source package, which is what a distro advisory matches on.
 	Purl string `json:"purl,omitempty"`
+	// Arch is the package's architecture: a host may carry one package for
+	// two (libc6 for amd64 and i386).
+	Arch string `json:"arch,omitempty"`
 }
 
 // InventoryReport is one inventory post. Complete, Warnings and Unsupported say
@@ -322,6 +325,9 @@ type InventoryReport struct {
 	Warnings []string
 	// Unsupported is why this host's packages cannot be read at all.
 	Unsupported string
+	// Seq orders this sensor's reports: the time the host was read, in ms. The
+	// site does not apply a report older than the last it applied.
+	Seq int64
 }
 
 // PostInventory replaces the sensor's in-use package report.
@@ -345,6 +351,9 @@ func (c *Client) PostInventoryReport(ctx context.Context, sensorKey string, r In
 	}
 	if r.Unsupported != "" {
 		body["unsupported"] = r.Unsupported
+	}
+	if r.Seq > 0 {
+		body["seq"] = r.Seq
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {

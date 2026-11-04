@@ -3,6 +3,7 @@ package inventory
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/vulnetix/cli/v4/internal/binpkg"
@@ -81,5 +82,20 @@ func TestMappedPath(t *testing.T) {
 	}
 	if _, _, ok := mappedPath("7f00-7f01 rw-p 00000000 00:00 0"); ok {
 		t.Fatal("an anonymous mapping has no path")
+	}
+}
+
+func TestProcessCountIsTheTrueNumber(t *testing.T) {
+	root := t.TempDir()
+	for i := 0; i < listCap+5; i++ {
+		proc(t, root, strconv.Itoa(1000+i), "/usr/bin/bash",
+			"55d0-55d1 r-xp 00000000 fd:01 11 /usr/bin/bash\n7f00-7f01 r-xp 00000000 fd:01 12 /usr/bin/bash\n")
+	}
+	res := Scan(root, binpkg.OwnerIndex{"/usr/bin/bash": {Name: "bash", Version: "5.2", Ecosystem: "deb"}})
+	if len(res.Packages) != 1 {
+		t.Fatalf("packages = %+v", res.Packages)
+	}
+	if p := res.Packages[0]; p.ProcessCount != listCap+5 || len(p.Processes) != listCap {
+		t.Errorf("count = %d examples = %d; want every process counted once and %d examples", p.ProcessCount, len(p.Processes), listCap)
 	}
 }

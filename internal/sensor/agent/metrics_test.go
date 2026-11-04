@@ -116,3 +116,35 @@ func TestInventoryReportCompleteness(t *testing.T) {
 		t.Errorf("unreadable processes = %+v; a warning, not incomplete", r)
 	}
 }
+
+func TestWithInstalledKeepsEachArchAndTheNewVersion(t *testing.T) {
+	sys := sysinv.Result{Packages: []sysinv.Package{
+		{Name: "libc6", Version: "2.36-9", Arch: "amd64", Ecosystem: "deb"},
+		{Name: "libc6", Version: "2.36-9", Arch: "i386", Ecosystem: "deb"},
+		{Name: "openssl", Version: "3.0.15-1", Arch: "amd64", Ecosystem: "deb"},
+	}}
+	loaded := []uplink.InventoryPackage{
+		{Name: "libc6", Version: "2.36-9", Ecosystem: "deb", State: "loaded"},
+		// A process still maps the openssl that was upgraded away.
+		{Name: "openssl", Version: "3.0.11-1", Ecosystem: "deb", State: "stale-loaded"},
+	}
+	out := withInstalled(loaded, sys)
+	got := map[string]string{}
+	for _, p := range out {
+		got[p.Name+"@"+p.Version+"/"+p.Arch] = p.State
+	}
+	want := map[string]string{
+		"libc6@2.36-9/amd64":     "loaded",
+		"libc6@2.36-9/i386":      "installed",
+		"openssl@3.0.11-1/":      "stale-loaded",
+		"openssl@3.0.15-1/amd64": "installed",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %q, want %q (all: %v)", k, got[k], v, got)
+		}
+	}
+}

@@ -822,6 +822,8 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 	if root == "" {
 		root = "/"
 	}
+	// The time the host was read orders this report against others.
+	readAt := time.Now().UnixMilli()
 	res := inventory.Scan(root, binpkg.BuildOwnerIndexFor(root, inventory.MappedPaths(root)))
 	// The package databases are read in full each pass; hand what that
 	// allocated back to the OS now rather than holding it for six hours.
@@ -839,12 +841,13 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 		}
 		pkgs = append(pkgs, uplink.InventoryPackage{
 			Name: p.Name, Version: p.Version, Ecosystem: p.Ecosystem, State: p.State,
-			Processes: len(p.Processes), Examples: examples,
+			Processes: max(p.ProcessCount, len(p.Processes)), Examples: examples,
 		})
 	}
 	sys := sysinv.Collect(root)
 	pkgs = withInstalled(pkgs, sys)
 	report := inventoryReport(pkgs, sys, res.Unreadable)
+	report.Seq = readAt
 	if report.Complete != nil && !*report.Complete {
 		a.cfg.Logf("sensor: inventory is incomplete, the site keeps the last full list: %s", strings.Join(report.Warnings, "; "))
 	}
