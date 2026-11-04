@@ -797,15 +797,34 @@ func ToDecision(d uplink.Decision) decide.Decision {
 // inventoryLoop reports the in-use packages now and then every
 // InventoryEvery. The ownership index is rebuilt each time, because packages
 // are installed and upgraded under a running sensor.
+//
+// A package database change (an install, upgrade or removal) reports too, once
+// the databases have been quiet for pkgChangeDebounce, so the site learns of an
+// upgrade in minutes rather than hours. A report that fails is retried after
+// inventoryRetry steps instead of waiting for the next tick.
 func (a *Agent) inventoryLoop(ctx context.Context) {
 	tick := time.NewTicker(a.cfg.InventoryEvery)
 	defer tick.Stop()
+	root := a.cfg.HostRoot
+	if root == "" {
+		root = "/"
+	}
+	changed := make(chan struct{}, 1)
+	go watchPackageDBs(ctx, root, pkgChangeDebounce, changed)
+	failures := 0
 	for {
 		invStart := time.Now()
 		err := a.ReportInventory(ctx)
 		a.passes.record("inventory", invStart, err)
+		var retry <-chan time.Time
 		if err != nil {
 			a.cfg.Logf("sensor: inventory not reported: %v", err)
+			if failures < len(inventoryRetry) {
+				retry = time.After(inventoryRetry[failures])
+			}
+			failures++
+		} else {
+			failures = 0
 		}
 		hcStart := time.Now()
 		a.ReportHostChecks(hcStart)
@@ -814,9 +833,19 @@ func (a *Agent) inventoryLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-tick.C:
+		case <-changed:
+		case <-retry:
 		}
 	}
 }
+
+// pkgChangeDebounce is how long the package databases must be quiet after a
+// change before it is reported; inventoryRetry is when a failed report is
+// tried again, before the next tick.
+var (
+	pkgChangeDebounce = 2 * time.Minute
+	inventoryRetry    = []time.Duration{time.Minute, 5 * time.Minute, 15 * time.Minute, time.Hour}
+)
 
 // ReportInventory reads which installed packages processes map and posts it.
 func (a *Agent) ReportInventory(ctx context.Context) error {
