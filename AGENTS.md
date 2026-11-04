@@ -326,6 +326,13 @@ The embedded root is pinned rather than fetched over TUF. `TestEmbeddedRootIsUsa
 fails once it expires, so the day the pin goes stale is loud rather than a
 mystery chain error.
 
+**A DSSE envelope is bound to the file** (`checkSubject`). The signature covers
+the envelope's payload, not the file beside it, so the verifier also requires
+the payload to be the file's bytes (what `cdx --sign` writes) or an in-toto
+statement naming the file's sha256. Without that check an envelope verified
+only itself, and a file edited after signing passed. A detached cosign
+signature is verified over the file's own bytes and needs no such step.
+
 An expired certificate **passes** with a caveat. Fulcio certificates live ten
 minutes, so failing every signature older than that would make the verifier
 useless; what an expiry cannot tell you without a log entry is whether the

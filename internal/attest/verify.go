@@ -34,6 +34,7 @@
 package attest
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -361,6 +362,14 @@ func Verify(opts Options) (*Result, error) {
 		res.add("signature", CheckFailed, verifyErr.Error())
 	} else {
 		res.add("signature", CheckPassed, "")
+	}
+
+	// A DSSE signature covers the envelope's payload, not the file beside it.
+	// Without this check an envelope verified against itself, and a file
+	// changed after it was signed still passed. A detached cosign signature is
+	// verified over the file's own bytes, so it needs no such step.
+	if res.Envelope == "dsse" {
+		checkSubject(res, opts, signed)
 	}
 
 	if leaf != nil {
@@ -833,4 +842,41 @@ func signedPayload(pae []byte) []byte {
 		return nil
 	}
 	return []byte(parts[4])
+}
+
+// checkSubject binds a DSSE envelope to the artefact being verified. The
+// envelope either carries the artefact itself as its payload (what `cdx
+// --sign` writes: a CycloneDX payload type over the finished document), or an
+// in-toto statement whose subjects name the artefact by digest. Anything else
+// is a valid signature over something that is not this file.
+func checkSubject(res *Result, opts Options, pae []byte) {
+	if len(opts.Artifact) == 0 {
+		res.add("subject", CheckSkipped, "no artefact was given to compare with the envelope")
+		return
+	}
+	payload := signedPayload(pae)
+	if bytes.Equal(payload, opts.Artifact) {
+		res.add("subject", CheckPassed, "")
+		return
+	}
+	// bom import can be handed the envelope itself (an attested SBOM is often
+	// shipped as one); then the file verified is the signed envelope.
+	if raw, err := os.ReadFile(opts.EnvelopePath); err == nil && bytes.Equal(bytes.TrimSpace(raw), bytes.TrimSpace(opts.Artifact)) {
+		res.add("subject", CheckPassed, "the file is the envelope")
+		return
+	}
+	if p := parsePredicate(payload); p != nil && len(p.Subjects) > 0 {
+		for _, s := range p.Subjects {
+			if strings.EqualFold(s.Digest["sha256"], res.Digest) {
+				res.add("subject", CheckPassed, "")
+				return
+			}
+		}
+		res.add("subject", CheckFailed, fmt.Sprintf(
+			"the statement names %d subject(s) and none has this file's sha256 %s: the file changed after signing, or the envelope is for another file",
+			len(p.Subjects), res.Digest))
+		return
+	}
+	res.add("subject", CheckFailed,
+		"the envelope's payload is not this file: the file changed after signing, or the envelope is for another file")
 }

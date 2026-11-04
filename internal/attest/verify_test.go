@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net/url"
 	"os"
@@ -168,7 +169,7 @@ func TestVerifyDSSE(t *testing.T) {
 	payload := []byte(`{"bomFormat":"CycloneDX","specVersion":"1.6","version":1}`)
 	envelope := f.writeDSSE(t, "sbom.cdx.json.intoto.jsonl", payload)
 
-	res, err := Verify(Options{ArtifactPath: "sbom.cdx.json", EnvelopePath: envelope, TrustedRootPath: f.rootPath})
+	res, err := Verify(Options{ArtifactPath: "sbom.cdx.json", Artifact: payload, EnvelopePath: envelope, TrustedRootPath: f.rootPath})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -517,4 +518,86 @@ func TestVerifyNeedsSomethingToVerify(t *testing.T) {
 	if _, err := Verify(Options{ArtifactPath: "x"}); err == nil {
 		t.Error("Verify accepted no signature material")
 	}
+}
+
+// A DSSE signature covers the envelope's payload. The file beside it must be
+// that payload, or an in-toto statement must name it: otherwise a file changed
+// after signing verified, because the envelope only ever verified itself.
+func TestVerifyDSSEBindsTheArtefact(t *testing.T) {
+	f := newSigningFixture(t, "https://example.com/signer", "https://issuer.example.com")
+	signed := []byte(`{"bomFormat":"CycloneDX","specVersion":"1.6","version":1}`)
+	envelope := f.writeDSSE(t, "sbom.cdx.json.intoto.jsonl", signed)
+
+	t.Run("the signed document passes", func(t *testing.T) {
+		res, err := Verify(Options{ArtifactPath: "sbom.cdx.json", Artifact: signed, EnvelopePath: envelope, TrustedRootPath: f.rootPath})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c := checkNamed(res, "subject"); c == nil || c.Status != CheckPassed || !res.Verified() {
+			t.Fatalf("subject = %+v, verified = %v", c, res.Verified())
+		}
+	})
+
+	t.Run("a file changed after signing fails", func(t *testing.T) {
+		edited := []byte(`{"bomFormat":"CycloneDX","specVersion":"1.6","version":2}`)
+		res, err := Verify(Options{ArtifactPath: "sbom.cdx.json", Artifact: edited, EnvelopePath: envelope, TrustedRootPath: f.rootPath})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c := checkNamed(res, "signature"); c == nil || c.Status != CheckPassed {
+			t.Errorf("the envelope's own signature is still valid: %+v", c)
+		}
+		if c := checkNamed(res, "subject"); c == nil || c.Status != CheckFailed {
+			t.Errorf("subject = %+v, want failed", c)
+		}
+		if res.Verified() {
+			t.Fatal("a file changed after signing verified")
+		}
+	})
+
+	t.Run("an in-toto statement binds by digest", func(t *testing.T) {
+		artefact := []byte("release tarball bytes")
+		sum := sha256.Sum256(artefact)
+		stmt := fmt.Sprintf(`{"_type":"https://in-toto.io/Statement/v1","subject":[{"name":"app.tar.gz","digest":{"sha256":"%x"}}],"predicateType":"https://slsa.dev/provenance/v1","predicate":{}}`, sum)
+		env := f.writeDSSE(t, "app.tar.gz.intoto.jsonl", []byte(stmt))
+
+		res, err := Verify(Options{ArtifactPath: "app.tar.gz", Artifact: artefact, EnvelopePath: env, TrustedRootPath: f.rootPath})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c := checkNamed(res, "subject"); c == nil || c.Status != CheckPassed {
+			t.Errorf("matching subject = %+v", c)
+		}
+		res, err = Verify(Options{ArtifactPath: "app.tar.gz", Artifact: []byte("other bytes"), EnvelopePath: env, TrustedRootPath: f.rootPath})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c := checkNamed(res, "subject"); c == nil || c.Status != CheckFailed || res.Verified() {
+			t.Errorf("mismatching subject = %+v, verified = %v", c, res.Verified())
+		}
+	})
+
+	t.Run("the envelope itself is its own subject", func(t *testing.T) {
+		raw, err := os.ReadFile(envelope)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := Verify(Options{ArtifactPath: envelope, Artifact: raw, EnvelopePath: envelope, TrustedRootPath: f.rootPath})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c := checkNamed(res, "subject"); c == nil || c.Status != CheckPassed {
+			t.Errorf("subject = %+v", c)
+		}
+	})
+
+	t.Run("no artefact is a skip, not a pass", func(t *testing.T) {
+		res, err := Verify(Options{ArtifactPath: "sbom.cdx.json", EnvelopePath: envelope, TrustedRootPath: f.rootPath})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c := checkNamed(res, "subject"); c == nil || c.Status != CheckSkipped {
+			t.Errorf("subject = %+v, want skipped", c)
+		}
+	})
 }
