@@ -7,6 +7,7 @@ VERSION="${VERSION:-latest}"
 BINARY_NAME="vulnetix"
 GITHUB_REPO="Vulnetix/cli"
 GITHUB_BASE="https://github.com/${GITHUB_REPO}/releases"
+DOCS_URL="https://docs.vulnetix.com/cli/"
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -36,10 +37,21 @@ Environment variables:
   INSTALL_DIR          Overrides --install-dir
   VERSION              Overrides --version
 
+Analytics:
+  After a successful install the script sends one anonymous event to Google
+  Analytics (GA4) with the OS, architecture, CLI version and a random id
+  made for this install. Nothing identifies you or your machine. To opt out,
+  set either variable:
+  VULNETIX_NO_ANALYTICS=1
+  DO_NOT_TRACK=1
+  The installed CLI honours the same variables and --no-analytics.
+
 Examples:
   curl -fsSL https://cli.vulnetix.com/install.sh | sh
   curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir ~/.local/bin
   curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v1.2.3
+
+Docs: ${DOCS_URL}
 EOF
       exit 0
       ;;
@@ -338,6 +350,16 @@ verify_checksum() {
   echo "info: checksum verified ok"
 }
 
+# install_client_id is a random id made for this install only, in GA4's own
+# <random>.<timestamp> shape. Nothing is stored, so two installs on one machine
+# are two ids, and no id says anything about the machine.
+install_client_id() {
+  local rand
+  rand=$(od -An -N4 -tu4 /dev/urandom 2>/dev/null | tr -d ' \n')
+  [ -n "$rand" ] || rand="$$"
+  printf '%s.%s' "$rand" "$(date +%s)"
+}
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -454,16 +476,20 @@ main() {
   esac
 
   echo ""
-  echo "run:  $BINARY_NAME --help"
+  echo "next: $BINARY_NAME auth login    sign in (optional: without it, scans run in community mode)"
+  echo "      $BINARY_NAME scan          scan the current directory"
   echo ""
-  echo "docs: https://docs.vulnetix.com/cli/get-started/overview/"
+  echo "docs: ${DOCS_URL}"
   echo "      agentic use cases: https://www.vulnetix.com/articles/bypassing-scanners"
   echo ""
   echo "Thanks for installing Vulnetix CLI -- Vulnetix Team"
 
-  # Fire-and-forget install beacon (respects opt-out; never blocks or fails install)
+  # Fire-and-forget install beacon (respects opt-out; never blocks or fails install).
+  # The client id is random per install, so GA4 counts installs, not platforms.
   if [ "${VULNETIX_NO_ANALYTICS:-0}" != "1" ] && [ "${DO_NOT_TRACK:-0}" != "1" ]; then
-    _GA4_PAYLOAD="{\"client_id\":\"${OS}-${ARCH}\",\"events\":[{\"name\":\"cli_install\",\"params\":{\"os\":\"${OS}\",\"arch\":\"${ARCH}\",\"version\":\"${VERSION}\"}}]}"
+    echo "info: sending one anonymous install event (set VULNETIX_NO_ANALYTICS=1 or DO_NOT_TRACK=1 to opt out)"
+    _GA4_CLIENT_ID=$(install_client_id)
+    _GA4_PAYLOAD="{\"client_id\":\"${_GA4_CLIENT_ID}\",\"events\":[{\"name\":\"cli_install\",\"params\":{\"os\":\"${OS}\",\"arch\":\"${ARCH}\",\"version\":\"${VERSION}\"}}]}"
     _GA4_URL="https://www.google-analytics.com/mp/collect?measurement_id=G-NWBJE5RS0Q&api_secret=_XzmAjQNQwmsRiTG1oojbA"
     if [ "$DOWNLOADER" = "curl" ]; then
       curl -s -o /dev/null --max-time 3 -X POST \
