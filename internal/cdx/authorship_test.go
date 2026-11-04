@@ -206,6 +206,19 @@ func TestResolveAuthorshipPrecedence(t *testing.T) {
 	}}
 	derived := []LifecyclePhase{PhasePreBuild}
 
+	t.Run("an overlay manufacturer beats the CI and git owners", func(t *testing.T) {
+		git := &gitctx.GitContext{RemoteURLs: []string{"git@github.com:git-owner/repo.git"}}
+		in := AuthoringInputs{Manufacturer: ManufacturerSources{CIOwner: "ci-owner", Git: git, OrgID: "3e671687-395b-41f5-a30f-a58921a69b79"}, Overlays: []Overlay{overlay}}
+		a := ResolveAuthorship(cyclonedx.ToolCDX, in, derived)
+		if a.Manufacturer == nil || a.Manufacturer.Name != "Overlay Manufacturer" || a.Manufacturer.BOMRef != "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79" {
+			t.Errorf("manufacturer = %+v", a.Manufacturer)
+		}
+		in.Manufacturer.Env = "Env Ltd"
+		if a := ResolveAuthorship(cyclonedx.ToolCDX, in, derived); a.Manufacturer.Name != "Env Ltd" {
+			t.Errorf("the environment must beat the overlay, got %q", a.Manufacturer.Name)
+		}
+	})
+
 	t.Run("overlay fills what nothing else states", func(t *testing.T) {
 		a := ResolveAuthorship(cyclonedx.ToolCDX, AuthoringInputs{Overlays: []Overlay{overlay}}, derived)
 		if a.Manufacturer == nil || a.Manufacturer.Name != "Overlay Manufacturer" {

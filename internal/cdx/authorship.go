@@ -293,10 +293,17 @@ func ResolveAuthorship(toolName string, in AuthoringInputs, derivedPhases []Life
 		phases = derivedPhases
 	}
 
-	a := Authoring(toolName, ResolveManufacturer(in.Manufacturer), phases...)
-	if a.Manufacturer == nil && ovMeta != nil && ovMeta.Manufacturer != nil {
-		a.Manufacturer = ovMeta.Manufacturer
+	// An overlay that names the manufacturer is a statement; the CI and git
+	// owners are inferences. So the overlay sits below the flag and the
+	// environment and above everything derived.
+	manufacturer := ResolveManufacturer(in.Manufacturer)
+	if ovMeta != nil && ovMeta.Manufacturer != nil && firstNonBlank(in.Manufacturer.Override, in.Manufacturer.Env) == "" {
+		manufacturer = ovMeta.Manufacturer
+		if manufacturer.BOMRef == "" && in.Manufacturer.OrgID != "" {
+			manufacturer.BOMRef = "urn:uuid:" + in.Manufacturer.OrgID
+		}
 	}
+	a := Authoring(toolName, manufacturer, phases...)
 	if a.Manufacturer != nil && strings.TrimSpace(in.ManufacturerURL) != "" {
 		a.Manufacturer.URL = []string{strings.TrimSpace(in.ManufacturerURL)}
 	}
