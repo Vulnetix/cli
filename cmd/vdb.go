@@ -107,7 +107,7 @@ Flag patterns:
 Examples:
   # Get information about a vulnerability (CVE, GHSA, PYSEC, ZDI, and 70+ more formats)
   vulnetix vdb vuln CVE-2021-44228
-  vulnetix vdb vuln GHSA-jfh8-3a1q-hjz9
+  vulnetix vdb vuln GHSA-jfh8-c2jp-5v3q
 
   # List available ecosystems
   vulnetix vdb ecosystems
@@ -189,7 +189,7 @@ available sources.
 
 Accepts 78+ identifier formats. Common examples:
   CVE-2021-44228         (MITRE / NVD)
-  GHSA-jfh8-3a1q-hjz9   (GitHub Security Advisories)
+  GHSA-jfh8-c2jp-5v3q   (GitHub Security Advisories)
   PYSEC-2024-123         (PyPI)
   RUSTSEC-2024-1234      (RustSec)
   EUVD-2025-14498        (EU Vulnerability Database)
@@ -201,7 +201,7 @@ Accepts 78+ identifier formats. Common examples:
 
 Examples:
   vulnetix vdb vuln CVE-2021-44228
-  vulnetix vdb vuln GHSA-jfh8-3a1q-hjz9
+  vulnetix vdb vuln GHSA-jfh8-c2jp-5v3q
   vulnetix vdb vuln CVE-2021-44228 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -271,7 +271,7 @@ Examples:
   vulnetix vdb exploits CVE-2021-44228
   vulnetix vdb exploits CVE-2021-44228 --limit 500
   vulnetix vdb exploits CVE-2021-44228 --limit 100 --offset 100
-  vulnetix vdb exploits GHSA-jfh8-3a1q-hjz9
+  vulnetix vdb exploits GHSA-jfh8-c2jp-5v3q
   vulnetix vdb exploits search --severity CRITICAL --limit 10
   vulnetix vdb exploits sources
   vulnetix vdb exploits types`,
@@ -1435,12 +1435,12 @@ Only CVE, GHSA, and CNVD identifiers are supported for traffic filter lookups.
 
 Supported identifier formats:
   CVE-2021-44228         MITRE / NVD
-  GHSA-jfh8-3a1q-hjz9   GitHub Security Advisory
+  GHSA-jfh8-c2jp-5v3q   GitHub Security Advisory
   CNVD-2024-02713        China National Vulnerability DB
 
 Examples:
   vulnetix vdb traffic-filters CVE-2021-44228
-  vulnetix vdb traffic-filters GHSA-jfh8-3a1q-hjz9
+  vulnetix vdb traffic-filters GHSA-jfh8-c2jp-5v3q
   vulnetix vdb traffic-filters CVE-2021-44228 -o json
   vulnetix vdb traffic-filters CVE-2021-44228 --limit 10
   vulnetix vdb traffic-filters CVE-2021-44228`,
@@ -1451,7 +1451,7 @@ Examples:
 
 		trafficFilterRe := regexp.MustCompile(`(?i)^(CVE-\d{4}-\d{4,}|GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}|CNVD-\d{4}-\d{4,})$`)
 		if !trafficFilterRe.MatchString(identifier) {
-			return fmt.Errorf("invalid identifier %q — traffic-filters supports CVE, GHSA, and CNVD formats only\n  Examples: CVE-2021-44228, GHSA-jfh8-3a1q-hjz9, CNVD-2024-02713", identifier)
+			return fmt.Errorf("invalid identifier %q — traffic-filters supports CVE, GHSA, and CNVD formats only\n  Examples: CVE-2021-44228, GHSA-jfh8-c2jp-5v3q, CNVD-2024-02713", identifier)
 		}
 
 		limit, _ := cmd.Flags().GetInt("limit")

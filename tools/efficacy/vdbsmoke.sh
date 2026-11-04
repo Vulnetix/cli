@@ -8,7 +8,7 @@
 set -u
 BIN=${1:-./vulnetix}
 OUT=${2:-/tmp/vdbsmoke}
-IDS=${IDS:-"CVE-2021-44228 CVE-2014-0160 CVE-2023-44487 CVE-2024-3094 CVE-2022-22965 GHSA-jfh8-3a1q-hjz9"}
+IDS=${IDS:-"CVE-2021-44228 CVE-2014-0160 CVE-2023-44487 CVE-2024-3094 CVE-2022-22965 GHSA-jfh8-c2jp-5v3q"}
 CMDS=${CMDS:-"vuln|exploits|fixes|timeline|affected|advisories|workarounds|cwe guidance|remediation plan|scorecard|kev get|gcve|attack-techniques get|virtual-patches get|countermeasures get"}
 mkdir -p "$OUT"
 fail=0
