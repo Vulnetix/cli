@@ -42,8 +42,9 @@ Every input reaches the action's scripts as an environment variable, never as a
 | `api-key` | Direct API Key for authentication | No | - |
 | `api-token` | Vulnetix API token; the server resolves the organization | No | - |
 | `task` | Task to perform: `info`, `upload`, `gha`, `tea-release`, `config-plan`, `config-apply` | No | `info` |
-| `version` | CLI release to install: an exact tag (`v3.158.0`), a major channel (`v3`, the newest v3 release) or `latest` | No | `v3` |
+| `version` | CLI release to install: an exact tag (`v4.0.0`), a major channel (`v4`, the newest v4 release) or `latest` | No | `v4` |
 | `binary-path` | Use this already-built binary instead of downloading a release | No | - |
+| `verify-provenance` | Install cosign and require the release's signed SLSA provenance to verify for the downloaded binary (`install.sh --require-provenance`). Every v4 release is signed; set `false` for a v3 release without `provenance.sigstore.json`. The SHA-256 checksum is checked either way | No | `true` |
 | `upload-file` | Artifact file path (with `task: upload`) | No | - |
 | `upload-format` | Override format (`cyclonedx`, `spdx`, `sarif`, `openvex`, `csaf_vex`) | No | - |
 
@@ -74,7 +75,7 @@ remote action:
 
 | Script | Job |
 |---|---|
-| `install.sh` | Major channel, `binary-path`, skips a second install in the same job |
+| `install.sh` | Major channel, `binary-path`, `verify-provenance`, skips a second install in the same job |
 | `run.sh` | Builds the argv from `VX_*` env (through `commands.sh`), runs it with an artifact manifest, sets the outputs |
 | `config.sh`, `config-plan-comment.sh` | `config-plan` and `config-apply`, and the pull request plan comment |
 | `publish.sh` | `gha publish` after a command that does not publish itself, and the `github-publish` action |

@@ -149,4 +149,5 @@ const (
 	uploadArtifact = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2"
 	attestBuild    = "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2"
 	attestSBOM     = "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2"
+	cosignInstall  = "sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2"
 )

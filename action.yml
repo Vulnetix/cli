@@ -18,6 +18,10 @@ inputs:
     description: 'Path to an already-built vulnetix binary to use instead of downloading a release, for example one built earlier in the same job'
     required: false
     default: ''
+  verify-provenance:
+    description: 'Verify the downloaded CLI against the signed SLSA provenance of its release with cosign, which this action installs: true or false. Every v4 release is signed; set false to install a v3 release that has no provenance.sigstore.json. The SHA-256 checksum is checked either way'
+    required: false
+    default: 'true'
   task:
     description: 'Task to perform: info, upload, gha (gha-upload), tea-release, config-plan, config-apply, or any subdirectory action: sca, sast, secrets, iac, containers, license, malscan, analyze, cbom, aibom, sbom, jail. The subdirectory actions (Vulnetix/cli/sca@v3) offer the artifact, attestation and release steps as well'
     required: false
@@ -131,11 +135,18 @@ runs:
   steps:
     # The installer shipped at this action's ref, so the major channel logic
     # matches the ref the workflow pinned. binary-path skips the download.
+    # cosign verifies the release's signed provenance before the binary is
+    # installed. Not needed when binary-path supplies the binary.
+    - name: Install cosign
+      if: inputs.verify-provenance == 'true' && inputs.binary-path == ''
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
     - name: Setup Vulnetix CLI
       shell: bash
       env:
         VX_VERSION: ${{ inputs.version }}
         VX_BINARY_PATH: ${{ inputs.binary-path }}
+        VX_VERIFY_PROVENANCE: ${{ inputs.verify-provenance }}
       run: bash "$GITHUB_ACTION_PATH/action-lib/install.sh"
 
     # Credentials reach the CLI only as environment variables, which it reads

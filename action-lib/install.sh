@@ -4,6 +4,8 @@
 # Inputs arrive as environment variables, never as ${{ }} expressions:
 #   VX_VERSION      release tag (v4.0.0), major channel (v4) or latest
 #   VX_BINARY_PATH  an already-built binary to use instead of a download
+#   VX_VERIFY_PROVENANCE  true (the default) requires the release's signed
+#                   provenance to verify with cosign, which the action installs
 #
 # The binary is a release download, not a build from source: building needs
 # private Go modules, which a runner in another repository cannot read.
@@ -41,6 +43,9 @@ else
     v*) args+=(--version "$version") ;;
     *) args+=(--version "v$version") ;;
   esac
+  if [ "${VX_VERIFY_PROVENANCE:-true}" = "true" ]; then
+    args+=(--require-provenance)
+  fi
   # The installer shipped with this action ref, so the channel logic always
   # matches the ref the workflow pinned.
   sh "$root/install.sh" "${args[@]}"

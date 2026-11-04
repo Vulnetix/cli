@@ -327,6 +327,41 @@ jobs:
             signed.cdx.json
         shell: bash
 
+  # install.sh and the setup action against a real release. The default
+  # verify-provenance installs cosign and verifies the release's signed SLSA
+  # provenance, and --require-provenance without cosign on PATH is refused.
+  install-verify:
+    name: Install a release with verified provenance
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    needs: [lint]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup action, verify-provenance left at its default
+        uses: ./setup
+
+      - name: The installed CLI runs
+        run: vulnetix version
+        shell: bash
+
+      - name: install.sh refuses --require-provenance without cosign
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/no-cosign"
+          mkdir -p "$bin"
+          for c in sh uname curl mkdir mktemp awk grep tr wc rm chmod mv head tail sed sort od date cat sha256sum; do
+            ln -sf "$(command -v "$c")" "$bin/$c"
+          done
+          if PATH="$bin" VULNETIX_NO_ANALYTICS=1 sh install.sh --install-dir "$RUNNER_TEMP/refused" --require-provenance; then
+            echo "::error::install.sh installed without cosign under --require-provenance"
+            exit 1
+          fi
+          test ! -e "$RUNNER_TEMP/refused/vulnetix"
+        shell: bash
+
   # The subdirectory actions and the root action, run as a consumer runs them
   # but against the binary this branch builds (binary-path), on a fixture with
   # a vulnerable package.json, a SAST pattern, a fake secret and a .vulnetix

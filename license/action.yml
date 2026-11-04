@@ -15,6 +15,10 @@ inputs:
   binary-path:
     description: 'Path to an already-built vulnetix binary to use instead of downloading a release'
     required: false
+  verify-provenance:
+    description: 'Verify the downloaded CLI against the signed SLSA provenance of its release with cosign, which this action installs: true or false. Every v4 release is signed; set false to install a v3 release that has no provenance.sigstore.json. The SHA-256 checksum is checked either way'
+    required: false
+    default: 'true'
   org-id:
     description: 'Vulnetix organization ID (UUID), used with api-key. Optional: without credentials the CLI runs in community mode'
     required: false
@@ -80,12 +84,17 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Install cosign
+      if: inputs.verify-provenance == 'true' && inputs.binary-path == ''
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
     - name: Install the Vulnetix CLI
       id: install
       shell: bash
       env:
         VX_VERSION: ${{ inputs.version }}
         VX_BINARY_PATH: ${{ inputs.binary-path }}
+        VX_VERIFY_PROVENANCE: ${{ inputs.verify-provenance }}
       run: bash "$GITHUB_ACTION_PATH/../action-lib/install.sh"
 
     - name: Run vulnetix license

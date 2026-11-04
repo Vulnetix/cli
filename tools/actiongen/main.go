@@ -82,6 +82,7 @@ func always(action) bool { return true }
 var commonInputs = []common{
 	{input{Name: "version", Desc: "Release of the Vulnetix CLI to install: an exact tag (v4.0.0), a major channel (v4, the newest v4 release) or latest", Default: "v4"}, always},
 	{input{Name: "binary-path", Desc: "Path to an already-built vulnetix binary to use instead of downloading a release"}, always},
+	{input{Name: "verify-provenance", Desc: "Verify the downloaded CLI against the signed SLSA provenance of its release with cosign, which this action installs: true or false. Every v4 release is signed; set false to install a v3 release that has no provenance.sigstore.json. The SHA-256 checksum is checked either way", Default: "true"}, always},
 	{input{Name: "org-id", Desc: "Vulnetix organization ID (UUID), used with api-key. Optional: without credentials the CLI runs in community mode"}, notSetup},
 	{input{Name: "api-key", Desc: "Vulnetix API key. Passed to the CLI as VULNETIX_API_KEY, never on the command line"}, notSetup},
 	{input{Name: "api-token", Desc: "Vulnetix API token; the server resolves the organization. Passed as VULNETIX_API_TOKEN"}, notSetup},
@@ -155,12 +156,14 @@ func actionYAML(a action) string {
 		fmt.Fprintf(&b, "  %s:\n    description: %s\n    value: ${{ steps.%s.outputs.%s }}\n", o[0], q(o[1]), step, o[0])
 	}
 	b.WriteString("\nruns:\n  using: 'composite'\n  steps:\n")
+	fmt.Fprintf(&b, "    - name: Install cosign\n      if: inputs.verify-provenance == 'true' && inputs.binary-path == ''\n      uses: %s\n\n", cosignInstall)
 	b.WriteString(`    - name: Install the Vulnetix CLI
       id: install
       shell: bash
       env:
         VX_VERSION: ${{ inputs.version }}
         VX_BINARY_PATH: ${{ inputs.binary-path }}
+        VX_VERIFY_PROVENANCE: ${{ inputs.verify-provenance }}
       run: bash "$GITHUB_ACTION_PATH/../action-lib/install.sh"
 `)
 	if a.Setup {
