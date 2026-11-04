@@ -254,3 +254,30 @@ func TestNixOSAndGentooAreUnsupportedNotEmpty(t *testing.T) {
 		t.Errorf("unsupported = %q packages = %d", res.Unsupported, len(res.Packages))
 	}
 }
+
+func TestDerivativesAreMatchedAsTheirBase(t *testing.T) {
+	for _, c := range []struct {
+		name, osRelease, eco, wantNS, wantRelease string
+	}{
+		{"Linux Mint", "ID=linuxmint\nID_LIKE=\"ubuntu debian\"\nVERSION_ID=\"22\"\nUBUNTU_CODENAME=noble\n", "deb", "ubuntu", "ubuntu-24.04"},
+		{"Pop!_OS", "ID=pop\nID_LIKE=\"ubuntu debian\"\nVERSION_ID=\"22.04\"\nUBUNTU_CODENAME=jammy\n", "deb", "ubuntu", "ubuntu-22.04"},
+		{"LMDE", "ID=linuxmint\nID_LIKE=debian\nVERSION_ID=\"6\"\nDEBIAN_CODENAME=bookworm\n", "deb", "debian", "debian-12"},
+		{"Raspbian", "ID=raspbian\nID_LIKE=debian\nVERSION_ID=\"12\"\n", "deb", "debian", "debian-12"},
+		{"Garuda", "ID=garuda\nID_LIKE=arch\n", "arch", "arch", ""},
+		// Kali follows Debian testing: no release can be told, so it is not
+		// matched as Debian.
+		{"Kali", "ID=kali\nID_LIKE=debian\nVERSION_ID=\"2024.4\"\nVERSION_CODENAME=kali-rolling\n", "deb", "kali", "kali-2024.4"},
+		{"Ubuntu itself", "ID=ubuntu\nVERSION_ID=\"24.04\"\nUBUNTU_CODENAME=noble\n", "deb", "ubuntu", "ubuntu-24.04"},
+	} {
+		root := t.TempDir()
+		write(t, root, "etc/os-release", c.osRelease)
+		d := ReadOSRelease(root)
+		if d.Namespace() != c.wantNS || d.Release() != c.wantRelease {
+			t.Errorf("%s: namespace %q release %q, want %q %q", c.name, d.Namespace(), d.Release(), c.wantNS, c.wantRelease)
+		}
+		purl := Package{Name: "openssl", Version: "3.0.13-0ubuntu3", Ecosystem: c.eco}.Purl(d)
+		if !strings.Contains(purl, "/"+c.wantNS+"/openssl@") {
+			t.Errorf("%s: purl %s", c.name, purl)
+		}
+	}
+}

@@ -37,13 +37,62 @@ type Distro struct {
 	IDLike     []string // os-release ID_LIKE
 	VersionID  string   // os-release VERSION_ID: 12, 2023, 3.19.1, …
 	PrettyName string
+	// UbuntuCodename and DebianCodename are what a derivative names its base
+	// release by (Linux Mint, Pop!_OS: UBUNTU_CODENAME=noble; LMDE:
+	// DEBIAN_CODENAME=bookworm).
+	UbuntuCodename string
+	DebianCodename string
+}
+
+// Release versions by codename, for a derivative that names only its base's
+// codename. A codename not listed here leaves the derivative unmapped: matching
+// it against a guessed release would be worse than not checking it.
+var (
+	ubuntuReleases = map[string]string{
+		"bionic": "18.04", "focal": "20.04", "jammy": "22.04", "lunar": "23.04", "mantic": "23.10",
+		"noble": "24.04", "oracular": "24.10", "plucky": "25.04", "questing": "25.10",
+	}
+	debianReleases = map[string]string{
+		"buster": "10", "bullseye": "11", "bookworm": "12", "trixie": "13", "forky": "14",
+	}
+)
+
+// base is the distribution whose advisories apply, and its release. A
+// derivative that ships its base's packages is matched as the base: Linux Mint
+// and Pop!_OS as the Ubuntu release they name, LMDE and Raspbian as Debian, and
+// anything ID_LIKE arch as Arch (rolling, no release). A derivative whose base
+// release cannot be told (Kali follows Debian testing) keeps its own ID and is
+// reported as unchecked by the site.
+func (d Distro) base() (string, string) {
+	switch d.ID {
+	case "debian", "ubuntu", "alpine", "arch", "amzn", "rhel", "centos", "rocky", "almalinux", "fedora",
+		"ol", "sles", "sled", "sle-micro", "opensuse-leap", "opensuse-tumbleweed", "opensuse",
+		"wolfi", "chainguard", "photon", "mariner", "azurelinux":
+		return d.ID, d.VersionID
+	case "raspbian":
+		return "debian", d.VersionID
+	}
+	if v, ok := ubuntuReleases[d.UbuntuCodename]; ok {
+		return "ubuntu", v
+	}
+	if v, ok := debianReleases[d.DebianCodename]; ok {
+		return "debian", v
+	}
+	for _, like := range d.IDLike {
+		if like == "arch" {
+			return "arch", ""
+		}
+	}
+	return d.ID, d.VersionID
 }
 
 // Namespace is the purl namespace for this distro's packages, using the vendor
 // names the advisory feeds and other scanners use rather than os-release's
-// abbreviations: amzn is amazon, rhel is redhat, ol is oracle.
+// abbreviations: amzn is amazon, rhel is redhat, ol is oracle. A derivative
+// takes its base's (base).
 func (d Distro) Namespace() string {
-	switch d.ID {
+	id, _ := d.base()
+	switch id {
 	case "amzn":
 		return "amazon"
 	case "rhel":
@@ -55,9 +104,9 @@ func (d Distro) Namespace() string {
 	case "opensuse-leap", "opensuse-tumbleweed", "opensuse":
 		return "opensuse"
 	case "rocky", "almalinux", "centos", "fedora", "debian", "ubuntu", "alpine", "arch", "wolfi", "chainguard", "photon", "mariner", "azurelinux":
-		return d.ID
+		return id
 	}
-	return d.ID
+	return id
 }
 
 // Release is the purl distro qualifier: namespace-version, with Alpine cut to
@@ -65,11 +114,12 @@ func (d Distro) Namespace() string {
 // Blank when os-release gives no version (Arch, Wolfi), so no qualifier is
 // invented for a rolling release.
 func (d Distro) Release() string {
-	if d.ID == "" || d.VersionID == "" {
+	id, version := d.base()
+	if id == "" || version == "" {
 		return ""
 	}
-	v := d.VersionID
-	if d.ID == "alpine" {
+	v := version
+	if id == "alpine" {
 		if parts := strings.SplitN(v, ".", 3); len(parts) >= 2 {
 			v = parts[0] + "." + parts[1]
 		}
@@ -219,6 +269,10 @@ func ReadOSRelease(root string) Distro {
 				d.ID = strings.ToLower(v)
 			case "ID_LIKE":
 				d.IDLike = strings.Fields(strings.ToLower(v))
+			case "UBUNTU_CODENAME":
+				d.UbuntuCodename = strings.ToLower(v)
+			case "DEBIAN_CODENAME":
+				d.DebianCodename = strings.ToLower(v)
 			case "VERSION_ID":
 				d.VersionID = v
 			case "PRETTY_NAME":
