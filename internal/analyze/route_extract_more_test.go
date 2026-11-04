@@ -1,6 +1,8 @@
 package analyze
 
 import (
+	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -169,4 +171,84 @@ end
 `
 	require.True(t, servesHTTP(src, "ruby"))
 	require.Equal(t, []string{"GET /v1/items", "POST /v1/items"}, keysOf(extractRoutes(stripComments(src, "ruby"), "ruby")))
+}
+
+// Vue's useRouter( and createRouter( are client code; only a router constructor at the
+// start of a token is a server signal.
+func TestVueRouterIsNotAServer(t *testing.T) {
+	client := "import { useRouter } from 'vue-router'\nconst router = useRouter()\nconst r = createRouter({ history })\nawait fetch.get('/api/site/v1/config')\n"
+	require.False(t, servesHTTP(client, "typescript"))
+	require.True(t, servesHTTP("const r = express.Router()\nr.get('/x', h)\n", "typescript"))
+	require.True(t, servesHTTP("const router = new Router({ prefix: '/v1' })\n", "javascript"))
+	require.True(t, servesHTTP("const app = express()\n", "javascript"))
+}
+
+// A Go route registered in main.go whose handler is declared in another package gets the
+// handler's file and lines, and only when exactly one declaration matches.
+func TestGoHandlersInAnotherFileAreResolved(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		p := filepath.Join(root, rel)
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, []byte(body), 0o644))
+	}
+	write("main.go", `package main
+
+func main() {
+	r := chi.NewRouter()
+	r.Get("/v1/users", handler.ListUsers(deps))
+	r.Post("/v1/users", h.Create)
+	r.Get("/v1/health", health)
+	r.Get("/v1/dup", handler.Dup(deps))
+}
+
+func health(w http.ResponseWriter, r *http.Request) {}
+`)
+	write("internal/handler/users.go", `package handler
+
+// ListUsers returns the handler.
+func ListUsers(deps *Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		rows := deps.DB.Query("SELECT * FROM users WHERE id = " + r.URL.Query().Get("id"))
+		_ = rows
+	}
+}
+
+func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
+	_ = r
+}
+`)
+	write("internal/handler/dup.go", "package handler\n\nfunc Dup(d *Deps) http.HandlerFunc { return nil }\n")
+	write("internal/other/handler/dup.go", "package handler\n\nfunc Dup(d *Deps) http.HandlerFunc { return nil }\n")
+
+	src := stripComments(mustRead(t, filepath.Join(root, "main.go")), "go")
+	var sites []routeSite
+	for _, r := range extractRoutes(src, "go") {
+		sites = append(sites, routeSite{key: normaliseRoute(r.method, r.path), file: "main.go", language: "go", route: r})
+	}
+	resolveGoHandlers(root, []string{"main.go", "internal/handler/users.go", "internal/handler/dup.go", "internal/other/handler/dup.go"}, sites)
+	got := map[string]route{}
+	for _, s := range sites {
+		got[s.route.method+" "+s.route.path] = s.route
+	}
+	list := got["GET /v1/users"]
+	require.Equal(t, "internal/handler/users.go", list.handlerFile)
+	require.Equal(t, 4, list.hStart)
+	require.Equal(t, 9, list.hEnd)
+	create := got["POST /v1/users"]
+	require.Equal(t, "internal/handler/users.go", create.handlerFile, "the one method named Create")
+	require.Equal(t, 11, create.hStart)
+	health := got["GET /v1/health"]
+	require.Empty(t, health.handlerFile, "a handler in the route's own file keeps no handlerFile")
+	require.Positive(t, health.hStart)
+	require.Empty(t, got["GET /v1/dup"].handlerFile, "two packages named handler declare Dup: ambiguous, not guessed")
+}
+
+func mustRead(t *testing.T, p string) string {
+	t.Helper()
+	b, err := os.ReadFile(p)
+	require.NoError(t, err)
+
+	return string(b)
 }

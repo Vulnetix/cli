@@ -40,6 +40,10 @@ type route struct {
 	// method. 0 when the handler is not in this file or its extent could not be read; never
 	// a guess.
 	hStart, hEnd int
+	// handlerFile is the file the handler is declared in when it is not this one (a Go
+	// handler resolved across the repository, route_handler_xfile.go); hStart and hEnd
+	// are then lines of that file. Empty when the handler is in this file or unknown.
+	handlerFile string
 }
 
 var (
@@ -985,6 +989,10 @@ func addRouteSites(sites []routeSite, add func(CrossRepoEdge, Node)) {
 				// merely in the same file. Absent when the handler is not read from this file.
 				props["handlerStartLine"] = s.route.hStart
 				props["handlerEndLine"] = s.route.hEnd
+				if s.route.handlerFile != "" {
+					// The lines are of this file, not the registration's.
+					props["handlerFile"] = s.route.handlerFile
+				}
 			}
 			if s.route.prefix != "" {
 				props["mountPrefix"] = s.route.prefix

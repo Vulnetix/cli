@@ -174,6 +174,17 @@ func collectContracts(b *Builder, root string, files *fileStats, deps *depStats,
 		}
 	}
 
+	// A Go handler is usually declared in another file than its route's registration:
+	// resolve it across the repository so a finding in it can meet the route.
+	if files != nil {
+		var goFiles []string
+		for _, f := range files.files {
+			if f.Language == "go" && !isTestPath(f.Path) {
+				goFiles = append(goFiles, f.Path)
+			}
+		}
+		resolveGoHandlers(root, goFiles, sites)
+	}
 	addRouteSites(sites, add)
 
 	collectImages(root, add)
@@ -325,12 +336,34 @@ func isTestPath(p string) bool {
 
 func servesHTTP(src, language string) bool {
 	for _, sig := range serverSignals[language] {
-		if strings.Contains(src, sig) {
+		if containsToken(src, sig) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// containsToken reports whether sig occurs in src at the start of a token: a signal that
+// begins with an identifier character must not be the tail of a longer name. "Router("
+// is Express's or Koa's router; "useRouter(" and "createRouter(" are Vue's, in client
+// code, and made every Vue composable a server publishing the API calls it makes.
+func containsToken(src, sig string) bool {
+	if sig == "" {
+		return false
+	}
+	identStart := isIdentByte(sig[0])
+	for from := 0; ; {
+		i := strings.Index(src[from:], sig)
+		if i < 0 {
+			return false
+		}
+		at := from + i
+		if !identStart || at == 0 || !(isIdentByte(src[at-1]) || src[at-1] == '$') {
+			return true
+		}
+		from = at + 1
+	}
 }
 
 // normaliseRoute is what makes a cross-repo route edge possible at all.
