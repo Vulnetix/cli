@@ -96,3 +96,20 @@ func TestQualityNilSafe(t *testing.T) {
 		t.Errorf("Quality(nil) = %+v, want a zero report", rep)
 	}
 }
+
+// component.supplier is where CycloneDX states the supplier, so it must count.
+// The check used to read only publisher, group and an SPDX supplier property,
+// which reported a supplier stated the CycloneDX way as missing.
+func TestQualityCountsTheCycloneDXSupplierMember(t *testing.T) {
+	input := `{"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"components":[
+	  {"type":"library","name":"alpha","version":"1.0.0","purl":"pkg:npm/alpha@1.0.0","supplier":{"name":"Alpha Org"}},
+	  {"type":"library","name":"beta","version":"1.0.0","purl":"pkg:npm/beta@1.0.0"}]}`
+	doc, err := LoadBytes([]byte(input), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := fieldByName(Quality(doc).Components, "component.supplier")
+	if f == nil || f.Present != 1 || f.Total != 2 {
+		t.Errorf("component.supplier = %+v, want 1 of 2", f)
+	}
+}

@@ -147,7 +147,10 @@ func Quality(doc *Document) *QualityReport {
 		if len(c.Hashes) > 0 {
 			hashed++
 		}
-		if c.Publisher != "" || c.Group != "" || hasProperty(c, "vulnetix:spdx/supplier") {
+		// CycloneDX states the supplier in component.supplier. publisher, group
+		// and an SPDX PackageSupplier carried as a property are weaker signals of
+		// the same thing, kept for documents that only have those.
+		if (c.Supplier != nil && strings.TrimSpace(c.Supplier.Name) != "") || c.Publisher != "" || c.Group != "" || hasProperty(c, "vulnetix:spdx/supplier") {
 			supplied++
 		}
 	}
