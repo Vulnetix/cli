@@ -86,11 +86,15 @@ func extractRoutes(src, language string) []route {
 	case "go":
 		out = extractGoRoutes(src)
 	case "javascript", "typescript", "tsx":
-		out = extractJSRoutes(src)
+		out = append(extractJSRoutes(src), extractNestRoutes(src)...)
 	case "python":
-		out = extractPyRoutes(src)
-	case "java", "kotlin":
+		out = append(append(extractPyRoutes(src), extractDjangoRoutes(src)...), extractAiohttpRoutes(src)...)
+	case "java":
 		out = extractJavaRoutes(src, language)
+	case "kotlin":
+		out = append(extractJavaRoutes(src, language), extractKtorRoutes(src)...)
+	case "ruby":
+		out = extractRubyRoutes(src)
 	}
 	// A handler range must lie inside the file; anything else is dropped, not clamped.
 	total := strings.Count(src, "\n") + 1

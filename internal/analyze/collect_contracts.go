@@ -199,12 +199,18 @@ var serverSignals = map[string][]string{
 		"chi.NewRouter", "chi.NewMux", "gin.Default", "gin.New", "echo.New",
 		"mux.NewRouter", "http.HandleFunc", "http.ListenAndServe", "fiber.New",
 	},
-	"javascript": {"express(", "fastify(", "new Koa(", "Router("},
-	"typescript": {"express(", "fastify(", "new Koa(", "Router("},
-	"python":     {"FastAPI(", "Flask(", "APIRouter(", "Blueprint("},
-	"java":       {"@RestController", "@Controller", "@RequestMapping"},
-	"kotlin":     {"@RestController", "@Controller", "@RequestMapping"},
-	"ruby":       {"Rails.application.routes", "Sinatra::Base"},
+	// NestJS controllers carry @Controller( in the file that declares the routes; Hono
+	// apps construct new Hono(. tsx is listed apart: without its own key no .tsx file
+	// ever counted as a server.
+	"javascript": {"express(", "fastify(", "new Koa(", "Router(", "new Hono(", "@Controller(", "NestFactory"},
+	"typescript": {"express(", "fastify(", "new Koa(", "Router(", "new Hono(", "@Controller(", "NestFactory"},
+	"tsx":        {"express(", "fastify(", "new Koa(", "Router(", "new Hono(", "@Controller(", "NestFactory"},
+	// Django URLconfs declare urlpatterns; aiohttp builds a web.Application or a RouteTableDef.
+	"python": {"FastAPI(", "Flask(", "APIRouter(", "Blueprint(", "urlpatterns", "web.Application(", "web.RouteTableDef("},
+	"java":   {"@RestController", "@Controller", "@RequestMapping"},
+	// Ktor: routing { … }, an extension on Route, or an embedded server.
+	"kotlin": {"@RestController", "@Controller", "@RequestMapping", "routing {", "routing{", "fun Route.", "embeddedServer("},
+	"ruby":   {"Rails.application.routes", "Sinatra::Base", "require 'sinatra'", `require "sinatra"`},
 }
 
 // stripComments removes comments so that an example in a doc comment is not mistaken for a
