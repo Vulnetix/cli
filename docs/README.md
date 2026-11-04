@@ -1,6 +1,6 @@
 # Vulnetix CLI Documentation
 
-Documentation has moved to **[docs.vulnetix.com/cli/get-started/overview](https://docs.vulnetix.com/cli/get-started/overview/)**.
+Documentation has moved to **[docs.vulnetix.com/cli](https://docs.vulnetix.com/cli/)**.
 
 Their source is the [Vulnetix/platform-docs](https://github.com/Vulnetix/platform-docs) repository.
 

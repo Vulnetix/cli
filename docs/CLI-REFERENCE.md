@@ -1,6 +1,6 @@
 # CLI Reference
 
-This documentation has moved to **[docs.vulnetix.com/cli/get-started/overview](https://docs.vulnetix.com/cli/get-started/overview/)**.
+This documentation has moved to **[docs.vulnetix.com/cli](https://docs.vulnetix.com/cli/)**.
 
 ## Commands
 
@@ -24,4 +24,4 @@ This documentation has moved to **[docs.vulnetix.com/cli/get-started/overview](h
 | `vulnetix update` | Update CLI to latest release |
 | `vulnetix completion` | Generate shell autocompletion scripts |
 
-See the [full CLI reference](https://docs.vulnetix.com/cli/get-started/overview/) for all flags, options, and usage patterns.
+See the [full CLI reference](https://docs.vulnetix.com/cli/) for all flags, options, and usage patterns.
