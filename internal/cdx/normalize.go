@@ -95,7 +95,10 @@ func MarshalValidated(doc *BOM) ([]byte, error) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "CycloneDX %s validation failed (%d violation(s)):", doc.SpecVersion, len(violations))
 	for _, v := range violations {
-		fmt.Fprintf(&b, "\n  %s: %s", v.Path, v.Message)
+		// The schema library prefixes each message with the path; it is already
+		// at the start of the line.
+		msg := strings.TrimPrefix(v.Message, "at '"+v.Path+"': ")
+		fmt.Fprintf(&b, "\n  %s: %s", v.Path, msg)
 		if hint := violationHint(v.Path); hint != "" {
 			fmt.Fprintf(&b, " (%s)", hint)
 		}

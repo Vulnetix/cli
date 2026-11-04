@@ -204,6 +204,9 @@ func TestMarshalValidatedListsEveryViolationWithAHint(t *testing.T) {
 			t.Errorf("error lacks %q:\n%s", want, msg)
 		}
 	}
+	if strings.Contains(msg, "at '/") {
+		t.Errorf("the path is repeated inside the message:\n%s", msg)
+	}
 }
 
 func propValue(props []Property, name string) string {
