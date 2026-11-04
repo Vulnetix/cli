@@ -1,0 +1,1 @@
+{"bomFormat": "CycloneDX", "vulnerabilities": [{"id": "CVE-2099-0001", "analysis": {"state": "not_affected", "justification": "code_not_reachable", "detail": "left-pad is only called from tests"}}]}

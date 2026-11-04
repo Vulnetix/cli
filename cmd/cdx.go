@@ -1264,7 +1264,7 @@ func preserveCDXVulnerabilities(path string, fresh []byte) ([]byte, int, error) 
 		}
 		doc["components"] = freshComponents
 	}
-	doc["vulnerabilities"] = vulns
+	doc["vulnerabilities"] = mergeFreshVulnerabilities(vulns, doc["vulnerabilities"])
 
 	merged, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
@@ -1821,4 +1821,40 @@ func labelAndSign(cmd *cobra.Command, outFile string, bomData []byte, deployment
 		return res.Document
 	}
 	return bomData
+}
+
+// mergeFreshVulnerabilities folds the entries this run wrote (an overlay's, as
+// cdx looks nothing up) into the findings carried over from disk. A carried-over
+// finding with the same id takes the fresh entry's analysis, which is how an
+// overlay states a VEX decision on a finding an earlier scan recorded; any other
+// fresh entry is appended. Carrying the old list over wholesale, as this did,
+// silently discarded what the overlay said.
+func mergeFreshVulnerabilities(carried []any, fresh any) []any {
+	freshList, _ := fresh.([]any)
+	if len(freshList) == 0 {
+		return carried
+	}
+	byID := map[string]map[string]any{}
+	for _, v := range carried {
+		if m, ok := v.(map[string]any); ok {
+			if id, ok := m["id"].(string); ok && id != "" {
+				byID[id] = m
+			}
+		}
+	}
+	for _, v := range freshList {
+		m, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		id, _ := m["id"].(string)
+		if existing := byID[id]; existing != nil {
+			if analysis, ok := m["analysis"]; ok {
+				existing["analysis"] = analysis
+			}
+			continue
+		}
+		carried = append(carried, m)
+	}
+	return carried
 }

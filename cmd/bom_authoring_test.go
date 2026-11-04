@@ -255,3 +255,53 @@ func TestCDXAuthoringFromEnvironment(t *testing.T) {
 		t.Errorf("authors = %+v supplier = %+v", doc.Metadata.Authors, doc.Metadata.Supplier)
 	}
 }
+
+// cdx carries findings over from the file it rewrites. An overlay's analysis on
+// one of them must survive that, not be replaced by the copy on disk.
+func TestCDXOverlayAnalysisOnACarriedOverFinding(t *testing.T) {
+	resetSBOMFlags(t)
+	resetAuthoringFlags(t, cdxCmd)
+	t.Cleanup(func() { resetAuthoringFlags(t, cdxCmd) })
+	root := sbomFixture(t)
+	out := filepath.Join(root, "out.cdx.json")
+	base := []string{"cdx", "--path", root, "--output-file", out, "--no-aibom", "--no-cbom", "--no-analytics", "--no-banner"}
+	if _, err := executeCommand(t, rootCmd, base...); err != nil {
+		t.Fatal(err)
+	}
+	// An earlier scan recorded a finding on left-pad.
+	raw, _ := os.ReadFile(out)
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	doc["vulnerabilities"] = []any{map[string]any{"id": "CVE-2099-0001", "bom-ref": "vuln:CVE-2099-0001",
+		"affects": []any{map[string]any{"ref": "pkg:npm/left-pad@1.3.0"}}}}
+	raw, _ = json.MarshalIndent(doc, "", "  ")
+	if err := os.WriteFile(out, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	overlay, _ := filepath.Abs("testdata/bom/analysis-overlay.cdx.json")
+	resetSBOMFlags(t)
+	if _, err := executeCommand(t, rootCmd, append(base, "--bom-overlay", overlay)...); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ = os.ReadFile(out)
+	var got struct {
+		Vulnerabilities []struct {
+			ID       string                                 `json:"id"`
+			Affects  []struct{ Ref string }                 `json:"affects"`
+			Analysis *struct{ State, Justification string } `json:"analysis"`
+		} `json:"vulnerabilities"`
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Vulnerabilities) != 1 {
+		t.Fatalf("vulnerabilities = %+v, want the one carried-over finding", got.Vulnerabilities)
+	}
+	v := got.Vulnerabilities[0]
+	if v.Analysis == nil || v.Analysis.State != "not_affected" || v.Analysis.Justification != "code_not_reachable" || len(v.Affects) != 1 {
+		t.Errorf("finding = %+v, want the overlay's analysis on the carried-over affects", v)
+	}
+}
