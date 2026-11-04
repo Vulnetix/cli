@@ -72,11 +72,16 @@ var flagToOption = map[string]string{
 	"vex-file": "VEXFiles",
 	"vex":      "VEXFiles",
 	"no-vex":   "VEXConfig",
-	// BOM authoring identity. --bom-manufacturer lands among the candidate
-	// sources rather than a resolved value, because the last fallback is the git
-	// remote and resolving it here would walk the repository a second time.
-	"bom-manufacturer": "ManufacturerSources",
-	"lifecycle":        "LifecycleOverride",
+	// BOM authoring identity and customisation. Every flag lands in Authoring as
+	// stated rather than resolved, because the manufacturer's last fallback is
+	// the git remote and resolving it here would walk the repository a second
+	// time; cdx.ResolveAuthorship settles it once git context exists.
+	"bom-manufacturer": "Authoring", "bom-manufacturer-url": "Authoring",
+	"bom-author": "Authoring", "bom-supplier": "Authoring", "bom-supplier-url": "Authoring",
+	"bom-serial": "Authoring", "bom-version": "Authoring", "lifecycle": "Authoring",
+	"bom-license": "Authoring", "bom-property": "Authoring", "bom-overlay": "Authoring",
+	"component-name": "Authoring", "component-version": "Authoring", "component-type": "Authoring",
+	"component-group": "Authoring", "component-purl": "Authoring",
 	// The gate vocabulary. --fail-on feeds six gate fields at once, so it is
 	// excused below rather than mapped to one of them.
 	"strict":          "Strict",

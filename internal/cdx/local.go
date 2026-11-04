@@ -60,7 +60,11 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 	}
 
 	bom := &BOM{BOMFormat: "CycloneDX", SpecVersion: specVersion, Metadata: &Metadata{}}
-	_, _ = cyclonedx.ApplyAuthorship(bom, Authoring(toolName, manufacturer, phases...))
+	authorship := Authoring(toolName, manufacturer, phases...)
+	if scanCtx != nil && scanCtx.Authorship != nil {
+		authorship = *scanCtx.Authorship
+	}
+	_, _ = cyclonedx.ApplyAuthorship(bom, authorship)
 
 	if scanCtx != nil {
 		populateMetadataFromContext(bom.Metadata, scanCtx)

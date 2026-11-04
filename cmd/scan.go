@@ -1930,26 +1930,33 @@ func runLocalScan(
 	// Reading a manifest says what a build is *intended* to resolve — the
 	// artefacts do not exist yet — so that is pre-build, not the `build` every
 	// builder used to hardcode. A container scan reads something already built.
-	phases := opts.LifecycleOverride
-	if phases == nil {
-		phases = cdx.DerivePhases(cdx.LifecycleSources{
-			Manifests:      !containerOnly && len(localResults) > 0,
-			ContainerImage: containerOnly,
-			Deployed:       !opts.Deployment.Empty(),
-		})
-	}
 	// The git fallback for the manufacturer is applied here rather than where the
 	// flags were read, so resolving it does not walk the repository a second
 	// time — gitCtx is already collected by this point.
-	manufacturerSources := opts.ManufacturerSources
-	manufacturerSources.Git = gitCtx
+	authoring := opts.Authoring
+	authoring.Manufacturer.Git = gitCtx
+	authorship := cdx.ResolveAuthorship(bomToolName, authoring, cdx.DerivePhases(cdx.LifecycleSources{
+		Manifests:      !containerOnly && len(localResults) > 0,
+		ContainerImage: containerOnly,
+		Deployed:       !opts.Deployment.Empty(),
+	}))
 	scanCtx := &cdx.ScanContext{
 		Git:          gitCtx,
 		System:       sysInfo,
 		ToolVersion:  version,
 		ToolName:     bomToolName,
-		Manufacturer: cdx.ResolveManufacturer(manufacturerSources),
-		Phases:       phases,
+		Manufacturer: authorship.Manufacturer,
+		Phases:       authorship.Phases,
+		Authorship:   &authorship,
+	}
+	// What the caller stated about the content (overlays, document licences,
+	// properties, the subject component) is applied to every document this
+	// run builds. A bad overlay warns rather than fails: the scan's findings
+	// are worth more than the labels on them.
+	finishScanBOM := func(b *cdx.BOM) {
+		if err := cdx.ApplyDocumentOverrides(b, authoring); err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: BOM customisation: %v\n", err)
+		}
 	}
 	// Prefer vulnetix-sca seed (version-matched) over external CDX seed.
 	effectiveSeed := seedBOM
@@ -2022,7 +2029,16 @@ func runLocalScan(
 	if !suppressBOM && (len(bom.Components) > 0 || len(bom.Vulnerabilities) > 0 || len(cdxVEX) > 0) {
 		if existingBOM, err := parseCDXForScan(sbomPath); err == nil && existingBOM != nil {
 			bom = cdx.MergeBOMs(existingBOM, bom)
+			// MergeBOMs protects what is on disk, which is right for components
+			// and findings and wrong for identity: the file is this document,
+			// one revision on, so it keeps its serial, increments its version
+			// and says who ran this scan. A document another tool authored
+			// keeps its author and gains this run in metadata.tools.
+			if err := cdx.Reauthor(bom, authorship); err != nil {
+				fmt.Fprintf(os.Stderr, "  warning: BOM identity: %v\n", err)
+			}
 		}
+		finishScanBOM(bom)
 		// After the merge, so a resolution annotates the vulnerability entry the
 		// previous run left on disk instead of appending a twin under the same id.
 		cdx.ApplyVEXAnalysis(bom, cdxVEX)
@@ -2632,6 +2648,7 @@ func runLocalScan(
 		// Carry the dependency tree into the file output too, so `-o file.cdx.json`
 		// is as complete as the canonical .vulnetix/sbom.cdx.json.
 		outBOM.Dependencies = cdx.BuildDependencies(manifestGroups, cdx.ExportCompRefs(outBOM))
+		finishScanBOM(outBOM)
 		cdx.ApplyDeploymentContext(outBOM, opts.Deployment)
 		if err := writeBOMToFile(outBOM, outCfg.cdxFile); err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ could not write CDX to %s: %v\n", outCfg.cdxFile, err)
@@ -2661,6 +2678,7 @@ func runLocalScan(
 	// instead of losing them.
 	if outCfg.stdoutFmt == "json-cyclonedx" {
 		outBOM := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
+		finishScanBOM(outBOM)
 		cdx.ApplyDeploymentContext(outBOM, opts.Deployment)
 		cdx.NormalizeForSchema(outBOM)
 		if err := outBOM.WriteJSON(os.Stdout); err != nil {

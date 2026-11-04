@@ -57,15 +57,35 @@ vx_build() {
     cbom)
       cmd=(cbom)
       vx_takes_path=true
+      vx_bool --sign "${VX_IN_SIGN:-}"
+      vx_flag --bom-manufacturer "${VX_IN_BOM_MANUFACTURER:-}"
+      vx_flag_lines --bom-author "${VX_IN_BOM_AUTHOR:-}"
+      vx_flag --bom-supplier "${VX_IN_BOM_SUPPLIER:-}"
+      vx_flag --bom-license "${VX_IN_BOM_LICENSE:-}"
+      vx_flag_lines --bom-property "${VX_IN_BOM_PROPERTY:-}"
+      vx_flag_lines --bom-overlay "${VX_IN_BOM_OVERLAY:-}"
       ;;
     aibom)
       cmd=(aibom)
       vx_takes_path=true
+      vx_bool --sign "${VX_IN_SIGN:-}"
+      vx_flag --bom-manufacturer "${VX_IN_BOM_MANUFACTURER:-}"
+      vx_flag_lines --bom-author "${VX_IN_BOM_AUTHOR:-}"
+      vx_flag --bom-supplier "${VX_IN_BOM_SUPPLIER:-}"
+      vx_flag --bom-license "${VX_IN_BOM_LICENSE:-}"
+      vx_flag_lines --bom-property "${VX_IN_BOM_PROPERTY:-}"
+      vx_flag_lines --bom-overlay "${VX_IN_BOM_OVERLAY:-}"
       ;;
     sbom)
       cmd=(cdx)
       vx_takes_path=true
       vx_bool --sign "${VX_IN_SIGN:-}"
+      vx_flag --bom-manufacturer "${VX_IN_BOM_MANUFACTURER:-}"
+      vx_flag_lines --bom-author "${VX_IN_BOM_AUTHOR:-}"
+      vx_flag --bom-supplier "${VX_IN_BOM_SUPPLIER:-}"
+      vx_flag --bom-license "${VX_IN_BOM_LICENSE:-}"
+      vx_flag_lines --bom-property "${VX_IN_BOM_PROPERTY:-}"
+      vx_flag_lines --bom-overlay "${VX_IN_BOM_OVERLAY:-}"
       ;;
     upload)
       cmd=(upload --json)

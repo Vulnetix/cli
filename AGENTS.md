@@ -203,6 +203,25 @@ builders used to default it to the literal string `"cli"`. `--lifecycle` and
 **not** registered on transformer-tier commands, which have no manufacturer to
 claim. `cmd/bom_authoring_ownership_test.go` locks all of this in.
 
+**What a caller may state about its document** is read in one place
+(`scanopts.AuthoringInputsFromCommand`: the `--bom-*` and `--component-*`
+flags, each with a `VULNETIX_BOM_*` / `VULNETIX_COMPONENT_*` environment
+equivalent, and `--bom-overlay` files) and resolved in one place
+(`cdx.ResolveAuthorship` for identity, `cdx.ApplyDocumentOverrides` for
+content), on `cdx`, `aibom`, `cbom` and the scan family alike. Precedence is
+flag > environment > overlay > derived, member by member. An overlay
+(`internal/cdx/overlay.go`) is a CycloneDX fragment: scalars win, arrays
+append and de-duplicate, a vulnerability's `analysis` replaces, and members
+this model does not interpret (`services`, `compositions`, `annotations`,
+`formulation`, `externalReferences`) replace the whole member through `Extra`.
+An overlay can never set `metadata.tools`, `metadata.timestamp`, a `signature`
+or a `vulnetix:*` property. The built document goes through
+`cdx.MarshalValidated`, which reports every schema violation with its JSON
+pointer and the flag or file that put it there, rather than the first one. A
+rescan of `.vulnetix/sbom.cdx.json` calls `cdx.Reauthor` after `MergeBOMs`,
+so the file keeps its serial, increments `version` and names the organisation
+that ran this scan; `MergeBOMs` alone kept whatever manufacturer the file had.
+
 ### VEX Is Consumed As Well As Emitted
 
 `internal/triage` writes VEX from this CLI's own triage decisions;

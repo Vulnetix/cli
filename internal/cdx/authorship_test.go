@@ -1,6 +1,7 @@
 package cdx
 
 import (
+	"strings"
 	"testing"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
@@ -189,5 +190,102 @@ func TestAuthoringToolCarriesARealIdentity(t *testing.T) {
 		t.Error("tool has no purl")
 	case len(tool.ExternalReferences) == 0:
 		t.Error("tool has no external references")
+	}
+}
+
+func TestResolveAuthorshipPrecedence(t *testing.T) {
+	overlay := Overlay{Path: "ov.json", BOM: &BOM{
+		SerialNumber: "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79",
+		Version:      4,
+		Metadata: &Metadata{
+			Manufacturer: &OrganizationalEntity{Name: "Overlay Manufacturer", URL: []string{"https://overlay.example"}},
+			Authors:      []OrganizationalContact{{Name: "Overlay Author"}},
+			Supplier:     &OrganizationalEntity{Name: "Overlay Supplier"},
+			Lifecycles:   []Lifecycle{{Phase: "operations"}},
+		},
+	}}
+	derived := []LifecyclePhase{PhasePreBuild}
+
+	t.Run("overlay fills what nothing else states", func(t *testing.T) {
+		a := ResolveAuthorship(cyclonedx.ToolCDX, AuthoringInputs{Overlays: []Overlay{overlay}}, derived)
+		if a.Manufacturer == nil || a.Manufacturer.Name != "Overlay Manufacturer" {
+			t.Errorf("manufacturer = %v", a.Manufacturer)
+		}
+		if len(a.Authors) != 1 || a.Authors[0].Name != "Overlay Author" {
+			t.Errorf("authors = %v", a.Authors)
+		}
+		if a.Supplier == nil || a.Supplier.Name != "Overlay Supplier" {
+			t.Errorf("supplier = %v", a.Supplier)
+		}
+		if a.SerialNumber != "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79" || a.BOMVersion != 4 {
+			t.Errorf("serial/version = %s/%d", a.SerialNumber, a.BOMVersion)
+		}
+		if len(a.Phases) != 1 || a.Phases[0] != PhaseOperations {
+			t.Errorf("phases = %v, want the overlay's", a.Phases)
+		}
+		if a.Tool.Name != cyclonedx.ToolCDX {
+			t.Errorf("tool = %v", a.Tool)
+		}
+	})
+
+	t.Run("flags and environment beat the overlay member by member", func(t *testing.T) {
+		in := AuthoringInputs{
+			Manufacturer:    ManufacturerSources{Env: "Env Ltd"},
+			ManufacturerURL: "https://env.example",
+			Authors:         []OrganizationalContact{{Name: "Flag Author", Email: "flag@example.com"}},
+			SerialNumber:    "release-2026.11",
+			BOMVersion:      7,
+			Lifecycle:       []LifecyclePhase{PhaseBuild},
+			Overlays:        []Overlay{overlay},
+		}
+		a := ResolveAuthorship(cyclonedx.ToolCDX, in, derived)
+		if a.Manufacturer.Name != "Env Ltd" || len(a.Manufacturer.URL) != 1 || a.Manufacturer.URL[0] != "https://env.example" {
+			t.Errorf("manufacturer = %+v", a.Manufacturer)
+		}
+		if a.Authors[0].Name != "Flag Author" {
+			t.Errorf("authors = %v", a.Authors)
+		}
+		// Nothing above the overlay stated a supplier, so the overlay's stands.
+		if a.Supplier == nil || a.Supplier.Name != "Overlay Supplier" {
+			t.Errorf("supplier = %v", a.Supplier)
+		}
+		if a.SerialNumber != "release-2026.11" || a.BOMVersion != 7 {
+			t.Errorf("serial/version = %s/%d", a.SerialNumber, a.BOMVersion)
+		}
+		if len(a.Phases) != 1 || a.Phases[0] != PhaseBuild {
+			t.Errorf("phases = %v", a.Phases)
+		}
+	})
+
+	t.Run("derived values are the floor", func(t *testing.T) {
+		a := ResolveAuthorship(cyclonedx.ToolCDX, AuthoringInputs{}, derived)
+		if a.Manufacturer != nil || a.Authors != nil || a.Supplier != nil || a.SerialNumber != "" || a.BOMVersion != 0 {
+			t.Errorf("unstated members were invented: %+v", a)
+		}
+		if len(a.Phases) != 1 || a.Phases[0] != PhasePreBuild {
+			t.Errorf("phases = %v, want derived", a.Phases)
+		}
+	})
+
+	t.Run("a stated serial is applied deterministically", func(t *testing.T) {
+		doc := cyclonedx.NewDocument("1.7")
+		a := ResolveAuthorship(cyclonedx.ToolCDX, AuthoringInputs{SerialNumber: "release-2026.11", BOMVersion: 3}, nil)
+		if _, err := cyclonedx.ApplyAuthorship(doc, a); err != nil {
+			t.Fatal(err)
+		}
+		want := cyclonedx.NormalizeSerialNumber("release-2026.11")
+		if doc.SerialNumber != want || !strings.HasPrefix(doc.SerialNumber, "urn:uuid:") || doc.Version != 3 {
+			t.Errorf("serial/version = %s/%d, want %s/3", doc.SerialNumber, doc.Version, want)
+		}
+	})
+}
+
+func TestOrganizationDropsAnEmptyName(t *testing.T) {
+	if Organization("  ", "https://x") != nil {
+		t.Error("an empty name must leave the member absent")
+	}
+	e := Organization(" Acme ", "https://acme.example", "")
+	if e.Name != "Acme" || len(e.URL) != 1 {
+		t.Errorf("entity = %+v", e)
 	}
 }

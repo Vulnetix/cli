@@ -1,6 +1,8 @@
 package cdx
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
@@ -199,4 +201,219 @@ func toolComponents(t *Tools) []Component {
 // indistinguishable downstream from a deliberate one.
 func ParseLifecyclePhases(csv string) ([]LifecyclePhase, error) {
 	return cyclonedx.ParseLifecyclePhases(csv)
+}
+
+// ── What a run may say about its own document ────────────────────────────────
+//
+// Everything below turns the caller's stated intent (flags, environment, an
+// overlay file) into the one Authorship the library applies. Precedence is
+// flag > environment > overlay > derived, and it holds member by member: a
+// supplier from an overlay survives an explicit --bom-author, because the two
+// say different things.
+
+// ComponentOverride replaces the git-derived members of metadata.component. A
+// zero field keeps the derived value.
+type ComponentOverride struct {
+	Name, Version, Type, Group, Purl string
+}
+
+// Overlay is a CycloneDX fragment the caller asked to merge into the document,
+// kept with the path it came from so a violation can name the file.
+type Overlay struct {
+	Path string
+	BOM  *BOM
+}
+
+// AuthoringInputs is everything the caller stated about the document's
+// identity and content, before any of it has been resolved. The command layer
+// fills it from flags and environment; this package decides what it means.
+type AuthoringInputs struct {
+	// Manufacturer gathers the candidates for metadata.manufacturer (the
+	// explicit flag, the environment, the CI owner, git). The git fallback is
+	// filled in where git context is already collected.
+	Manufacturer ManufacturerSources
+	// ManufacturerURL replaces the owner URL derived from the git remote.
+	ManufacturerURL string
+	// Authors become metadata.authors.
+	Authors []OrganizationalContact
+	// SupplierName and SupplierURL become metadata.supplier.
+	SupplierName, SupplierURL string
+	// SerialNumber is normalised to a urn:uuid; "" keeps a derived or minted one.
+	SerialNumber string
+	// BOMVersion is the document's version member; 0 keeps the derived one.
+	BOMVersion int
+	// Lifecycle replaces the phases the pass would derive. Nil means derive.
+	Lifecycle []LifecyclePhase
+	// Licenses are the licences of the document itself (metadata.licenses).
+	Licenses []LicenseChoice
+	// Properties are upserted into metadata.properties.
+	Properties []Property
+	// Component overrides the derived subject component.
+	Component ComponentOverride
+	// Overlays are applied in order; a later overlay wins over an earlier one.
+	Overlays []Overlay
+}
+
+// Organization builds an organizational entity from a name and optional URL.
+// It returns nil for an empty name, so an unset flag leaves the member absent.
+func Organization(name string, url ...string) *OrganizationalEntity {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	e := &OrganizationalEntity{Name: name}
+	for _, u := range url {
+		if u = strings.TrimSpace(u); u != "" {
+			e.URL = append(e.URL, u)
+		}
+	}
+	return e
+}
+
+// ResolveAuthorship answers every identity question for a document this CLI
+// authors, in one place. derivedPhases are the stages the pass can claim from
+// what it read; they are used only when neither a flag nor an overlay states
+// the phases.
+func ResolveAuthorship(toolName string, in AuthoringInputs, derivedPhases []LifecyclePhase) Authorship {
+	ov := lastOverlay(in.Overlays)
+	var ovMeta *Metadata
+	if ov != nil {
+		ovMeta = ov.Metadata
+	}
+
+	phases := in.Lifecycle
+	if phases == nil && ovMeta != nil {
+		for _, l := range ovMeta.Lifecycles {
+			if p := LifecyclePhase(l.Phase); p != "" && p.Valid() {
+				phases = append(phases, p)
+			}
+		}
+	}
+	if phases == nil {
+		phases = derivedPhases
+	}
+
+	a := Authoring(toolName, ResolveManufacturer(in.Manufacturer), phases...)
+	if a.Manufacturer == nil && ovMeta != nil && ovMeta.Manufacturer != nil {
+		a.Manufacturer = ovMeta.Manufacturer
+	}
+	if a.Manufacturer != nil && strings.TrimSpace(in.ManufacturerURL) != "" {
+		a.Manufacturer.URL = []string{strings.TrimSpace(in.ManufacturerURL)}
+	}
+
+	a.Authors = in.Authors
+	if len(a.Authors) == 0 && ovMeta != nil {
+		a.Authors = ovMeta.Authors
+	}
+
+	a.Supplier = Organization(in.SupplierName, in.SupplierURL)
+	if a.Supplier == nil && ovMeta != nil {
+		a.Supplier = ovMeta.Supplier
+	}
+
+	a.SerialNumber = strings.TrimSpace(in.SerialNumber)
+	if a.SerialNumber == "" && ov != nil {
+		a.SerialNumber = ov.SerialNumber
+	}
+	a.BOMVersion = in.BOMVersion
+	if a.BOMVersion == 0 && ov != nil {
+		a.BOMVersion = ov.Version
+	}
+	return a
+}
+
+func lastOverlay(overlays []Overlay) *BOM {
+	for i := len(overlays) - 1; i >= 0; i-- {
+		if overlays[i].BOM != nil {
+			return overlays[i].BOM
+		}
+	}
+	return nil
+}
+
+// ApplyDocumentOverrides applies, after the builder has produced the document
+// and before it is marshalled, everything the caller stated about its content:
+// the overlays in order, then the document licences, then the properties, then
+// the subject component. Flags come last so they win over an overlay. Identity
+// members (serial, version, manufacturer, authors, supplier, lifecycles) are
+// not touched here; ResolveAuthorship consumed them.
+func ApplyDocumentOverrides(doc *BOM, in AuthoringInputs) error {
+	if doc == nil {
+		return errors.New("authorship: nil document")
+	}
+	if doc.Metadata == nil {
+		doc.Metadata = &Metadata{}
+	}
+	for _, ov := range in.Overlays {
+		if err := ApplyOverlay(doc, ov); err != nil {
+			return err
+		}
+	}
+	doc.Metadata.Licenses = mergeLicenses(doc.Metadata.Licenses, in.Licenses)
+	for _, p := range in.Properties {
+		doc.Metadata.SetProperty(p.Name, p.Value)
+	}
+	applyComponentOverride(doc, in.Component)
+	return nil
+}
+
+func applyComponentOverride(doc *BOM, o ComponentOverride) {
+	if o == (ComponentOverride{}) {
+		return
+	}
+	if doc.Metadata.Component == nil {
+		doc.Metadata.Component = &Component{Type: "application", BOMRef: "urn:project", Name: "project"}
+	}
+	c := doc.Metadata.Component
+	if o.Name != "" {
+		c.Name = o.Name
+	}
+	if o.Version != "" {
+		c.Version = o.Version
+	}
+	if o.Type != "" {
+		c.Type = o.Type
+	}
+	if o.Group != "" {
+		c.Group = o.Group
+	}
+	if o.Purl != "" {
+		c.Purl = o.Purl
+	}
+}
+
+// Reauthor stamps a document that is being rewritten at the path it was read
+// from: the serial is kept, the version increments, and this run's identity is
+// applied when this product authored the original. A third-party author keeps
+// its claim and this run is appended to metadata.tools. See ReviseInPlace.
+func Reauthor(doc *BOM, a Authorship) error {
+	_, err := cyclonedx.ReviseInPlace(doc, a)
+	return err
+}
+
+// DocumentOf unwraps the value a Build*Document function returns.
+func DocumentOf(v any) (*BOM, error) {
+	doc, ok := v.(*BOM)
+	if !ok || doc == nil {
+		return nil, fmt.Errorf("cyclonedx: builder returned %T, want *Document", v)
+	}
+	return doc, nil
+}
+
+// ComponentTypes is the CycloneDX component classification enum, the values
+// --component-type accepts.
+var ComponentTypes = []string{
+	"application", "framework", "library", "container", "platform",
+	"operating-system", "device", "device-driver", "firmware", "file",
+	"machine-learning-model", "data", "cryptographic-asset",
+}
+
+// ValidComponentType reports whether t is a CycloneDX component classification.
+func ValidComponentType(t string) bool {
+	for _, v := range ComponentTypes {
+		if v == t {
+			return true
+		}
+	}
+	return false
 }

@@ -45,19 +45,16 @@ type Options struct {
 	// can join results across repositories. See internal/cdx/deployment.go.
 	Deployment cdx.DeploymentContext
 
-	// ManufacturerSources are the candidates for the organization that created
-	// metadata.manufacturer, which is the field for documents produced by an
-	// automated process. It is the organization running this scan, not the
-	// vendor of the scanner; the scanner is named in metadata.tools. Nil when
-	// nothing resolved it, which leaves the member absent rather than guessed.
-	// Resolved by the caller because only it has the command's flags.
-	ManufacturerSources cdx.ManufacturerSources
-
-	// LifecycleOverride replaces the capture stages the engine would derive from
-	// what it read (--lifecycle). Nil means derive. A pipeline that states its
-	// own stage is making a claim about its process that no amount of filesystem
-	// inspection can contradict, so the override wins outright.
-	LifecycleOverride []cdx.LifecyclePhase
+	// Authoring is everything the caller stated about the document's identity
+	// and content: the candidates for metadata.manufacturer (the organization
+	// running this scan, not the vendor of the scanner, which is named in
+	// metadata.tools), the authors, supplier, serial number, version, the
+	// --lifecycle override (a pipeline that states its own stage is making a
+	// claim no filesystem inspection can contradict, so it wins outright), the
+	// document licences and properties, the subject component overrides and
+	// the overlay files. Read by the caller because only it has the flags;
+	// resolved once by cdx.ResolveAuthorship.
+	Authoring cdx.AuthoringInputs
 
 	// VEXFiles are third-party VEX documents to apply to the findings before
 	// the quality gates are evaluated (--vex-file). Empty when --no-vex was

@@ -18,6 +18,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/display"
 	"github.com/vulnetix/cli/v4/internal/gitctx"
 	"github.com/vulnetix/cli/v4/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/scanopts"
 	"github.com/vulnetix/cli/v4/pkg/auth"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
@@ -83,6 +84,12 @@ func init() {
 	cbomCmd.Flags().String("fail-on", "none", "Exit non-zero when crypto of these PQC statuses is found: none, quantum-vulnerable, deprecated (comma-separated)")
 	cbomCmd.Flags().Bool("no-upload", false, "Do not submit the CBOM to Vulnetix (it is submitted automatically when authenticated)")
 	cbomCmd.Flags().Bool("cbom-include-ignored", false, "Include files matched by .gitignore (default: gitignored paths are skipped)")
+	cbomCmd.Flags().Bool("sign", false, "Sign the CBOM with this machine's own OIDC identity (CI runners); writes .sig, .pem and .intoto.jsonl beside it")
+	// The same identity, customisation and deployment flags as cdx: a CBOM is
+	// a document this command authors, and must be able to say the same things
+	// about itself.
+	scanopts.AddDeploymentFlags(cbomCmd.Flags())
+	scanopts.AddAuthorshipFlags(cbomCmd.Flags())
 	rootCmd.AddCommand(cbomCmd)
 }
 
@@ -120,6 +127,12 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	authoring, err := scanopts.AuthoringInputsFromCommand(cmd)
+	if err != nil {
+		return err
+	}
+	sign, _ := cmd.Flags().GetBool("sign")
+	deployment := scanopts.DeploymentFromCommand(cmd)
 
 	// Detection, memory reconcile, CycloneDX build and the (authenticated,
 	// best-effort) submission all live in runCBOMPass — the same entry point
@@ -134,6 +147,7 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 		RespectGitignore: !includeIgnored,
 		SpecVersion:      specVersion,
 		Upload:           !noUpload,
+		Authoring:        authoring,
 	})
 	if err != nil {
 		return err
@@ -145,6 +159,7 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 	if outFile == "" {
 		outFile = filepath.Join(rootPath, ".vulnetix", "cbom.cdx.json")
 	}
+	bomData = labelAndSign(cmd, outFile, bomData, deployment, sign)
 	if err := writeCBOMFile(outFile, bomData); err != nil {
 		return err
 	}
@@ -335,6 +350,9 @@ type CBOMPassOptions struct {
 	// Upload submits the CBOM to the backend when authenticated.
 	Upload bool
 	GitCtx *gitctx.GitContext
+	// Authoring is what the caller stated about the document's identity and
+	// content. The zero value derives everything.
+	Authoring cdx.AuthoringInputs
 }
 
 // CBOMPassResult carries what the caller renders, writes or gates on.
@@ -403,15 +421,19 @@ func runCBOMPass(opts CBOMPassOptions) (*CBOMPassResult, error) {
 
 	// Crypto assets are identified by observing source, config and certificates
 	// on disk — the spec's discovery phase.
-	authorship := cdx.Authoring(cyclonedx.ToolCBOM,
-		cdx.ResolveManufacturer(cdx.ManufacturerSources{Git: gitCtx, OrgID: orgID}),
-		cdx.PhaseDiscovery)
+	authoring := opts.Authoring
+	authoring.Manufacturer.Git = gitCtx
+	if authoring.Manufacturer.OrgID == "" {
+		authoring.Manufacturer.OrgID = orgID
+	}
+	authorship := cdx.ResolveAuthorship(cyclonedx.ToolCBOM, authoring, []cdx.LifecyclePhase{cdx.PhaseDiscovery})
 
-	bomData, err := cyclonedx.BuildCBOM(det, cyclonedx.CBOMOptions{
+	built := cyclonedx.BuildCBOMDocument(det, cyclonedx.CBOMOptions{
 		SpecVersion: specVersion,
 		Authorship:  &authorship,
 		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
 	})
+	bomData, err := finishAuthoredDocument(built, authoring)
 	if err != nil {
 		return nil, err
 	}

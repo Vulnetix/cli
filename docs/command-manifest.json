@@ -3,6 +3,7 @@
     "agent": {
       "short": "Wire AI coding agents to Vulnetix",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -21,6 +22,7 @@
     "agent capabilities": {
       "short": "Record what this machine and this repository can do",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "force",
         "no-analytics",
@@ -35,6 +37,7 @@
     "agent hook": {
       "short": "Answer a coding agent's lifecycle hook",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "event",
         "no-analytics",
@@ -49,6 +52,7 @@
     "agent hosts": {
       "short": "List the coding agents this CLI can wire, and what it can wire for each",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -63,6 +67,7 @@
       "short": "Wire the coding agents on this machine to Vulnetix",
       "flags": [
         "agent",
+        "artifact-manifest",
         "disable-memory",
         "dry-run",
         "no-analytics",
@@ -77,6 +82,7 @@
     "ai-firewall": {
       "short": "Wire AI clients to the Vulnetix AI Firewall and manage its policy",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -104,6 +110,7 @@
     "ai-firewall apply": {
       "short": "Reconcile the org's policy from .vulnetix/ai-firewall.yaml",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "baseline-required",
         "catalog",
@@ -126,6 +133,7 @@
     "ai-firewall baseline": {
       "short": "Show the guardrails the server recommends",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "catalog",
         "disable-memory",
@@ -142,6 +150,7 @@
     "ai-firewall export": {
       "short": "Write the org's current policy to a policy file",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "file",
@@ -159,6 +168,7 @@
     "ai-firewall get": {
       "short": "Show the org's providers, model lists, and guardrails",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "no-analytics",
@@ -173,6 +183,7 @@
     "ai-firewall install": {
       "short": "Wire the AI clients on this machine to the gateway",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "create-env",
         "disable-memory",
@@ -194,6 +205,7 @@
     "ai-firewall inventory": {
       "short": "List the tools, MCP servers and skills the gateway has seen agents carry",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "clear",
         "client",
@@ -213,6 +225,7 @@
     "ai-firewall key": {
       "short": "Store this org's provider API keys (BYOK)",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -229,6 +242,7 @@
     "ai-firewall key remove": {
       "short": "Remove this org's stored key for a provider",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "no-analytics",
@@ -243,6 +257,7 @@
     "ai-firewall key set": {
       "short": "Store or replace the provider API key for this org",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "from-env",
@@ -260,6 +275,7 @@
     "ai-firewall kiro": {
       "short": "Provision the Kiro sign-in the gateway uses",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -276,6 +292,7 @@
       "short": "Sign in to Kiro and store the sign-in in the secrets vault",
       "flags": [
         "api-region",
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "expires-in-days",
@@ -298,6 +315,7 @@
     "ai-firewall policy": {
       "short": "Provider, model, and guardrail rules the gateway enforces",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -316,6 +334,7 @@
       "short": "Create, update, or delete a guardrail",
       "flags": [
         "action",
+        "artifact-manifest",
         "base-url",
         "delete",
         "disable",
@@ -339,6 +358,7 @@
       "flags": [
         "allow",
         "any-provider",
+        "artifact-manifest",
         "base-url",
         "deny",
         "disable-memory",
@@ -357,6 +377,7 @@
       "short": "Allow, deny, or clear a provider for this org",
       "flags": [
         "allow",
+        "artifact-manifest",
         "base-url",
         "clear",
         "deny",
@@ -373,6 +394,7 @@
     "ai-firewall settings": {
       "short": "Org-wide AI Firewall settings",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "logs",
@@ -389,6 +411,7 @@
     "ai-firewall snippet": {
       "short": "Print ready-to-run code wired to the gateway",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "force",
@@ -410,6 +433,7 @@
     "ai-firewall status": {
       "short": "Show what is wired to the gateway, and where it conflicts with policy",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "gateway-url",
@@ -427,6 +451,7 @@
       "short": "Remove the AI Firewall configuration from local clients",
       "flags": [
         "all",
+        "artifact-manifest",
         "disable-memory",
         "dry-run",
         "except",
@@ -444,13 +469,33 @@
       "short": "Discover AI coding agents and AI usage, and emit a CycloneDX AIBOM",
       "flags": [
         "aibom-include-ignored",
+        "artifact-manifest",
+        "bom-author",
+        "bom-license",
+        "bom-manufacturer",
+        "bom-manufacturer-url",
+        "bom-overlay",
+        "bom-property",
+        "bom-serial",
+        "bom-supplier",
+        "bom-supplier-url",
+        "bom-version",
         "catalog",
+        "cluster",
         "commit-scan-max",
+        "component-group",
+        "component-name",
+        "component-purl",
+        "component-type",
+        "component-version",
         "depth",
         "disable-memory",
+        "environment",
         "ignore",
         "include-home",
         "include-system",
+        "lifecycle",
+        "namespace",
         "no-analytics",
         "no-banner",
         "no-builtin-catalog",
@@ -464,15 +509,19 @@
         "output",
         "output-file",
         "path",
+        "project",
+        "sign",
         "silent",
         "spec-version",
         "system-root",
+        "tag",
         "verbose"
       ]
     },
     "analyze": {
       "short": "Build the repository's tech-stack graph and its evidence-backed metrics",
       "flags": [
+        "artifact-manifest",
         "complexity-threshold",
         "disable-memory",
         "fail-on-upload-error",
@@ -495,9 +544,54 @@
         "window-days"
       ]
     },
+    "api": {
+      "short": "Find and upload OpenAPI and Swagger descriptions",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "discover",
+        "upload"
+      ]
+    },
+    "api discover": {
+      "short": "Find spec files in a working tree and upload them",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "no-upload",
+        "org-id",
+        "silent",
+        "verbose"
+      ]
+    },
+    "api upload": {
+      "short": "Upload one OpenAPI or Swagger file",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ]
+    },
     "attest": {
       "short": "Verify signatures and provenance on artefacts",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -513,6 +607,7 @@
     "attest verify": {
       "short": "Verify an artefact's signature, identity and provenance",
       "flags": [
+        "artifact-manifest",
         "certificate",
         "disable-memory",
         "envelope",
@@ -536,6 +631,7 @@
       "short": "Manage Vulnetix authentication",
       "flags": [
         "api-key",
+        "artifact-manifest",
         "disable-memory",
         "method",
         "no-analytics",
@@ -561,6 +657,7 @@
       "short": "Authenticate with Vulnetix",
       "flags": [
         "api-key",
+        "artifact-manifest",
         "disable-memory",
         "method",
         "no-analytics",
@@ -579,6 +676,7 @@
     "auth logout": {
       "short": "Remove stored credentials",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -591,6 +689,7 @@
     "auth status": {
       "short": "Show current authentication state",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "no-analytics",
@@ -604,6 +703,7 @@
     "auth verify": {
       "short": "Verify stored credentials are valid",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "no-analytics",
@@ -617,6 +717,7 @@
     "bom": {
       "short": "Read, validate, diff and inspect SBOM documents",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -641,6 +742,7 @@
     "bom diff": {
       "short": "Compare two SBOM documents",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "fail-on",
         "no-analytics",
@@ -655,6 +757,7 @@
     "bom enrich": {
       "short": "Resolve licences, attach vulnerabilities and VEX to a supplied SBOM",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "keep-original",
         "no-analytics",
@@ -675,6 +778,7 @@
     "bom import": {
       "short": "Parse an SBOM document and report what it contains",
       "flags": [
+        "artifact-manifest",
         "cluster",
         "disable-memory",
         "environment",
@@ -701,6 +805,7 @@
     "bom ls": {
       "short": "List the SBOM documents in a corpus",
       "flags": [
+        "artifact-manifest",
         "depth",
         "disable-memory",
         "from",
@@ -717,6 +822,7 @@
     "bom merge": {
       "short": "Combine SBOM documents into one",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -731,6 +837,7 @@
     "bom search": {
       "short": "Search a corpus for packages, documents, vulnerabilities and licences",
       "flags": [
+        "artifact-manifest",
         "depth",
         "disable-memory",
         "from",
@@ -748,6 +855,7 @@
     "bom skew": {
       "short": "Find packages at inconsistent versions across a corpus",
       "flags": [
+        "artifact-manifest",
         "depth",
         "disable-memory",
         "fail-on-count",
@@ -766,6 +874,7 @@
     "bom tree": {
       "short": "Walk an SBOM's dependency graph",
       "flags": [
+        "artifact-manifest",
         "component",
         "depth",
         "disable-memory",
@@ -782,6 +891,7 @@
     "bom validate": {
       "short": "Check an SBOM's structure and field completeness",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "min-score",
         "no-analytics",
@@ -796,6 +906,7 @@
     "bom where": {
       "short": "Find which documents contain a package",
       "flags": [
+        "artifact-manifest",
         "depth",
         "disable-memory",
         "fail-on-found",
@@ -813,12 +924,32 @@
     "cbom": {
       "short": "Discover cryptographic usage and emit a CycloneDX CBOM with PQC posture",
       "flags": [
+        "artifact-manifest",
+        "bom-author",
+        "bom-license",
+        "bom-manufacturer",
+        "bom-manufacturer-url",
+        "bom-overlay",
+        "bom-property",
+        "bom-serial",
+        "bom-supplier",
+        "bom-supplier-url",
+        "bom-version",
         "catalog",
         "cbom-include-ignored",
+        "cluster",
+        "component-group",
+        "component-name",
+        "component-purl",
+        "component-type",
+        "component-version",
         "depth",
         "disable-memory",
+        "environment",
         "fail-on",
         "ignore",
+        "lifecycle",
+        "namespace",
         "no-analytics",
         "no-banner",
         "no-builtin-catalog",
@@ -832,8 +963,11 @@
         "output",
         "output-file",
         "path",
+        "project",
+        "sign",
         "silent",
         "spec-version",
+        "tag",
         "verbose"
       ]
     },
@@ -841,10 +975,25 @@
       "short": "Generate a standalone CycloneDX SBOM without VDB lookup or upload",
       "flags": [
         "aibom-catalog",
+        "artifact-manifest",
+        "bom-author",
+        "bom-license",
         "bom-manufacturer",
+        "bom-manufacturer-url",
+        "bom-overlay",
+        "bom-property",
+        "bom-serial",
+        "bom-supplier",
+        "bom-supplier-url",
+        "bom-version",
         "cbom-catalog",
         "cdx-include-ignored",
         "cluster",
+        "component-group",
+        "component-name",
+        "component-purl",
+        "component-type",
+        "component-version",
         "container-archive",
         "container-rootfs",
         "depth",
@@ -889,6 +1038,7 @@
     "config": {
       "short": "Manage Vulnetix configuration",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -898,13 +1048,57 @@
         "verbose"
       ],
       "subcommands": [
+        "apply",
+        "export",
         "get",
-        "set"
+        "kinds",
+        "plan",
+        "schema",
+        "set",
+        "validate"
+      ]
+    },
+    "config apply": {
+      "short": "Apply config-as-code documents to the organization",
+      "flags": [
+        "artifact-manifest",
+        "auto-approve",
+        "disable-memory",
+        "file",
+        "manager",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "plan-hash",
+        "prune",
+        "silent",
+        "verbose"
+      ]
+    },
+    "config export": {
+      "short": "Write the organization's configuration as code",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "file",
+        "format",
+        "kind",
+        "manager",
+        "name",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "verbose"
       ]
     },
     "config get": {
       "short": "Show Vulnetix configuration",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -924,6 +1118,7 @@
     "config get ai-firewall": {
       "short": "Show AI Firewall providers, model lists, and guardrails",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "no-analytics",
@@ -938,6 +1133,7 @@
     "config get eol-policy": {
       "short": "Show the org-wide EOL severity quality gate",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "no-analytics",
@@ -952,6 +1148,7 @@
     "config get jail": {
       "short": "Show the jail policy in effect for this repository",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "branch",
         "disable-memory",
@@ -972,6 +1169,7 @@
     "config get package-firewall": {
       "short": "Show Package Firewall policy and mirrors",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "no-analytics",
@@ -986,6 +1184,7 @@
     "config get quality-gate": {
       "short": "Show the org-wide CLI scan quality-gate enforcement policy",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "no-analytics",
@@ -997,9 +1196,53 @@
         "verbose"
       ]
     },
+    "config kinds": {
+      "short": "List the config-as-code kinds this CLI understands",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ]
+    },
+    "config plan": {
+      "short": "Show what applying config-as-code documents would change",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "file",
+        "manager",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "prune",
+        "silent",
+        "verbose"
+      ]
+    },
+    "config schema": {
+      "short": "Print the JSON Schema of a config-as-code kind",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ]
+    },
     "config set": {
       "short": "Set Vulnetix configuration",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -1019,6 +1262,7 @@
     "config set ai-firewall": {
       "short": "Configure AI Firewall providers, model lists, and guardrails",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -1037,6 +1281,7 @@
       "short": "Create, update, or delete a guardrail",
       "flags": [
         "action",
+        "artifact-manifest",
         "base-url",
         "delete",
         "disable",
@@ -1060,6 +1305,7 @@
       "flags": [
         "allow",
         "any-provider",
+        "artifact-manifest",
         "base-url",
         "deny",
         "disable-memory",
@@ -1078,6 +1324,7 @@
       "short": "Allow, deny, or clear a provider for this org",
       "flags": [
         "allow",
+        "artifact-manifest",
         "base-url",
         "clear",
         "deny",
@@ -1094,6 +1341,7 @@
     "config set eol-policy": {
       "short": "Set the org-wide EOL severity quality gate",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "next-quarter-severity",
@@ -1112,6 +1360,7 @@
     "config set jail": {
       "short": "Manage jail exemptions for this repository",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -1127,6 +1376,7 @@
     "config set jail exempt": {
       "short": "Create or retire a time-boxed exemption for this repository",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "branch",
         "deactivate",
@@ -1152,6 +1402,7 @@
     "config set package-firewall": {
       "short": "Set Package Firewall policy and mirrors",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "block-active-exploits",
         "block-bad-actors",
@@ -1181,6 +1432,7 @@
     "config set quality-gate": {
       "short": "Set the org-wide CLI scan quality-gate enforcement policy",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "block-eol",
         "block-malware",
@@ -1201,20 +1453,49 @@
         "version-lag"
       ]
     },
+    "config validate": {
+      "short": "Check config-as-code documents against their schemas, offline",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "file",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ]
+    },
     "containers": {
       "short": "Run only container file analysis",
       "flags": [
         "accept-defended",
         "allow",
         "allow-file",
+        "artifact-manifest",
         "ascii",
         "block-eol",
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
+        "bom-author",
+        "bom-license",
         "bom-manufacturer",
+        "bom-manufacturer-url",
+        "bom-overlay",
+        "bom-property",
+        "bom-serial",
+        "bom-supplier",
+        "bom-supplier-url",
+        "bom-version",
         "cluster",
         "color",
+        "component-group",
+        "component-name",
+        "component-purl",
+        "component-type",
+        "component-version",
         "container-archive",
         "container-rootfs",
         "containers-include-ignored",
@@ -1233,6 +1514,8 @@
         "git-history",
         "git-history-max-commits",
         "git-history-max-files",
+        "github-publish",
+        "github-publish-dry-run",
         "hide",
         "ignore",
         "ignore-binaries",
@@ -1284,6 +1567,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex",
         "vex-file",
         "view",
         "width",
@@ -1297,6 +1581,7 @@
     "defend": {
       "short": "Block rules and detections for a finding that has no fix",
       "flags": [
+        "artifact-manifest",
         "ascii",
         "color",
         "disable-memory",
@@ -1328,6 +1613,7 @@
     "env": {
       "short": "Display current environment context",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -1344,14 +1630,29 @@
         "accept-defended",
         "allow",
         "allow-file",
+        "artifact-manifest",
         "ascii",
         "block-eol",
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
+        "bom-author",
+        "bom-license",
         "bom-manufacturer",
+        "bom-manufacturer-url",
+        "bom-overlay",
+        "bom-property",
+        "bom-serial",
+        "bom-supplier",
+        "bom-supplier-url",
+        "bom-version",
         "cluster",
         "color",
+        "component-group",
+        "component-name",
+        "component-purl",
+        "component-type",
+        "component-version",
         "cooldown",
         "depth",
         "disable-memory",
@@ -1412,6 +1713,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex",
         "vex-file",
         "view",
         "width",
@@ -1425,6 +1727,7 @@
     "gha": {
       "short": "GitHub Actions: publish scanner reports and analyse GitHub posture",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -1437,6 +1740,7 @@
         "actions",
         "audit",
         "org",
+        "publish",
         "settings",
         "setup",
         "status",
@@ -1447,6 +1751,7 @@
     "gha actions": {
       "short": "Check the actions and images workflows run",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "fail-on",
         "format",
@@ -1472,6 +1777,7 @@
     "gha audit": {
       "short": "Run every GitHub posture check: workflows, actions, settings and org",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "fail-on",
         "format",
@@ -1497,6 +1803,7 @@
     "gha org": {
       "short": "Check organisation settings",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "fail-on",
         "format",
@@ -1519,9 +1826,126 @@
         "verbose"
       ]
     },
+    "gha publish": {
+      "short": "Publish results into GitHub: code scanning, dependency graph, advisories, campaigns, release assets",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "advisories",
+        "campaigns",
+        "code-scanning",
+        "dependency-graph",
+        "release-assets"
+      ]
+    },
+    "gha publish advisories": {
+      "short": "Draft GitHub repository security advisories for this repository's SAST findings",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "dry-run",
+        "max",
+        "min-severity",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "path",
+        "repo",
+        "sarif",
+        "silent",
+        "verbose"
+      ]
+    },
+    "gha publish campaigns": {
+      "short": "Mirror Vulnetix remediation campaigns as GitHub security campaigns",
+      "flags": [
+        "artifact-manifest",
+        "default-days",
+        "disable-memory",
+        "dry-run",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org",
+        "org-id",
+        "recreate-on-scope-change",
+        "silent",
+        "verbose"
+      ]
+    },
+    "gha publish code-scanning": {
+      "short": "Upload SARIF to GitHub code scanning",
+      "flags": [
+        "artifact-manifest",
+        "checkout-uri",
+        "disable-memory",
+        "dry-run",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "out-dir",
+        "path",
+        "ref",
+        "repo",
+        "sarif",
+        "sha",
+        "silent",
+        "verbose",
+        "wait"
+      ]
+    },
+    "gha publish dependency-graph": {
+      "short": "Submit the CycloneDX SBOM to the GitHub dependency graph",
+      "flags": [
+        "artifact-manifest",
+        "correlator",
+        "disable-memory",
+        "dry-run",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "path",
+        "ref",
+        "repo",
+        "sbom",
+        "sha",
+        "silent",
+        "verbose"
+      ]
+    },
+    "gha publish release-assets": {
+      "short": "Attach files to a GitHub release",
+      "flags": [
+        "artifact-manifest",
+        "clobber",
+        "create",
+        "disable-memory",
+        "manifest",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "repo",
+        "silent",
+        "tag",
+        "verbose"
+      ]
+    },
     "gha settings": {
       "short": "Check repository settings that protect the code and CI",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "fail-on",
         "format",
@@ -1548,6 +1972,7 @@
       "short": "Add a third-party scanner to this repository's workflows",
       "flags": [
         "all",
+        "artifact-manifest",
         "cron",
         "detect",
         "disable-memory",
@@ -1567,6 +1992,7 @@
     "gha status": {
       "short": "Report what a workflow run published to Vulnetix",
       "flags": [
+        "artifact-manifest",
         "attempt",
         "disable-memory",
         "json",
@@ -1583,6 +2009,7 @@
     "gha upload": {
       "short": "Publish third-party scanner reports from a workflow run to Vulnetix",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "dry-run",
         "fail-on-empty",
@@ -1601,6 +2028,7 @@
     "gha workflows": {
       "short": "Find injection, privilege and trust flaws in GitHub Actions workflows",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "fail-on",
         "format",
@@ -1629,14 +2057,29 @@
         "accept-defended",
         "allow",
         "allow-file",
+        "artifact-manifest",
         "ascii",
         "block-eol",
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
+        "bom-author",
+        "bom-license",
         "bom-manufacturer",
+        "bom-manufacturer-url",
+        "bom-overlay",
+        "bom-property",
+        "bom-serial",
+        "bom-supplier",
+        "bom-supplier-url",
+        "bom-version",
         "cluster",
         "color",
+        "component-group",
+        "component-name",
+        "component-purl",
+        "component-type",
+        "component-version",
         "cooldown",
         "depth",
         "disable-default-rules",
@@ -1652,6 +2095,8 @@
         "git-history",
         "git-history-max-commits",
         "git-history-max-files",
+        "github-publish",
+        "github-publish-dry-run",
         "hide",
         "iac-include-ignored",
         "ignore",
@@ -1703,6 +2148,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex",
         "vex-file",
         "view",
         "width",
@@ -1716,6 +2162,7 @@
     "ignore": {
       "short": "Manage suppression ('ignore') rules for scanner findings",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -1734,6 +2181,7 @@
     "ignore add": {
       "short": "Add a suppression rule",
       "flags": [
+        "artifact-manifest",
         "category",
         "disable-memory",
         "expires-in",
@@ -1757,6 +2205,7 @@
     "ignore list": {
       "short": "List suppression rules (local + remote)",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -1770,6 +2219,7 @@
     "ignore remove": {
       "short": "Deactivate a suppression rule",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "finding",
         "no-analytics",
@@ -1788,6 +2238,7 @@
     "ignore sync": {
       "short": "Pull remote suppression rules into .vulnetix/memory.yaml",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -1801,6 +2252,7 @@
     "image": {
       "short": "Inventory a container image for container curation",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "max-size-mb",
         "no-analytics",
@@ -1819,6 +2271,7 @@
     "jail": {
       "short": "Gate this pipeline against the organisation's jail policy",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "branch",
         "disable-memory",
@@ -1851,6 +2304,7 @@
     "jail exempt": {
       "short": "Create or retire a time-boxed exemption for this repository",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "branch",
         "deactivate",
@@ -1876,6 +2330,7 @@
     "jail explain": {
       "short": "Show why the repository is or is not jailed, rule by rule",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "branch",
         "disable-memory",
@@ -1896,6 +2351,7 @@
     "jail list": {
       "short": "Show the jail policy in effect for this repository",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "branch",
         "disable-memory",
@@ -1918,6 +2374,7 @@
       "flags": [
         "allow",
         "allow-file",
+        "artifact-manifest",
         "cluster",
         "depth",
         "disable-memory",
@@ -1950,6 +2407,7 @@
     "license exceptions": {
       "short": "Manage approved licence exceptions",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -1968,6 +2426,7 @@
       "short": "Append a licence exception",
       "flags": [
         "approver",
+        "artifact-manifest",
         "disable-memory",
         "expires",
         "file",
@@ -1990,6 +2449,7 @@
     "license exceptions check": {
       "short": "Report licence exceptions expiring soon",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "expiring-within",
         "file",
@@ -2006,6 +2466,7 @@
     "license exceptions ls": {
       "short": "List approved licence exceptions",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "file",
         "no-analytics",
@@ -2021,6 +2482,7 @@
     "license policy": {
       "short": "Manage the declarative licence policy",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -2038,6 +2500,7 @@
     "license policy init": {
       "short": "Write a recommended starting policy",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "file",
         "force",
@@ -2053,6 +2516,7 @@
     "license policy show": {
       "short": "Print the licence policy in effect",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "file",
         "no-analytics",
@@ -2069,6 +2533,7 @@
     "license policy validate": {
       "short": "Check a licence policy document for problems",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "file",
         "no-analytics",
@@ -2083,6 +2548,7 @@
     "lsp": {
       "short": "Run the Vulnetix language server (LSP over stdio)",
       "flags": [
+        "artifact-manifest",
         "debounce-ms",
         "disable-memory",
         "log-file",
@@ -2099,6 +2565,7 @@
     "malscan": {
       "short": "Scan local dependency install dirs for malware (malscan-engine, in-process)",
       "flags": [
+        "artifact-manifest",
         "catalog",
         "disable-memory",
         "feeds",
@@ -2125,6 +2592,7 @@
     "package-firewall": {
       "short": "Configure Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -2164,6 +2632,7 @@
     "package-firewall alpine": {
       "short": "Configure Alpine to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2179,6 +2648,7 @@
     "package-firewall aur": {
       "short": "Configure Arch Linux to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2194,6 +2664,7 @@
     "package-firewall cargo": {
       "short": "Configure Cargo to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2209,6 +2680,7 @@
     "package-firewall chef": {
       "short": "Configure Chef to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2224,6 +2696,7 @@
     "package-firewall composer": {
       "short": "Configure Composer to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2239,6 +2712,7 @@
     "package-firewall conan": {
       "short": "Configure Conan to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2254,6 +2728,7 @@
     "package-firewall conda": {
       "short": "Configure Conda to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2269,6 +2744,7 @@
     "package-firewall cran": {
       "short": "Configure CRAN to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2284,6 +2760,7 @@
     "package-firewall debian": {
       "short": "Configure Debian / Ubuntu to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2299,6 +2776,7 @@
     "package-firewall docker": {
       "short": "Configure Docker / OCI to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2314,6 +2792,7 @@
     "package-firewall gem": {
       "short": "Configure RubyGems to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2329,9 +2808,11 @@
     "package-firewall go": {
       "short": "Configure Go to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
+        "fail-closed",
         "no-analytics",
         "no-banner",
         "no-progress",
@@ -2344,6 +2825,7 @@
     "package-firewall go-dev": {
       "short": "Configure pkgsite-cli to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2359,6 +2841,7 @@
     "package-firewall helm": {
       "short": "Configure Helm to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2374,6 +2857,7 @@
     "package-firewall hex": {
       "short": "Configure Hex to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2389,6 +2873,7 @@
     "package-firewall homebrew": {
       "short": "Configure Homebrew to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2404,6 +2889,7 @@
     "package-firewall julia": {
       "short": "Configure Julia to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2419,6 +2905,7 @@
     "package-firewall maven": {
       "short": "Configure Maven to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2434,6 +2921,7 @@
     "package-firewall npm": {
       "short": "Configure npm to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2449,6 +2937,7 @@
     "package-firewall nuget": {
       "short": "Configure NuGet to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2464,6 +2953,7 @@
     "package-firewall pub": {
       "short": "Configure pub.dev to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2479,6 +2969,7 @@
     "package-firewall pypi": {
       "short": "Configure PyPI to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2494,6 +2985,7 @@
     "package-firewall rpm": {
       "short": "Configure RPM to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2509,6 +3001,7 @@
     "package-firewall terraform": {
       "short": "Configure Terraform to use Vulnetix Package Firewall",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "disable-memory",
         "dry-run",
@@ -2525,6 +3018,7 @@
       "short": "Remove Vulnetix Package Firewall configuration",
       "flags": [
         "all",
+        "artifact-manifest",
         "disable-memory",
         "dry-run",
         "except",
@@ -2542,6 +3036,7 @@
     "pix": {
       "short": "Manage the Pix AI coding assistant plugin",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -2558,6 +3053,7 @@
       "short": "Install Vulnetix skills into Pix",
       "flags": [
         "agent",
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -2571,6 +3067,7 @@
     "report": {
       "short": "Render the stored scan results without rescanning",
       "flags": [
+        "artifact-manifest",
         "ascii",
         "color",
         "disable-memory",
@@ -2601,14 +3098,29 @@
         "accept-defended",
         "allow",
         "allow-file",
+        "artifact-manifest",
         "ascii",
         "block-eol",
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
+        "bom-author",
+        "bom-license",
         "bom-manufacturer",
+        "bom-manufacturer-url",
+        "bom-overlay",
+        "bom-property",
+        "bom-serial",
+        "bom-supplier",
+        "bom-supplier-url",
+        "bom-version",
         "cluster",
         "color",
+        "component-group",
+        "component-name",
+        "component-purl",
+        "component-type",
+        "component-version",
         "cooldown",
         "depth",
         "disable-default-rules",
@@ -2624,6 +3136,8 @@
         "git-history",
         "git-history-max-commits",
         "git-history-max-files",
+        "github-publish",
+        "github-publish-dry-run",
         "hide",
         "ignore",
         "ignore-binaries",
@@ -2675,6 +3189,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex",
         "vex-file",
         "view",
         "width",
@@ -2691,14 +3206,29 @@
         "accept-defended",
         "allow",
         "allow-file",
+        "artifact-manifest",
         "ascii",
         "block-eol",
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
+        "bom-author",
+        "bom-license",
         "bom-manufacturer",
+        "bom-manufacturer-url",
+        "bom-overlay",
+        "bom-property",
+        "bom-serial",
+        "bom-supplier",
+        "bom-supplier-url",
+        "bom-version",
         "cluster",
         "color",
+        "component-group",
+        "component-name",
+        "component-purl",
+        "component-type",
+        "component-version",
         "cooldown",
         "depth",
         "disable-memory",
@@ -2713,6 +3243,8 @@
         "git-history",
         "git-history-max-commits",
         "git-history-max-files",
+        "github-publish",
+        "github-publish-dry-run",
         "hide",
         "ignore",
         "ignore-binaries",
@@ -2756,6 +3288,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex",
         "vex-file",
         "view",
         "width",
@@ -2772,14 +3305,29 @@
         "accept-defended",
         "allow",
         "allow-file",
+        "artifact-manifest",
         "ascii",
         "block-eol",
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
+        "bom-author",
+        "bom-license",
         "bom-manufacturer",
+        "bom-manufacturer-url",
+        "bom-overlay",
+        "bom-property",
+        "bom-serial",
+        "bom-supplier",
+        "bom-supplier-url",
+        "bom-version",
         "cluster",
         "color",
+        "component-group",
+        "component-name",
+        "component-purl",
+        "component-type",
+        "component-version",
         "cooldown",
         "depth",
         "disable-default-rules",
@@ -2801,6 +3349,8 @@
         "git-history",
         "git-history-max-commits",
         "git-history-max-files",
+        "github-publish",
+        "github-publish-dry-run",
         "hide",
         "ignore",
         "ignore-binaries",
@@ -2861,6 +3411,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex",
         "vex-file",
         "view",
         "width",
@@ -2881,14 +3432,29 @@
         "accept-defended",
         "allow",
         "allow-file",
+        "artifact-manifest",
         "ascii",
         "block-eol",
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
+        "bom-author",
+        "bom-license",
         "bom-manufacturer",
+        "bom-manufacturer-url",
+        "bom-overlay",
+        "bom-property",
+        "bom-serial",
+        "bom-supplier",
+        "bom-supplier-url",
+        "bom-version",
         "cluster",
         "color",
+        "component-group",
+        "component-name",
+        "component-purl",
+        "component-type",
+        "component-version",
         "cooldown",
         "depth",
         "disable-default-rules",
@@ -2904,6 +3470,8 @@
         "git-history",
         "git-history-max-commits",
         "git-history-max-files",
+        "github-publish",
+        "github-publish-dry-run",
         "hide",
         "ignore",
         "ignore-binaries",
@@ -2955,6 +3523,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex",
         "vex-file",
         "view",
         "width",
@@ -2968,6 +3537,7 @@
     "skills": {
       "short": "Manage Vulnetix agent skills",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -2987,6 +3557,7 @@
     "skills check": {
       "short": "Check installed Vulnetix skills",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -3000,6 +3571,7 @@
       "short": "Install Vulnetix skills for supported agents",
       "flags": [
         "agent",
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -3013,6 +3585,7 @@
     "skills prune": {
       "short": "Remove Vulnetix skills the current release no longer ships",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -3026,6 +3599,7 @@
     "skills uninstall": {
       "short": "Uninstall Vulnetix skills",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -3038,6 +3612,7 @@
     "skills update": {
       "short": "Update installed Vulnetix skills",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -3047,9 +3622,41 @@
         "verbose"
       ]
     },
+    "surface": {
+      "short": "Check and report on your external attack surface",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "liveness"
+      ]
+    },
+    "surface liveness": {
+      "short": "Check that registered routes and hosts still answer, from inside your network",
+      "flags": [
+        "artifact-manifest",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "repo",
+        "scheme",
+        "silent",
+        "verbose"
+      ]
+    },
     "tea": {
       "short": "Publish to and read from the Transparency Exchange API",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3077,6 +3684,7 @@
     "tea collection": {
       "short": "Read the artifacts published for a release",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3093,6 +3701,7 @@
       "short": "List or search the components a TEA server publishes",
       "flags": [
         "all",
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "id-type",
@@ -3115,6 +3724,7 @@
     "tea discover": {
       "short": "Resolve a domain or TEI to a TEA server",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3130,6 +3740,7 @@
     "tea distribution": {
       "short": "Publish and inspect where a release can be obtained",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3150,6 +3761,7 @@
     "tea distribution add": {
       "short": "Declare a download or install channel for a release",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "catalogue",
         "checksums",
@@ -3173,6 +3785,7 @@
     "tea distribution list": {
       "short": "Show where a release can currently be obtained",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3188,6 +3801,7 @@
     "tea distribution remove": {
       "short": "Withdraw a download link",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3203,6 +3817,7 @@
     "tea product": {
       "short": "Read a product and its releases",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3219,6 +3834,7 @@
       "short": "List or search the products a TEA server publishes",
       "flags": [
         "all",
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "id-type",
@@ -3241,6 +3857,7 @@
     "tea publish": {
       "short": "Create products, releases, collections and artifacts",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3264,6 +3881,7 @@
     "tea publish artifact": {
       "short": "Publish an artifact and upload its content",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3282,6 +3900,7 @@
     "tea publish collection": {
       "short": "Publish the next collection version for a release",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "comment",
         "disable-memory",
@@ -3299,6 +3918,7 @@
     "tea publish delete": {
       "short": "Withdraw a published object",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3314,6 +3934,7 @@
     "tea publish list": {
       "short": "List what your organisation has published, and who can read it",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3329,6 +3950,7 @@
     "tea publish product": {
       "short": "Register a product",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3345,6 +3967,7 @@
     "tea publish release": {
       "short": "Publish a release of a product",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "date",
         "disable-memory",
@@ -3362,6 +3985,7 @@
     "tea release": {
       "short": "Publish a complete release to the transparency log in one command",
       "flags": [
+        "artifact-manifest",
         "auto-version",
         "base-url",
         "catalogue",
@@ -3392,6 +4016,7 @@
     "tea resolve": {
       "short": "Resolve a TEI or a purl to the object it names",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3407,6 +4032,7 @@
     "tea share": {
       "short": "Show or change who may read a published object",
       "flags": [
+        "artifact-manifest",
         "catalogue",
         "disable-memory",
         "json",
@@ -3425,6 +4051,7 @@
       "short": "Triage vulnerabilities using GitHub alerts or Vulnetix VDB",
       "flags": [
         "all",
+        "artifact-manifest",
         "concurrency",
         "disable-memory",
         "ecosystem",
@@ -3455,6 +4082,7 @@
     "triage status": {
       "short": "Check provider CLI health",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "format",
         "no-analytics",
@@ -3468,6 +4096,7 @@
     "update": {
       "short": "Update Vulnetix CLI to the latest version",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -3480,6 +4109,7 @@
     "upload": {
       "short": "Publish a scanner's report to Vulnetix",
       "flags": [
+        "artifact-manifest",
         "base-url",
         "cluster",
         "dir",
@@ -3504,6 +4134,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -3593,6 +4224,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -3643,6 +4275,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -3696,6 +4329,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -3738,6 +4372,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -3780,6 +4415,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -3822,6 +4458,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -3864,6 +4501,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -3907,6 +4545,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -3957,6 +4596,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "capec",
         "comfortable",
@@ -4009,6 +4649,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4051,6 +4692,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4090,6 +4732,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4131,6 +4774,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4176,6 +4820,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -4228,6 +4873,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4267,6 +4913,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -4318,6 +4965,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -4376,6 +5024,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4418,6 +5067,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -4468,6 +5118,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4511,6 +5162,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4550,6 +5202,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4590,6 +5243,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4629,6 +5283,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4672,6 +5327,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4711,6 +5367,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4750,6 +5407,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4789,6 +5447,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -4849,6 +5508,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "category",
         "cel",
@@ -4907,6 +5567,7 @@
         "all",
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -4958,6 +5619,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -4998,6 +5660,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5046,6 +5709,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5085,6 +5749,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5124,6 +5789,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -5178,6 +5844,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5217,6 +5884,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5261,6 +5929,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5304,6 +5973,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5345,6 +6015,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5388,6 +6059,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -5438,6 +6110,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "asn",
         "base-url",
         "behavior",
@@ -5486,6 +6159,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5533,6 +6207,7 @@
         "all",
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5580,6 +6255,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -5631,6 +6307,7 @@
         "all",
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5678,6 +6355,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5717,6 +6395,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5756,6 +6435,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5798,6 +6478,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5837,6 +6518,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5880,6 +6562,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5919,6 +6602,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -5958,6 +6642,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6000,6 +6685,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -6052,6 +6738,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6094,6 +6781,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6136,6 +6824,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6177,6 +6866,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6219,6 +6909,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6262,6 +6953,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -6313,6 +7005,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6352,6 +7045,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6394,6 +7088,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -6451,6 +7146,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -6504,6 +7200,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6543,6 +7240,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6584,6 +7282,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -6634,6 +7333,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6677,6 +7377,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -6730,6 +7431,7 @@
         "affected-product",
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "classtype",
         "comfortable",
@@ -6787,6 +7489,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6826,6 +7529,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6865,6 +7569,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6904,6 +7609,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -6943,6 +7649,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -6997,6 +7704,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -7049,6 +7757,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -7104,6 +7813,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -7145,6 +7855,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -7184,6 +7895,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -7227,6 +7939,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -7277,6 +7990,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -7322,6 +8036,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -7367,6 +8082,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -7419,6 +8135,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -7458,6 +8175,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -7509,6 +8227,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -7568,6 +8287,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -7618,6 +8338,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -7659,6 +8380,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -7709,6 +8431,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "comfortable",
         "committer-email",
@@ -7752,6 +8475,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "base-url",
         "cel",
         "comfortable",
@@ -7803,6 +8527,7 @@
       "flags": [
         "api-key",
         "api-version",
+        "artifact-manifest",
         "author",
         "base-url",
         "comfortable",
@@ -7855,6 +8580,7 @@
     "version": {
       "short": "Print the version number of Vulnetix CLI",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -7868,6 +8594,7 @@
     "vex": {
       "short": "Read, validate and apply VEX statements",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -7886,6 +8613,7 @@
     "vex apply": {
       "short": "Apply VEX statements to an SBOM",
       "flags": [
+        "artifact-manifest",
         "bom",
         "disable-memory",
         "fail-on-effective",
@@ -7904,6 +8632,7 @@
     "vex ls": {
       "short": "List VEX statements and what they assert",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -7919,6 +8648,7 @@
     "vex merge": {
       "short": "Combine VEX documents into one",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -7934,6 +8664,7 @@
     "vex validate": {
       "short": "Check VEX documents for structural and semantic problems",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "no-analytics",
         "no-banner",
@@ -7948,6 +8679,7 @@
     "vulnetix": {
       "short": "Vulnetix CLI - Automate vulnerability remediation",
       "flags": [
+        "artifact-manifest",
         "disable-memory",
         "help",
         "no-analytics",
@@ -7963,6 +8695,7 @@
         "ai-firewall",
         "aibom",
         "analyze",
+        "api",
         "attest",
         "auth",
         "bom",
@@ -7990,6 +8723,7 @@
         "scan",
         "secrets",
         "skills",
+        "surface",
         "tea",
         "triage",
         "update",

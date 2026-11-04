@@ -1,0 +1,39 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79",
+  "version": 4,
+  "metadata": {
+    "manufacturer": {"name": "Overlay Manufacturer"},
+    "authors": [{"name": "Overlay Author", "email": "overlay@example.com"}],
+    "supplier": {"name": "Acme Supplier", "url": ["https://acme.example"]},
+    "lifecycles": [{"phase": "operations"}],
+    "licenses": [{"license": {"id": "CC0-1.0"}}],
+    "properties": [{"name": "acme:team", "value": "payments"}],
+    "component": {
+      "type": "application",
+      "name": "payment-service",
+      "version": "2.0.0",
+      "supplier": {"name": "Acme Supplier"},
+      "licenses": [{"license": {"id": "Apache-2.0"}}],
+      "properties": [{"name": "acme:tier", "value": "1"}]
+    },
+    "tools": {"components": [{"type": "application", "name": "should-not-appear"}]},
+    "timestamp": "1999-01-01T00:00:00Z"
+  },
+  "components": [
+    {"type": "library", "name": "left-pad", "version": "1.3.0", "purl": "pkg:npm/left-pad@1.3.0", "bom-ref": "pkg:npm/left-pad@1.3.0",
+     "supplier": {"name": "Left Pad Org"}, "licenses": [{"license": {"id": "WTFPL"}}]},
+    {"type": "library", "name": "extra-lib", "version": "9.9.9", "purl": "pkg:npm/extra-lib@9.9.9", "bom-ref": "pkg:npm/extra-lib@9.9.9"}
+  ],
+  "dependencies": [
+    {"ref": "urn:project", "dependsOn": ["pkg:npm/extra-lib@9.9.9"]}
+  ],
+  "services": [{"bom-ref": "svc:payments", "name": "payments-api", "endpoints": ["https://api.acme.example/pay"]}],
+  "compositions": [{"aggregate": "complete", "assemblies": ["urn:project"]}],
+  "annotations": [{"subjects": ["urn:project"], "annotator": {"organization": {"name": "Acme"}}, "timestamp": "2026-01-01T00:00:00Z", "text": "Reviewed"}],
+  "externalReferences": [{"type": "documentation", "url": "https://docs.acme.example"}],
+  "vulnerabilities": [
+    {"id": "CVE-2020-0001", "analysis": {"state": "not_affected", "justification": "code_not_reachable", "response": ["will_not_fix"], "detail": "Never called"}}
+  ]
+}

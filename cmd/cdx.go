@@ -135,11 +135,10 @@ type cdxRunOptions struct {
 	NoBuiltinCBOM     bool
 	Sign              bool
 	Deployment        scanopts.DeploymentContext
-	// ManufacturerSources and LifecycleOverride carry BOM authoring identity.
-	// The git fallback for the manufacturer is filled in during the run, where
-	// git context has already been collected.
-	ManufacturerSources cdx.ManufacturerSources
-	LifecycleOverride   []cdx.LifecyclePhase
+	// Authoring carries everything the caller stated about the document's
+	// identity and content. The git fallback for the manufacturer is filled in
+	// during the run, where git context has already been collected.
+	Authoring cdx.AuthoringInputs
 }
 
 type cdxSummary struct {
@@ -270,22 +269,18 @@ func runCDX(cmd *cobra.Command, args []string) error {
 	// container rootfs or a compiled binary is something already built
 	// (post-build). Emitting one fixed phase for all three, as this used to,
 	// tells a consumer nothing about how much the component list can be trusted.
-	manufacturerSources := opts.ManufacturerSources
-	manufacturerSources.Git = gitCtx
-	phases := opts.LifecycleOverride
-	if phases == nil {
-		phases = cdx.DerivePhases(cdx.LifecycleSources{
-			Manifests:         !opts.NoManifests,
-			InstalledTree:     !opts.NoFilesystem,
-			ContainerImage:    len(opts.ContainerRootfs) > 0 || len(opts.ContainerArchives) > 0,
-			CompiledArtifacts: !opts.NoBinaryAnalysis && !opts.NoBinaryPackages,
-			Discovery:         !opts.NoAIBOM || !opts.NoCBOM,
-			Deployed:          !opts.Deployment.Empty(),
-		})
-	}
-	authorship := cdx.Authoring(cyclonedx.ToolCDX, cdx.ResolveManufacturer(manufacturerSources), phases...)
+	authoring := opts.Authoring
+	authoring.Manufacturer.Git = gitCtx
+	authorship := cdx.ResolveAuthorship(cyclonedx.ToolCDX, authoring, cdx.DerivePhases(cdx.LifecycleSources{
+		Manifests:         !opts.NoManifests,
+		InstalledTree:     !opts.NoFilesystem,
+		ContainerImage:    len(opts.ContainerRootfs) > 0 || len(opts.ContainerArchives) > 0,
+		CompiledArtifacts: !opts.NoBinaryAnalysis && !opts.NoBinaryPackages,
+		Discovery:         !opts.NoAIBOM || !opts.NoCBOM,
+		Deployed:          !opts.Deployment.Empty(),
+	}))
 
-	bomData, err := cyclonedx.BuildSBOM(cyclonedx.SBOMInventory{
+	built := cyclonedx.BuildSBOMDocument(cyclonedx.SBOMInventory{
 		Packages:         inv.Packages,
 		Dependencies:     inv.Dependencies,
 		AIDetections:     aiDet,
@@ -296,6 +291,11 @@ func runCDX(cmd *cobra.Command, args []string) error {
 		Project:         aibomProject(gitCtx, sysInfo),
 		CanonicalSPDXID: license.CanonicalSPDXID,
 	})
+	// What the caller stated about the content (overlays, document licences,
+	// properties, the subject component) is applied to the built document and
+	// then the whole is validated, so a bad value is reported with its JSON
+	// pointer rather than written.
+	bomData, err := finishAuthoredDocument(built, authoring)
 	if err != nil {
 		return err
 	}
@@ -442,7 +442,7 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 	noBuiltinAIBOM, _ := cmd.Flags().GetBool("no-builtin-aibom-catalog")
 	noBuiltinCBOM, _ := cmd.Flags().GetBool("no-builtin-cbom-catalog")
 	sign, _ := cmd.Flags().GetBool("sign")
-	lifecycle, err := scanopts.LifecycleOverrideFromCommand(cmd)
+	authoring, err := scanopts.AuthoringInputsFromCommand(cmd)
 	if err != nil {
 		return cdxRunOptions{}, err
 	}
@@ -455,9 +455,22 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 		IncludeIgnored: includeIgnored, ContainerRootfs: rootfs, ContainerArchives: archives,
 		AIBOMCatalog: aibomCatalog, CBOMCatalog: cbomCatalog, NoBuiltinAIBOM: noBuiltinAIBOM, NoBuiltinCBOM: noBuiltinCBOM,
 		Sign: sign, Deployment: scanopts.DeploymentFromCommand(cmd),
-		ManufacturerSources: scanopts.ManufacturerSourcesFromCommand(cmd),
-		LifecycleOverride:   lifecycle,
+		Authoring: authoring,
 	}, nil
+}
+
+// finishAuthoredDocument applies the caller's content overrides to a document
+// a library builder returned, then serialises and validates it. It is the one
+// path from a built document to bytes for cdx, aibom and cbom.
+func finishAuthoredDocument(built any, authoring cdx.AuthoringInputs) ([]byte, error) {
+	doc, err := cdx.DocumentOf(built)
+	if err != nil {
+		return nil, err
+	}
+	if err := cdx.ApplyDocumentOverrides(doc, authoring); err != nil {
+		return nil, err
+	}
+	return cdx.MarshalValidated(doc)
 }
 
 func collectCDXPackages(opts cdxRunOptions) cdxInventory {
@@ -1778,4 +1791,34 @@ func sortedStringKeys(m map[string]int) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// labelAndSign stamps the deployment labels into a finished document and then
+// signs it, in that order, because the signature covers the bytes that are
+// written and anything added afterwards would not be attested. Problems are
+// reported on stderr and never fail the run: an inventory is worth publishing
+// unsigned and unlabelled.
+func labelAndSign(cmd *cobra.Command, outFile string, bomData []byte, deployment scanopts.DeploymentContext, sign bool) []byte {
+	if !deployment.Empty() {
+		stamped, err := scanopts.StampDeploymentJSON(bomData, deployment)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: deployment context: %v\n", err)
+		} else {
+			bomData = stamped
+		}
+	}
+	if !sign {
+		return bomData
+	}
+	res, err := cdxsign.SignDocument(cmd.Context(), outFile, bomData)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  warning: signing: %v\n", err)
+	}
+	if !res.Signed() && res.Skipped != "" && !silent {
+		fmt.Fprintf(os.Stderr, "  not signed: %s\n", res.Skipped)
+	}
+	if len(res.Document) > 0 {
+		return res.Document
+	}
+	return bomData
 }

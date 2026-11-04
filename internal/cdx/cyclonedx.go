@@ -27,6 +27,10 @@ type ScanContext struct {
 	// Phases are the lifecycle stages at which this pass captured its data,
 	// derived by DerivePhases from what the pass actually read.
 	Phases []LifecyclePhase
+	// Authorship, when set, is the fully resolved identity for the document
+	// (ResolveAuthorship) and takes precedence over Manufacturer and Phases,
+	// which remain for callers that resolve nothing beyond those two.
+	Authorship *Authorship
 }
 
 // AnalysisForStateChange builds a CycloneDX VEX analysis block for an

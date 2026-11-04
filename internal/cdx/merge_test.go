@@ -2,6 +2,8 @@ package cdx
 
 import (
 	"testing"
+
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 )
 
 func TestMergeUpstream_NilLocal_FallsBackToEmptyBOM(t *testing.T) {
@@ -282,5 +284,63 @@ func TestMergeBOMs_IncomingMetadataComponentWins(t *testing.T) {
 	}
 	if repoRoot != "/old/path" {
 		t.Errorf("property only present on disk was dropped: repo-root = %q", repoRoot)
+	}
+}
+
+// The on-disk document is this document one revision on, so a rescan keeps its
+// serial, increments its version and says who ran this scan. MergeBOMs protects
+// what is on disk, which was right for components and wrong for identity: a
+// manufacturer resolved by this run was dropped whenever the file already had
+// a metadata block.
+func TestReauthorAfterMergeKeepsThisRunsManufacturer(t *testing.T) {
+	existing := &BOM{BOMFormat: "CycloneDX", SpecVersion: "1.7", SerialNumber: "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79", Version: 3,
+		Metadata: &Metadata{Manufacturer: &OrganizationalEntity{Name: "stale"}}}
+	_, _ = cyclonedx.ApplyAuthorship(existing, Authoring(cyclonedx.ToolSCA, &OrganizationalEntity{Name: "stale"}, PhasePreBuild))
+	existing.SerialNumber = "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79"
+	existing.Version = 3
+
+	incoming := &BOM{BOMFormat: "CycloneDX", SpecVersion: "1.7", Metadata: &Metadata{}}
+	a := Authoring(cyclonedx.ToolSCA, &OrganizationalEntity{Name: "acme"}, PhasePreBuild, PhaseOperations)
+	_, _ = cyclonedx.ApplyAuthorship(incoming, a)
+
+	merged := MergeBOMs(existing, incoming)
+	if merged.Metadata.Manufacturer.Name != "stale" {
+		t.Fatalf("precondition: MergeBOMs keeps the on-disk manufacturer, got %q", merged.Metadata.Manufacturer.Name)
+	}
+	if err := Reauthor(merged, a); err != nil {
+		t.Fatal(err)
+	}
+	if merged.Metadata.Manufacturer.Name != "acme" {
+		t.Errorf("manufacturer = %q, want this run's", merged.Metadata.Manufacturer.Name)
+	}
+	if merged.SerialNumber != "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79" {
+		t.Errorf("serial changed to %s", merged.SerialNumber)
+	}
+	if merged.Version != 4 {
+		t.Errorf("version = %d, want 4", merged.Version)
+	}
+	if len(merged.Metadata.Lifecycles) != 2 {
+		t.Errorf("lifecycles = %+v, want this run's two phases", merged.Metadata.Lifecycles)
+	}
+}
+
+func TestReauthorKeepsAThirdPartyAuthor(t *testing.T) {
+	existing := &BOM{BOMFormat: "CycloneDX", SpecVersion: "1.7", SerialNumber: "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79", Version: 1,
+		Metadata: &Metadata{
+			Manufacturer: &OrganizationalEntity{Name: "Anchore"},
+			Tools:        &Tools{Components: []Component{{Type: "application", Name: "syft", Version: "1.0.0"}}},
+		}}
+	a := Authoring(cyclonedx.ToolSCA, &OrganizationalEntity{Name: "acme"}, PhasePreBuild)
+	if err := Reauthor(existing, a); err != nil {
+		t.Fatal(err)
+	}
+	if existing.Metadata.Manufacturer.Name != "Anchore" {
+		t.Errorf("a third party's manufacturer was overwritten: %q", existing.Metadata.Manufacturer.Name)
+	}
+	if existing.Version != 2 {
+		t.Errorf("version = %d", existing.Version)
+	}
+	if existing.Metadata.Tools.Find(cyclonedx.ToolSCA) == nil || existing.Metadata.Tools.Find("syft") == nil {
+		t.Errorf("tools = %+v, want syft and this run", existing.Metadata.Tools.Components)
 	}
 }

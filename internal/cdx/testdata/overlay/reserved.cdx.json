@@ -1,0 +1,1 @@
+{"bomFormat": "CycloneDX", "specVersion": "1.7", "components": [{"type": "library", "name": "x", "properties": [{"name": "vulnetix:scope", "value": "required"}]}]}

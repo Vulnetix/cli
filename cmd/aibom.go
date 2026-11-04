@@ -17,6 +17,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/display"
 	"github.com/vulnetix/cli/v4/internal/gitctx"
 	"github.com/vulnetix/cli/v4/internal/memory"
+	"github.com/vulnetix/cli/v4/internal/scanopts"
 	"github.com/vulnetix/cli/v4/pkg/auth"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
@@ -87,6 +88,12 @@ func init() {
 	aibomCmd.Flags().Int("commit-scan-max", 2000, "Maximum number of commits (from HEAD) the commit-history pass inspects")
 	aibomCmd.Flags().Bool("no-upload", false, "Do not submit the AIBOM to Vulnetix (it is submitted automatically when authenticated)")
 	aibomCmd.Flags().Bool("aibom-include-ignored", false, "Include files matched by .gitignore (default: gitignored paths are skipped)")
+	aibomCmd.Flags().Bool("sign", false, "Sign the AIBOM with this machine's own OIDC identity (CI runners); writes .sig, .pem and .intoto.jsonl beside it")
+	// The same identity, customisation and deployment flags as cdx: an AIBOM is
+	// a document this command authors, and must be able to say the same things
+	// about itself.
+	scanopts.AddDeploymentFlags(aibomCmd.Flags())
+	scanopts.AddAuthorshipFlags(aibomCmd.Flags())
 	rootCmd.AddCommand(aibomCmd)
 }
 
@@ -123,6 +130,12 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	default:
 		return fmt.Errorf("--spec-version must be one of: 1.6, 1.7")
 	}
+	authoring, err := scanopts.AuthoringInputsFromCommand(cmd)
+	if err != nil {
+		return err
+	}
+	sign, _ := cmd.Flags().GetBool("sign")
+	deployment := scanopts.DeploymentFromCommand(cmd)
 
 	// Detection, memory reconcile, CycloneDX build and the (authenticated,
 	// best-effort) submission all live in runAIBOMPass — the same entry point
@@ -141,6 +154,7 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 		RespectGitignore: !includeIgnored,
 		SpecVersion:      specVersion,
 		Upload:           !noUpload,
+		Authoring:        authoring,
 	})
 	if err != nil {
 		return err
@@ -154,6 +168,7 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	if outFile == "" {
 		outFile = filepath.Join(rootPath, ".vulnetix", "ai-bom.cdx.json")
 	}
+	bomData = labelAndSign(cmd, outFile, bomData, deployment, sign)
 	if err := writeAIBOMFile(outFile, bomData); err != nil {
 		return err
 	}
@@ -350,6 +365,9 @@ type AIBOMPassOptions struct {
 	// Upload submits the AIBOM to the backend when authenticated.
 	Upload bool
 	GitCtx *gitctx.GitContext
+	// Authoring is what the caller stated about the document's identity and
+	// content. The zero value derives everything.
+	Authoring cdx.AuthoringInputs
 }
 
 // AIBOMPassResult carries what the caller renders or writes.
@@ -421,15 +439,19 @@ func runAIBOMPass(opts AIBOMPassOptions) (*AIBOMPassResult, error) {
 	// rather than by resolving a declared dependency set, which is what the
 	// spec's discovery phase describes; design applies too, because it is read
 	// out of source rather than out of a built artefact.
-	authorship := cdx.Authoring(cyclonedx.ToolAIBOM,
-		cdx.ResolveManufacturer(cdx.ManufacturerSources{Git: gitCtx, OrgID: orgID}),
-		cdx.PhaseDesign, cdx.PhaseDiscovery)
+	authoring := opts.Authoring
+	authoring.Manufacturer.Git = gitCtx
+	if authoring.Manufacturer.OrgID == "" {
+		authoring.Manufacturer.OrgID = orgID
+	}
+	authorship := cdx.ResolveAuthorship(cyclonedx.ToolAIBOM, authoring, []cdx.LifecyclePhase{cdx.PhaseDesign, cdx.PhaseDiscovery})
 
-	bomData, err := cyclonedx.BuildAIBOM(det, cyclonedx.AIBOMOptions{
+	built := cyclonedx.BuildAIBOMDocument(det, cyclonedx.AIBOMOptions{
 		SpecVersion: specVersion,
 		Authorship:  &authorship,
 		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
 	})
+	bomData, err := finishAuthoredDocument(built, authoring)
 	if err != nil {
 		return nil, err
 	}

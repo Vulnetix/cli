@@ -1,0 +1,1 @@
+{"bomFormat": "CycloneDX", "specVersion": "1.7", "metadata": {"component": {"type": "application", "name": "later-name"}, "properties": [{"name": "acme:team", "value": "platform"}]}, "services": [{"name": "later-svc"}]}

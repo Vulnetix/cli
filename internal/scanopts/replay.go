@@ -36,6 +36,13 @@ var NotReplayed = map[string]string{
 
 	// Labels on a written document; an explain run writes none.
 	"bom-manufacturer": "document label", "lifecycle": "document label",
+	"bom-manufacturer-url": "document label", "bom-author": "document label",
+	"bom-supplier": "document label", "bom-supplier-url": "document label",
+	"bom-serial": "document label", "bom-version": "document label",
+	"bom-license": "document label", "bom-property": "document label",
+	"bom-overlay": "document label", "component-name": "document label",
+	"component-version": "document label", "component-type": "document label",
+	"component-group": "document label", "component-purl": "document label",
 	"project": "document label", "cluster": "document label", "namespace": "document label",
 	"environment": "document label", "tag": "document label",
 

@@ -20,7 +20,13 @@ Write a CycloneDX SBOM (vulnetix cdx).
 | `github-token` | Token for GitHub publishing, release assets and pull request comments | `${{ github.token }}` |
 | `attest` | Attest the written files with GitHub artifact attestations (needs id-token: write and attestations: write): true or false | `false` |
 | `release-tag` | Attach every file the command wrote to the GitHub release with this tag (needs contents: write) | - |
-| `sign` | Sign the SBOM with the runner's OIDC identity (needs id-token: write): true or false | `false` |
+| `sign` | Sign the document with the runner's OIDC identity (needs id-token: write): true or false | `false` |
+| `bom-manufacturer` | Organisation that created the BOM (metadata.manufacturer); defaults to the repository owner | - |
+| `bom-author` | Author of the document as Name <email>, one per line (metadata.authors; passed as --bom-author) | - |
+| `bom-supplier` | Supplier of the component the BOM describes (metadata.supplier) | - |
+| `bom-license` | Licence of the document itself, an SPDX id or expression (metadata.licenses) | - |
+| `bom-property` | Document property as name=value, one per line (metadata.properties; passed as --bom-property) | - |
+| `bom-overlay` | CycloneDX JSON fragments merged into the document before validation, one path per line (passed as --bom-overlay) | - |
 
 ## Outputs
 

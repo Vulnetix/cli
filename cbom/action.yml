@@ -49,6 +49,28 @@ inputs:
   release-tag:
     description: 'Attach every file the command wrote to the GitHub release with this tag (needs contents: write)'
     required: false
+  sign:
+    description: 'Sign the document with the runner''s OIDC identity (needs id-token: write): true or false'
+    required: false
+    default: 'false'
+  bom-manufacturer:
+    description: 'Organisation that created the BOM (metadata.manufacturer); defaults to the repository owner'
+    required: false
+  bom-author:
+    description: 'Author of the document as Name <email>, one per line (metadata.authors; passed as --bom-author)'
+    required: false
+  bom-supplier:
+    description: 'Supplier of the component the BOM describes (metadata.supplier)'
+    required: false
+  bom-license:
+    description: 'Licence of the document itself, an SPDX id or expression (metadata.licenses)'
+    required: false
+  bom-property:
+    description: 'Document property as name=value, one per line (metadata.properties; passed as --bom-property)'
+    required: false
+  bom-overlay:
+    description: 'CycloneDX JSON fragments merged into the document before validation, one path per line (passed as --bom-overlay)'
+    required: false
 
 outputs:
   files:
@@ -95,6 +117,13 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         VX_PATH: ${{ inputs.path }}
         VX_ARGS: ${{ inputs.args }}
+        VX_IN_SIGN: ${{ inputs.sign }}
+        VX_IN_BOM_MANUFACTURER: ${{ inputs.bom-manufacturer }}
+        VX_IN_BOM_AUTHOR: ${{ inputs.bom-author }}
+        VX_IN_BOM_SUPPLIER: ${{ inputs.bom-supplier }}
+        VX_IN_BOM_LICENSE: ${{ inputs.bom-license }}
+        VX_IN_BOM_PROPERTY: ${{ inputs.bom-property }}
+        VX_IN_BOM_OVERLAY: ${{ inputs.bom-overlay }}
       run: bash "$GITHUB_ACTION_PATH/../action-lib/run.sh"
 
     - name: Upload the written files as an artifact

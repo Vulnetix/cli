@@ -45,6 +45,23 @@ type action struct {
 // URLs, one per line, each passed to the scan as --vex.
 var vexInputs = []input{{Name: "vex", Desc: "VEX documents to apply before the gates, one path, directory or https URL per line (passed as --vex). VexSource documents under .vulnetix/config apply too", Flag: "lines:--vex"}}
 
+// bomAuthoringInputs are the identity and customisation inputs of the three
+// generators. They exist as inputs rather than `args` because an author is
+// written as `Name <email>` and a licence as an expression, both with spaces,
+// and `args` is split on whitespace. Everything else (--bom-serial,
+// --component-*) goes through `args` or the VULNETIX_BOM_* environment.
+var bomAuthoringInputs = []input{
+	{Name: "bom-manufacturer", Desc: "Organisation that created the BOM (metadata.manufacturer); defaults to the repository owner", Flag: "--bom-manufacturer"},
+	{Name: "bom-author", Desc: "Author of the document as Name <email>, one per line (metadata.authors; passed as --bom-author)", Flag: "lines:--bom-author"},
+	{Name: "bom-supplier", Desc: "Supplier of the component the BOM describes (metadata.supplier)", Flag: "--bom-supplier"},
+	{Name: "bom-license", Desc: "Licence of the document itself, an SPDX id or expression (metadata.licenses)", Flag: "--bom-license"},
+	{Name: "bom-property", Desc: "Document property as name=value, one per line (metadata.properties; passed as --bom-property)", Flag: "lines:--bom-property"},
+	{Name: "bom-overlay", Desc: "CycloneDX JSON fragments merged into the document before validation, one path per line (passed as --bom-overlay)", Flag: "lines:--bom-overlay"},
+}
+
+// signInput is the --sign toggle of the three generators.
+var signInput = input{Name: "sign", Desc: "Sign the document with the runner's OIDC identity (needs id-token: write): true or false", Default: "false", Flag: "bool:--sign"}
+
 var actions = []action{
 	{Name: "setup", Title: "Setup", Desc: "Install the Vulnetix CLI and put it on PATH for later steps.", Setup: true},
 	{Name: "sca", Title: "SCA", Desc: "Scan dependencies for known vulnerabilities (vulnetix sca).",
@@ -64,12 +81,12 @@ var actions = []action{
 	{Name: "analyze", Title: "Analyze", Desc: "Report the repository's tech stack, ownership and risk (vulnetix analyze).",
 		Command: []string{"analyze"}, Path: true},
 	{Name: "cbom", Title: "CBOM", Desc: "Write a cryptography bill of materials (vulnetix cbom).",
-		Command: []string{"cbom"}, Path: true},
+		Command: []string{"cbom"}, Path: true, Inputs: append([]input{signInput}, bomAuthoringInputs...)},
 	{Name: "aibom", Title: "AIBOM", Desc: "Write an AI bill of materials (vulnetix aibom).",
-		Command: []string{"aibom"}, Path: true},
+		Command: []string{"aibom"}, Path: true, Inputs: append([]input{signInput}, bomAuthoringInputs...)},
 	{Name: "sbom", Title: "SBOM", Desc: "Write a CycloneDX SBOM (vulnetix cdx).",
 		Command: []string{"cdx"}, Path: true, DependencyGraph: true, SBOM: true,
-		Inputs: []input{{Name: "sign", Desc: "Sign the SBOM with the runner's OIDC identity (needs id-token: write): true or false", Default: "false", Flag: "bool:--sign"}}},
+		Inputs: append([]input{signInput}, bomAuthoringInputs...)},
 	{Name: "upload", Title: "Upload", Desc: "Upload one artifact file to Vulnetix (vulnetix upload).",
 		Command: []string{"upload", "--json"},
 		Inputs: []input{
