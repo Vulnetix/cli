@@ -8,6 +8,27 @@ BINARY_NAME="vulnetix"
 GITHUB_REPO="Vulnetix/cli"
 GITHUB_BASE="https://github.com/${GITHUB_REPO}/releases"
 DOCS_URL="https://docs.vulnetix.com/cli/"
+INSECURE_SKIP_VERIFY="${VULNETIX_INSECURE_SKIP_VERIFY:-0}"
+REQUIRE_PROVENANCE="${VULNETIX_REQUIRE_PROVENANCE:-0}"
+
+# The provenance bundle and the identity that signs it, exactly as
+# .github/workflows/slsa-provenance.yml produces them: one Sigstore bundle per
+# release, named provenance.sigstore.json, holding an SLSA v1 statement whose
+# subjects are every line of checksums.txt. The certificate names the reusable
+# workflow (job_workflow_ref), not release.yml, at the ref the release ran
+# from: refs/heads/main for a dispatched release, refs/tags/v* for a tag push.
+# The repository claim pins the caller, since belai calls the same workflow.
+PROVENANCE_ASSET="provenance.sigstore.json"
+PROVENANCE_TYPE="slsaprovenance1"
+PROVENANCE_ISSUER="https://token.actions.githubusercontent.com"
+PROVENANCE_IDENTITY_REGEXP='^https://github\.com/Vulnetix/cli/\.github/workflows/slsa-provenance\.yml@refs/(heads/main|tags/v[0-9]+\.[0-9]+\.[0-9]+.*)$'
+PROVENANCE_REPOSITORY="Vulnetix/cli"
+# The provenance job signs a few minutes after the release is published, so a
+# release resolved from latest or a channel in that window has no bundle yet.
+# With provenance required, the installer waits this long for it.
+PROVENANCE_WAIT_TRIES="${VULNETIX_PROVENANCE_WAIT_TRIES:-10}"
+PROVENANCE_WAIT_SECONDS=30
+FLOATING_VERSION=0
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -23,19 +44,40 @@ while [ $# -gt 0 ]; do
       VERSION="$2"
       shift 2
       ;;
+    --insecure-skip-verify)
+      INSECURE_SKIP_VERIFY=1
+      shift
+      ;;
+    --require-provenance)
+      REQUIRE_PROVENANCE=1
+      shift
+      ;;
     --help)
       cat <<EOF
 Usage: install.sh [options]
 
 Options:
-  --install-dir DIR    Installation directory (default: /usr/local/bin)
-  --version VERSION    Version to install, e.g. v1.2.3, or a major channel
-                       such as v3 for the newest v3 release (default: latest)
-  --help               Show this message
+  --install-dir DIR       Installation directory (default: /usr/local/bin)
+  --version VERSION       Version to install, e.g. v1.2.3, or a major channel
+                          such as v3 for the newest v3 release (default: latest)
+  --require-provenance    Fail unless cosign is on PATH and the release's signed
+                          SLSA provenance verifies for the downloaded binary
+  --insecure-skip-verify  Install without checking the SHA-256 checksum or the
+                          provenance. Not recommended
+  --help                  Show this message
+
+Verification:
+  The binary is installed only when its SHA-256 matches the release's
+  checksums.txt. The installer stops when it has no SHA-256 tool, cannot
+  fetch checksums.txt, or finds no entry for the binary. When cosign is on
+  PATH it also verifies the release's signed provenance (${PROVENANCE_ASSET})
+  and stops if that fails.
 
 Environment variables:
-  INSTALL_DIR          Overrides --install-dir
-  VERSION              Overrides --version
+  INSTALL_DIR                      Overrides --install-dir
+  VERSION                          Overrides --version
+  VULNETIX_REQUIRE_PROVENANCE=1    Same as --require-provenance
+  VULNETIX_INSECURE_SKIP_VERIFY=1  Same as --insecure-skip-verify
 
 Analytics:
   After a successful install the script sends one anonymous event to Google
@@ -50,6 +92,7 @@ Examples:
   curl -fsSL https://cli.vulnetix.com/install.sh | sh
   curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir ~/.local/bin
   curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v1.2.3
+  curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --require-provenance
 
 Docs: ${DOCS_URL}
 EOF
@@ -276,12 +319,12 @@ verify_size() {
   local size
   size=$(wc -c < "$path" 2>/dev/null || echo 0)
   if [ "$size" -lt 1024 ]; then
-    echo "error: downloaded file is suspiciously small (${size} bytes) — download may have failed" >&2
+    echo "error: downloaded file is suspiciously small (${size} bytes), the download may have failed" >&2
     rm -f "$path"
     exit 1
   fi
   if [ -n "$want" ] && [ "$want" -gt 0 ] 2>/dev/null && [ "$size" -ne "$want" ]; then
-    echo "error: download is incomplete — got ${size} bytes, server declared ${want}" >&2
+    echo "error: download is incomplete: got ${size} bytes, server declared ${want}" >&2
     echo "error: this is a network problem, not a corrupt release. Please run the installer again." >&2
     rm -f "$path"
     exit 1
@@ -289,6 +332,17 @@ verify_size() {
   echo "info: download size=${size} bytes"
 }
 
+# refuse_unverified stops an install that could not be verified, and says how
+# to install anyway. It is for "cannot check", never for "checked and wrong".
+refuse_unverified() {
+  echo "error: $1, refusing to install" >&2
+  echo "error: to install without verification (not recommended), re-run with" >&2
+  echo "error:   --insecure-skip-verify, or set VULNETIX_INSECURE_SKIP_VERIFY=1" >&2
+  exit 1
+}
+
+# verify_checksum fails closed: no SHA-256 tool, no checksums.txt or no entry
+# for the asset each stop the install, as a mismatch always has.
 verify_checksum() {
   local asset="$1"
   local tmp_binary="$2"
@@ -297,31 +351,23 @@ verify_checksum() {
   local sha_tool="$5"
 
   if [ "$sha_tool" = "none" ]; then
-    echo "warn: no sha256 tool found (sha256sum/shasum/openssl), skipping checksum verification"
-    return
+    refuse_unverified "no SHA-256 tool found (sha256sum, shasum, sha256, openssl, rhash or certutil)"
   fi
 
-  local tmp_checksums
-  tmp_checksums=$(mktemp)
-  trap 'rm -f "$tmp_checksums"' EXIT
+  TMP_CHECKSUMS=$(mktemp)
 
   echo "info: fetching $checksums_url"
-  if ! download "$checksums_url" "$tmp_checksums" "$downloader" 2>&1; then
-    echo "warn: could not fetch checksums.txt, skipping checksum verification" >&2
-    rm -f "$tmp_checksums"
-    trap - EXIT
-    return
+  if ! download "$checksums_url" "$TMP_CHECKSUMS" "$downloader" 2>&1; then
+    refuse_unverified "could not fetch checksums.txt"
   fi
 
   # Extract expected hash for this asset from checksums.txt
   local expected
-  expected=$(grep " ${asset}$" "$tmp_checksums" | awk '{print $1}')
-  rm -f "$tmp_checksums"
-  trap - EXIT
+  expected=$(grep " \*\{0,1\}${asset}$" "$TMP_CHECKSUMS" | awk '{print $1}' | head -n1)
+  rm -f "$TMP_CHECKSUMS"
 
   if [ -z "$expected" ]; then
-    echo "warn: asset '${asset}' not found in checksums.txt, skipping checksum verification" >&2
-    return
+    refuse_unverified "asset '${asset}' has no entry in checksums.txt"
   fi
 
   echo "info: expected sha256=$expected"
@@ -333,21 +379,105 @@ verify_checksum() {
   if [ "$actual" != "$expected" ]; then
     # Say what is actually known. An interrupted download is by far the most
     # common cause and is now caught by verify_size, so reaching here with a
-    # complete file is the case worth alarming about — but claiming tampering
+    # complete file is the case worth alarming about. Claiming tampering
     # outright, as this used to, sends people hunting a supply-chain
     # compromise over a dropped connection.
-    echo "error: checksum mismatch — refusing to install" >&2
+    echo "error: checksum mismatch, refusing to install" >&2
     echo "error:   expected: $expected" >&2
     echo "error:   actual:   $actual" >&2
     echo "error:   size:     $(wc -c < "$tmp_binary" 2>/dev/null || echo unknown) bytes" >&2
-    echo "error: if the size above looks short, the download was interrupted — run the installer again." >&2
-    echo "error: if it is the full size, do not install this binary: report it at" >&2
+    echo "error: if the size above looks short, the download was interrupted: run the installer again." >&2
+    echo "error: if it is the full size, do not install this binary. Report it at" >&2
     echo "error:   https://github.com/Vulnetix/cli/issues" >&2
     rm -f "$tmp_binary"
     exit 1
   fi
 
   echo "info: checksum verified ok"
+}
+
+# fetch_optional downloads a file that a release may not have. Unlike download
+# it does not retry a 404, so an older release without a provenance bundle
+# costs one request, not five retries.
+fetch_optional() {
+  if [ "$3" = "curl" ]; then
+    curl -fsSL --retry 3 --retry-delay 2 "$1" -o "$2" 2>/dev/null
+  else
+    wget -q --tries=3 --timeout=30 "$1" -O "$2" 2>/dev/null
+  fi
+}
+
+# check_provenance_tooling runs before the download, so --require-provenance
+# without cosign fails in a second rather than after a 100 MB transfer.
+check_provenance_tooling() {
+  if [ "$REQUIRE_PROVENANCE" != "1" ]; then
+    return
+  fi
+  if ! command -v cosign >/dev/null 2>&1; then
+    echo "error: --require-provenance is set but cosign is not on PATH" >&2
+    echo "error: install cosign (https://docs.sigstore.dev/cosign/system_config/installation/) and run the installer again" >&2
+    exit 1
+  fi
+}
+
+# verify_provenance checks the release's signed SLSA provenance names this
+# exact binary. It runs when cosign is on PATH, and --require-provenance makes
+# it mandatory. A bundle that is present and does not verify always stops the
+# install. A release with no bundle (releases before provenance was signed)
+# installs on its checksum alone unless provenance is required.
+verify_provenance() {
+  local tmp_binary="$1"
+  local bundle_url="$2"
+  local downloader="$3"
+
+  if ! command -v cosign >/dev/null 2>&1; then
+    echo "info: cosign not found, skipping provenance verification (checksum verified)"
+    return
+  fi
+
+  TMP_BUNDLE=$(mktemp)
+  echo "info: fetching $bundle_url"
+  local tries=0
+  while ! fetch_optional "$bundle_url" "$TMP_BUNDLE" "$downloader" || [ ! -s "$TMP_BUNDLE" ]; do
+    if [ "$REQUIRE_PROVENANCE" != "1" ] || [ "$FLOATING_VERSION" != "1" ] || [ "$tries" -ge "$PROVENANCE_WAIT_TRIES" ]; then
+      break
+    fi
+    tries=$((tries + 1))
+    echo "info: no ${PROVENANCE_ASSET} yet; a release published in the last few minutes is signed shortly after. Waiting ${PROVENANCE_WAIT_SECONDS}s (${tries}/${PROVENANCE_WAIT_TRIES})"
+    sleep "$PROVENANCE_WAIT_SECONDS"
+  done
+  if [ ! -s "$TMP_BUNDLE" ]; then
+    rm -f "$TMP_BUNDLE"
+    if [ "$REQUIRE_PROVENANCE" = "1" ]; then
+      echo "error: this release has no ${PROVENANCE_ASSET} and --require-provenance is set, refusing to install" >&2
+      echo "error: every v4 release has one, some v3 releases do not; pin one that does" >&2
+      exit 1
+    fi
+    echo "warn: this release has no ${PROVENANCE_ASSET}; installing on the checksum alone" >&2
+    return
+  fi
+
+  local out
+  if out=$(cosign verify-blob-attestation \
+      --bundle "$TMP_BUNDLE" --new-bundle-format \
+      --type "$PROVENANCE_TYPE" \
+      --certificate-oidc-issuer "$PROVENANCE_ISSUER" \
+      --certificate-identity-regexp "$PROVENANCE_IDENTITY_REGEXP" \
+      --certificate-github-workflow-repository "$PROVENANCE_REPOSITORY" \
+      "$tmp_binary" 2>&1); then
+    rm -f "$TMP_BUNDLE"
+    echo "info: provenance verified ok (signed by ${PROVENANCE_REPOSITORY} slsa-provenance.yml)"
+    return
+  fi
+
+  rm -f "$TMP_BUNDLE"
+  echo "error: provenance verification failed, refusing to install" >&2
+  printf '%s\n' "$out" | sed 's/^/error:   cosign: /' >&2
+  echo "error: if cosign could not reach Sigstore (a network error above), run the installer again." >&2
+  echo "error: otherwise do not install this binary. Report it at" >&2
+  echo "error:   https://github.com/Vulnetix/cli/issues" >&2
+  rm -f "$tmp_binary"
+  exit 1
 }
 
 # install_client_id is a random id made for this install only, in GA4's own
@@ -375,6 +505,17 @@ main() {
   DOWNLOADER=$(detect_downloader)
   SHA_TOOL=$(detect_sha256)
   echo "info: os=$OS arch=$ARCH platform=$PLATFORM downloader=$DOWNLOADER sha256=$SHA_TOOL"
+
+  if [ "$INSECURE_SKIP_VERIFY" = "1" ] && [ "$REQUIRE_PROVENANCE" = "1" ]; then
+    echo "error: --insecure-skip-verify and --require-provenance contradict each other; pick one" >&2
+    exit 1
+  fi
+  check_provenance_tooling
+  # Checked before the download too, so a machine with no SHA-256 tool is
+  # told so before a 100 MB transfer rather than after it.
+  if [ "$SHA_TOOL" = "none" ] && [ "$INSECURE_SKIP_VERIFY" != "1" ]; then
+    refuse_unverified "no SHA-256 tool found (sha256sum, shasum, sha256, openssl, rhash or certutil)"
+  fi
 
   # Resolve install directory
   INSTALL_DIR=$(resolve_install_dir "$INSTALL_DIR")
@@ -411,34 +552,40 @@ main() {
       fi
       echo "info: channel $CHANNEL resolved to $RESOLVED"
       VERSION="$RESOLVED"
+      FLOATING_VERSION=1
       ;;
   esac
 
   if [ "$VERSION" = "latest" ]; then
     RESOLVED=$(resolve_latest_tag)
+    FLOATING_VERSION=1
     if [ -n "$RESOLVED" ]; then
       VERSION="$RESOLVED"
     else
       echo "warn: could not resolve the latest tag; falling back to the /latest/ alias." >&2
-      echo "warn: if a release lands mid-download this can report a checksum mismatch — retry if it does." >&2
+      echo "warn: if a release lands mid-download this can report a checksum mismatch; retry if it does." >&2
     fi
   fi
 
   if [ "$VERSION" = "latest" ]; then
-    DOWNLOAD_URL="${GITHUB_BASE}/latest/download/${ASSET}"
-    CHECKSUMS_URL="${GITHUB_BASE}/latest/download/checksums.txt"
+    RELEASE_URL="${GITHUB_BASE}/latest/download"
   else
-    DOWNLOAD_URL="${GITHUB_BASE}/download/${VERSION}/${ASSET}"
-    CHECKSUMS_URL="${GITHUB_BASE}/download/${VERSION}/checksums.txt"
+    RELEASE_URL="${GITHUB_BASE}/download/${VERSION}"
   fi
+  DOWNLOAD_URL="${RELEASE_URL}/${ASSET}"
+  CHECKSUMS_URL="${RELEASE_URL}/checksums.txt"
+  BUNDLE_URL="${RELEASE_URL}/${PROVENANCE_ASSET}"
 
   echo "info: version=$VERSION asset=$ASSET"
   echo "info: binary    $DOWNLOAD_URL"
   echo "info: checksums $CHECKSUMS_URL"
 
-  # Download binary to temp file
+  # Download binary to temp file. One trap removes every temporary file, so a
+  # refusal at any step leaves nothing behind in the install directory.
   TMP_FILE=$(mktemp "${INSTALL_DIR}/.${BINARY_NAME}.XXXXXX" 2>/dev/null || mktemp)
-  trap 'rm -f "$TMP_FILE"' EXIT
+  TMP_CHECKSUMS=""
+  TMP_BUNDLE=""
+  trap 'rm -f "$TMP_FILE" "$TMP_CHECKSUMS" "$TMP_BUNDLE"' EXIT
 
   echo "info: fetching $DOWNLOAD_URL"
   # Asked before the transfer so an interrupted download is diagnosed as one.
@@ -447,7 +594,12 @@ main() {
   EXPECT_BYTES=$(expected_size "$DOWNLOAD_URL" "$DOWNLOADER" || true)
   download "$DOWNLOAD_URL" "$TMP_FILE" "$DOWNLOADER"
   verify_size "$TMP_FILE" "$EXPECT_BYTES"
-  verify_checksum "$ASSET" "$TMP_FILE" "$CHECKSUMS_URL" "$DOWNLOADER" "$SHA_TOOL"
+  if [ "$INSECURE_SKIP_VERIFY" = "1" ]; then
+    echo "warn: --insecure-skip-verify is set: installing WITHOUT checking the checksum or provenance" >&2
+  else
+    verify_checksum "$ASSET" "$TMP_FILE" "$CHECKSUMS_URL" "$DOWNLOADER" "$SHA_TOOL"
+    verify_provenance "$TMP_FILE" "$BUNDLE_URL" "$DOWNLOADER"
+  fi
 
   # Set executable permission then move into place atomically
   chmod +x "$TMP_FILE"
