@@ -8677,7 +8677,7 @@
       ]
     },
     "vulnetix": {
-      "short": "Vulnetix CLI - Automate vulnerability remediation",
+      "short": "Vulnetix CLI: scan code and dependencies, then fix what is affected",
       "flags": [
         "artifact-manifest",
         "disable-memory",

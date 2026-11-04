@@ -126,10 +126,18 @@ var rootCmd = &cobra.Command{
 	// have always told users to run. `vulnetix version` remains the richer
 	// report (commit, build date, module versions).
 	Version: version,
-	Short:   "Vulnetix CLI - Automate vulnerability remediation",
-	Long: `Vulnetix CLI is a command-line tool for vulnerability management that focuses on
-automated remediation over discovery. It helps organizations prioritize and resolve
-vulnerabilities efficiently.`,
+	Short:   "Vulnetix CLI: scan code and dependencies, then fix what is affected",
+	Long: `Vulnetix scans a repository for vulnerable dependencies (sca), code flaws (sast),
+secrets, IaC and container misconfigurations, licences and malware, and tells you
+which findings affect the version you run and what to change. It queries the
+Vulnetix Vulnerability Database (vdb). With an account, upload sends reports to the
+Resolve Platform and gha publishes them to GitHub.
+
+Start with:
+  vulnetix auth login     sign in, or skip it to scan in community mode
+  vulnetix scan           scan the current directory
+
+Docs: https://docs.vulnetix.com/cli/`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initDisplayContext(cmd, display.ModeText)
 		artifacts.SetCommand(cmd.CommandPath())
@@ -359,7 +367,50 @@ func verifySigV4(orgID, secret string) error {
 	return nil
 }
 
+// commandGroups orders the root help into what a new user looks for first.
+// Each top-level command is placed by name here rather than in its own file,
+// so one table decides the layout. A command missing from it lands under
+// "Additional Commands", and TestEveryRootCommandHasAGroup fails.
+var commandGroups = []struct {
+	group    cobra.Group
+	commands []string
+}{
+	{cobra.Group{ID: "start", Title: "Get started:"}, []string{"auth", "env", "version", "update"}},
+	{cobra.Group{ID: "scan", Title: "Scan:"}, []string{
+		"scan", "sca", "sast", "secrets", "iac", "containers", "license", "malscan",
+		"fix", "report", "ignore", "defend", "aibom", "cbom", "cdx", "bom", "vex",
+		"analyze", "image", "attest",
+	}},
+	{cobra.Group{ID: "vdb", Title: "VDB:"}, []string{"vdb", "triage"}},
+	{cobra.Group{ID: "platform", Title: "Platform:"}, []string{
+		"upload", "gha", "tea", "config", "jail", "api", "surface", "package-firewall",
+		"ai-firewall", "agent", "pix", "skills", "lsp",
+	}},
+}
+
+// assignCommandGroups registers the help groups and places each top-level
+// command in one. It runs once, after every file's init has added its command.
+func assignCommandGroups() {
+	if len(rootCmd.Groups()) > 0 {
+		return
+	}
+	byName := map[string]string{}
+	for _, g := range commandGroups {
+		group := g.group
+		rootCmd.AddGroup(&group)
+		for _, name := range g.commands {
+			byName[name] = g.group.ID
+		}
+	}
+	for _, c := range rootCmd.Commands() {
+		if id, ok := byName[c.Name()]; ok {
+			c.GroupID = id
+		}
+	}
+}
+
 func Execute() error {
+	assignCommandGroups()
 	// Suppress cobra's default error printing — we handle it in main.
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true
