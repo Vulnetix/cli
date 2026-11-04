@@ -95,3 +95,24 @@ func TestInventoryCarriesTheHostsRealPurl(t *testing.T) {
 		t.Fatalf("a package the OS does not list got a purl: %q", got[0].Purl)
 	}
 }
+
+func TestInventoryReportCompleteness(t *testing.T) {
+	pkgs := []uplink.InventoryPackage{{Name: "a"}}
+	read := sysinv.Result{Packages: []sysinv.Package{{Name: "a"}}}
+	if r := inventoryReport(pkgs, read, 0); r.Complete == nil || !*r.Complete || len(r.Warnings) != 0 {
+		t.Errorf("full read = %+v", r)
+	}
+	broken := sysinv.Result{Packages: read.Packages, Warnings: []string{"var/lib/rpm/Packages: locked"}}
+	if r := inventoryReport(pkgs, broken, 0); r.Complete == nil || *r.Complete || len(r.Warnings) != 1 {
+		t.Errorf("partial read = %+v", r)
+	}
+	if r := inventoryReport(nil, sysinv.Result{Unsupported: "NixOS"}, 0); r.Unsupported != "NixOS" || r.Complete != nil {
+		t.Errorf("unsupported = %+v", r)
+	}
+	if r := inventoryReport(nil, sysinv.Result{}, 0); r.Complete != nil {
+		t.Errorf("nothing read must leave the site to judge: %+v", r)
+	}
+	if r := inventoryReport(pkgs, read, 3); r.Complete == nil || !*r.Complete || len(r.Warnings) != 1 {
+		t.Errorf("unreadable processes = %+v; a warning, not incomplete", r)
+	}
+}

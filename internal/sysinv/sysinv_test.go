@@ -200,3 +200,57 @@ func TestUnreadableRPMIsAWarningNotAnEmptySystem(t *testing.T) {
 		t.Fatal("an unreadable rpmdb must surface as a warning")
 	}
 }
+
+func TestUnreadableDatabasesAreWarnings(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads every file")
+	}
+	root := t.TempDir()
+	write(t, root, "var/lib/dpkg/status", "Package: a\nStatus: install ok installed\nVersion: 1\n")
+	write(t, root, "lib/apk/db/installed", "P:b\nV:1\n")
+	write(t, root, "var/lib/pacman/local/c-1-1/desc", "%NAME%\nc\n")
+	for _, rel := range []string{"var/lib/dpkg/status", "lib/apk/db/installed"} {
+		if err := os.Chmod(filepath.Join(root, rel), 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	local := filepath.Join(root, "var/lib/pacman/local")
+	if err := os.Chmod(local, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(local, 0o755) })
+
+	res := Collect(root)
+	if len(res.Warnings) != 3 {
+		t.Fatalf("warnings = %q, want one each for dpkg, apk and pacman", res.Warnings)
+	}
+	if len(res.Packages) != 0 || res.Unsupported != "" {
+		t.Fatalf("packages = %d unsupported = %q", len(res.Packages), res.Unsupported)
+	}
+}
+
+func TestAbsentDatabasesAreNoWarning(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "etc/os-release", "ID=debian\n")
+	write(t, root, "var/lib/dpkg/status", "Package: a\nStatus: install ok installed\nVersion: 1\n")
+	if res := Collect(root); len(res.Warnings) != 0 || len(res.Packages) != 1 {
+		t.Fatalf("warnings = %q packages = %d", res.Warnings, len(res.Packages))
+	}
+}
+
+func TestNixOSAndGentooAreUnsupportedNotEmpty(t *testing.T) {
+	for _, osr := range []string{"ID=nixos\n", "ID=gentoo\n", "ID=funtoo\nID_LIKE=gentoo\n"} {
+		root := t.TempDir()
+		write(t, root, "etc/os-release", osr)
+		if res := Collect(root); res.Unsupported == "" {
+			t.Errorf("%q: unsupported not set", osr)
+		}
+	}
+	// A NixOS box that also has a database read here is reported from it.
+	root := t.TempDir()
+	write(t, root, "etc/os-release", "ID=nixos\n")
+	write(t, root, "lib/apk/db/installed", "P:b\nV:1\n")
+	if res := Collect(root); res.Unsupported != "" || len(res.Packages) != 1 {
+		t.Errorf("unsupported = %q packages = %d", res.Unsupported, len(res.Packages))
+	}
+}

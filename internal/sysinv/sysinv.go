@@ -14,8 +14,10 @@ package sysinv
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -154,18 +156,46 @@ type Result struct {
 	// an unreadable rpmdb is not a system with no packages, and a caller must
 	// not report it as one.
 	Warnings []string
+	// Unsupported says why this system's packages cannot be read at all: a
+	// distribution whose package manager keeps no database read here. Such a
+	// host is unchecked, never a host with nothing installed.
+	Unsupported string
+}
+
+// unsupportedDistros are distributions whose packages live outside every
+// database read here: Nix keeps a store and no package list, and Portage's
+// var/db/pkg is not read.
+var unsupportedDistros = map[string]string{
+	"nixos":  "NixOS keeps packages in the Nix store, which has no package database this sensor reads",
+	"gentoo": "Gentoo's Portage database (var/db/pkg) is not read by this sensor",
 }
 
 // Collect reads every package database present under root.
 func Collect(root string) Result {
 	res := Result{Distro: ReadOSRelease(root)}
-	res.Packages = append(res.Packages, readDpkg(root)...)
-	res.Packages = append(res.Packages, readAPK(root)...)
-	res.Packages = append(res.Packages, readPacman(root)...)
-	pkgs, warns := readRPM(root)
-	res.Packages = append(res.Packages, pkgs...)
-	res.Warnings = append(res.Warnings, warns...)
+	for _, read := range []func(string) ([]Package, []string){readDpkg, readAPK, readPacman, readRPM} {
+		pkgs, warns := read(root)
+		res.Packages = append(res.Packages, pkgs...)
+		res.Warnings = append(res.Warnings, warns...)
+	}
+	if len(res.Packages) == 0 {
+		for _, id := range append([]string{res.Distro.ID}, res.Distro.IDLike...) {
+			if why, ok := unsupportedDistros[id]; ok {
+				res.Unsupported = why
+				break
+			}
+		}
+	}
 	return res
+}
+
+// readWarning is the warning for a database file that exists but could not be
+// read. An absent file is no warning: most systems have one package manager.
+func readWarning(rel string, err error) []string {
+	if err == nil || errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	return []string{fmt.Sprintf("%s: %v", rel, err)}
 }
 
 // ReadOSRelease parses etc/os-release, falling back to usr/lib/os-release as
@@ -207,11 +237,14 @@ func ReadOSRelease(root string) Distro {
 
 // readDpkg reads var/lib/dpkg/status and, for distroless images that have no
 // status file, the per-package files in var/lib/dpkg/status.d.
-func readDpkg(root string) []Package {
+func readDpkg(root string) ([]Package, []string) {
 	var out []Package
+	var warnings []string
 	const status = "var/lib/dpkg/status"
 	if data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(status))); err == nil {
 		out = append(out, parseDpkg(data, status)...)
+	} else {
+		warnings = append(warnings, readWarning(status, err)...)
 	}
 	matches, _ := filepath.Glob(filepath.Join(root, "var", "lib", "dpkg", "status.d", "*"))
 	sort.Strings(matches)
@@ -219,11 +252,14 @@ func readDpkg(root string) []Package {
 		if strings.HasSuffix(m, ".md5sums") {
 			continue
 		}
-		if data, err := os.ReadFile(m); err == nil {
-			out = append(out, parseDpkg(data, relSlash(root, m))...)
+		data, err := os.ReadFile(m)
+		if err != nil {
+			warnings = append(warnings, readWarning(relSlash(root, m), err)...)
+			continue
 		}
+		out = append(out, parseDpkg(data, relSlash(root, m))...)
 	}
-	return out
+	return out, warnings
 }
 
 // parseDpkg parses dpkg control paragraphs. Only packages whose Status says
@@ -272,17 +308,19 @@ func controlFields(block string) map[string]string {
 
 // ── apk ─────────────────────────────────────────────────────────────────────
 
-func readAPK(root string) []Package {
+func readAPK(root string) ([]Package, []string) {
+	var warnings []string
 	for _, rel := range []string{"lib/apk/db/installed", "var/lib/apk/db/installed"} {
 		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
 		if err != nil {
+			warnings = append(warnings, readWarning(rel, err)...)
 			continue
 		}
 		// Both paths are the same database on systems that keep the legacy
 		// symlink; the first one read is the answer.
-		return parseAPK(data, rel)
+		return parseAPK(data, rel), nil
 	}
-	return nil
+	return nil, warnings
 }
 
 func parseAPK(data []byte, db string) []Package {
@@ -318,20 +356,28 @@ func parseAPK(data []byte, db string) []Package {
 
 // ── pacman ──────────────────────────────────────────────────────────────────
 
-func readPacman(root string) []Package {
+func readPacman(root string) ([]Package, []string) {
+	// Glob lists nothing from a directory it cannot read and says nothing, so
+	// an unreadable database is checked for first.
+	const local = "var/lib/pacman/local"
+	if _, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(local))); err != nil {
+		return nil, readWarning(local, err)
+	}
 	matches, _ := filepath.Glob(filepath.Join(root, "var", "lib", "pacman", "local", "*", "desc"))
 	sort.Strings(matches)
 	var out []Package
+	var warnings []string
 	for _, m := range matches {
 		data, err := os.ReadFile(m)
 		if err != nil {
+			warnings = append(warnings, readWarning(relSlash(root, m), err)...)
 			continue
 		}
 		if p, ok := parsePacmanDesc(data, relSlash(root, m)); ok {
 			out = append(out, p)
 		}
 	}
-	return out
+	return out, warnings
 }
 
 func parsePacmanDesc(data []byte, db string) (Package, bool) {

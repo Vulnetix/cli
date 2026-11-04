@@ -842,10 +842,41 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 			Processes: len(p.Processes), Examples: examples,
 		})
 	}
-	pkgs = withInstalled(pkgs, sysinv.Collect(root))
-	_, err := a.cfg.Uplink.PostInventory(ctx, a.cfg.SensorKey, pkgs)
+	sys := sysinv.Collect(root)
+	pkgs = withInstalled(pkgs, sys)
+	report := inventoryReport(pkgs, sys, res.Unreadable)
+	if report.Complete != nil && !*report.Complete {
+		a.cfg.Logf("sensor: inventory is incomplete, the site keeps the last full list: %s", strings.Join(report.Warnings, "; "))
+	}
+	_, err := a.cfg.Uplink.PostInventoryReport(ctx, a.cfg.SensorKey, report)
 
 	return err
+}
+
+// inventoryReport says how much of the host pkgs describes. The site replaces
+// its list only with a report it can trust to be the whole host, so a package
+// database that exists but could not be read makes the report incomplete, and
+// a host whose packages this sensor cannot read at all says so instead of
+// posting an empty host. A report with no packages and no reason is left
+// unqualified: the site's own guard decides. Processes whose maps could not be
+// read only change which packages count as loaded, never the package list, so
+// they are a warning and not a reason to distrust it.
+func inventoryReport(pkgs []uplink.InventoryPackage, sys sysinv.Result, unreadableProcs int) uplink.InventoryReport {
+	r := uplink.InventoryReport{Packages: pkgs, Warnings: append([]string(nil), sys.Warnings...)}
+	switch {
+	case sys.Unsupported != "":
+		r.Unsupported = sys.Unsupported
+	case len(sys.Warnings) > 0:
+		r.Complete = new(bool)
+	case len(sys.Packages) > 0:
+		complete := true
+		r.Complete = &complete
+	}
+	if unreadableProcs > 0 {
+		r.Warnings = append(r.Warnings, fmt.Sprintf("%d processes could not be read, so their packages may show as installed rather than loaded", unreadableProcs))
+	}
+
+	return r
 }
 
 // ReportHostChecks reads the host's configuration and queues each failing

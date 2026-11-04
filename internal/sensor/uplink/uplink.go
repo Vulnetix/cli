@@ -309,12 +309,44 @@ type InventoryPackage struct {
 	Purl string `json:"purl,omitempty"`
 }
 
+// InventoryReport is one inventory post. Complete, Warnings and Unsupported say
+// how much of the host it describes: the site replaces the stored list with a
+// report only when it can trust it to be the whole host.
+type InventoryReport struct {
+	Packages []InventoryPackage
+	// Complete is nil when the sensor cannot say (the site then guards on the
+	// counts), true when every package database present was read, and false
+	// when one could not be.
+	Complete *bool
+	// Warnings name the databases that could not be read.
+	Warnings []string
+	// Unsupported is why this host's packages cannot be read at all.
+	Unsupported string
+}
+
 // PostInventory replaces the sensor's in-use package report.
 func (c *Client) PostInventory(ctx context.Context, sensorKey string, packages []InventoryPackage) (int, error) {
+	return c.PostInventoryReport(ctx, sensorKey, InventoryReport{Packages: packages})
+}
+
+// PostInventoryReport replaces the sensor's package report and says how
+// complete it is.
+func (c *Client) PostInventoryReport(ctx context.Context, sensorKey string, r InventoryReport) (int, error) {
+	packages := r.Packages
 	if packages == nil {
 		packages = []InventoryPackage{}
 	}
-	raw, err := json.Marshal(map[string]any{"sensorKey": sensorKey, "packages": packages})
+	body := map[string]any{"sensorKey": sensorKey, "packages": packages}
+	if r.Complete != nil {
+		body["complete"] = *r.Complete
+	}
+	if len(r.Warnings) > 0 {
+		body["warnings"] = r.Warnings
+	}
+	if r.Unsupported != "" {
+		body["unsupported"] = r.Unsupported
+	}
+	raw, err := json.Marshal(body)
 	if err != nil {
 		return 0, err
 	}

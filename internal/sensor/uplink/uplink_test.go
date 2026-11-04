@@ -187,3 +187,24 @@ func TestOrdinaryFailuresAreNotAddonDenials(t *testing.T) {
 		}
 	}
 }
+
+func TestPostInventoryReportSaysHowCompleteItIs(t *testing.T) {
+	c, rec := client(t)
+	ctx := context.Background()
+	no := false
+	_, _ = c.PostInventoryReport(ctx, "k", InventoryReport{Complete: &no, Warnings: []string{"var/lib/rpm/rpmdb.sqlite: locked"}})
+	var sent map[string]json.RawMessage
+	_ = json.Unmarshal([]byte(rec.bodies["/v1/runtime/inventory"]), &sent)
+	if string(sent["complete"]) != "false" || !strings.Contains(string(sent["warnings"]), "rpmdb") || string(sent["packages"]) != "[]" {
+		t.Fatalf("sent = %s", rec.bodies["/v1/runtime/inventory"])
+	}
+	// The plain post says nothing about completeness, as before.
+	_, _ = c.PostInventory(ctx, "k", nil)
+	sent = nil
+	_ = json.Unmarshal([]byte(rec.bodies["/v1/runtime/inventory"]), &sent)
+	for _, k := range []string{"complete", "warnings", "unsupported"} {
+		if _, ok := sent[k]; ok {
+			t.Errorf("plain post sent %s: %s", k, rec.bodies["/v1/runtime/inventory"])
+		}
+	}
+}
