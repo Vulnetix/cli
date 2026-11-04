@@ -70,6 +70,10 @@ type Result struct {
 	// user's, without the privilege to read them). A scan with many is
 	// incomplete, and says so.
 	Unreadable int `json:"unreadable"`
+	// Unattributed counts processes in another mount namespace (a container):
+	// their mapped files are not the host's, so they are not matched to host
+	// packages.
+	Unattributed int `json:"unattributed"`
 }
 
 type pkgKey struct{ name, version, eco string }
@@ -85,12 +89,21 @@ func Scan(root string, idx binpkg.OwnerIndex) Result {
 
 	pkgs := map[pkgKey]*Package{}
 	unowned := map[string]bool{}
+	// A process in another mount namespace (a container) maps files from its
+	// own root: the same path on the host may belong to another package or to
+	// none, so it is counted, not matched against the host's packages.
+	hostNS := mountNS(root, "1")
 	for _, e := range entries {
 		pid, err := strconv.Atoi(e.Name())
 		if err != nil || !e.IsDir() {
 			continue
 		}
 		res.Processes++
+		if ns := mountNS(root, e.Name()); hostNS != "" && ns != "" && ns != hostNS {
+			res.Unattributed++
+
+			continue
+		}
 		f, err := os.Open(filepath.Join(root, "proc", e.Name(), "maps"))
 		if err != nil {
 			res.Unreadable++
@@ -125,6 +138,13 @@ func Scan(root string, idx binpkg.OwnerIndex) Result {
 			file := strings.TrimSuffix(path, " (deleted)")
 
 			owner, owned := lookup(idx, file)
+			if !owned && stale {
+				// An upgrade that renamed the library (libssl.so.3.0.11 to
+				// libssl.so.3.0.15) leaves the old name nowhere in the package
+				// database: the package that now owns its sibling is the one
+				// the process needs restarted.
+				owner, owned = lookupSibling(root, idx, file)
+			}
 			if !owned {
 				if strings.Contains(perms, "x") && !stale {
 					unowned[file] = true
@@ -279,7 +299,12 @@ func MappedPaths(root string) map[string]bool {
 			if !ok || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "/memfd:") {
 				continue
 			}
-			path = strings.TrimSuffix(path, " (deleted)")
+			if strings.HasSuffix(path, " (deleted)") {
+				path = strings.TrimSuffix(path, " (deleted)")
+				for _, sib := range librarySiblings(root, path) {
+					want[sib] = true
+				}
+			}
 			want[path] = true
 			for _, top := range []string{"/lib", "/lib64", "/bin", "/sbin"} {
 				if strings.HasPrefix(path, "/usr"+top+"/") {
@@ -294,4 +319,50 @@ func MappedPaths(root string) map[string]bool {
 	}
 
 	return want
+}
+
+// mountNS is the mount namespace of process pid under root ("mnt:[4026531841]"),
+// or "" when it cannot be read.
+func mountNS(root, pid string) string {
+	ns, err := os.Readlink(filepath.Join(root, "proc", pid, "ns", "mnt"))
+	if err != nil {
+		return ""
+	}
+
+	return ns
+}
+
+// librarySiblings are the files beside a deleted shared library that share its
+// soname stem: for /usr/lib/libssl.so.3.0.11, every /usr/lib/libssl.so* on disk
+// now. A path that is not a shared library has none.
+func librarySiblings(root, path string) []string {
+	dir, base := filepath.Dir(path), filepath.Base(path)
+	i := strings.Index(base, ".so")
+	if i <= 0 {
+		return nil
+	}
+	matches, _ := filepath.Glob(filepath.Join(root, dir, base[:i+3]+"*"))
+	out := make([]string, 0, len(matches))
+	for _, m := range matches {
+		rel, err := filepath.Rel(root, m)
+		if err != nil {
+			continue
+		}
+		out = append(out, "/"+filepath.ToSlash(rel))
+	}
+	sort.Strings(out)
+
+	return out
+}
+
+// lookupSibling is the owner of the first sibling of a deleted library that
+// a package owns.
+func lookupSibling(root string, idx binpkg.OwnerIndex, path string) (binpkg.Owner, bool) {
+	for _, sib := range librarySiblings(root, path) {
+		if o, ok := lookup(idx, sib); ok {
+			return o, true
+		}
+	}
+
+	return binpkg.Owner{}, false
 }

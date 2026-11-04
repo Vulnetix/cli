@@ -880,7 +880,7 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 	}
 	sys := sysinv.Collect(root)
 	pkgs = withInstalled(pkgs, sys)
-	report := inventoryReport(pkgs, sys, res.Unreadable)
+	report := inventoryReport(pkgs, sys, res.Unreadable, res.Unattributed)
 	report.Seq = readAt
 	if report.Complete != nil && !*report.Complete {
 		a.cfg.Logf("sensor: inventory is incomplete, the site keeps the last full list: %s", strings.Join(report.Warnings, "; "))
@@ -898,7 +898,7 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 // unqualified: the site's own guard decides. Processes whose maps could not be
 // read only change which packages count as loaded, never the package list, so
 // they are a warning and not a reason to distrust it.
-func inventoryReport(pkgs []uplink.InventoryPackage, sys sysinv.Result, unreadableProcs int) uplink.InventoryReport {
+func inventoryReport(pkgs []uplink.InventoryPackage, sys sysinv.Result, unreadableProcs, unattributedProcs int) uplink.InventoryReport {
 	r := uplink.InventoryReport{Packages: pkgs, Warnings: append([]string(nil), sys.Warnings...)}
 	switch {
 	case sys.Unsupported != "":
@@ -908,6 +908,9 @@ func inventoryReport(pkgs []uplink.InventoryPackage, sys sysinv.Result, unreadab
 	case len(sys.Packages) > 0:
 		complete := true
 		r.Complete = &complete
+	}
+	if unattributedProcs > 0 {
+		r.Warnings = append(r.Warnings, fmt.Sprintf("%d processes run in another mount namespace (containers): their packages are not the host's and are not listed", unattributedProcs))
 	}
 	if unreadableProcs > 0 {
 		r.Warnings = append(r.Warnings, fmt.Sprintf("%d processes could not be read, so their packages may show as installed rather than loaded", unreadableProcs))

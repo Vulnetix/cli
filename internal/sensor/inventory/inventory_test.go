@@ -99,3 +99,53 @@ func TestProcessCountIsTheTrueNumber(t *testing.T) {
 		t.Errorf("count = %d examples = %d; want every process counted once and %d examples", p.ProcessCount, len(p.Processes), listCap)
 	}
 }
+
+func nsLink(t *testing.T, root, pid, ns string) {
+	t.Helper()
+	dir := filepath.Join(root, "proc", pid, "ns")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(ns, filepath.Join(dir, "mnt")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestContainerProcessesAreCountedNotMatched(t *testing.T) {
+	root := t.TempDir()
+	proc(t, root, "1", "/usr/lib/systemd/systemd", "55d0-55d1 r-xp 00000000 fd:01 11 /usr/bin/bash\n")
+	proc(t, root, "20", "/usr/bin/bash", "55d0-55d1 r-xp 00000000 fd:01 11 /usr/bin/bash\n")
+	// A container's own bash: the same path, another root.
+	proc(t, root, "30", "/usr/bin/bash", "55d0-55d1 r-xp 00000000 fd:01 11 /usr/bin/bash\n")
+	nsLink(t, root, "1", "mnt:[4026531841]")
+	nsLink(t, root, "20", "mnt:[4026531841]")
+	nsLink(t, root, "30", "mnt:[4026532999]")
+	res := Scan(root, binpkg.OwnerIndex{"/usr/bin/bash": {Name: "bash", Version: "5.2", Ecosystem: "deb"}})
+	if res.Unattributed != 1 {
+		t.Fatalf("unattributed = %d, want the container process", res.Unattributed)
+	}
+	if len(res.Packages) != 1 || res.Packages[0].ProcessCount != 2 {
+		t.Fatalf("packages = %+v; only host processes count", res.Packages)
+	}
+}
+
+func TestRenamedLibraryIsStillStaleLoaded(t *testing.T) {
+	root := t.TempDir()
+	// The process still maps libssl.so.3.0.11, which the upgrade replaced with
+	// libssl.so.3.0.15.
+	if err := os.MkdirAll(filepath.Join(root, "usr/lib"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "usr/lib/libssl.so.3.0.15"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	proc(t, root, "40", "/usr/sbin/nginx", "7f00-7f01 r-xp 00000000 fd:01 12 /usr/lib/libssl.so.3.0.11 (deleted)\n")
+	want := MappedPaths(root)
+	if !want["/usr/lib/libssl.so.3.0.15"] {
+		t.Fatalf("mapped paths %v must ask the index about the renamed library", want)
+	}
+	res := Scan(root, binpkg.OwnerIndex{"/usr/lib/libssl.so.3.0.15": {Name: "openssl", Version: "3.0.15-1", Ecosystem: "arch"}})
+	if len(res.Packages) != 1 || res.Packages[0].Name != "openssl" || res.Packages[0].State != StaleLoaded {
+		t.Fatalf("packages = %+v, want openssl stale-loaded", res.Packages)
+	}
+}
