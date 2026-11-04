@@ -23,10 +23,11 @@ PROVENANCE_TYPE="slsaprovenance1"
 PROVENANCE_ISSUER="https://token.actions.githubusercontent.com"
 PROVENANCE_IDENTITY_REGEXP='^https://github\.com/Vulnetix/cli/\.github/workflows/slsa-provenance\.yml@refs/(heads/main|tags/v[0-9]+\.[0-9]+\.[0-9]+.*)$'
 PROVENANCE_REPOSITORY="Vulnetix/cli"
-# The provenance job signs a few minutes after the release is published, so a
-# release resolved from latest or a channel in that window has no bundle yet.
-# With provenance required, the installer waits this long for it.
-PROVENANCE_WAIT_TRIES="${VULNETIX_PROVENANCE_WAIT_TRIES:-10}"
+# The provenance job signs a few minutes after the release is published (one to
+# nine minutes across the v4 releases so far), so a release resolved from latest
+# or a channel in that window has no bundle yet. With provenance required, the
+# installer waits up to ten minutes for it.
+PROVENANCE_WAIT_TRIES="${VULNETIX_PROVENANCE_WAIT_TRIES:-20}"
 PROVENANCE_WAIT_SECONDS=30
 FLOATING_VERSION=0
 
