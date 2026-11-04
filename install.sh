@@ -83,8 +83,8 @@ Environment variables:
 Analytics:
   After a successful install the script sends one anonymous event to Google
   Analytics (GA4) with the OS, architecture, CLI version and a random id
-  made for this install. Nothing identifies you or your machine. To opt out,
-  set either variable:
+  made for this install. It carries no account, user or machine id. To opt
+  out, set either variable:
   VULNETIX_NO_ANALYTICS=1
   DO_NOT_TRACK=1
   The installed CLI honours the same variables and --no-analytics.
@@ -352,7 +352,7 @@ verify_checksum() {
   local sha_tool="$5"
 
   if [ "$sha_tool" = "none" ]; then
-    refuse_unverified "no SHA-256 tool found (sha256sum, shasum, sha256, openssl, rhash or certutil)"
+    refuse_unverified "no SHA-256 tool found (sha256sum, shasum, sha256, openssl, python, rhash or certutil)"
   fi
 
   TMP_CHECKSUMS=$(mktemp)
@@ -515,7 +515,7 @@ main() {
   # Checked before the download too, so a machine with no SHA-256 tool is
   # told so before a 100 MB transfer rather than after it.
   if [ "$SHA_TOOL" = "none" ] && [ "$INSECURE_SKIP_VERIFY" != "1" ]; then
-    refuse_unverified "no SHA-256 tool found (sha256sum, shasum, sha256, openssl, rhash or certutil)"
+    refuse_unverified "no SHA-256 tool found (sha256sum, shasum, sha256, openssl, python, rhash or certutil)"
   fi
 
   # Resolve install directory
