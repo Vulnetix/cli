@@ -323,18 +323,18 @@ type InventoryPackage struct {
 // how much of the host it describes: the site replaces the stored list with a
 // report only when it can trust it to be the whole host.
 type InventoryReport struct {
-	Packages []InventoryPackage
+	Packages []InventoryPackage `json:"packages"`
 	// Complete is nil when the sensor cannot say (the site then guards on the
 	// counts), true when every package database present was read, and false
 	// when one could not be.
-	Complete *bool
+	Complete *bool `json:"complete,omitempty"`
 	// Warnings name the databases that could not be read.
-	Warnings []string
+	Warnings []string `json:"warnings,omitempty"`
 	// Unsupported is why this host's packages cannot be read at all.
-	Unsupported string
+	Unsupported string `json:"unsupported,omitempty"`
 	// Seq orders this sensor's reports: the time the host was read, in ms. The
 	// site does not apply a report older than the last it applied.
-	Seq int64
+	Seq int64 `json:"seq,omitempty"`
 }
 
 // PostInventory replaces the sensor's in-use package report.

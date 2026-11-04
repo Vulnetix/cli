@@ -128,8 +128,19 @@ func main() {
 func inventoryCmd(args []string) error {
 	fs := flag.NewFlagSet("vulnetix-sensor inventory", flag.ContinueOnError)
 	root := defineInventoryFlags(fs)
+	report := fs.Bool("report", false, "print the inventory report the sensor would post (packages with purl and arch, complete, warnings, unsupported) instead of the process scan")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if *report {
+		r, err := agent.BuildInventoryReport(*root)
+		if err != nil {
+			return err
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+
+		return enc.Encode(r)
 	}
 	res := inventory.Scan(*root, binpkg.BuildOwnerIndexFor(*root, inventory.MappedPaths(*root)))
 	enc := json.NewEncoder(os.Stdout)

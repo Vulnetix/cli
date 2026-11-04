@@ -856,14 +856,30 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 	if root == "" {
 		root = "/"
 	}
-	// The time the host was read orders this report against others.
-	readAt := time.Now().UnixMilli()
-	res := inventory.Scan(root, binpkg.BuildOwnerIndexFor(root, inventory.MappedPaths(root)))
 	// The package databases are read in full each pass; hand what that
 	// allocated back to the OS now rather than holding it for six hours.
 	defer debug.FreeOSMemory()
+	report, err := BuildInventoryReport(root)
+	if err != nil {
+		return err
+	}
+	if report.Complete != nil && !*report.Complete {
+		a.cfg.Logf("sensor: inventory is incomplete, the site keeps the last full list: %s", strings.Join(report.Warnings, "; "))
+	}
+	_, err = a.cfg.Uplink.PostInventoryReport(ctx, a.cfg.SensorKey, report)
+
+	return err
+}
+
+// BuildInventoryReport reads the host under root (its processes and package
+// databases) into the report the sensor posts. `vulnetix-sensor inventory
+// --report` prints it, which is how to see what a host would send.
+func BuildInventoryReport(root string) (uplink.InventoryReport, error) {
+	// The time the host was read orders this report against others.
+	readAt := time.Now().UnixMilli()
+	res := inventory.Scan(root, binpkg.BuildOwnerIndexFor(root, inventory.MappedPaths(root)))
 	if res.Processes == 0 {
-		return fmt.Errorf("no processes readable under %s/proc", strings.TrimRight(root, "/"))
+		return uplink.InventoryReport{}, fmt.Errorf("no processes readable under %s/proc", strings.TrimRight(root, "/"))
 	}
 	pkgs := make([]uplink.InventoryPackage, 0, len(res.Packages))
 	for _, p := range res.Packages {
@@ -882,12 +898,8 @@ func (a *Agent) ReportInventory(ctx context.Context) error {
 	pkgs = withInstalled(pkgs, sys)
 	report := inventoryReport(pkgs, sys, res.Unreadable, res.Unattributed)
 	report.Seq = readAt
-	if report.Complete != nil && !*report.Complete {
-		a.cfg.Logf("sensor: inventory is incomplete, the site keeps the last full list: %s", strings.Join(report.Warnings, "; "))
-	}
-	_, err := a.cfg.Uplink.PostInventoryReport(ctx, a.cfg.SensorKey, report)
 
-	return err
+	return report, nil
 }
 
 // inventoryReport says how much of the host pkgs describes. The site replaces
