@@ -82,6 +82,20 @@ func TestNormalizeIgnoresNarrowedRefs(t *testing.T) {
 	}
 }
 
+func TestPublishAndTEAFollowTheLegs(t *testing.T) {
+	p := DefaultPolicy()
+	out := Render(p, &Signals{Managers: []string{"go"}}, Options{})
+	for _, want := range []string{"needs: [secrets, sca-go, sbom]", "Vulnetix/cli/gha-upload@v4", "Vulnetix/cli/tea-release@v4", "needs: [sbom]", "fetch-depth: 0", "continue-on-error: true", "types: [published]"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	p.TEA = &TEA{Off: true}
+	if out := Render(p, &Signals{Managers: []string{"go"}}, Options{}); strings.Contains(out, "tea-release") {
+		t.Error("tea off must drop the job")
+	}
+}
+
 func TestExtrasRenderTheirInputs(t *testing.T) {
 	p := DefaultPolicy()
 	p.Extras = []Extra{{Action: "bom-validate", Run: []string{"echo hi"}, With: map[string]string{"file": "x.cdx.json"}, Permissions: map[string]string{"issues": "read"}}}

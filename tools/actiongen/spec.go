@@ -139,7 +139,7 @@ var actions = []action{
 			{Name: "tea-visibility", Desc: "Visibility once published: private, shared or public. Public cannot be undone", Flag: "--visibility"},
 			{Name: "tea-dry-run", Desc: "Print what would be published and exit: true or false", Default: "false", Flag: "bool:--dry-run"},
 			{Name: "tea-channels", Desc: "Install channels with no single file to fetch, as name=...,url=...,purl=..., one per line (passed as --channel)", Flag: "lines:--channel"},
-			{Name: "tea-auto-version", Desc: "Outside a tag run, derive the version: git describe", Flag: "--auto-version"},
+			{Name: "tea-auto-version", Desc: "Outside a tag run, derive the version from git describe: true or false", Default: "false", Flag: "bool:--auto-version"},
 			{Name: "tea-checksums-from-release", Desc: "On a tag run, take the checksums from the GitHub release: true or false", Default: "false", Flag: "bool:--checksums-from-release"},
 		}},
 	{Name: "config-plan", Title: "Config plan", Desc: "Plan Platform IaC documents against the config engine and comment the plan on the pull request (vulnetix config plan). Authenticate with org-id and the api-key of an owner, an admin or an admin service account, or with api-token.",

@@ -124,7 +124,7 @@ vx_build() {
       vx_flag --visibility "${VX_IN_TEA_VISIBILITY:-}"
       vx_bool --dry-run "${VX_IN_TEA_DRY_RUN:-}"
       vx_flag_lines --channel "${VX_IN_TEA_CHANNELS:-}"
-      vx_flag --auto-version "${VX_IN_TEA_AUTO_VERSION:-}"
+      vx_bool --auto-version "${VX_IN_TEA_AUTO_VERSION:-}"
       vx_bool --checksums-from-release "${VX_IN_TEA_CHECKSUMS_FROM_RELEASE:-}"
       ;;
     attest)

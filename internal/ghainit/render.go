@@ -34,9 +34,10 @@ type renderer struct {
 }
 
 type step struct {
-	uses string
-	with [][2]string
-	run  string
+	uses   string
+	with   [][2]string
+	run    string
+	noFail bool
 }
 
 type job struct {
@@ -44,6 +45,10 @@ type job struct {
 	steps    []step
 	perms    map[string]string
 	needs    string
+	// when is the job's own condition, joined to the trigger guard.
+	when string
+	// fullHistory fetches tags, for git describe.
+	fullHistory bool
 }
 
 // Legs resolves a selection against what was detected: the granular names, or
@@ -107,6 +112,12 @@ func Render(p *Policy, sig *Signals, opt Options) string {
 	for _, e := range p.Extras {
 		jobs = append(jobs, r.extraJob(e))
 	}
+	if len(jobs) > 0 {
+		jobs = append(jobs, r.publishJob(jobs))
+	}
+	if t := r.teaJob(jobs, sig); t != nil {
+		jobs = append(jobs, *t)
+	}
 	return r.write(jobs)
 }
 
@@ -151,7 +162,7 @@ func (r *renderer) scanStep(action, gate string, with [][2]string, artifact stri
 		s.with = append(s.with, [2]string{"rules", strings.Join(rules, "\n")})
 	}
 	if r.p.Publish {
-		s.with = append(s.with, [2]string{"github-code-scanning", "${{ github.event_name != 'pull_request' }}"})
+		s.with = append(s.with, [2]string{"github-code-scanning", "${{ github.event_name == 'push' }}"})
 	}
 	return s
 }
@@ -176,10 +187,58 @@ func (r *renderer) sbomJob() job {
 	j := r.plainJob("sbom", "SBOM", "sbom")
 	j.steps[0].with[2] = [2]string{"artifact-name", "sca"}
 	if r.p.Publish {
-		j.steps[0].with = append(j.steps[0].with, [2]string{"dependency-graph", "${{ github.event_name != 'pull_request' }}"})
-		j.perms = map[string]string{"contents": "write"}
+		j.steps[0].with = append(j.steps[0].with, [2]string{"dependency-graph", "${{ github.event_name == 'push' }}"},
+			[2]string{"attest", "${{ github.event_name == 'push' }}"})
+		j.perms = map[string]string{"contents": "write", "id-token": "write", "attestations": "write"}
 	}
 	return j
+}
+
+// publishJob hands this run's reports to Vulnetix. It runs whatever the legs
+// did: a partial scan still publishes.
+func (r *renderer) publishJob(legs []job) job {
+	needs := make([]string, 0, len(legs))
+	for _, j := range legs {
+		needs = append(needs, j.id)
+	}
+	return job{id: "publish", name: "Publish", needs: "[" + strings.Join(needs, ", ") + "]", when: "${{ !cancelled() }}",
+		perms: map[string]string{"actions": "read"},
+		steps: []step{{uses: "Vulnetix/cli/gha-upload@" + r.ref, with: [][2]string{
+			{"org-id", "${{ secrets.VULNETIX_ORG_ID }}"}, {"api-key", "${{ secrets.VULNETIX_API_KEY }}"},
+			{"fail-on-findings", "false"}}}}}
+}
+
+// teaJob publishes the run's BOMs. Publishing is evidence, not a gate: it never
+// fails the run, and it runs with what the legs left behind.
+func (r *renderer) teaJob(jobs []job, sig *Signals) *job {
+	t := r.p.TEA
+	if t != nil && t.Off {
+		return nil
+	}
+	var needs []string
+	for _, j := range jobs {
+		if j.id == "sbom" || j.id == "cbom" || j.id == "aibom" {
+			needs = append(needs, j.id)
+		}
+	}
+	if len(needs) == 0 {
+		return nil
+	}
+	with := [][2]string{
+		{"org-id", "${{ secrets.VULNETIX_ORG_ID }}"}, {"api-key", "${{ secrets.VULNETIX_API_KEY }}"},
+		{"tea-files", "boms/*.cdx.json"}, {"tea-auto-version", "true"}, {"tea-checksums-from-release", "true"},
+		{"fail-on-findings", "false"}}
+	if t != nil && t.Visibility != "" {
+		with = append(with, [2]string{"tea-visibility", t.Visibility})
+	}
+	if t != nil && len(t.Channels) > 0 {
+		with = append(with, [2]string{"tea-channels", strings.Join(t.Channels, "\n")})
+	}
+	return &job{id: "tea", name: "TEA", needs: "[" + strings.Join(needs, ", ") + "]", when: "${{ !cancelled() }}", fullHistory: true,
+		perms: map[string]string{"actions": "read"},
+		steps: []step{{uses: "actions/download-artifact@v8", noFail: true, with: [][2]string{
+			{"pattern", "'{sca,cbom,aibom}'"}, {"merge-multiple", "true"}, {"path", "boms"}}},
+			{uses: "Vulnetix/cli/tea-release@" + r.ref, with: with}}}
 }
 
 func (r *renderer) extraJob(e Extra) job {
@@ -212,15 +271,20 @@ func (r *renderer) write(jobs []job) string {
 	if r.p.Triggers != TriggerPush {
 		b.WriteString("  pull_request:\n    branches: [main]\n")
 	}
-	b.WriteString("  workflow_dispatch:\n\npermissions:\n  contents: read\n\njobs:\n")
+	b.WriteString("  release:\n    types: [published]\n  workflow_dispatch:\n\npermissions:\n  contents: read\n\njobs:\n")
 	for i, j := range jobs {
 		if i > 0 {
 			b.WriteString("\n")
 		}
 		fmt.Fprintf(&b, "  %s:\n    name: %s\n", j.id, j.name)
 		fmt.Fprintf(&b, "    runs-on: %s\n", r.runsOn())
-		if r.guard != "" {
+		switch {
+		case r.guard != "" && j.when != "":
+			fmt.Fprintf(&b, "    if: ${{ !cancelled() && (%s) }}\n", r.guard)
+		case r.guard != "":
 			fmt.Fprintf(&b, "    if: %s\n", r.guard)
+		case j.when != "":
+			fmt.Fprintf(&b, "    if: %s\n", j.when)
 		}
 		if j.needs != "" {
 			fmt.Fprintf(&b, "    needs: %s\n", j.needs)
@@ -240,12 +304,18 @@ func (r *renderer) write(jobs []job) string {
 			}
 		}
 		fmt.Fprintf(&b, "    timeout-minutes: 60\n    steps:\n      - uses: actions/checkout@%s\n", r.co)
+		if j.fullHistory {
+			b.WriteString("        with:\n          fetch-depth: 0\n")
+		}
 		for _, s := range j.steps {
 			if s.run != "" {
 				fmt.Fprintf(&b, "      - run: %s\n", s.run)
 				continue
 			}
 			fmt.Fprintf(&b, "      - uses: %s\n", s.uses)
+			if s.noFail {
+				b.WriteString("        continue-on-error: true\n")
+			}
 			if len(s.with) > 0 {
 				b.WriteString("        with:\n")
 			}

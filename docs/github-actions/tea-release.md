@@ -29,7 +29,7 @@ Publish a product release and its artifacts to the Transparency Exchange API (vu
 | `tea-visibility` | Visibility once published: private, shared or public. Public cannot be undone | - |
 | `tea-dry-run` | Print what would be published and exit: true or false | `false` |
 | `tea-channels` | Install channels with no single file to fetch, as name=...,url=...,purl=..., one per line (passed as --channel) | - |
-| `tea-auto-version` | Outside a tag run, derive the version: git describe | - |
+| `tea-auto-version` | Outside a tag run, derive the version from git describe: true or false | `false` |
 | `tea-checksums-from-release` | On a tag run, take the checksums from the GitHub release: true or false | `false` |
 
 ## Outputs

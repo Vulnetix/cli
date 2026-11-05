@@ -81,8 +81,9 @@ inputs:
     description: 'Install channels with no single file to fetch, as name=...,url=...,purl=..., one per line (passed as --channel)'
     required: false
   tea-auto-version:
-    description: 'Outside a tag run, derive the version: git describe'
+    description: 'Outside a tag run, derive the version from git describe: true or false'
     required: false
+    default: 'false'
   tea-checksums-from-release:
     description: 'On a tag run, take the checksums from the GitHub release: true or false'
     required: false

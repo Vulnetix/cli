@@ -89,7 +89,17 @@ type Policy struct {
 	// Rules are external rule packs per scanner: sast, secrets, iac, sast/go.
 	Rules map[string][]string `yaml:"rules,omitempty"`
 
+	// TEA publishes each run's BOMs to the Transparency Exchange API. Nil is on.
+	TEA *TEA `yaml:"tea,omitempty"`
+
 	Extras []Extra `yaml:"extras,omitempty"`
+}
+
+// TEA configures the publish job.
+type TEA struct {
+	Off        bool     `yaml:"off,omitempty"`
+	Visibility string   `yaml:"visibility,omitempty"`
+	Channels   []string `yaml:"channels,omitempty"`
 }
 
 // DefaultPolicy is a policy with nothing decided.
