@@ -60,6 +60,7 @@ func Collect(scanPath string) *GitContext {
 	}
 
 	// Remote URLs
+	ctx.RemoteURLs = []string{}
 	remotes, err := repo.Remotes()
 	if err == nil {
 		for _, r := range remotes {
