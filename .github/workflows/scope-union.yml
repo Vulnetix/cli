@@ -22,11 +22,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: Vulnetix/sast-rule-evals
+          ref: main # no API lookup of the default branch: this repository's quota runs out
           path: fixtures/sast
 
       - uses: actions/checkout@v7
         with:
           repository: Vulnetix/sca-manifest-fixtures
+          ref: main
           path: fixtures/sca
 
       - uses: $/setup
