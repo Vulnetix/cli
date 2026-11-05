@@ -25,13 +25,13 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # Git, not the API: this repository's workflow token runs out of quota.
       - name: Take the pins from the pull request, and nothing else
         env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          gh api "repos/$GITHUB_REPOSITORY/contents/tools/actiongen/pins/action.yml?ref=$HEAD_SHA" \
-            -H 'Accept: application/vnd.github.raw' > tools/actiongen/pins/action.yml
+          git fetch --depth 1 origin "refs/pull/$PR_NUMBER/head"
+          git show FETCH_HEAD:tools/actiongen/pins/action.yml > tools/actiongen/pins/action.yml
 
       - name: Regenerate
         env:
@@ -42,7 +42,7 @@ jobs:
       # hold, and Dependabot's own relock cannot run here: it cannot read $/ refs.
       - name: Relock
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
         run: |
           gh extension install github/gh-actions-lock --pin v0.4.1
           gh actions-lock --no-narrow
