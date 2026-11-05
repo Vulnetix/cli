@@ -411,17 +411,10 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	// RespectGitignore, git/system context and the seed BOMs — is filled in
 	// below, because none of it is decided by flags alone.
 	opts, err := scanopts.FromCommand(cmd)
-	if err == nil {
-		opts.LanguageScope, opts.ManagerScope, err = resolveScanScope(cmd)
-		opts.ScopeSlug = opts.LanguageScope.Slug()
-		if opts.ManagerScope.Active() {
-			opts.ScopeSlug = sast.ScopeSlug(opts.ManagerScope.Only, opts.ManagerScope.Not)
-		}
-		scanScopeSlug = opts.ScopeSlug
-	}
 	if err != nil {
 		return err
 	}
+	scanScopeSlug = opts.ScopeSlug
 	// --github-publish: validated here; code scanning needs every finding,
 	// so a cached run cannot close an alert that is still real.
 	if opts.GitHubPublish, err = parseGitHubPublish(opts.GitHubPublish); err != nil {

@@ -58,6 +58,10 @@ var flagToOption = map[string]string{
 	"no-cache":                "NoSASTCache",
 	"github-publish":          "GitHubPublish",
 	"github-publish-dry-run":  "GitHubPublishDryRun",
+	"language":                "LanguageScope",
+	"not-language":            "LanguageScope",
+	"package-manager":         "ManagerScope",
+	"not-package-manager":     "ManagerScope",
 	"reachability":            "Reachability",
 	// Deployment labels. All five land on the one Deployment field, because
 	// they describe a single thing — where these results are deployed and who
@@ -269,6 +273,7 @@ func TestOptionsFieldsAreReachable(t *testing.T) {
 		"VulnetixSeedBOM",   //
 		"PreloadedModules",  // loaded by the --explain pre-pass to find its rule
 		"BeforeMemory",      // the malscan join, set by runScanWithFeatures
+		"ScopeSlug",         // derived from the language and manager scopes
 	} {
 		mapped[field] = true
 	}

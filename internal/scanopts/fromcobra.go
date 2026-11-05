@@ -52,6 +52,10 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	getString := func(name string) string { v, _ := flags.GetString(name); return v }
 	getStrings := func(name string) []string { v, _ := flags.GetStringArray(name); return v }
 
+	if err := readScanScope(cmd, &opts); err != nil {
+		return opts, err
+	}
+
 	opts.RootPath = getString("path")
 	if opts.RootPath == "" {
 		opts.RootPath = "."
@@ -240,4 +244,30 @@ func ParseRuleRefs(args []string) ([]sast.RuleRef, error) {
 		refs = append(refs, ref)
 	}
 	return refs, nil
+}
+
+// readScanScope reads --language and --package-manager and their --not- forms,
+// on the commands that have them, and names the leg they select.
+func readScanScope(cmd *cobra.Command, opts *pipeline.Options) error {
+	get := func(name string) []string {
+		if cmd.Flags().Lookup(name) == nil {
+			return nil
+		}
+		v, _ := cmd.Flags().GetStringSlice(name)
+		return v
+	}
+	lang, err := sast.NewLanguageScope(get("language"), get("not-language"))
+	if err != nil {
+		return err
+	}
+	pm, err := scan.NewManagerScope(get("package-manager"), get("not-package-manager"))
+	if err != nil {
+		return err
+	}
+	opts.LanguageScope, opts.ManagerScope = lang, pm
+	opts.ScopeSlug = lang.Slug()
+	if pm.Active() {
+		opts.ScopeSlug = sast.ScopeSlug(pm.Only, pm.Not)
+	}
+	return nil
 }

@@ -40,26 +40,6 @@ func addManagerScopeFlags(cmd *cobra.Command) {
 	cmd.Flags().StringSlice("not-package-manager", nil, "Scan everything except the manifests of these package managers, including committed SBOMs and packages named in CI pipelines and shell scripts")
 }
 
-// resolveScanScope reads whichever scope flags cmd has.
-func resolveScanScope(cmd *cobra.Command) (sast.LanguageScope, scan.ManagerScope, error) {
-	get := func(name string) []string {
-		if cmd.Flags().Lookup(name) == nil {
-			return nil
-		}
-		v, _ := cmd.Flags().GetStringSlice(name)
-		return v
-	}
-	lang, err := sast.NewLanguageScope(get("language"), get("not-language"))
-	if err != nil {
-		return sast.LanguageScope{}, scan.ManagerScope{}, err
-	}
-	pm, err := scan.NewManagerScope(get("package-manager"), get("not-package-manager"))
-	if err != nil {
-		return sast.LanguageScope{}, scan.ManagerScope{}, err
-	}
-	return lang, pm, nil
-}
-
 // scopedArtifact names a leg's file under .vulnetix: sast.python.sarif.
 func scopedArtifact(stem, slug, ext string) string {
 	if slug == "" {
