@@ -188,6 +188,10 @@ jobs:
   analyze:
     name: Analyze
     runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["self-hosted","Linux","X64","vulnetix-local"]') }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -332,7 +336,7 @@ jobs:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
-      - run: vulnetix license policy init --no-banner
+      - run: vulnetix license exceptions add --no-banner --license MPL-2.0 --reason dogfood --approver security@vulnetix.com --expires 2030-01-01
       - uses: Vulnetix/cli/license-exceptions-check@v4.23.0
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
@@ -379,9 +383,10 @@ jobs:
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
-          vex-command: |
-            validate
+          extra-args: |
+            --vex
             testdata/action-fixture/fixture.openvex.json
+          vex-command: validate
           fail-on-findings: false
 
   jail:
@@ -417,6 +422,9 @@ jobs:
   config-plan:
     name: config-plan
     runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["self-hosted","Linux","X64","vulnetix-local"]') }}
+    permissions:
+      contents: read
+      pull-requests: write
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -425,7 +433,6 @@ jobs:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           config-path: testdata/action-fixture/vulnetix-config/config
-          validate-only: true
           fail-on-findings: false
 
   publish:

@@ -107,8 +107,9 @@ func Render(p *Policy, sig *Signals, opt Options) string {
 		if s.on {
 			j := r.plainJob(s.id, s.name, s.id)
 			switch s.id {
-			case "analyze": // it reads history: contributors, ownership, bus factor
+			case "analyze": // it reads history and the repository's pull requests and issues
 				j.fullHistory = true
+				j.perms = map[string]string{"pull-requests": "read", "issues": "read"}
 			case "aibom": // a commit scan is slow and this runs on every push
 				j.steps[0].with = append(j.steps[0].with, [2]string{"extra-args", "--commit-scan-max\n1"})
 			}

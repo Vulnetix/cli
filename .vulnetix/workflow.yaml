@@ -69,7 +69,7 @@ extras:
     prior:
       - setup
     run:
-      - "vulnetix license policy init --no-banner"
+      - "vulnetix license exceptions add --no-banner --license MPL-2.0 --reason dogfood --approver security@vulnetix.com --expires 2030-01-01"
   - action: ai-firewall-apply
     with:
       file: testdata/action-fixture/vulnetix-config/ai-firewall.yaml
@@ -82,7 +82,8 @@ extras:
       artifact-name: alpine-sbom
   - action: vex
     with:
-      vex-command: "validate\ntestdata/action-fixture/fixture.openvex.json"
+      vex-command: validate
+      extra-args: "--vex\ntestdata/action-fixture/fixture.openvex.json"
   - action: jail
   - action: upload
     prior:
@@ -92,4 +93,5 @@ extras:
   - action: config-plan
     with:
       config-path: testdata/action-fixture/vulnetix-config/config
-      validate-only: "true"
+    permissions:
+      pull-requests: write
