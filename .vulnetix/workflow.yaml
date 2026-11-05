@@ -41,7 +41,7 @@ analyze: true
 triggers: pr
 publish: true
 tea:
-  visibility: public
+  off: true
 sast: high
 sca:
   - go

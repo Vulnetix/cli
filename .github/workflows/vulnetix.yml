@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/secrets@v4.23.0
+      - uses: Vulnetix/cli/secrets@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -50,7 +50,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/sast@v4.23.0
+      - uses: Vulnetix/cli/sast@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -74,14 +74,14 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/sca/go@v4.23.0
+      - uses: Vulnetix/cli/sca/go@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           artifact-name: sca-go
           fail-on-findings: false
           github-code-scanning: ${{ github.event_name == 'push' }}
-      - uses: Vulnetix/cli/sca@v4.23.0
+      - uses: Vulnetix/cli/sca@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -99,7 +99,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/iac@v4.23.0
+      - uses: Vulnetix/cli/iac@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -124,7 +124,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/containers@v4.23.0
+      - uses: Vulnetix/cli/containers@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -148,7 +148,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/license@v4.23.0
+      - uses: Vulnetix/cli/license@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -162,7 +162,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/cbom@v4.23.0
+      - uses: Vulnetix/cli/cbom@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -175,7 +175,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/aibom@v4.23.0
+      - uses: Vulnetix/cli/aibom@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -197,7 +197,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: Vulnetix/cli/analyze@v4.23.0
+      - uses: Vulnetix/cli/analyze@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -214,7 +214,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/sbom@v4.23.0
+      - uses: Vulnetix/cli/sbom@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -229,7 +229,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/gha-settings@v4.23.0
+      - uses: Vulnetix/cli/gha-settings@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -241,7 +241,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/gha-org@v4.23.0
+      - uses: Vulnetix/cli/gha-org@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -253,7 +253,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/gha-audit@v4.23.0
+      - uses: Vulnetix/cli/gha-audit@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -265,7 +265,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/gha-status@v4.23.0
+      - uses: Vulnetix/cli/gha-status@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -277,12 +277,12 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/sast@v4.23.0
+      - uses: Vulnetix/cli/sast@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
-      - uses: Vulnetix/cli/github-advisories@v4.23.0
+      - uses: Vulnetix/cli/github-advisories@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -295,12 +295,12 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/sbom@v4.23.0
+      - uses: Vulnetix/cli/sbom@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
-      - uses: Vulnetix/cli/bom-validate@v4.23.0
+      - uses: Vulnetix/cli/bom-validate@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -313,13 +313,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/setup@v4.23.0
+      - uses: Vulnetix/cli/setup@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
       - run: vulnetix license policy init --no-banner
-      - uses: Vulnetix/cli/license-policy-validate@v4.23.0
+      - uses: Vulnetix/cli/license-policy-validate@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -331,13 +331,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/setup@v4.23.0
+      - uses: Vulnetix/cli/setup@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
       - run: vulnetix license exceptions add --no-banner --license MPL-2.0 --reason dogfood --approver security@vulnetix.com --expires 2030-01-01
-      - uses: Vulnetix/cli/license-exceptions-check@v4.23.0
+      - uses: Vulnetix/cli/license-exceptions-check@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -349,7 +349,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/ai-firewall-apply@v4.23.0
+      - uses: Vulnetix/cli/ai-firewall-apply@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -364,7 +364,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/image@v4.23.0
+      - uses: Vulnetix/cli/image@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -379,7 +379,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/vex@v4.23.0
+      - uses: Vulnetix/cli/vex@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -395,7 +395,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/jail@v4.23.0
+      - uses: Vulnetix/cli/jail@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -407,12 +407,12 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/sbom@v4.23.0
+      - uses: Vulnetix/cli/sbom@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
-      - uses: Vulnetix/cli/upload@v4.23.0
+      - uses: Vulnetix/cli/upload@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -428,7 +428,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/config-plan@v4.23.0
+      - uses: Vulnetix/cli/config-plan@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -446,37 +446,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: Vulnetix/cli/gha-upload@v4.23.0
+      - uses: Vulnetix/cli/gha-upload@v4.23.1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
-
-  tea:
-    name: TEA
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["self-hosted","Linux","X64","vulnetix-local"]') }}
-    if: ${{ !cancelled() }}
-    needs: [cbom, aibom, sbom]
-    permissions:
-      contents: read
-      actions: read
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: '{sca,cbom,aibom}'
-          merge-multiple: true
-          path: boms
-      - uses: Vulnetix/cli/tea-release@v4.23.0
-        with:
-          org-id: ${{ secrets.VULNETIX_ORG_ID }}
-          api-key: ${{ secrets.VULNETIX_API_KEY }}
-          tea-files: boms/*.cdx.json
-          tea-auto-version: true
-          tea-checksums-from-release: true
-          fail-on-findings: false
-          tea-visibility: public
