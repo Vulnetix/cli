@@ -10,7 +10,7 @@ updates:
     cooldown:
       default-days: 3
 
-  # Its own entry: Dependabot cannot read a $/ local action, so an update under /
+  # Its own entry: Dependabot cannot read a $/ local action, so an update under the root
   # fails, and in one entry that took the pins down with it.
   - package-ecosystem: github-actions
     directory: "/tools/actiongen/pins"
