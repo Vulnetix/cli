@@ -10,6 +10,7 @@ import (
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v4/internal/artifacts"
 	"github.com/vulnetix/cli/v4/internal/bom"
 	"github.com/vulnetix/cli/v4/internal/cdx"
 	"github.com/vulnetix/cli/v4/internal/cdxsign"
@@ -401,7 +402,7 @@ func writeEnriched(res *BOMEnrichResult, doc *bom.Document, opts BOMEnrichOption
 		}
 	}
 
-	if err := os.WriteFile(opts.OutPath, append(data, '\n'), 0o644); err != nil {
+	if err := artifacts.WriteFile(opts.OutPath, append(data, '\n'), 0o644, "cyclonedx"); err != nil {
 		return err
 	}
 	res.Written = append([]string{opts.OutPath}, res.Written...)

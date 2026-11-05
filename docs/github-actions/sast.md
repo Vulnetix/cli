@@ -7,7 +7,7 @@ Scan source code with the SAST rules (vulnetix sast).
 
 | Input | Description | Default |
 |---|---|---|
-| `version` | Release of the Vulnetix CLI to install: an exact tag (v4.0.0), a major channel (v4, the newest v4 release) or latest | `v4` |
+| `version` | Release of the Vulnetix CLI to install. Empty installs the release this action ref was cut from, which is what a lock file or a SHA pin expects. An exact tag (v4.0.0), a major channel (v4) or latest float instead | - |
 | `binary-path` | Path to an already-built vulnetix binary to use instead of downloading a release | - |
 | `verify-provenance` | Verify the downloaded CLI against the signed SLSA provenance of its release with cosign, which this action installs: true or false. Every v4 release is signed; set false to install a v3 release that has no provenance.sigstore.json. The SHA-256 checksum is checked either way | `true` |
 | `org-id` | Vulnetix organization ID (UUID), used with api-key. Optional: without credentials the CLI runs in community mode | - |
@@ -15,6 +15,7 @@ Scan source code with the SAST rules (vulnetix sast).
 | `api-token` | Vulnetix API token; the server resolves the organization. Passed as VULNETIX_API_TOKEN | - |
 | `path` | Directory to scan | `.` |
 | `args` | Extra arguments for the command, separated by spaces or newlines (no shell quoting is applied) | - |
+| `extra-args` | Extra arguments, one per line, so a value may contain spaces | - |
 | `artifact-name` | Upload every file the command wrote as a workflow artifact with this name | - |
 | `fail-on-findings` | Fail the step when the command exits non-zero (findings over a gate, a breach, an error): true or false. The artifact, attestation and publish steps run either way | `true` |
 | `github-code-scanning` | Upload SARIF to GitHub code scanning (needs security-events: write): true or false | `false` |
@@ -22,6 +23,11 @@ Scan source code with the SAST rules (vulnetix sast).
 | `attest` | Attest the written files with GitHub artifact attestations (needs id-token: write and attestations: write): true or false | `false` |
 | `release-tag` | Attach every file the command wrote to the GitHub release with this tag (needs contents: write) | - |
 | `vex` | VEX documents to apply before the gates, one path, directory or https URL per line (passed as --vex). VexSource documents under .vulnetix/config apply too | - |
+| `fail-on` | Exit 1 when any of these hold, one per line or comma-separated: low, medium, high, critical, kev, malware, unpinned, exploit=poc and the rest of --fail-on | - |
+| `exclude` | Paths to skip, one glob per line (passed as --exclude) | - |
+| `rules` | External rule repositories in org/repo form, one per line (passed as --rule) | - |
+| `language` | Scan only these languages, comma-separated. Prefer the sast/<language> action | - |
+| `not-language` | Scan everything except these languages, comma-separated: the rest step beside sast/<language> jobs | - |
 
 ## Outputs
 

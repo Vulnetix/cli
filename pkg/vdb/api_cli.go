@@ -1239,6 +1239,41 @@ func (c *Client) CliVex(env CliEnv, ids []string) (*CliResponse[map[string]any],
 	return cliPostWithEnv[map[string]any](c, "cli.vex", env, CliIDsRequest{IDs: ids})
 }
 
+// CliOrgVexStatement is one of the organisation's own statements in a cli.vex
+// reply. Products and Tooling are absent from an older server's reply.
+type CliOrgVexStatement struct {
+	Status             string   `json:"status"`
+	Justification      string   `json:"justification"`
+	ImpactStatement    string   `json:"impactStatement"`
+	ActionStatement    string   `json:"actionStatement"`
+	SuppressionUUID    string   `json:"suppressionUuid"`
+	Timestamp          int64    `json:"timestamp"`
+	DocumentID         string   `json:"documentId"`
+	RepositoryFullName string   `json:"repositoryFullName"`
+	Tooling            string   `json:"tooling"`
+	Products           []string `json:"products"`
+}
+
+// CliOrgVexReply is the organisation's arm of a cli.vex reply, by vulnerability.
+type CliOrgVexReply struct {
+	OrgStatementsByVuln map[string][]CliOrgVexStatement `json:"orgStatementsByVuln"`
+}
+
+// CliOrgVexRequest asks for the statements that could close findings in one
+// repository. Every scan writes an affected statement per finding, so a plain
+// read fills the reply with statements that close nothing.
+type CliOrgVexRequest struct {
+	IDs        []string `json:"ids"`
+	Closing    bool     `json:"closing,omitempty"`
+	Repository string   `json:"repository,omitempty"`
+}
+
+// CliOrgVex — POST /v2/cli.vex, read for the organisation's own statements. The
+// server returns at most 500 for one call.
+func (c *Client) CliOrgVex(env CliEnv, req CliOrgVexRequest) (*CliResponse[CliOrgVexReply], error) {
+	return cliPostWithEnv[CliOrgVexReply](c, "cli.vex", env, req)
+}
+
 // CliKev — POST /v2/cli.kev.
 func (c *Client) CliKev(env CliEnv, ids []string) (*CliResponse[map[string]any], error) {
 	return cliPostWithEnv[map[string]any](c, "cli.kev", env, CliIDsRequest{IDs: ids})

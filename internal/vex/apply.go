@@ -102,20 +102,7 @@ func Apply(bom *cdx.BOM, set *Set) *Result {
 		return res
 	}
 
-	// bom-ref → purl, so an `affects` ref resolves to a product identity the
-	// statement can be matched against.
-	purlByRef := make(map[string]string, len(bom.Components))
-	nameVerByRef := make(map[string][2]string, len(bom.Components))
-	for i := range bom.Components {
-		c := &bom.Components[i]
-		if c.BOMRef == "" {
-			continue
-		}
-		if c.Purl != "" {
-			purlByRef[c.BOMRef] = c.Purl
-		}
-		nameVerByRef[c.BOMRef] = [2]string{c.Name, c.Version}
-	}
+	purlByRef, nameVerByRef := componentIndex(bom)
 
 	matchedStatements := map[string]bool{}
 
@@ -163,6 +150,24 @@ func Apply(bom *cdx.BOM, set *Set) *Result {
 		}
 	}
 	return res
+}
+
+// componentIndex maps each bom-ref to its purl and its name and version, so an
+// `affects` ref resolves to a product identity a statement can be matched against.
+func componentIndex(bom *cdx.BOM) (purlByRef map[string]string, nameVerByRef map[string][2]string) {
+	purlByRef = make(map[string]string, len(bom.Components))
+	nameVerByRef = make(map[string][2]string, len(bom.Components))
+	for i := range bom.Components {
+		c := &bom.Components[i]
+		if c.BOMRef == "" {
+			continue
+		}
+		if c.Purl != "" {
+			purlByRef[c.BOMRef] = c.Purl
+		}
+		nameVerByRef[c.BOMRef] = [2]string{c.Name, c.Version}
+	}
+	return purlByRef, nameVerByRef
 }
 
 // bestMatchForEntry finds the statement that best speaks about one entry.

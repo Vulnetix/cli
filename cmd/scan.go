@@ -414,6 +414,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	if err != nil {
 		return err
 	}
+	scanScopeSlug = opts.ScopeSlug
 	// --github-publish: validated here; code scanning needs every finding,
 	// so a cached run cannot close an alert that is still real.
 	if opts.GitHubPublish, err = parseGitHubPublish(opts.GitHubPublish); err != nil {
@@ -608,6 +609,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 			Depth:             depth,
 			Excludes:          excludes,
 			SeverityThreshold: severityThreshold,
+			ManagerScope:      opts.ManagerScope,
 			Scope: scanFeatureScope{
 				NoSAST:       noSAST,
 				NoSCA:        noSCA,
@@ -657,6 +659,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	if err != nil {
 		return fmt.Errorf("failed to scan directory: %w", err)
 	}
+	files = opts.ManagerScope.Filter(files)
 
 	analytics.TrackScan("sbom", len(files))
 
@@ -1015,7 +1018,7 @@ func runLocalScan(
 	suppressBOM := (noSCA && !containerOnly) || explaining
 	analysisLabel := "SAST"
 	analysisTitle := "SAST Analysis"
-	sarifFileName := "sast.sarif"
+	sarifFileName := scopedArtifact("sast", opts.ScopeSlug, "sarif")
 	bomToolName := cyclonedx.ToolSCA
 	iacOnly := noSASTRules && noSCA && noSecrets && noContainers && !noIAC
 	secretsOnly := noSASTRules && noSCA && !noSecrets && noContainers && noIAC
@@ -1557,8 +1560,9 @@ func runLocalScan(
 		mem.RecordEnrichedFindings(findings)
 
 		// Reconcile: detect remediated and regressed findings. Only for true SCA
-		// scans — see the comment above on why container scans skip this.
-		if !noSCA {
+		// scans — see the comment above on why container scans skip this — and
+		// never on a scoped leg, which cannot tell fixed from out of scope.
+		if !noSCA && opts.ScopeSlug == "" {
 			currentCVEs := make(map[string]bool, len(enrichedVulns))
 			for _, ev := range enrichedVulns {
 				currentCVEs[ev.CveID] = true
@@ -1571,7 +1575,7 @@ func runLocalScan(
 				RootPath:      rootPath,
 			})
 		}
-	} else if !noSCA && !disableMemory {
+	} else if !noSCA && !disableMemory && opts.ScopeSlug == "" {
 		// No vulns in current scan — reconcile all existing SCA findings.
 		stateChanges = mem.ReconcileTool(memory.ReconcileContext{
 			Tool:          memory.ToolSCA,
@@ -1583,7 +1587,7 @@ func runLocalScan(
 	}
 
 	// Record scan summary.
-	sbomPath := filepath.Join(vulnetixDir, "sbom.cdx.json")
+	sbomPath := filepath.Join(vulnetixDir, scopedArtifact("sbom", opts.ScopeSlug, "cdx.json"))
 	rec := buildScanRecord(localResults, allVulns, files, rootPath, gitCtx, sysInfo, sbomPath)
 
 	// ── Write IDS rules if any ───────────────────────────────────────────
@@ -1669,6 +1673,7 @@ func runLocalScan(
 			sastReport, eerr = eng.Evaluate(sast.EvalOptions{
 				MaxDepth:             depth,
 				Excludes:             excludes,
+				Scope:                opts.LanguageScope,
 				IgnoreGlobs:          ignoreGlobs,
 				IgnoreGit:            ignoreGit,
 				IgnoreBinaries:       ignoreBinaries || noSecrets,
@@ -1679,7 +1684,7 @@ func runLocalScan(
 				// An explain run reads everything fresh: it is asked why a
 				// finding applies, and a cached one says nothing about that.
 				CacheDir:  sastCacheDir(opts.NoSASTCache || explaining),
-				CacheSalt: sastCacheSalt(),
+				CacheSalt: sastCacheSalt() + opts.ScopeSlug,
 			})
 			if eerr != nil {
 				fmt.Fprintf(progressStderr, "  warning: SAST evaluation failed: %v\n", eerr)
@@ -1846,6 +1851,9 @@ func runLocalScan(
 				sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
 				sarifLog.AddExecutionNotifications(sastReport.Degradations)
 				sast.AddLineHashes(sarifLog, rootPath)
+				if opts.ScopeSlug != "" {
+					sast.SetCategory(sarifLog, sast.ScopedKind("sast", opts.ScopeSlug))
+				}
 				if werr := sast.WriteSARIF(sarifLog, sarifPath); werr != nil {
 					fmt.Fprintf(progressStderr, "  warning: could not write %s: %v\n", sarifFileName, werr)
 				} else {
@@ -2109,9 +2117,12 @@ func runLocalScan(
 	// it fetches itself (tea, s3, git) that no document here can stand in for.
 	// Authenticated runs only, and not under --no-vex.
 	consoleVEX := scanConsoleVEX(opts.VEXConfig && !noSCA, gitCtx, os.Stderr)
-	if len(vexInputs) > 0 || len(consoleVEX) > 0 {
+	// What the organisation has said about the findings this scan just made. Each
+	// statement is checked against this run before it can close one.
+	orgVEX := scanOrgVEX(opts.VEXConfig && !noSCA, gitCtx, bom, os.Stderr)
+	if len(vexInputs) > 0 || len(consoleVEX) > 0 || len(orgVEX) > 0 {
 		var vexErr error
-		vexPass, vexErr = runVEXPass(VEXPassOptions{Paths: vexInputs, BOM: bom, Console: consoleVEX})
+		vexPass, vexErr = runVEXPass(VEXPassOptions{Paths: vexInputs, BOM: bom, Console: consoleVEX, Org: orgVEX, Repo: vexRepo})
 		if vexErr != nil {
 			// A malformed VEX document must not silently widen the gate. Fail
 			// loudly rather than proceeding as though no statements existed.
@@ -2166,9 +2177,13 @@ func runLocalScan(
 	// SCA findings as GitHub-ready SARIF (category vulnetix/sca/), written
 	// whenever SCA ran, even clean, so a publish closes fixed alerts.
 	if !noSCA && !explaining {
-		scaSARIF := filepath.Join(vulnetixDir, "sca.sarif")
-		if werr := sast.WriteSARIF(report.BuildSARIF(scanReport, rootPath, version), scaSARIF); werr != nil {
-			fmt.Fprintf(progressStderr, "  warning: could not write sca.sarif: %v\n", werr)
+		scaFile := scopedArtifact("sca", opts.ScopeSlug, "sarif")
+		scaLog := report.BuildSARIF(scanReport, rootPath, version)
+		if opts.ScopeSlug != "" {
+			sast.SetCategory(scaLog, sast.ScopedKind("sca", opts.ScopeSlug))
+		}
+		if werr := sast.WriteSARIF(scaLog, filepath.Join(vulnetixDir, scaFile)); werr != nil {
+			fmt.Fprintf(progressStderr, "  warning: could not write %s: %v\n", scaFile, werr)
 		}
 	}
 	// What the vulnerability gates read: findings the advisory rules out by
@@ -2897,6 +2912,7 @@ type dryScanOptions struct {
 	Excludes          []string
 	SeverityThreshold string
 	Scope             scanFeatureScope
+	ManagerScope      scan.ManagerScope
 	// RespectGitignoreManifest mirrors the live walk so the file list matches.
 	RespectGitignoreManifest bool
 	// Rule inputs describe the SAST-family side of the plan. External rule packs
@@ -2961,6 +2977,7 @@ func runDryScan(opts dryScanOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to scan directory: %w", err)
 	}
+	files = opts.ManagerScope.Filter(files)
 	if len(files) == 0 {
 		fmt.Fprintln(os.Stderr, "No scannable files detected.")
 		return nil
@@ -4223,7 +4240,7 @@ func addScanFlags(cmd *cobra.Command) {
 		"Apply VEX statements from this file or directory before gates are evaluated (repeatable)")
 	cmd.Flags().StringArray("vex", nil,
 		"Apply VEX statements from this file, directory or https URL before gates are evaluated (repeatable). VexSource documents under .vulnetix/config (path and urls sources) apply too")
-	cmd.Flags().Bool("no-vex", false, "Ignore --vex-file, --vex and the VexSource documents, and apply no third-party VEX")
+	cmd.Flags().Bool("no-vex", false, "Ignore --vex-file, --vex, the VexSource documents and the organisation's statements, and apply no third-party VEX")
 	// Licence governance, family-wide so `scan --evaluate-licenses` and
 	// `license` reach the same verdict from the same policy.
 	addLicenseGovernanceFlags(cmd)

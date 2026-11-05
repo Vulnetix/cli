@@ -1739,6 +1739,7 @@
       "subcommands": [
         "actions",
         "audit",
+        "init",
         "org",
         "publish",
         "settings",
@@ -1797,6 +1798,25 @@
         "rule",
         "silent",
         "upload",
+        "verbose"
+      ]
+    },
+    "gha init": {
+      "short": "Write this repository's managed Vulnetix workflow",
+      "flags": [
+        "artifact-manifest",
+        "check",
+        "disable-memory",
+        "dry-run",
+        "force",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "ref",
+        "runner",
+        "silent",
+        "triggers",
         "verbose"
       ]
     },
@@ -3144,6 +3164,7 @@
         "ignore-git",
         "include-ignored",
         "jail",
+        "language",
         "license-mode",
         "lifecycle",
         "list-default-rules",
@@ -3159,6 +3180,7 @@
         "no-remediation",
         "no-shell-package-analysis",
         "no-vex",
+        "not-language",
         "org-id",
         "output",
         "path",
@@ -3264,8 +3286,10 @@
         "no-remediation",
         "no-shell-package-analysis",
         "no-vex",
+        "not-package-manager",
         "org-id",
         "output",
+        "package-manager",
         "path",
         "paths",
         "policy-file",

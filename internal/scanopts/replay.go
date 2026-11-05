@@ -70,6 +70,9 @@ var NotReplayed = map[string]string{
 	"block-eol-severity": "gate", "block-unpinned": "gate", "exploits": "gate",
 	"version-lag": "gate", "cooldown": "gate", "jail": "gate",
 
+	// A scope selects a leg to report; an explain run names its own finding.
+	"language": "scope", "not-language": "scope", "package-manager": "scope", "not-package-manager": "scope",
+
 	// Side effects and other modes: an explain run changes nothing.
 	"dry-run": "mode", "list-default-rules": "mode", "from-memory": "mode",
 	"fresh-exploits": "mode", "fresh-advisories": "mode", "fresh-vulns": "mode",

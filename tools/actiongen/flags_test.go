@@ -12,10 +12,12 @@ import (
 
 // splitArgv separates a command's subcommand path from the flags in it.
 func splitArgv(argv []string) (path, flags []string) {
+	inFlags := false
 	for _, a := range argv {
 		if name, ok := strings.CutPrefix(a, "--"); ok {
 			flags = append(flags, name)
-		} else {
+			inFlags = true
+		} else if !inFlags { // after a flag, a word is that flag's value
 			path = append(path, a)
 		}
 	}
@@ -41,10 +43,13 @@ func requireFlags(t *testing.T, who string, path, flags []string) {
 // is the bug this guards: `sca` once failed this way with github-code-scanning.
 func TestEveryFlagAnActionPassesIsAccepted(t *testing.T) {
 	for _, a := range actions {
-		if a.Setup || a.Script != "" {
+		if !generic(a) {
 			continue
 		}
 		path, flags := splitArgv(a.Command)
+		if len(a.FlagHost) > 0 {
+			path = a.FlagHost
+		}
 		if a.Path {
 			flags = append(flags, "path")
 		}
@@ -59,6 +64,60 @@ func TestEveryFlagAnActionPassesIsAccepted(t *testing.T) {
 			}
 		}
 		requireFlags(t, "action "+a.Name, path, flags)
+	}
+}
+
+// Every command is either run by an action or declined with a reason, so a new
+// subcommand cannot ship without someone deciding how a workflow uses it.
+func TestEverySubcommandDecided(t *testing.T) {
+	covered := map[string]bool{}
+	for _, a := range actions {
+		if a.Setup {
+			continue
+		}
+		path, _ := splitArgv(a.Command)
+		if a.Script == "config" {
+			path = displayCommand(a)
+		}
+		if a.Script == "publish" {
+			continue
+		}
+		covered[strings.Join(path, " ")] = true
+	}
+	covered["config validate"] = true // config-plan with validate-only
+	covered["vex"] = true             // the vex action takes the subcommand as an input
+	covered["cdx"] = true             // sbom
+	for _, c := range []string{"gha upload", "attest verify"} {
+		covered[c] = true
+	}
+	decided := func(name string) bool {
+		for {
+			if covered[name] || declined[name] != "" {
+				return true
+			}
+			i := strings.LastIndex(name, " ")
+			if i < 0 {
+				return false
+			}
+			name = name[:i]
+		}
+	}
+	for _, name := range cmd.CommandPaths() {
+		if !decided(name) {
+			t.Errorf("`vulnetix %s` has neither an action nor a decision: add one in tools/actiongen/spec.go or decided.go", name)
+		}
+	}
+	for name := range declined {
+		found := false
+		for _, c := range cmd.CommandPaths() {
+			if c == name || strings.HasPrefix(c, name+" ") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("declined lists `%s`, which is not a command", name)
+		}
 	}
 }
 

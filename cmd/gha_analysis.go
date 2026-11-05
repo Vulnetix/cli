@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -15,9 +16,11 @@ import (
 	"github.com/Vulnetix/vdb-sca-match/sarif"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v4/internal/analyze/forge"
+	"github.com/vulnetix/cli/v4/internal/artifacts"
 	"github.com/vulnetix/cli/v4/internal/display"
 	"github.com/vulnetix/cli/v4/internal/ghtasks"
 	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/sast"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
@@ -40,6 +43,8 @@ type ghaTaskOptions struct {
 	rules                  []string
 	maxActionRefs          int
 	jsonOut                bool
+	// category is the code scanning category a written SARIF file publishes to.
+	category string
 }
 
 var ghaTaskOpts ghaTaskOptions
@@ -118,7 +123,9 @@ func newGHATaskCmd(spec ghaTaskSpec) *cobra.Command {
 			if len(args) == 1 {
 				path = args[0]
 			}
-			return runGHATask(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), spec.tasks, path, ghaTaskOpts)
+			opt := ghaTaskOpts
+			opt.category = "gha/" + cmd.Name()
+			return runGHATask(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), spec.tasks, path, opt)
 		},
 	}
 	f := c.Flags()
@@ -298,6 +305,9 @@ func runGHATask(ctx context.Context, stdout, stderr io.Writer, tasks []ghaudit.T
 
 	out := stdout
 	if opt.output != "" {
+		if err := os.MkdirAll(filepath.Dir(opt.output), 0o755); err != nil {
+			return err
+		}
 		fh, err := os.Create(opt.output)
 		if err != nil {
 			return err
@@ -307,9 +317,16 @@ func runGHATask(ctx context.Context, stdout, stderr io.Writer, tasks []ghaudit.T
 	}
 	switch opt.format {
 	case "sarif":
+		// The results are kind iac; without a category of their own they would
+		// land in the iac scanner's and close its alerts.
+		fileLog := *log
+		fileLog.Runs = append(fileLog.Runs[:0:0], log.Runs...)
+		if opt.category != "" {
+			sast.SetCategory(&fileLog, opt.category)
+		}
 		enc := json.NewEncoder(out)
 		enc.SetIndent("", "  ")
-		if err := enc.Encode(log); err != nil {
+		if err := enc.Encode(&fileLog); err != nil {
 			return err
 		}
 	case "json":
@@ -321,6 +338,9 @@ func runGHATask(ctx context.Context, stdout, stderr io.Writer, tasks []ghaudit.T
 		}
 	default:
 		ghtasks.WriteTable(out, rep, sum, notes)
+	}
+	if opt.output != "" {
+		artifacts.Record(opt.output, artifacts.KindFor(opt.output))
 	}
 
 	if opt.upload {

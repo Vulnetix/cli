@@ -9,6 +9,7 @@
 #   VX_ACTION            the action (sca, sast, upload, ...) or the root task
 #   VX_PATH              --path for commands that take one
 #   VX_ARGS              extra arguments, split on whitespace
+#   VX_EXTRA_ARGS        extra arguments, one per line, kept whole
 #   VX_CODE_SCANNING     true: scan-family commands publish to code scanning
 #   VX_DEPENDENCY_GRAPH  true: scan-family commands submit the SBOM
 #
@@ -75,6 +76,7 @@ info | "")
     set +f
     cmd+=("${extra[@]}")
   fi
+  vx_lines "${VX_EXTRA_ARGS:-}"
   echo "vulnetix ${cmd[*]}"
   if [ "$action" = "upload" ]; then
     result_json="$(vulnetix "${cmd[@]}")"
@@ -85,6 +87,14 @@ info | "")
   else
     vulnetix "${cmd[@]}"
     code=$?
+  fi
+  # fix edits manifests and lock files in place. It never commits: the job
+  # decides what to do with the patch.
+  if [ "$action" = "fix" ]; then
+    patch="${VX_IN_PATCH_FILE:-.vulnetix/fix.patch}"
+    mkdir -p "$(dirname "$patch")"
+    git -C "${VX_PATH:-.}" diff >"$patch" 2>/dev/null || true
+    jq -cn --arg p "$(cd "$(dirname "$patch")" && pwd)/$(basename "$patch")" '{path: $p, kind: "report"}' >>"$VULNETIX_ARTIFACT_MANIFEST"
   fi
   ;;
 esac
@@ -103,7 +113,7 @@ if [ -s "$VULNETIX_ARTIFACT_MANIFEST" ] && command -v jq >/dev/null 2>&1; then
     sarif) sarif+="$path"$'\n' ;;
     cyclonedx)
       case "$path" in
-      *sbom.cdx.json) sbom="$path" ;;
+      *sbom.cdx.json | *sbom.*.cdx.json) sbom="$path" ;;
       *) [ -z "$sbom" ] && [ "$action" = "sbom" ] && sbom="$path" ;;
       esac
       ;;

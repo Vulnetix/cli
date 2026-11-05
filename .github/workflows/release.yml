@@ -328,27 +328,92 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
 
-      # Move the major tag so `uses: Vulnetix/cli@v3` (and the subdirectory
-      # actions, Vulnetix/cli/sca@v3) track the newest release of that major.
-      # Without it every workflow that consumes the action has to pin an exact
-      # version and be revisited to bump it, which is how a fleet ends up spread
-      # across three CLI versions with nobody noticing.
-      #
-      # Only the newest release overall moves its tag, so an older major's tag
-      # stays frozen on its last release once the next major ships.
-      # Prereleases are excluded: `@v3` must never point at a -rc or -beta.
-      - name: Move the major tag
-        if: steps.newest.outputs.newest == 'true'
+  # Consume the release the way a customer does before anything floats to it:
+  # the tag's own setup action, with no version input, must install the binary
+  # the tag names. A broken release stops here, with @v4 still on the last good one.
+  canary:
+    needs: [version, release, provenance]
+    if: needs.release.outputs.newest == 'true'
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.version }}
+
+      - name: The tag names its own release
         env:
-          MAJOR: ${{ steps.newest.outputs.major }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
-          VERSION=${{ needs.version.outputs.version }}
+          [ "$(tr -d '[:space:]' < action-lib/cli-release)" = "$VERSION" ] || {
+            echo "::error::action-lib/cli-release does not name $VERSION"; exit 1; }
+
+      - name: Install through the tag's setup action
+        id: setup
+        uses: ./setup
+
+      - name: The installed binary is the tag
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          vulnetix version | tee "$RUNNER_TEMP/version.txt"
+          grep -qF "$VERSION" "$RUNNER_TEMP/version.txt" || {
+            echo "::error::setup installed something other than $VERSION"; exit 1; }
+
+      - name: A scoped scan runs on the release
+        uses: ./sast/go
+        with:
+          path: internal/ghainit
+          fail-on-findings: 'false'
+
+  # Move the major tag so `uses: Vulnetix/cli@v3` (and the subdirectory
+  # actions, Vulnetix/cli/sca@v3) track the newest release of that major.
+  # Without it every workflow that consumes the action has to pin an exact
+  # version and be revisited to bump it, which is how a fleet ends up spread
+  # across three CLI versions with nobody noticing.
+  #
+  # Only the newest release overall moves its tag, so an older major's tag
+  # stays frozen on its last release once the next major ships.
+  # Prereleases are excluded: `@v3` must never point at a -rc or -beta.
+  move-major:
+    needs: [version, release, canary]
+    if: needs.release.outputs.newest == 'true'
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.version }}
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.PACKAGES_TOKEN }}
+
+      - name: Move the major tag
+        env:
+          MAJOR: ${{ needs.release.outputs.major }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
           case "$VERSION" in
             *-*)
               echo "$VERSION is a prerelease; leaving $MAJOR where it is"
               exit 0
               ;;
           esac
+          # A locked commit has to stay reachable from its ref, so the tag only
+          # moves forward. Tags sit one stamp commit above main, so compare the
+          # commit the old tag was cut from.
+          if old=$(git rev-parse -q --verify "refs/tags/$MAJOR^{commit}"); then
+            base=$old
+            if git rev-parse -q --verify "$old~1" >/dev/null && [ "$(git log -1 --format=%s "$old" | grep -c 'pin the actions to')" = 1 ]; then
+              base=$(git rev-parse "$old~1")
+            fi
+            git merge-base --is-ancestor "$base" "$VERSION" || {
+              echo "::error::$VERSION does not descend from $MAJOR's last release"; exit 1; }
+          fi
           git tag -f "$MAJOR" "$VERSION"
           # The job token is a GitHub App token without the workflows
           # permission. GitHub refuses it a tag move across commits that change

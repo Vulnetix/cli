@@ -27,6 +27,63 @@ One composite action per CLI command, used as `Vulnetix/cli/<name>@v4`. The root
 | [`jail`](jail.md) | Assess the repository against the organisation's jail policy (vulnetix jail). |
 | [`vex`](vex.md) | Work with VEX documents: validate, list, merge or apply (vulnetix vex <vex-command>). |
 | [`github-publish`](github-publish.md) | Publish existing results into GitHub: code scanning, the dependency graph, release assets and security campaigns (vulnetix gha publish). |
+| [`sast/python`](sast-python.md) | Scan the Python files of a repository with the SAST rules (vulnetix sast --language python). |
+| [`sast/java`](sast-java.md) | Scan the Java files of a repository with the SAST rules (vulnetix sast --language java). |
+| [`sast/javascript`](sast-javascript.md) | Scan the JavaScript files of a repository with the SAST rules (vulnetix sast --language javascript). |
+| [`sast/typescript`](sast-typescript.md) | Scan the TypeScript files of a repository with the SAST rules (vulnetix sast --language typescript). |
+| [`sast/c-cpp`](sast-c-cpp.md) | Scan the C and C++ files of a repository with the SAST rules (vulnetix sast --language c-cpp). |
+| [`sast/go`](sast-go.md) | Scan the Go files of a repository with the SAST rules (vulnetix sast --language go). |
+| [`sast/php`](sast-php.md) | Scan the PHP files of a repository with the SAST rules (vulnetix sast --language php). |
+| [`sast/ruby`](sast-ruby.md) | Scan the Ruby files of a repository with the SAST rules (vulnetix sast --language ruby). |
+| [`sast/kotlin`](sast-kotlin.md) | Scan the Kotlin files of a repository with the SAST rules (vulnetix sast --language kotlin). |
+| [`sast/csharp`](sast-csharp.md) | Scan the C# files of a repository with the SAST rules (vulnetix sast --language csharp). |
+| [`sast/shell`](sast-shell.md) | Scan the Shell files of a repository with the SAST rules (vulnetix sast --language shell). |
+| [`sast/rust`](sast-rust.md) | Scan the Rust files of a repository with the SAST rules (vulnetix sast --language rust). |
+| [`sca/bun`](sca-bun.md) | Scan the Bun dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager bun). |
+| [`sca/bundler`](sca-bundler.md) | Scan the Bundler dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager bundler). |
+| [`sca/cargo`](sca-cargo.md) | Scan the Cargo dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager cargo). |
+| [`sca/cocoapods`](sca-cocoapods.md) | Scan the CocoaPods dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager cocoapods). |
+| [`sca/composer`](sca-composer.md) | Scan the Composer dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager composer). |
+| [`sca/go`](sca-go.md) | Scan the Go modules dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager go). |
+| [`sca/gradle`](sca-gradle.md) | Scan the Gradle dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager gradle). |
+| [`sca/hex`](sca-hex.md) | Scan the Hex dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager hex). |
+| [`sca/maven`](sca-maven.md) | Scan the Maven dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager maven). |
+| [`sca/npm`](sca-npm.md) | Scan the npm dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager npm). |
+| [`sca/nuget`](sca-nuget.md) | Scan the NuGet dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager nuget). |
+| [`sca/pip`](sca-pip.md) | Scan the pip dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager pip). |
+| [`sca/pipenv`](sca-pipenv.md) | Scan the Pipenv dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager pipenv). |
+| [`sca/pnpm`](sca-pnpm.md) | Scan the pnpm dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager pnpm). |
+| [`sca/poetry`](sca-poetry.md) | Scan the Poetry dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager poetry). |
+| [`sca/pub`](sca-pub.md) | Scan the pub dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager pub). |
+| [`sca/swift`](sca-swift.md) | Scan the Swift Package Manager dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager swift). |
+| [`sca/uv`](sca-uv.md) | Scan the uv dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager uv). |
+| [`sca/yarn`](sca-yarn.md) | Scan the Yarn dependencies of a repository for known vulnerabilities (vulnetix sca --package-manager yarn). |
+| [`scan`](scan.md) | Run every scanner in one job (vulnetix scan). For a monorepo with three or more languages; otherwise use the granular actions. |
+| [`image`](image.md) | Inventory a container image for container curation (vulnetix image). |
+| [`report`](report.md) | Render the stored scan results of an earlier step without rescanning (vulnetix report). |
+| [`fix`](fix.md) | Resolve vulnerable dependencies to safe versions and write the change as a patch artifact; it never commits (vulnetix fix --yes). |
+| [`triage`](triage.md) | Triage this repository's GitHub or Vulnetix alerts into a report (vulnetix triage --format json). |
+| [`ignore-sync`](ignore-sync.md) | Pull the organisation's suppression rules into .vulnetix/memory.yaml before a scan (vulnetix ignore sync). |
+| [`gha-workflows`](gha-workflows.md) | Find injection, privilege and trust flaws in this repository's GitHub Actions workflows (vulnetix gha workflows). |
+| [`gha-actions`](gha-actions.md) | Check the actions and images this repository's workflows run (vulnetix gha actions). |
+| [`gha-settings`](gha-settings.md) | Check the repository settings that protect the code and CI (vulnetix gha settings). |
+| [`gha-org`](gha-org.md) | Check organisation settings (vulnetix gha org). Needs a token that can read them. |
+| [`gha-audit`](gha-audit.md) | Run every GitHub posture check: workflows, actions, settings and organisation (vulnetix gha audit). |
+| [`gha-status`](gha-status.md) | Report what this workflow run published to Vulnetix (vulnetix gha status). |
+| [`github-advisories`](github-advisories.md) | Draft GitHub repository security advisories for this repository's SAST findings (vulnetix gha publish advisories). |
+| [`bom-diff`](bom-diff.md) | Compare two SBOM documents and fail on the changes you name (vulnetix bom diff). |
+| [`bom-validate`](bom-validate.md) | Check an SBOM's structure and field completeness (vulnetix bom validate). |
+| [`bom-merge`](bom-merge.md) | Combine SBOM documents into one, such as the fragments of scoped sca jobs (vulnetix bom merge). |
+| [`bom-enrich`](bom-enrich.md) | Resolve licences and attach vulnerabilities and VEX to a supplied SBOM (vulnetix bom enrich). |
+| [`api-discover`](api-discover.md) | Find OpenAPI and Swagger descriptions in the working tree and upload them (vulnetix api discover). |
+| [`api-upload`](api-upload.md) | Upload one OpenAPI or Swagger file (vulnetix api upload). |
+| [`config-export`](config-export.md) | Write the organisation's configuration as code, for a drift job or a backup (vulnetix config export). |
+| [`jail-explain`](jail-explain.md) | Show why the repository is or is not jailed, rule by rule (vulnetix jail explain). |
+| [`license-policy-validate`](license-policy-validate.md) | Check a licence policy document for problems (vulnetix license policy validate). |
+| [`license-exceptions-check`](license-exceptions-check.md) | Report licence exceptions expiring soon (vulnetix license exceptions check). |
+| [`ai-firewall-apply`](ai-firewall-apply.md) | Reconcile the organisation's AI Firewall policy from a file (vulnetix ai-firewall apply). |
+| [`surface-liveness`](surface-liveness.md) | Check that registered routes and hosts still answer, from inside your network (vulnetix surface liveness). |
+| [`package-firewall`](package-firewall.md) | Point a package manager on this runner at the Vulnetix Package Firewall, so later install steps go through it (vulnetix package-firewall <ecosystem>). |
 
 Every action installs the CLI (`setup` alone does only that), passes credentials only as
 environment variables, runs the command with `--artifact-manifest`, and then, as asked:

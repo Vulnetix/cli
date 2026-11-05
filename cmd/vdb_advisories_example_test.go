@@ -40,6 +40,7 @@ func runAdvisoriesExample(t *testing.T, output string) string {
 
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("VULNETIX_API_KEY", "")
+	t.Setenv("VULNETIX_API_URL", srv.URL) // the cli.* client reads this, not vdbBaseURL
 	t.Setenv("VULNETIX_API_TOKEN", "")
 	t.Chdir(t.TempDir())
 	oldURL, oldOrg, oldKey, oldVer, oldOut, oldCache, oldComm, oldCreds := vdbBaseURL, vdbOrgID, vdbSecretKey, vdbAPIVersion, vdbOutput, vdbNoCache, vdbNoCommunity, vdbCreds

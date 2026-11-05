@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
+	"github.com/vulnetix/cli/v4/internal/artifacts"
 	"github.com/vulnetix/cli/v4/internal/cdx"
 	"github.com/vulnetix/cli/v4/internal/display"
 	"github.com/vulnetix/cli/v4/internal/imagesrc"
@@ -324,5 +325,5 @@ func writeImageSBOM(path string, img *imagesrc.Image, pkgs []cyclonedx.SBOMPacka
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return artifacts.WriteFile(path, data, 0o644, "cyclonedx")
 }

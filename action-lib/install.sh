@@ -2,7 +2,10 @@
 # Installs the Vulnetix CLI for the composite actions in this repository.
 #
 # Inputs arrive as environment variables, never as ${{ }} expressions:
-#   VX_VERSION      release tag (v4.0.0), major channel (v4) or latest
+#   VX_VERSION      release tag (v4.0.0), major channel (v4) or latest. Empty
+#                   installs the release this action ref was cut from, read
+#                   from action-lib/cli-release, so a commit pinned by a lock
+#                   file or a SHA always runs the same binary
 #   VX_BINARY_PATH  an already-built binary to use instead of a download
 #   VX_VERIFY_PROVENANCE  true (the default) requires the release's signed
 #                   provenance to verify with cosign, which the action installs
@@ -15,7 +18,12 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bindir="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/vulnetix-bin"
-want="${VX_BINARY_PATH:-${VX_VERSION:-latest}}"
+# Every release tag carries the stamp. A ref with none (a branch) follows v4.
+if [ -z "${VX_VERSION:-}" ]; then
+  VX_VERSION="$(tr -d '[:space:]' <"$root/action-lib/cli-release" 2>/dev/null || true)"
+  VX_VERSION="${VX_VERSION:-v4}"
+fi
+want="${VX_BINARY_PATH:-$VX_VERSION}"
 
 if [ "${VULNETIX_CLI_INSTALLED:-}" = "$want" ] && [ -x "$bindir/vulnetix" ]; then
   echo "Vulnetix CLI already installed in this job ($want)"

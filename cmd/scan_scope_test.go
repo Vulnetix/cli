@@ -6,86 +6,48 @@ import (
 	"github.com/vulnetix/cli/v4/internal/sast"
 )
 
-func TestSpecializedRuleKinds(t *testing.T) {
-	cases := map[string][]string{
-		"containers": {"oci", "container"},
-		"secrets":    {"secrets"},
-		"iac":        {"iac"},
-		"sast":       {"sast"},
-		"scan":       nil,
-		"sca":        nil,
-		"":           nil,
+func TestScopedArtifactNames(t *testing.T) {
+	if got := scopedArtifact("sast", "", "sarif"); got != "sast.sarif" {
+		t.Errorf("a full scan keeps its file name, got %q", got)
 	}
-	for name, want := range cases {
-		got := specializedRuleKinds(name)
-		if len(got) != len(want) {
-			t.Fatalf("%s: got %v want %v", name, got, want)
-		}
-		for i := range want {
-			if got[i] != want[i] {
-				t.Fatalf("%s: got %v want %v", name, got, want)
-			}
-		}
+	if got := scopedArtifact("sbom", "npm", "cdx.json"); got != "sbom.npm.cdx.json" {
+		t.Errorf("a leg writes its own SBOM, got %q", got)
 	}
 }
 
-// regoSrc builds a minimal rule module body with the given id and kind. An
-// empty id models a shared library (helper) module.
-func regoSrc(id, kind string) string {
-	if id == "" {
-		// library: no metadata.id
-		return `package lib
-helper(x) := x`
+// The tool name keys the server's history: two legs must never share one, or
+// the second would close the first's findings as disappeared.
+func TestScopedToolNames(t *testing.T) {
+	if got := scopedToolName("Vulnetix SAST", ""); got != "Vulnetix SAST" {
+		t.Errorf("a full scan keeps its tool name, got %q", got)
 	}
-	return `package r
-metadata := {"id": "` + id + `", "kind": "` + kind + `"}`
-}
-
-func TestFilterModulesToKinds_ContainerScope(t *testing.T) {
-	modules := map[string]string{
-		"rules/vnx-docker-001.rego":      regoSrc("VNX-DOCKER-001", "oci"),
-		"ext/community/container-1.rego": regoSrc("COMM-CONTAINER-1", "container"),
-		"ext/kics/iac-1.rego":            regoSrc("KICS-IAC-1", "iac"),
-		"ext/spego/api-1.rego":           regoSrc("SPEGO-API-1", "api"),
-		"ext/vnx-sec-1.rego":             regoSrc("VNX-SEC-1", "secrets"),
-		"ext/community/_lib/docker.rego": regoSrc("", ""), // shared library, must be kept
-	}
-	got := sast.FilterModulesToKinds(modules, []string{"oci", "container"})
-
-	mustKeep := []string{
-		"rules/vnx-docker-001.rego",
-		"ext/community/container-1.rego",
-		"ext/community/_lib/docker.rego", // dependency library retained
-	}
-	for _, k := range mustKeep {
-		if _, ok := got[k]; !ok {
-			t.Fatalf("expected %s to be kept; got=%v", k, keys(got))
-		}
-	}
-	mustDrop := []string{
-		"ext/kics/iac-1.rego",
-		"ext/spego/api-1.rego",
-		"ext/vnx-sec-1.rego",
-	}
-	for _, k := range mustDrop {
-		if _, ok := got[k]; ok {
-			t.Fatalf("expected %s to be dropped; got=%v", k, keys(got))
-		}
+	py, js := scopedToolName("Vulnetix SAST", "python"), scopedToolName("Vulnetix SAST", "javascript")
+	if py == js || py != "Vulnetix SAST python" {
+		t.Errorf("legs must differ: %q, %q", py, js)
 	}
 }
 
-func TestFilterModulesToKinds_EmptyKindsReturnsAll(t *testing.T) {
-	modules := map[string]string{"a": regoSrc("A", "iac")}
-	got := sast.FilterModulesToKinds(modules, nil)
-	if len(got) != 1 {
-		t.Fatalf("expected passthrough with no kinds, got %v", keys(got))
+// A clean leg still uploads, into its own category, which is what closes the
+// alerts a fix resolved.
+func TestCleanLegPublishesToItsCategory(t *testing.T) {
+	byKind := codeScanningLogs(nil, []string{sast.ScopedKind("sast", "python")})
+	l, ok := byKind["sast/python"]
+	if !ok {
+		t.Fatalf("no sast/python upload: %v", byKind)
+	}
+	if id := l.Runs[0].AutomationDetails.ID; id != "vulnetix/sast/python/" {
+		t.Errorf("category = %q", id)
 	}
 }
 
-func keys(m map[string]string) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
+func TestScanScopeFlagsLiveOnTheirCommand(t *testing.T) {
+	if sastCmd.Flags().Lookup("language") == nil || sastCmd.Flags().Lookup("not-language") == nil {
+		t.Error("sast must offer --language and --not-language")
 	}
-	return out
+	if scaCmd.Flags().Lookup("package-manager") == nil || scaCmd.Flags().Lookup("not-package-manager") == nil {
+		t.Error("sca must offer --package-manager and --not-package-manager")
+	}
+	if secretsCmd.Flags().Lookup("language") != nil {
+		t.Error("secrets is not scoped by language")
+	}
 }

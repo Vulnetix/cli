@@ -1,5 +1,10 @@
 package main
 
+import (
+	_ "embed"
+	"strings"
+)
+
 // The spec table: one entry per subdirectory action. Everything about an
 // action that differs from the others is here; the shape every action shares
 // is in main.go's templates.
@@ -17,9 +22,15 @@ type input struct {
 }
 
 type action struct {
-	Name  string
+	// Name is the action's key: its case in commands.sh and its docs page.
+	Name string
+	// Dir is where it lives, used as Vulnetix/cli/<Dir>@v4. Empty means Name.
+	Dir   string
 	Title string
 	Desc  string
+	// FlagHost is the command a test checks flags against when Command takes its
+	// subcommand from an input.
+	FlagHost []string
 	// Command is the argv after `vulnetix`; empty for setup.
 	Command []string
 	// Path adds --path <path input>.
@@ -45,6 +56,21 @@ type action struct {
 // URLs, one per line, each passed to the scan as --vex.
 var vexInputs = []input{{Name: "vex", Desc: "VEX documents to apply before the gates, one path, directory or https URL per line (passed as --vex). VexSource documents under .vulnetix/config apply too", Flag: "lines:--vex"}}
 
+// scanGatePlainInputs are the gate and path inputs of every scan command. They
+// are comma-separated or one per line, so a value with a space stays one value,
+// which args cannot do.
+var scanGatePlainInputs = []input{
+	{Name: "fail-on", Desc: "Exit 1 when any of these hold, one per line or comma-separated: low, medium, high, critical, kev, malware, unpinned, exploit=poc and the rest of --fail-on", Flag: "lines:--fail-on"},
+	{Name: "exclude", Desc: "Paths to skip, one glob per line (passed as --exclude)", Flag: "lines:--exclude"},
+}
+
+// scanGateInputs adds the external rule packs of the commands that run rules.
+var scanGateInputs = append(append([]input{}, scanGatePlainInputs...),
+	input{Name: "rules", Desc: "External rule repositories in org/repo form, one per line (passed as --rule)", Flag: "lines:--rule"})
+
+// ruleScanInputs are the inputs of the rule-driven scanners.
+var ruleScanInputs = append(append([]input{}, vexInputs...), scanGateInputs...)
+
 // bomAuthoringInputs are the identity and customisation inputs of the three
 // generators. They exist as inputs rather than `args` because an author is
 // written as `Name <email>` and a licence as an expression, both with spaces,
@@ -65,15 +91,21 @@ var signInput = input{Name: "sign", Desc: "Sign the document with the runner's O
 var actions = []action{
 	{Name: "setup", Title: "Setup", Desc: "Install the Vulnetix CLI and put it on PATH for later steps.", Setup: true},
 	{Name: "sca", Title: "SCA", Desc: "Scan dependencies for known vulnerabilities (vulnetix sca).",
-		Command: []string{"sca"}, Path: true, Scan: true, CodeScanning: true, DependencyGraph: true, Inputs: vexInputs},
+		Command: []string{"sca"}, Path: true, Scan: true, CodeScanning: true, DependencyGraph: true,
+		Inputs: append(append(append([]input{}, vexInputs...), scanGatePlainInputs...),
+			input{Name: "package-manager", Desc: "Scan only these package managers, comma-separated. Prefer the sca/<manager> action", Flag: "--package-manager"},
+			input{Name: "not-package-manager", Desc: "Scan everything except these package managers, comma-separated: the rest step beside sca/<manager> jobs", Flag: "--not-package-manager"})},
 	{Name: "sast", Title: "SAST", Desc: "Scan source code with the SAST rules (vulnetix sast).",
-		Command: []string{"sast"}, Path: true, Scan: true, CodeScanning: true, Inputs: vexInputs},
+		Command: []string{"sast"}, Path: true, Scan: true, CodeScanning: true,
+		Inputs: append(append([]input{}, ruleScanInputs...),
+			input{Name: "language", Desc: "Scan only these languages, comma-separated. Prefer the sast/<language> action", Flag: "--language"},
+			input{Name: "not-language", Desc: "Scan everything except these languages, comma-separated: the rest step beside sast/<language> jobs", Flag: "--not-language"})},
 	{Name: "secrets", Title: "Secrets", Desc: "Scan for committed secrets (vulnetix secrets).",
-		Command: []string{"secrets"}, Path: true, Scan: true, CodeScanning: true, Inputs: vexInputs},
+		Command: []string{"secrets"}, Path: true, Scan: true, CodeScanning: true, Inputs: ruleScanInputs},
 	{Name: "iac", Title: "IaC", Desc: "Scan infrastructure as code (vulnetix iac).",
-		Command: []string{"iac"}, Path: true, Scan: true, CodeScanning: true, Inputs: vexInputs},
+		Command: []string{"iac"}, Path: true, Scan: true, CodeScanning: true, Inputs: ruleScanInputs},
 	{Name: "containers", Title: "Containers", Desc: "Scan container files and images (vulnetix containers).",
-		Command: []string{"containers"}, Path: true, Scan: true, CodeScanning: true, Inputs: vexInputs},
+		Command: []string{"containers"}, Path: true, Scan: true, CodeScanning: true, Inputs: ruleScanInputs},
 	{Name: "license", Title: "License", Desc: "Evaluate dependency licences against the licence policy (vulnetix license).",
 		Command: []string{"license"}, Path: true, CodeScanning: true},
 	{Name: "malscan", Title: "Malscan", Desc: "Scan installed dependencies for malicious code (vulnetix malscan).",
@@ -106,6 +138,9 @@ var actions = []action{
 			{Name: "tea-pre-release", Desc: "Mark the release as a pre-release: true or false", Default: "false", Flag: "bool:--pre-release"},
 			{Name: "tea-visibility", Desc: "Visibility once published: private, shared or public. Public cannot be undone", Flag: "--visibility"},
 			{Name: "tea-dry-run", Desc: "Print what would be published and exit: true or false", Default: "false", Flag: "bool:--dry-run"},
+			{Name: "tea-channels", Desc: "Install channels with no single file to fetch, as name=...,url=...,purl=..., one per line (passed as --channel)", Flag: "lines:--channel"},
+			{Name: "tea-auto-version", Desc: "Outside a tag run, derive the version from git describe: true or false", Default: "false", Flag: "bool:--auto-version"},
+			{Name: "tea-checksums-from-release", Desc: "On a tag run, take the checksums from the GitHub release: true or false", Default: "false", Flag: "bool:--checksums-from-release"},
 		}},
 	{Name: "config-plan", Title: "Config plan", Desc: "Plan Platform IaC documents against the config engine and comment the plan on the pull request (vulnetix config plan). Authenticate with org-id and the api-key of an owner, an admin or an admin service account, or with api-token.",
 		Script: "config", Inputs: configInputs(true)},
@@ -144,10 +179,23 @@ func configInputs(plan bool) []input {
 	return in
 }
 
-// Third-party actions, pinned by commit SHA. Bump deliberately.
-const (
-	uploadArtifact = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2"
-	attestBuild    = "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2"
-	attestSBOM     = "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2"
-	cosignInstall  = "sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2"
+//go:embed pins/action.yml
+var pinsFile string
+
+// Third-party actions, pinned by commit SHA in pins/action.yml, which Dependabot
+// keeps current.
+var (
+	uploadArtifact = pin("actions/upload-artifact")
+	attestBuild    = pin("actions/attest-build-provenance")
+	attestSBOM     = pin("actions/attest")
+	cosignInstall  = pin("sigstore/cosign-installer")
 )
+
+func pin(repo string) string {
+	for _, l := range strings.Split(pinsFile, "\n") {
+		if r, ok := strings.CutPrefix(strings.TrimSpace(l), "- uses: "); ok && strings.HasPrefix(r, repo+"@") {
+			return r
+		}
+	}
+	panic("pins/action.yml has no pin for " + repo)
+}

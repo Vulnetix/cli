@@ -1,0 +1,51 @@
+name: Actions pins
+
+# A Dependabot bump of tools/actiongen/pins changes what every composite should
+# say. This regenerates them on that pull request, so the bump can pass the
+# generated-files check. It runs the base branch's generator over the pins file
+# from the pull request and executes nothing the pull request wrote.
+on:
+  pull_request_target:
+    branches: [main]
+    paths:
+      - 'tools/actiongen/pins/action.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Take the pins from the pull request, and nothing else
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/contents/tools/actiongen/pins/action.yml?ref=$HEAD_SHA" \
+            -H 'Accept: application/vnd.github.raw' > tools/actiongen/pins/action.yml
+
+      - name: Regenerate
+        env:
+          GOPRIVATE: github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
+        run: go run ./tools/actiongen -root .
+
+      - name: Push to the pull request's branch
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "support@vulnetix.com"
+          git add -A -- '*action.yml' docs/github-actions action-lib/commands.sh .github/workflows/actions-e2e.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(actions): regenerate for the new pins"
+          git push --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${HEAD_REF}"

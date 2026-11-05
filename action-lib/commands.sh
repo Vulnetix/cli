@@ -17,30 +17,48 @@ vx_build() {
       vx_scan=true
       vx_takes_path=true
       vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag --package-manager "${VX_IN_PACKAGE_MANAGER:-}"
+      vx_flag --not-package-manager "${VX_IN_NOT_PACKAGE_MANAGER:-}"
       ;;
     sast)
       cmd=(sast)
       vx_scan=true
       vx_takes_path=true
       vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      vx_flag --language "${VX_IN_LANGUAGE:-}"
+      vx_flag --not-language "${VX_IN_NOT_LANGUAGE:-}"
       ;;
     secrets)
       cmd=(secrets)
       vx_scan=true
       vx_takes_path=true
       vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
       ;;
     iac)
       cmd=(iac)
       vx_scan=true
       vx_takes_path=true
       vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
       ;;
     containers)
       cmd=(containers)
       vx_scan=true
       vx_takes_path=true
       vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
       ;;
     license)
       cmd=(license)
@@ -105,6 +123,9 @@ vx_build() {
       vx_bool --pre-release "${VX_IN_TEA_PRE_RELEASE:-}"
       vx_flag --visibility "${VX_IN_TEA_VISIBILITY:-}"
       vx_bool --dry-run "${VX_IN_TEA_DRY_RUN:-}"
+      vx_flag_lines --channel "${VX_IN_TEA_CHANNELS:-}"
+      vx_bool --auto-version "${VX_IN_TEA_AUTO_VERSION:-}"
+      vx_bool --checksums-from-release "${VX_IN_TEA_CHECKSUMS_FROM_RELEASE:-}"
       ;;
     attest)
       cmd=(attest verify)
@@ -117,6 +138,449 @@ vx_build() {
     vex)
       cmd=(vex)
       vx_lines "${VX_IN_VEX_COMMAND:-}"
+      ;;
+    sast-python)
+      cmd=(sast --language python)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-java)
+      cmd=(sast --language java)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-javascript)
+      cmd=(sast --language javascript)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-typescript)
+      cmd=(sast --language typescript)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-c-cpp)
+      cmd=(sast --language c-cpp)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-go)
+      cmd=(sast --language go)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-php)
+      cmd=(sast --language php)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-ruby)
+      cmd=(sast --language ruby)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-kotlin)
+      cmd=(sast --language kotlin)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-csharp)
+      cmd=(sast --language csharp)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-shell)
+      cmd=(sast --language shell)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sast-rust)
+      cmd=(sast --language rust)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    sca-bun)
+      cmd=(sca --package-manager bun)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-bundler)
+      cmd=(sca --package-manager bundler)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-cargo)
+      cmd=(sca --package-manager cargo)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-cocoapods)
+      cmd=(sca --package-manager cocoapods)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-composer)
+      cmd=(sca --package-manager composer)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-go)
+      cmd=(sca --package-manager go)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-gradle)
+      cmd=(sca --package-manager gradle)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-hex)
+      cmd=(sca --package-manager hex)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-maven)
+      cmd=(sca --package-manager maven)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-npm)
+      cmd=(sca --package-manager npm)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-nuget)
+      cmd=(sca --package-manager nuget)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-pip)
+      cmd=(sca --package-manager pip)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-pipenv)
+      cmd=(sca --package-manager pipenv)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-pnpm)
+      cmd=(sca --package-manager pnpm)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-poetry)
+      cmd=(sca --package-manager poetry)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-pub)
+      cmd=(sca --package-manager pub)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-swift)
+      cmd=(sca --package-manager swift)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-uv)
+      cmd=(sca --package-manager uv)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    sca-yarn)
+      cmd=(sca --package-manager yarn)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      ;;
+    scan)
+      cmd=(scan)
+      vx_scan=true
+      vx_takes_path=true
+      vx_flag_lines --vex "${VX_IN_VEX:-}"
+      vx_flag_lines --fail-on "${VX_IN_FAIL_ON:-}"
+      vx_flag_lines --exclude "${VX_IN_EXCLUDE:-}"
+      vx_flag_lines --rule "${VX_IN_RULES:-}"
+      ;;
+    image)
+      cmd=(image)
+      vx_lines "${VX_IN_REFERENCE:-}"
+      vx_flag --platform "${VX_IN_PLATFORM:-}"
+      vx_flag --source "${VX_IN_SOURCE:-}"
+      vx_bool --no-upload "${VX_IN_NO_UPLOAD:-}"
+      vx_flag --output "${VX_IN_OUTPUT_FILE:-}"
+      ;;
+    report)
+      cmd=(report)
+      vx_takes_path=true
+      vx_flag --view "${VX_IN_VIEW:-}"
+      vx_flag_lines --filter "${VX_IN_FILTER:-}"
+      vx_flag --min-severity "${VX_IN_MIN_SEVERITY:-}"
+      ;;
+    fix)
+      cmd=(fix --yes)
+      vx_takes_path=true
+      vx_flag --strategy "${VX_IN_STRATEGY:-}"
+      vx_flag --manifest "${VX_IN_MANIFEST:-}"
+      ;;
+    triage)
+      cmd=(triage --format json)
+      vx_flag --provider "${VX_IN_PROVIDER:-}"
+      vx_flag --tool "${VX_IN_TOOL:-}"
+      vx_flag --severity "${VX_IN_SEVERITY:-}"
+      vx_flag --repo "${VX_IN_REPO:-}"
+      ;;
+    ignore-sync)
+      cmd=(ignore sync)
+      vx_takes_path=true
+      ;;
+    gha-workflows)
+      cmd=(gha workflows --format sarif)
+      vx_lines "${VX_IN_TARGET:-}"
+      vx_flag --fail-on "${VX_IN_GHA_FAIL_ON:-}"
+      vx_flag --min-severity "${VX_IN_MIN_SEVERITY:-}"
+      vx_bool --offline "${VX_IN_OFFLINE:-}"
+      vx_bool --upload "${VX_IN_UPLOAD:-}"
+      vx_flag --repo "${VX_IN_REPO:-}"
+      vx_flag_lines --rule "${VX_IN_RULE:-}"
+      vx_flag --output "${VX_IN_OUTPUT_FILE:-}"
+      ;;
+    gha-actions)
+      cmd=(gha actions --format sarif)
+      vx_lines "${VX_IN_TARGET:-}"
+      vx_flag --fail-on "${VX_IN_GHA_FAIL_ON:-}"
+      vx_flag --min-severity "${VX_IN_MIN_SEVERITY:-}"
+      vx_bool --offline "${VX_IN_OFFLINE:-}"
+      vx_bool --upload "${VX_IN_UPLOAD:-}"
+      vx_flag --repo "${VX_IN_REPO:-}"
+      vx_flag_lines --rule "${VX_IN_RULE:-}"
+      vx_flag --output "${VX_IN_OUTPUT_FILE:-}"
+      ;;
+    gha-settings)
+      cmd=(gha settings --format sarif)
+      vx_flag --fail-on "${VX_IN_GHA_FAIL_ON:-}"
+      vx_flag --min-severity "${VX_IN_MIN_SEVERITY:-}"
+      vx_bool --offline "${VX_IN_OFFLINE:-}"
+      vx_bool --upload "${VX_IN_UPLOAD:-}"
+      vx_flag --repo "${VX_IN_REPO:-}"
+      vx_flag_lines --rule "${VX_IN_RULE:-}"
+      vx_flag --output "${VX_IN_OUTPUT_FILE:-}"
+      ;;
+    gha-org)
+      cmd=(gha org --format sarif)
+      vx_flag --fail-on "${VX_IN_GHA_FAIL_ON:-}"
+      vx_flag --min-severity "${VX_IN_MIN_SEVERITY:-}"
+      vx_bool --offline "${VX_IN_OFFLINE:-}"
+      vx_bool --upload "${VX_IN_UPLOAD:-}"
+      vx_flag --repo "${VX_IN_REPO:-}"
+      vx_flag_lines --rule "${VX_IN_RULE:-}"
+      vx_flag --output "${VX_IN_OUTPUT_FILE:-}"
+      vx_flag --org "${VX_IN_ORG:-}"
+      ;;
+    gha-audit)
+      cmd=(gha audit --format sarif)
+      vx_lines "${VX_IN_TARGET:-}"
+      vx_flag --fail-on "${VX_IN_GHA_FAIL_ON:-}"
+      vx_flag --min-severity "${VX_IN_MIN_SEVERITY:-}"
+      vx_bool --offline "${VX_IN_OFFLINE:-}"
+      vx_bool --upload "${VX_IN_UPLOAD:-}"
+      vx_flag --repo "${VX_IN_REPO:-}"
+      vx_flag_lines --rule "${VX_IN_RULE:-}"
+      vx_flag --output "${VX_IN_OUTPUT_FILE:-}"
+      ;;
+    gha-status)
+      cmd=(gha status)
+      vx_flag --run-id "${VX_IN_RUN_ID:-}"
+      vx_flag --uuid "${VX_IN_UUID:-}"
+      ;;
+    github-advisories)
+      cmd=(gha publish advisories)
+      vx_takes_path=true
+      vx_flag_lines --sarif "${VX_IN_SARIF:-}"
+      vx_flag --min-severity "${VX_IN_MIN_SEVERITY:-}"
+      vx_flag --max "${VX_IN_MAX:-}"
+      vx_bool --dry-run "${VX_IN_DRY_RUN:-}"
+      ;;
+    bom-diff)
+      cmd=(bom diff)
+      vx_lines "${VX_IN_BEFORE:-}"
+      vx_lines "${VX_IN_AFTER:-}"
+      vx_flag --fail-on "${VX_IN_DIFF_FAIL_ON:-}"
+      ;;
+    bom-validate)
+      cmd=(bom validate)
+      vx_lines "${VX_IN_FILE:-}"
+      vx_flag --min-score "${VX_IN_MIN_SCORE:-}"
+      ;;
+    bom-merge)
+      cmd=(bom merge)
+      vx_lines "${VX_IN_FILES:-}"
+      vx_flag --out "${VX_IN_OUTPUT_FILE:-}"
+      ;;
+    bom-enrich)
+      cmd=(bom enrich)
+      vx_lines "${VX_IN_FILE:-}"
+      vx_flag --out "${VX_IN_OUTPUT_FILE:-}"
+      vx_bool --no-licenses "${VX_IN_NO_LICENSES:-}"
+      vx_bool --no-vulns "${VX_IN_NO_VULNS:-}"
+      vx_bool --no-vex "${VX_IN_NO_VEX:-}"
+      vx_bool --sign "${VX_IN_SIGN:-}"
+      ;;
+    api-discover)
+      cmd=(api discover)
+      vx_lines "${VX_IN_TARGET:-}"
+      vx_bool --no-upload "${VX_IN_NO_UPLOAD:-}"
+      ;;
+    api-upload)
+      cmd=(api upload)
+      vx_lines "${VX_IN_FILE:-}"
+      ;;
+    config-export)
+      cmd=(config export)
+      vx_flag --format "${VX_IN_FORMAT:-}"
+      vx_flag --kind "${VX_IN_KIND:-}"
+      vx_flag --manager "${VX_IN_MANAGER:-}"
+      vx_flag --output "${VX_IN_OUTPUT_FILE:-}"
+      ;;
+    jail-explain)
+      cmd=(jail explain)
+      vx_takes_path=true
+      vx_flag --branch "${VX_IN_BRANCH:-}"
+      ;;
+    license-policy-validate)
+      cmd=(license policy validate)
+      vx_takes_path=true
+      vx_flag --file "${VX_IN_FILE:-}"
+      ;;
+    license-exceptions-check)
+      cmd=(license exceptions check)
+      vx_takes_path=true
+      vx_flag --expiring-within "${VX_IN_EXPIRING_WITHIN:-}"
+      vx_flag --file "${VX_IN_FILE:-}"
+      ;;
+    ai-firewall-apply)
+      cmd=(ai-firewall apply)
+      vx_flag --file "${VX_IN_FILE:-}"
+      vx_bool --dry-run "${VX_IN_DRY_RUN:-}"
+      vx_bool --prune "${VX_IN_PRUNE:-}"
+      vx_bool --baseline-required "${VX_IN_BASELINE_REQUIRED:-}"
+      ;;
+    surface-liveness)
+      cmd=(surface liveness)
+      vx_flag --repo "${VX_IN_REPO:-}"
+      vx_flag --scheme "${VX_IN_SCHEME:-}"
+      ;;
+    package-firewall)
+      cmd=(package-firewall)
+      vx_lines "${VX_IN_ECOSYSTEM:-}"
+      vx_flag --proxy-url "${VX_IN_PROXY_URL:-}"
+      vx_bool --dry-run "${VX_IN_DRY_RUN:-}"
       ;;
     *)
       return 1

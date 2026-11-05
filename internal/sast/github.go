@@ -83,6 +83,23 @@ func AutomationID(kind string) string {
 	return "vulnetix/" + CategoryKind(kind) + "/"
 }
 
+// ScopedKind is the category kind of one leg of a scoped scan: sast/python.
+// Code scanning closes an alert only against a later upload in its category, so
+// legs that scan different files need different categories.
+func ScopedKind(kind, scope string) string {
+	if scope == "" {
+		return CategoryKind(kind)
+	}
+	return CategoryKind(kind) + "/" + scope
+}
+
+// SetCategory marks every run of a log as belonging to a category kind.
+func SetCategory(l *SARIFLog, kind string) {
+	for i := range l.Runs {
+		l.Runs[i].AutomationDetails = &SARIFAutomationDetails{ID: AutomationID(kind)}
+	}
+}
+
 // KindOfRun reports the category kind of a run: its automationDetails id when
 // set, else the kind its results carry, else "sast".
 func KindOfRun(run *SARIFRun) string {
@@ -115,7 +132,8 @@ func SplitByKind(log *SARIFLog) map[string]*SARIFLog {
 		var order []string
 		for _, r := range run.Results {
 			k := runKind
-			if rk, ok := r.Properties["vulnetix/kind"].(string); ok && rk != "" {
+			// A result's kind says what it is; a scoped run keeps its category.
+			if rk, ok := r.Properties["vulnetix/kind"].(string); ok && rk != "" && !strings.Contains(runKind, "/") {
 				k = CategoryKind(rk)
 			}
 			if _, ok := byKind[k]; !ok {

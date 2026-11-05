@@ -1,5 +1,5 @@
 name: 'Vulnetix CLI Action'
-description: 'GitHub Action that provides the Vulnetix CLI utility for vulnerability management'
+description: 'Vulnetix security scanning for GitHub Actions: one action with a task input. Granular actions live beside it, such as Vulnetix/cli/sast/python and Vulnetix/cli/sca/npm'
 author: 'Vulnetix'
 branding:
   icon: 'shield'
@@ -11,9 +11,9 @@ inputs:
     required: false
     default: ''
   version:
-    description: 'Release of the Vulnetix CLI to install: an exact tag (v4.0.0), a major channel (v4, the newest v4 release) or latest. The default is the major channel matching this action, so a workflow pinned to @v3 keeps a v3 binary and one pinned to @v4 gets v4'
+    description: 'Release of the Vulnetix CLI to install. Empty installs the release this action ref was cut from, which is what a lock file or a SHA pin expects. An exact tag (v4.0.0), a major channel (v4) or latest float instead'
     required: false
-    default: 'v4'
+    default: ''
   binary-path:
     description: 'Path to an already-built vulnetix binary to use instead of downloading a release, for example one built earlier in the same job'
     required: false
@@ -23,7 +23,7 @@ inputs:
     required: false
     default: 'true'
   task:
-    description: 'Task to perform: info, upload, gha (gha-upload), tea-release, config-plan, config-apply, or any subdirectory action: sca, sast, secrets, iac, containers, license, malscan, analyze, cbom, aibom, sbom, jail. The subdirectory actions (Vulnetix/cli/sca@v3) offer the artifact, attestation and release steps as well'
+    description: 'Task to perform: info, upload, gha (gha-upload), tea-release, config-plan, config-apply, or any subdirectory action: scan, sca, sast, secrets, iac, containers, license, malscan, analyze, cbom, aibom, sbom, jail. The subdirectory actions (Vulnetix/cli/sca@v3) offer the artifact, attestation and release steps as well'
     required: false
     default: 'info'
   api-key:
@@ -196,15 +196,16 @@ runs:
         VX_IN_VALIDATE_ONLY: ${{ inputs.validate-only }}
       run: bash "$GITHUB_ACTION_PATH/action-lib/run.sh"
 
-    # license writes SARIF but does not publish it itself.
+    # license writes SARIF and sbom an SBOM; neither publishes it itself.
     - name: Publish to GitHub
-      if: ${{ !cancelled() && inputs.task == 'license' && inputs.github-code-scanning == 'true' }}
+      if: ${{ !cancelled() && ((inputs.task == 'license' && inputs.github-code-scanning == 'true') || (inputs.task == 'sbom' && inputs.dependency-graph == 'true')) }}
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         VX_PATH: ${{ inputs.path }}
         VX_MANIFEST: ${{ steps.vulnetix-run.outputs.manifest }}
         VX_CODE_SCANNING: ${{ inputs.github-code-scanning }}
+        VX_DEPENDENCY_GRAPH: ${{ inputs.dependency-graph }}
       run: bash "$GITHUB_ACTION_PATH/action-lib/publish.sh"
 
     - name: Finish

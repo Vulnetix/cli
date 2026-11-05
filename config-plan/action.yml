@@ -9,9 +9,8 @@ branding:
 
 inputs:
   version:
-    description: 'Release of the Vulnetix CLI to install: an exact tag (v4.0.0), a major channel (v4, the newest v4 release) or latest'
+    description: 'Release of the Vulnetix CLI to install. Empty installs the release this action ref was cut from, which is what a lock file or a SHA pin expects. An exact tag (v4.0.0), a major channel (v4) or latest float instead'
     required: false
-    default: 'v4'
   binary-path:
     description: 'Path to an already-built vulnetix binary to use instead of downloading a release'
     required: false
@@ -27,6 +26,9 @@ inputs:
     required: false
   api-token:
     description: 'Vulnetix API token; the server resolves the organization. Passed as VULNETIX_API_TOKEN'
+    required: false
+  extra-args:
+    description: 'Extra arguments, one per line, so a value may contain spaces'
     required: false
   artifact-name:
     description: 'Upload every file the command wrote as a workflow artifact with this name'
@@ -109,6 +111,7 @@ runs:
         VULNETIX_API_KEY: ${{ inputs.api-key }}
         VULNETIX_API_TOKEN: ${{ inputs.api-token }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        VX_EXTRA_ARGS: ${{ inputs.extra-args }}
         VX_EVENT_NAME: ${{ github.event_name }}
         VX_IN_CONFIG_PATH: ${{ inputs.config-path }}
         VX_IN_CONFIG_MANAGER: ${{ inputs.config-manager }}

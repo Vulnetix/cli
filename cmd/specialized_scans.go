@@ -178,6 +178,7 @@ sca path, not misconfiguration rules.`,
 func init() {
 	// scaCmd has no rule-pack support (pure dependency scanning).
 	addScanFlags(scaCmd)
+	addManagerScopeFlags(scaCmd)
 	addGitHubPublishFlags(scaCmd)
 	rootCmd.AddCommand(scaCmd)
 
@@ -190,6 +191,9 @@ func init() {
 	for _, cmd := range []*cobra.Command{secretsCmd, containersCmd, iacCmd, sastCmd} {
 		addScanFlags(cmd)
 		addSASTFlags(cmd)
+		if cmd == sastCmd {
+			addLanguageScopeFlags(cmd)
+		}
 		// Per-mode .gitignore override alias. The generic --include-ignored
 		// registered by addScanFlags also works, but the named flag reads more
 		// naturally on a specialized command and is what the docs advertise.
