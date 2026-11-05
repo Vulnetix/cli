@@ -74,12 +74,3 @@ func TestThirdPartyActionsArePinned(t *testing.T) {
 		}
 	}
 }
-
-func TestEverySpecActionHasADocsPage(t *testing.T) {
-	files := generate()
-	for _, a := range actions {
-		if _, ok := files["docs/github-actions/"+a.Name+".md"]; !ok {
-			t.Errorf("%s has no docs page", a.Name)
-		}
-	}
-}

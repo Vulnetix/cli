@@ -46,9 +46,6 @@ sast: high
 sca:
   - go
 extras:
-  - action: gha-settings
-  - action: gha-org
-  - action: gha-audit
   - action: gha-status
   - action: github-advisories
     prior:

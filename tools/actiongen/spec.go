@@ -49,7 +49,6 @@ type action struct {
 	Script string
 	// Setup installs only.
 	Setup bool
-	Extra string // extra prose for the docs page
 }
 
 // vexInputs is the vex input of the scan actions: VEX documents, paths or https

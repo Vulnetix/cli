@@ -1,0 +1,35 @@
+name: Scope union
+
+# A language or package manager added to one table and not another would drop
+# findings from every repository that uses the granular actions, quietly. This
+# compares the legs with a full scan on the two fixture repositories.
+on:
+  schedule:
+    - cron: '43 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  union:
+    name: Legs equal a full scan
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/checkout@v7
+        with:
+          repository: Vulnetix/sast-rule-evals
+          path: fixtures/sast
+
+      - uses: actions/checkout@v7
+        with:
+          repository: Vulnetix/sca-manifest-fixtures
+          path: fixtures/sca
+
+      - uses: $/setup
+
+      - name: Compare
+        run: bash scripts/ci-scope-union.sh "$PWD/fixtures/sast" "$PWD/fixtures/sca"
