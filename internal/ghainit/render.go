@@ -270,15 +270,21 @@ func (r *renderer) extraJob(e Extra) job {
 	}
 	j := job{id: id, name: e.Action, perms: e.Permissions, needs: e.Needs}
 	for _, a := range e.Prior {
-		j.steps = append(j.steps, step{uses: "Vulnetix/cli/" + a + "@" + r.ref, with: [][2]string{
-			{"org-id", "${{ secrets.VULNETIX_ORG_ID }}"}, {"api-key", "${{ secrets.VULNETIX_API_KEY }}"},
-			{"fail-on-findings", "false"}}})
+		p := step{uses: actionRef(a, r.ref)}
+		if a != "setup" { // setup takes none of these
+			p.with = [][2]string{{"org-id", "${{ secrets.VULNETIX_ORG_ID }}"}, {"api-key", "${{ secrets.VULNETIX_API_KEY }}"},
+				{"fail-on-findings", "false"}}
+		}
+		j.steps = append(j.steps, p)
 	}
 	for _, c := range e.Run {
 		j.steps = append(j.steps, step{run: c})
 	}
 	s := step{uses: actionRef(e.Action, r.ref), with: [][2]string{
 		{"org-id", "${{ secrets.VULNETIX_ORG_ID }}"}, {"api-key", "${{ secrets.VULNETIX_API_KEY }}"}}}
+	if e.Action == "setup" { // it takes neither credential
+		s.with = nil
+	}
 	keys := make([]string, 0, len(e.With))
 	for k := range e.With {
 		keys = append(keys, k)
@@ -287,10 +293,14 @@ func (r *renderer) extraJob(e Extra) job {
 	for _, k := range keys {
 		s.with = append(s.with, [2]string{k, e.With[k]})
 	}
-	if _, set := e.With["fail-on-findings"]; !set {
+	// setup installs and runs nothing, so it has no findings to fail on.
+	if _, set := e.With["fail-on-findings"]; !set && e.Action != "setup" {
 		s.with = append(s.with, [2]string{"fail-on-findings", "false"})
 	}
 	j.steps = append(j.steps, s)
+	for _, c := range e.Then {
+		j.steps = append(j.steps, step{run: c})
+	}
 	return j
 }
 

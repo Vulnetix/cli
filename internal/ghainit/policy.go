@@ -53,6 +53,8 @@ type Extra struct {
 	Prior []string `yaml:"prior,omitempty"`
 	// Run are shell lines run before the action.
 	Run []string `yaml:"run,omitempty"`
+	// Then are shell lines run after the action, to check what it left behind.
+	Then []string `yaml:"then,omitempty"`
 	// Needs names a job whose SBOM or results this one reads.
 	Needs string `yaml:"needs,omitempty"`
 	// Permissions are added to the job's contents: read.
