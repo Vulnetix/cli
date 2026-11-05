@@ -14,6 +14,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/cdx"
 	"github.com/vulnetix/cli/v4/internal/display"
 	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/internal/purl"
 	"github.com/vulnetix/cli/v4/internal/scan"
 	"github.com/vulnetix/cli/v4/internal/suppress"
 	"github.com/vulnetix/cli/v4/internal/vex"
@@ -80,6 +81,11 @@ type VEXPassOptions struct {
 	// documents, after those, and a statement a document already makes is not
 	// counted twice.
 	Console []vex.ConsoleRule
+	// Org are the organisation's own statements about this scan's findings (see
+	// scanOrgVEX), and Repo the repository the scan is in. Each is checked before
+	// it can close anything: see vex.CheckOrgStatements.
+	Org  []vex.OrgStatement
+	Repo string
 }
 
 // VEXPassResult is what applying a statement set produced.
@@ -99,6 +105,10 @@ type VEXPassResult struct {
 	// or another console rule already made them, and ConsoleSkipped how many
 	// rules had no status this CLI reads.
 	ConsoleStatements, ConsoleDuplicates, ConsoleSkipped int
+	// OrgCheck says what became of the organisation's statements, and OrgHeld
+	// names the findings left open because a statement about them was overruled.
+	OrgCheck *vex.OrgCheck
+	OrgHeld  []vex.HeldFinding
 	// Raw holds the exact bytes of every document read, so a caller can send
 	// them to Vulnetix unchanged (see ingestVEX).
 	Raw []vexRawDocument
@@ -141,9 +151,21 @@ func runVEXPass(opts VEXPassOptions) (*VEXPassResult, error) {
 		}
 	}
 
+	var held []vex.HeldStatement
+	if len(opts.Org) > 0 {
+		check := vex.CheckOrgStatements(opts.Org, opts.Repo)
+		res.OrgCheck, held = &check, check.Held
+		org, _ := vex.DedupeConsole(check.Document, docs)
+		if len(org.Statements) > 0 {
+			res.ConsoleStatements += len(org.Statements)
+			docs = append(docs, org)
+		}
+	}
+
 	set := vex.NewSet(docs)
 	res.Statements = set.Len()
 	res.Result = vex.Apply(opts.BOM, set)
+	res.OrgHeld = vex.MarkHeld(opts.BOM, held)
 	return res, nil
 }
 
@@ -162,23 +184,68 @@ func filterVEXSuppressed(vulns []scan.EnrichedVuln, pass *VEXPassResult) []scan.
 	if pass == nil || pass.Result == nil || pass.Result.Suppressed == 0 {
 		return vulns
 	}
-	suppressed := make(map[string]bool, pass.Result.Suppressed)
+	// A statement closes one package's finding, not the vulnerability: the same
+	// CVE in another package stays. An entry with no purl has only its id.
+	byPackage := make(map[string]bool, pass.Result.Suppressed)
+	wholeID := make(map[string]bool)
 	for _, a := range pass.Result.Applied {
-		if a.Suppressed {
-			suppressed[strings.ToUpper(a.VulnID)] = true
+		if !a.Suppressed {
+			continue
+		}
+		id := strings.ToUpper(a.VulnID)
+		names, version := purlPackageNames(a.Purl)
+		if len(names) == 0 {
+			wholeID[id] = true
+			continue
+		}
+		for _, name := range names {
+			byPackage[vulnPackageKey(id, name, version)] = true
 		}
 	}
-	if len(suppressed) == 0 {
+	if len(byPackage) == 0 && len(wholeID) == 0 {
 		return vulns
 	}
 	out := make([]scan.EnrichedVuln, 0, len(vulns))
 	for _, v := range vulns {
-		if suppressed[strings.ToUpper(v.CveID)] {
+		id := strings.ToUpper(v.CveID)
+		if wholeID[id] || v.PackageName == "" && hasVulnID(byPackage, id) ||
+			byPackage[vulnPackageKey(id, v.PackageName, v.PackageVer)] {
 			continue
 		}
 		out = append(out, v)
 	}
 	return out
+}
+
+// vulnPackageKey identifies one package's finding of a vulnerability.
+func vulnPackageKey(id, name, version string) string {
+	return id + "\x00" + strings.ToLower(name) + "\x00" + version
+}
+
+// hasVulnID reports whether any package's finding of id was closed, for a
+// finding that does not say which package it is about.
+func hasVulnID(byPackage map[string]bool, id string) bool {
+	for key := range byPackage {
+		if strings.HasPrefix(key, id+"\x00") {
+			return true
+		}
+	}
+	return false
+}
+
+// purlPackageNames is every way a finding may spell the package a purl names,
+// and its version. purl.PackageName is the ecosystem's own spelling; a namespace
+// it leaves out (composer's vendor/pkg) is tried as well.
+func purlPackageNames(raw string) (names []string, version string) {
+	p, err := purl.Parse(raw)
+	if err != nil || p.Name == "" {
+		return nil, ""
+	}
+	names = []string{p.PackageName(), p.Name}
+	if p.Namespace != "" {
+		names = append(names, p.Namespace+"/"+p.Name)
+	}
+	return names, p.Version
 }
 
 // vexSuppressedCount is how many findings VEX closed, or 0 when none ran.
@@ -195,6 +262,7 @@ func vexSuppressedCount(pass *VEXPassResult) int {
 // on stdout, and printed at all because a suppressed count that silently
 // changed the outcome of a gate is exactly the thing a reviewer needs told.
 func reportVEXPass(pass *VEXPassResult) {
+	reportOrgVEXHeld(pass)
 	r := pass.Result
 	if r == nil || pass.Statements == 0 {
 		return
@@ -802,4 +870,128 @@ func scanConsoleVEX(enabled bool, git *gitctx.GitContext, notes io.Writer) []vex
 		fmt.Fprintln(notes, "  note: Vulnetix holds more VEX statements for this repository than one reply carries; some are not applied here")
 	}
 	return consoleVEXRules(data.VEX, repo, branch)
+}
+
+// orgVEXChunk is how many vulnerabilities one cli.vex call asks about.
+const orgVEXChunk = 200
+
+// orgVEXReplyCap is the most statements the server returns for one call.
+const orgVEXReplyCap = 500
+
+// orgVEXFetch asks for the organisation's statements about some vulnerabilities.
+type orgVEXFetch func(ids []string) (map[string][]vdb.CliOrgVexStatement, error)
+
+// scanOrgVEX reads what the organisation has said about a scan's findings.
+//
+// Authenticated runs in a known repository only, and not under --no-vex. Best
+// effort, and the failure is the safe one: a statement that was not read closes
+// nothing, so a finding stays open.
+func scanOrgVEX(enabled bool, git *gitctx.GitContext, bom *cdx.BOM, notes io.Writer) []vex.OrgStatement {
+	if !enabled || bom == nil || len(bom.Vulnerabilities) == 0 || git == nil || isUnauthenticatedScan() {
+		return nil
+	}
+	repo := suppress.RepoFullName(git.RemoteURLs)
+	if repo == "" {
+		return nil
+	}
+	client := newCliClient()
+	if client == nil {
+		return nil
+	}
+	env := envForCliWithGit(git)
+	return readOrgVEX(func(ids []string) (map[string][]vdb.CliOrgVexStatement, error) {
+		resp, err := client.CliOrgVex(env, vdb.CliOrgVexRequest{IDs: ids, Closing: true, Repository: repo})
+		if err != nil {
+			return nil, err
+		}
+		if resp == nil {
+			return nil, nil
+		}
+		return resp.Data.OrgStatementsByVuln, nil
+	}, vulnIDs(bom), notes)
+}
+
+// vulnIDs are the distinct vulnerability ids in a BOM, sorted.
+func vulnIDs(bom *cdx.BOM) []string {
+	seen := map[string]bool{}
+	var ids []string
+	for i := range bom.Vulnerabilities {
+		if id := bom.Vulnerabilities[i].ID; id != "" && !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// readOrgVEX fetches ids in chunks and flattens the replies.
+func readOrgVEX(fetch orgVEXFetch, ids []string, notes io.Writer) []vex.OrgStatement {
+	var out []vex.OrgStatement
+	for start := 0; start < len(ids); start += orgVEXChunk {
+		end := min(start+orgVEXChunk, len(ids))
+		byVuln, err := fetch(ids[start:end])
+		if err != nil {
+			if notes != nil {
+				fmt.Fprintf(notes, "  note: could not read the organisation's VEX statements: %v\n", err)
+			}
+			return out
+		}
+		replied := 0
+		for id, rows := range byVuln {
+			replied += len(rows)
+			for _, r := range rows {
+				out = append(out, vex.OrgStatement{
+					VulnID: id, Status: r.Status, Justification: r.Justification,
+					ImpactStatement: r.ImpactStatement, ActionStatement: r.ActionStatement,
+					SuppressionUUID: r.SuppressionUUID, Timestamp: r.Timestamp, DocumentID: r.DocumentID,
+					Repository: r.RepositoryFullName, Tooling: r.Tooling, Products: r.Products,
+				})
+			}
+		}
+		if replied >= orgVEXReplyCap && notes != nil {
+			fmt.Fprintln(notes, "  note: Vulnetix holds more VEX statements for these findings than one reply carries; some were not checked")
+		}
+	}
+	return out
+}
+
+// orgVEXHeldShown is how many held findings a scan names before summarising.
+const orgVEXHeldShown = 5
+
+// reportOrgVEXHeld says which findings stayed open against a statement. The
+// statement is on record as closing them, so a reader comparing this scan with
+// Vulnetix needs telling why the two disagree.
+func reportOrgVEXHeld(pass *VEXPassResult) {
+	writeOrgVEXHeld(os.Stderr, pass)
+}
+
+func writeOrgVEXHeld(w io.Writer, pass *VEXPassResult) {
+	if pass == nil || len(pass.OrgHeld) == 0 {
+		return
+	}
+	var gone, reach int
+	for _, h := range pass.OrgHeld {
+		if h.Reason == vex.HoldPriorReachability {
+			reach++
+		} else {
+			gone++
+		}
+	}
+	var parts []string
+	if gone > 0 {
+		parts = append(parts, fmt.Sprintf("%d an earlier scan recorded as gone", gone))
+	}
+	if reach > 0 {
+		parts = append(parts, fmt.Sprintf("%d an earlier scan judged unreachable", reach))
+	}
+	fmt.Fprintf(w, "\nVEX: %d finding(s) stay open against a statement this run overrules: %s.\n",
+		len(pass.OrgHeld), strings.Join(parts, ", "))
+	for i, h := range pass.OrgHeld {
+		if i == orgVEXHeldShown {
+			fmt.Fprintf(w, "  ... and %d more (see %s in the BOM)\n", len(pass.OrgHeld)-i, vex.PropVEXHeld)
+			break
+		}
+		fmt.Fprintf(w, "  %s %s (%s)\n", h.VulnID, h.Purl, h.Reason)
+	}
 }

@@ -2109,9 +2109,12 @@ func runLocalScan(
 	// it fetches itself (tea, s3, git) that no document here can stand in for.
 	// Authenticated runs only, and not under --no-vex.
 	consoleVEX := scanConsoleVEX(opts.VEXConfig && !noSCA, gitCtx, os.Stderr)
-	if len(vexInputs) > 0 || len(consoleVEX) > 0 {
+	// What the organisation has said about the findings this scan just made. Each
+	// statement is checked against this run before it can close one.
+	orgVEX := scanOrgVEX(opts.VEXConfig && !noSCA, gitCtx, bom, os.Stderr)
+	if len(vexInputs) > 0 || len(consoleVEX) > 0 || len(orgVEX) > 0 {
 		var vexErr error
-		vexPass, vexErr = runVEXPass(VEXPassOptions{Paths: vexInputs, BOM: bom, Console: consoleVEX})
+		vexPass, vexErr = runVEXPass(VEXPassOptions{Paths: vexInputs, BOM: bom, Console: consoleVEX, Org: orgVEX, Repo: vexRepo})
 		if vexErr != nil {
 			// A malformed VEX document must not silently widen the gate. Fail
 			// loudly rather than proceeding as though no statements existed.
@@ -4223,7 +4226,7 @@ func addScanFlags(cmd *cobra.Command) {
 		"Apply VEX statements from this file or directory before gates are evaluated (repeatable)")
 	cmd.Flags().StringArray("vex", nil,
 		"Apply VEX statements from this file, directory or https URL before gates are evaluated (repeatable). VexSource documents under .vulnetix/config (path and urls sources) apply too")
-	cmd.Flags().Bool("no-vex", false, "Ignore --vex-file, --vex and the VexSource documents, and apply no third-party VEX")
+	cmd.Flags().Bool("no-vex", false, "Ignore --vex-file, --vex, the VexSource documents and the organisation's statements, and apply no third-party VEX")
 	// Licence governance, family-wide so `scan --evaluate-licenses` and
 	// `license` reach the same verdict from the same policy.
 	addLicenseGovernanceFlags(cmd)
