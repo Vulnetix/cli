@@ -80,3 +80,4 @@ result
 /vulnetix-new
 /secrets.sarif
 internal/sast/secretsgen/batches/
+!.vulnetix/workflow.yaml
