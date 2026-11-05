@@ -225,10 +225,13 @@ download() {
     # hard failure rather than something to try again — so a connection that
     # dropped part way through a 90 MB binary used to be handed straight to the
     # checksum check, which then announced possible tampering.
-    curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors "$url" -o "$dest"
+    # No --retry-delay: curl then backs off exponentially, which is what rides out
+    # the 504s GitHub answers a burst of parallel jobs with. Two seconds apart, a
+    # job spent its six tries inside one bad minute.
+    curl -fsSL --retry 8 --retry-max-time 300 --retry-all-errors "$url" -o "$dest"
   else
     # wget had no retry configuration at all.
-    wget -q --tries=5 --timeout=30 --waitretry=2 "$url" -O "$dest"
+    wget -q --tries=8 --timeout=30 --waitretry=30 "$url" -O "$dest"
   fi
 }
 
