@@ -58,6 +58,9 @@ inputs:
     description: 'Delete objects this manager owns that the documents no longer declare: true or false'
     required: false
     default: 'false'
+  config-plan-hash:
+    description: 'Apply only if the plan still has this hash (passed as --plan-hash), the planHash a reviewed config-plan printed. A run whose plan has changed since is refused and writes nothing, so a scheduled or on-push apply can only repeat the plan that was reviewed'
+    required: false
 
 outputs:
   files:
@@ -112,6 +115,7 @@ runs:
         VX_IN_CONFIG_PATH: ${{ inputs.config-path }}
         VX_IN_CONFIG_MANAGER: ${{ inputs.config-manager }}
         VX_IN_CONFIG_PRUNE: ${{ inputs.config-prune }}
+        VX_IN_CONFIG_PLAN_HASH: ${{ inputs.config-plan-hash }}
       run: bash "$GITHUB_ACTION_PATH/../action-lib/run.sh"
 
     - name: Upload the written files as an artifact
