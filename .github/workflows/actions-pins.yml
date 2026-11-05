@@ -38,6 +38,15 @@ jobs:
           GOPRIVATE: github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
         run: go run ./tools/actiongen -root .
 
+      # A composite's pins are in the lock, so regenerating changes what it must
+      # hold, and Dependabot's own relock cannot run here: it cannot read $/ refs.
+      - name: Relock
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install github/gh-actions-lock --pin v0.4.1
+          gh actions-lock --no-narrow
+
       - name: Push to the pull request's branch
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
@@ -45,7 +54,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "support@vulnetix.com"
-          git add -A -- '*action.yml' action-lib/commands.sh .github/workflows/actions-e2e.yml
+          git add -A -- '*action.yml' action-lib/commands.sh .github/workflows/actions-e2e.yml .github/workflows/actions.lock
           git diff --cached --quiet && exit 0
           git commit -m "chore(actions): regenerate for the new pins"
           git push --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${HEAD_REF}"
