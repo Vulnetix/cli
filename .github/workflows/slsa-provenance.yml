@@ -24,7 +24,7 @@ name: SLSA Provenance
 
 on:
   workflow_call:
-    # Input names use underscores, not hyphens; see the note in tea-release.yml.
+    # Input names use underscores, not hyphens: a hyphen reads as subtraction in an expression.
     inputs:
       subjects_artifact:
         description: 'name of an artifact in this run that holds the release checksums.txt'
@@ -41,7 +41,7 @@ on:
       release_token:
         required: false
 
-# No permissions: block, deliberately, for the reason given in tea-release.yml.
+# No permissions: block, deliberately, a called workflow may not request a scope its caller does not hold.
 # The caller's job must grant `id-token: write` (Sigstore signs with the OIDC
 # identity) and `contents: write` (the upload to the release).
 jobs:

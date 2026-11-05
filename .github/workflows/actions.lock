@@ -29,13 +29,13 @@ workflows:
         - 'aws-actions/configure-aws-credentials@v6'
         - 'sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6'
         - 'sigstore/cosign-installer@v3'
+    '.github/workflows/scope-union.yml':
+        - 'actions/checkout@v7'
+        - 'sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6'
     '.github/workflows/slsa-provenance.yml':
         - 'actions/download-artifact@v8'
         - 'actions/upload-artifact@v7'
         - 'sigstore/cosign-installer@v4.1.2'
-    '.github/workflows/tea-release.yml':
-        - 'actions/checkout@v7'
-        - 'actions/download-artifact@v8'
     '.github/workflows/test.yml':
         - 'actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8'
         - 'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6'
@@ -61,7 +61,7 @@ workflows:
         - 'hadolint/hadolint-action@v3.5.0'
     '.github/workflows/vulnetix.yml':
         - 'actions/checkout@v7'
-        - 'vulnetix/cli@v4.23.1'
+        - 'vulnetix/cli@v4.23.2'
 dependencies:
     'actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8':
         ref: 'v4.2.2'
@@ -196,9 +196,9 @@ dependencies:
         commit: 'sha1-6f9f17788090df1f26f669e9d70d6ae9567deba6'
         owner_id: 71096353
         repo_id: 351211695
-    'vulnetix/cli@v4.23.1':
-        ref: 'v4.23.1'
-        commit: 'sha1-b6f596ff3448a4427fbb512aaa639f07cfb4b5d1'
+    'vulnetix/cli@v4.23.2':
+        ref: 'v4.23.2'
+        commit: 'sha1-25762f37032ca265493ce7a9893b892523c3b6c6'
         owner_id: 178014019
         repo_id: 809336204
         uses:
