@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   regenerate:
-    if: github.actor == 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 15
     steps:
