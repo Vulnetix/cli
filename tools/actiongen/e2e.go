@@ -60,7 +60,7 @@ var probes = map[string]probe{
 }
 
 // e2eWorkflow is .github/workflows/actions-e2e.yml: every action, run from this
-// checkout against the branch's build. Steps run in one job so results written
+// commit ($/ refs, which a locked workflow needs for a local action) against the branch's build. Steps run in one job so results written
 // early (the SBOM) feed the actions that read them.
 func e2eWorkflow() string {
 	var b strings.Builder
@@ -126,7 +126,7 @@ jobs:
 			continue
 		}
 		id := "a_" + strings.ReplaceAll(a.Name, "-", "_")
-		fmt.Fprintf(&b, "\n      - name: %s\n        id: %s\n        uses: ./%s\n        with:\n", dirOf(a), id, dirOf(a))
+		fmt.Fprintf(&b, "\n      - name: %s\n        id: %s\n        uses: $/%s\n        with:\n", dirOf(a), id, dirOf(a))
 		b.WriteString("          binary-path: ${{ steps.fixture.outputs.bin }}\n          verify-provenance: 'false'\n          fail-on-findings: 'false'\n")
 		if a.Path {
 			fmt.Fprintf(&b, "          path: %s\n", fx)

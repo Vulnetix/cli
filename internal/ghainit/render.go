@@ -107,8 +107,9 @@ func Render(p *Policy, sig *Signals, opt Options) string {
 		if s.on {
 			j := r.plainJob(s.id, s.name, s.id)
 			switch s.id {
-			case "analyze": // it reads history: contributors, ownership, bus factor
+			case "analyze": // it reads history and the repository's pull requests and issues
 				j.fullHistory = true
+				j.perms = map[string]string{"pull-requests": "read", "issues": "read"}
 			case "aibom": // a commit scan is slow and this runs on every push
 				j.steps[0].with = append(j.steps[0].with, [2]string{"extra-args", "--commit-scan-max\n1"})
 			}
@@ -254,10 +255,18 @@ func (r *renderer) teaJob(jobs []job, sig *Signals) *job {
 			{uses: "Vulnetix/cli/tea-release@" + r.ref, with: with}}}
 }
 
+// actionRef names a catalogue action. "." is the root action, used with task:.
+func actionRef(action, ref string) string {
+	if action == "." {
+		return "Vulnetix/cli@" + ref
+	}
+	return "Vulnetix/cli/" + action + "@" + ref
+}
+
 func (r *renderer) extraJob(e Extra) job {
 	id := e.ID
 	if id == "" {
-		id = strings.ReplaceAll(e.Action, "/", "-")
+		id = strings.ReplaceAll(strings.ReplaceAll(e.Action, ".", "root"), "/", "-")
 	}
 	j := job{id: id, name: e.Action, perms: e.Permissions, needs: e.Needs}
 	for _, a := range e.Prior {
@@ -268,7 +277,7 @@ func (r *renderer) extraJob(e Extra) job {
 	for _, c := range e.Run {
 		j.steps = append(j.steps, step{run: c})
 	}
-	s := step{uses: "Vulnetix/cli/" + e.Action + "@" + r.ref, with: [][2]string{
+	s := step{uses: actionRef(e.Action, r.ref), with: [][2]string{
 		{"org-id", "${{ secrets.VULNETIX_ORG_ID }}"}, {"api-key", "${{ secrets.VULNETIX_API_KEY }}"}}}
 	keys := make([]string, 0, len(e.With))
 	for k := range e.With {

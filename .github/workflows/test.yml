@@ -169,7 +169,7 @@ jobs:
 
       - name: Test action
         if: runner.os == 'Linux'
-        uses: ./
+        uses: $/
         with:
           org-id: '123e4567-e89b-12d3-a456-426614174000'
           binary-path: ${{ steps.branch-bin.outputs.path }}
@@ -341,7 +341,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup action, verify-provenance left at its default
-        uses: ./setup
+        uses: $/setup
 
       - name: The installed CLI runs
         run: vulnetix version
@@ -405,7 +405,11 @@ jobs:
           "$bin/shellcheck" -e SC3043 install.sh
           # This workflow uses every action the job runs, so actionlint checks
           # their inputs as well as its own scripts.
-          "$bin/actionlint" -shellcheck "$bin/shellcheck" .github/workflows/test.yml .github/workflows/actions-e2e.yml
+          # actionlint cannot read a $/ ref yet, so it lints a ./ copy.
+          sed 's#uses: \$/#uses: ./#' .github/workflows/test.yml > .github/workflows/lint-test.yml
+          sed 's#uses: \$/#uses: ./#' .github/workflows/actions-e2e.yml > .github/workflows/lint-e2e.yml
+          "$bin/actionlint" -shellcheck "$bin/shellcheck" .github/workflows/lint-test.yml .github/workflows/lint-e2e.yml
+          rm .github/workflows/lint-test.yml .github/workflows/lint-e2e.yml
         shell: bash
 
       - name: Build the CLI
@@ -429,7 +433,7 @@ jobs:
 
       - name: Root action, task sast
         id: root
-        uses: ./
+        uses: $/
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           task: sast
@@ -442,7 +446,7 @@ jobs:
       # to this repository. A command that did not accept the flag fails here.
       - name: sca
         id: sca
-        uses: ./sca
+        uses: $/sca
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           path: ${{ steps.fixture.outputs.dir }}
@@ -455,7 +459,7 @@ jobs:
 
       - name: sast
         id: sast
-        uses: ./sast
+        uses: $/sast
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           path: ${{ steps.fixture.outputs.dir }}
@@ -464,7 +468,7 @@ jobs:
 
       - name: sbom
         id: sbom
-        uses: ./sbom
+        uses: $/sbom
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           path: ${{ steps.fixture.outputs.dir }}
@@ -475,7 +479,7 @@ jobs:
       # which the Platform IaC rule skips; ai-firewall.yaml is a well-known file.
       - name: config-plan, validating offline
         id: config
-        uses: ./config-plan
+        uses: $/config-plan
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           config-path: |

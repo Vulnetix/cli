@@ -133,6 +133,11 @@ func (c *GitHubClient) CheckAuth(ctx context.Context) (string, error) {
 	}
 	_, err := c.Do(ctx, http.MethodGet, "/user", &user)
 	if err != nil {
+		// A workflow's token authenticates but belongs to no user, and GET /user
+		// refuses it. The token is fine: what it can read is decided per request.
+		if strings.Contains(err.Error(), "Resource not accessible by integration") {
+			return "github-actions", nil
+		}
 		return "", fmt.Errorf("authentication failed: %w", err)
 	}
 	return user.Login, nil

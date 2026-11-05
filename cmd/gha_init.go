@@ -27,6 +27,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 3
+    # One pull request for a batch of bumps, since each must re-run gh actions-lock.
+    groups:
+      actions:
+        patterns: ["*"]
 `
 
 var ghaInitCmd = &cobra.Command{

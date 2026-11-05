@@ -120,6 +120,16 @@ func (s *ghaSubmitter) publishFile(artifactName, path string) ghaFileResult {
 // publishSARIF validates, decomposes and posts a SARIF document to the
 // third-party route for its inferred category.
 func (s *ghaSubmitter) publishSARIF(res ghaFileResult, artifactName string, data []byte) ghaFileResult {
+	// Checked before validation: the result cap applies to what gets posted, and
+	// a report this CLI wrote is never posted here, however large.
+	if tool := sarifDriver(data); isVulnetixOwnTool(tool) {
+		res.Tool = tool
+		res.Status = "skipped"
+		res.Reason = "produced by Vulnetix's own scanner; already published by the scan itself"
+		s.logf("  %s/%s skipped: %s", artifactName, res.File, res.Reason)
+		return res
+	}
+
 	log, report := sarif.ValidateBytes(data, ghaMaxResults)
 	if text := report.String(); text != "" {
 		for _, line := range strings.Split(text, "\n") {
@@ -822,4 +832,21 @@ func orUnknown(s string) string {
 		return "unknown"
 	}
 	return s
+}
+
+// sarifDriver reads the first run's tool name without parsing the results.
+func sarifDriver(data []byte) string {
+	var doc struct {
+		Runs []struct {
+			Tool struct {
+				Driver struct {
+					Name string `json:"name"`
+				} `json:"driver"`
+			} `json:"tool"`
+		} `json:"runs"`
+	}
+	if json.Unmarshal(data, &doc) != nil || len(doc.Runs) == 0 {
+		return ""
+	}
+	return doc.Runs[0].Tool.Driver.Name
 }

@@ -453,3 +453,14 @@ func TestSplitSPDXCreator(t *testing.T) {
 		}
 	}
 }
+
+// A scan's own SARIF is skipped whatever its size: the 50,000-result cap is
+// about what gets posted, and this file is never posted.
+func TestSarifDriverReadsTheFirstRun(t *testing.T) {
+	if got := sarifDriver([]byte(`{"runs":[{"tool":{"driver":{"name":"vulnetix"}},"results":[]}]}`)); got != "vulnetix" {
+		t.Errorf("driver = %q", got)
+	}
+	if got := sarifDriver([]byte(`not json`)); got != "" {
+		t.Errorf("driver = %q", got)
+	}
+}
