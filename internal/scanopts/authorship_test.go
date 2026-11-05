@@ -150,8 +150,12 @@ func TestAuthoringInputsLoadOverlays(t *testing.T) {
 	dir := t.TempDir()
 	one := filepath.Join(dir, "one.json")
 	two := filepath.Join(dir, "two.json")
-	os.WriteFile(one, []byte(`{"metadata":{"supplier":{"name":"One"}}}`), 0o644)
-	os.WriteFile(two, []byte(`{"metadata":{"supplier":{"name":"Two"}}}`), 0o644)
+	if err := os.WriteFile(one, []byte(`{"metadata":{"supplier":{"name":"One"}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(two, []byte(`{"metadata":{"supplier":{"name":"Two"}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	in, err := AuthoringInputsFromCommand(authoringCmd(t, "--bom-overlay", one, "--bom-overlay", two))
 	if err != nil {
 		t.Fatal(err)
