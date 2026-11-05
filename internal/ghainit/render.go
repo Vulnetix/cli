@@ -85,7 +85,9 @@ func Render(p *Policy, sig *Signals, opt Options) string {
 	}
 	var jobs []job
 	if on(p.Secrets) {
-		jobs = append(jobs, r.scanJob("secrets", "Secrets", "secrets", "secrets", nil, ""))
+		// Binaries and git history are slow and belong to a scheduled deep scan.
+		jobs = append(jobs, r.scanJob("secrets", "Secrets", "secrets", "secrets",
+			[][2]string{{"extra-args", "--ignore-binaries\n--ignore-git"}}, ""))
 	}
 	jobs = append(jobs, r.scoped("sast", "SAST", p.SAST, sig.Languages, "language", "not-language")...)
 	jobs = append(jobs, r.scoped("sca", "SCA", p.SCA, sig.Managers, "package-manager", "not-package-manager")...)
@@ -103,7 +105,14 @@ func Render(p *Policy, sig *Signals, opt Options) string {
 		id, name string
 	}{{p.Malscan, "malscan", "Malscan"}, {p.CBOM, "cbom", "CBOM"}, {p.AIBOM, "aibom", "AIBOM"}, {p.Analyze, "analyze", "Analyze"}} {
 		if s.on {
-			jobs = append(jobs, r.plainJob(s.id, s.name, s.id))
+			j := r.plainJob(s.id, s.name, s.id)
+			switch s.id {
+			case "analyze": // it reads history: contributors, ownership, bus factor
+				j.fullHistory = true
+			case "aibom": // a commit scan is slow and this runs on every push
+				j.steps[0].with = append(j.steps[0].with, [2]string{"extra-args", "--commit-scan-max\n1"})
+			}
+			jobs = append(jobs, j)
 		}
 	}
 	if on(p.SBOM) && len(sig.Managers) > 0 {
@@ -139,7 +148,7 @@ func (r *renderer) scoped(kind, title string, sel Selection, found []string, onl
 		}
 		j := r.scanJob(kind+"-"+n, title+" "+n, kind+"/"+n, kind, nil, "")
 		if rest != "" {
-			j.steps = append(j.steps, r.scanStep(kind, kind, [][2]string{{not, rest}}, ""))
+			j.steps = append(j.steps, r.scanStep(kind, kind, [][2]string{{not, rest}}, kind+"-"+n+"-rest"))
 		}
 		out = append(out, j)
 	}
@@ -150,6 +159,9 @@ func (r *renderer) scanStep(action, gate string, with [][2]string, artifact stri
 	s := step{uses: "Vulnetix/cli/" + action + "@" + r.ref}
 	s.with = append(s.with, [2]string{"org-id", "${{ secrets.VULNETIX_ORG_ID }}"}, [2]string{"api-key", "${{ secrets.VULNETIX_API_KEY }}"})
 	s.with = append(s.with, with...)
+	if artifact != "" {
+		s.with = append(s.with, [2]string{"artifact-name", artifact})
+	}
 	if g := r.p.Gates[gate]; g != "" {
 		s.with = append(s.with, [2]string{"fail-on", g}, [2]string{"fail-on-findings", "true"})
 	} else {
@@ -169,7 +181,7 @@ func (r *renderer) scanStep(action, gate string, with [][2]string, artifact stri
 }
 
 func (r *renderer) scanJob(id, name, action, gate string, with [][2]string, _ string) job {
-	j := job{id: id, name: name, steps: []step{r.scanStep(action, gate, with, "")}}
+	j := job{id: id, name: name, steps: []step{r.scanStep(action, gate, with, id)}}
 	if r.p.Publish {
 		j.perms = map[string]string{"security-events": "write"}
 	}
