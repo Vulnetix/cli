@@ -45,6 +45,9 @@ type EvalOptions struct {
 	MaxDepth int
 	Excludes []string
 
+	// Scope narrows the run to the files of some languages (sast --language).
+	Scope LanguageScope
+
 	// IgnoreGit, IgnoreGlobs, IgnoreBinaries, GitHistory, etc. are
 	// forwarded to BuildScanInputWithOptions / LoadFileContentsWithOptions
 	// so the secrets subcommand can enable binary and history scanning
@@ -156,7 +159,7 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	// VULNETIX_SAST_NO_LANG_FILTER for debugging or exhaustive runs.
 	modules := e.modules
 	if os.Getenv("VULNETIX_SAST_NO_LANG_FILTER") == "" {
-		modules = filterModulesByLanguage(e.modules, scanInput.FileSet)
+		modules = filterModulesByLanguage(e.modules, opts.Scope.files(scanInput.FileSet))
 	}
 
 	// Check if any surviving rule references input.file_contents; if so, load them.
@@ -193,6 +196,7 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 				MergeGitHistoryEntries(scanInput, entries)
 			}
 		}
+		opts.Scope.narrowContents(scanInput)
 	}
 
 	// Partition shared modules (helpers) from independent rule packages and
@@ -307,6 +311,7 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 		allFindings = append(allFindings, rep.Findings...)
 	}
 	allFindings = append(allFindings, cache.finish(units, reports, allRules)...)
+	allFindings = opts.Scope.narrow(allFindings)
 	// Deterministic order across shards/runs (the single-eval path was already
 	// map-order, so callers must not depend on order; this just makes it stable).
 	sortFindings(allFindings)

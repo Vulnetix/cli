@@ -207,7 +207,7 @@ func runCodeScanningPublish(ctx context.Context, o codeScanningPublishOptions, w
 		if dropped := sast.PrepareForGitHub(l, o.Root); dropped > 0 {
 			fmt.Fprintf(w, "  code scanning %s: kept the %d most severe results, dropped %d (GitHub's per-run limit)\n", k, sast.MaxGitHubResultsPerRun, dropped)
 		}
-		path := filepath.Join(o.OutDir, k+".sarif")
+		path := filepath.Join(o.OutDir, strings.ReplaceAll(k, "/", "-")+".sarif")
 		if err := sast.WriteSARIF(l, path); err != nil {
 			fmt.Fprintf(w, "  warning: could not write %s: %v\n", path, err)
 		}
@@ -328,20 +328,34 @@ func publishScanToGitHub(ctx context.Context, opts pipeline.Options, root string
 		if sastReport != nil {
 			l := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
 			l.AddExecutionNotifications(sastReport.Degradations)
+			if opts.ScopeSlug != "" {
+				sast.SetCategory(l, sast.ScopedKind("sast", opts.ScopeSlug))
+			}
 			logs = append(logs, l)
 		}
-		if l, err := sast.LoadExistingSARIF(filepath.Join(root, ".vulnetix", "sca.sarif")); err == nil && l != nil && hasKind(kinds, "sca") {
+		if l, err := sast.LoadExistingSARIF(filepath.Join(root, ".vulnetix", scopedArtifact("sca", opts.ScopeSlug, "sarif"))); err == nil && l != nil && hasKind(kinds, "sca") {
 			logs = append(logs, l)
+		}
+		ensure := kinds
+		if opts.ScopeSlug != "" {
+			ensure = make([]string, len(kinds))
+			for i, k := range kinds {
+				ensure[i] = sast.ScopedKind(k, opts.ScopeSlug)
+			}
 		}
 		if err := runCodeScanningPublish(ctx, codeScanningPublishOptions{
-			Root: root, Logs: logs, EnsureKinds: kinds, Wait: 2 * time.Minute, DryRun: opts.GitHubPublishDryRun,
+			Root: root, Logs: logs, EnsureKinds: ensure, Wait: 2 * time.Minute, DryRun: opts.GitHubPublishDryRun,
 		}, w); err != nil {
 			fmt.Fprintf(w, "  warning: GitHub code scanning: %v\n", err)
 		}
 	}
 	if hasPublishTarget(opts.GitHubPublish, publishDependencyList) {
 		sbom := filepath.Join(root, ".vulnetix", "sbom.cdx.json")
-		if _, err := os.Stat(sbom); err != nil {
+		if opts.ScopeSlug != "" {
+			// A snapshot replaces the job's last one, and a leg sees only part of
+			// the dependencies; the whole-repository sbom job submits instead.
+			fmt.Fprintln(w, "  GitHub dependency graph: skipped, a scoped scan is not the whole dependency list")
+		} else if _, err := os.Stat(sbom); err != nil {
 			fmt.Fprintln(w, "  warning: GitHub dependency graph: no SBOM was written by this scan")
 		} else if err := runDependencyGraphPublish(ctx, dependencyGraphPublishOptions{Root: root, SBOM: sbom, DryRun: opts.GitHubPublishDryRun}, w); err != nil {
 			fmt.Fprintf(w, "  warning: GitHub %v\n", err)

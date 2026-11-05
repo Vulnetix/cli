@@ -1462,7 +1462,7 @@ func buildCliEnv(gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo) vdb.CliE
 		}
 	}
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
-		ToolName:    "Vulnetix SCA",
+		ToolName:    scopedToolName("Vulnetix SCA", scanScopeSlug),
 		ToolVersion: version,
 		ToolVendor:  "Vulnetix",
 		ToolHash:    commit,

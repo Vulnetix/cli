@@ -144,7 +144,7 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 	// Make the per-kind tool intent explicit (server is authoritative, but this
 	// keeps the env block self-describing): "Vulnetix SAST", "Vulnetix IaC", etc.
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
-		ToolName:    "Vulnetix " + sk.label,
+		ToolName:    scopedToolName("Vulnetix "+sk.label, scanScopeSlug),
 		ToolVersion: version,
 		ToolVendor:  "Vulnetix",
 		ToolHash:    commit,

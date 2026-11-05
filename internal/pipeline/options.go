@@ -160,6 +160,12 @@ type Options struct {
 	// GitHubPublishDryRun writes the per-kind SARIF and prints the snapshot but
 	// submits nothing (--github-publish-dry-run).
 	GitHubPublishDryRun bool
+	// LanguageScope narrows a sast run to some languages' files, ManagerScope an
+	// sca run to some package managers' manifests. ScopeSlug names the leg in its
+	// artifacts, code scanning category and tool name; empty on a full scan.
+	LanguageScope sast.LanguageScope
+	ManagerScope  scan.ManagerScope
+	ScopeSlug     string
 
 	// Reachability selects the tree-sitter reachability mode applied to the
 	// CVEs the SCA pass produces: "direct" scans only each vulnerable
