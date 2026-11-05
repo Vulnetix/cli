@@ -96,6 +96,15 @@ func TestPublishAndTEAFollowTheLegs(t *testing.T) {
 	}
 }
 
+func TestSetupExtraTakesNoInputs(t *testing.T) {
+	p := DefaultPolicy()
+	p.Extras = []Extra{{Action: "setup", Then: []string{"vulnetix version"}}}
+	out := Render(p, &Signals{}, Options{})
+	if !strings.Contains(out, "Vulnetix/cli/setup@v4") || strings.Contains(out, "setup@v4\n        with:") || !strings.Contains(out, "- run: vulnetix version") {
+		t.Errorf("setup must render bare:\n%s", out)
+	}
+}
+
 func TestExtrasRenderTheirInputs(t *testing.T) {
 	p := DefaultPolicy()
 	p.Extras = []Extra{{Action: "bom-validate", Run: []string{"echo hi"}, With: map[string]string{"file": "x.cdx.json"}, Permissions: map[string]string{"issues": "read"}}}

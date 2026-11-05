@@ -278,10 +278,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: Vulnetix/cli/setup@v4.23.2
-        with:
-          org-id: ${{ secrets.VULNETIX_ORG_ID }}
-          api-key: ${{ secrets.VULNETIX_API_KEY }}
-          fail-on-findings: false
       - run: vulnetix license policy init --no-banner
       - uses: Vulnetix/cli/license-policy-validate@v4.23.2
         with:
@@ -296,10 +292,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: Vulnetix/cli/setup@v4.23.2
-        with:
-          org-id: ${{ secrets.VULNETIX_ORG_ID }}
-          api-key: ${{ secrets.VULNETIX_API_KEY }}
-          fail-on-findings: false
       - run: vulnetix license exceptions add --no-banner --license MPL-2.0 --reason dogfood --approver security@vulnetix.com --expires 2030-01-01
       - uses: Vulnetix/cli/license-exceptions-check@v4.23.2
         with:
@@ -365,6 +357,16 @@ jobs:
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
 
+  setup:
+    name: setup
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["self-hosted","Linux","X64","vulnetix-local"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Vulnetix/cli/setup@v4.23.2
+      - run: vulnetix version --no-banner
+      - run: vulnetix auth verify --no-banner || true
+
   upload:
     name: upload
     runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["self-hosted","Linux","X64","vulnetix-local"]') }}
@@ -403,7 +405,7 @@ jobs:
     name: Publish
     runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["self-hosted","Linux","X64","vulnetix-local"]') }}
     if: ${{ !cancelled() }}
-    needs: [secrets, sast, sca-go, iac, containers, license, cbom, aibom, analyze, sbom, gha-status, github-advisories, bom-validate, license-policy-validate, license-exceptions-check, ai-firewall-apply, image, vex, jail, upload, config-plan]
+    needs: [secrets, sast, sca-go, iac, containers, license, cbom, aibom, analyze, sbom, gha-status, github-advisories, bom-validate, license-policy-validate, license-exceptions-check, ai-firewall-apply, image, vex, jail, setup, upload, config-plan]
     permissions:
       contents: read
       actions: read

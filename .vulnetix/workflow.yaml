@@ -82,6 +82,11 @@ extras:
       vex-command: validate
       extra-args: "--vex\ntestdata/action-fixture/fixture.openvex.json"
   - action: jail
+  - action: setup
+    id: setup
+    then:
+      - "vulnetix version --no-banner"
+      - "vulnetix auth verify --no-banner || true"
   - action: upload
     prior:
       - sbom
