@@ -49,17 +49,18 @@ _should_skip(path) if endswith(path, ".min.json")
 # CVSS base scores are mapped inline in rules
 
 # Generate standardized finding
-generate_finding(severity, level, rule_id, message, artifact_uri, start_line, snippet) = finding if {
-  finding := {
-    "rule_id": rule_id,
-    "message": message,
-    "artifact_uri": artifact_uri,
-    "severity": severity,
-    "level": level,
-    "start_line": start_line,
-    "snippet": snippet,
-  }
+generate_finding(severity, level, rule_id, message, artifact_uri, start_line, snippet) := finding if {
+	finding := {
+		"rule_id": rule_id,
+		"message": message,
+		"artifact_uri": artifact_uri,
+		"severity": severity,
+		"level": level,
+		"start_line": start_line,
+		"snippet": snippet,
+	}
 }
+
 # ── Comment awareness ────────────────────────────────────────────────────
 # Line-oriented rules that gate on "the mitigation is not mentioned nearby"
 # were suppressed by prose: a `// TODO: add ValidateAntiForgeryToken` comment
@@ -218,7 +219,6 @@ tainted_names(lines, i, before, source_re) := {v |
 	regex.match(source_re, prev)
 	v := assigned_first(prev)
 }
-
 
 # ── Index ranges ──────────────────────────────────────────────────────────
 # numbers.range(a, b) counts DOWN when a > b: numbers.range(5, 4) is [5, 4],
