@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v4/internal/artifacts"
 	"github.com/vulnetix/cli/v4/internal/attest"
 	"github.com/vulnetix/cli/v4/internal/bom"
 	"github.com/vulnetix/cli/v4/internal/cdx"
@@ -179,7 +180,7 @@ func writeNormalisedBOM(doc *bom.Document, path string) error {
 			return err
 		}
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o644)
+	return artifacts.WriteFile(path, append(data, '\n'), 0o644, "report")
 }
 
 func runBOMImportCmd(cmd *cobra.Command, args []string) error {
@@ -704,7 +705,7 @@ func runBOMMerge(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		}
-		if err := os.WriteFile(outPath, append(data, '\n'), 0o644); err != nil {
+		if err := artifacts.WriteFile(outPath, append(data, '\n'), 0o644, "cyclonedx"); err != nil {
 			return err
 		}
 	}

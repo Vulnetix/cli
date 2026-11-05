@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/vulnetix/cli/v4/internal/artifacts"
 	"github.com/vulnetix/cli/v4/internal/gitctx"
 	"github.com/vulnetix/cli/v4/internal/platformiac"
 )
@@ -708,7 +709,7 @@ which converts YAML to HCL or a script without applying anything.`,
 					return err
 				}
 			}
-			if err := os.WriteFile(outFile, body, 0o644); err != nil {
+			if err := artifacts.WriteFile(outFile, body, 0o644, "report"); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.ErrOrStderr(), "wrote %s\n", outFile)

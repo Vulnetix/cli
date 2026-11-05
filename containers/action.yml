@@ -9,9 +9,8 @@ branding:
 
 inputs:
   version:
-    description: 'Release of the Vulnetix CLI to install: an exact tag (v4.0.0), a major channel (v4, the newest v4 release) or latest'
+    description: 'Release of the Vulnetix CLI to install. Empty installs the release this action ref was cut from, which is what a lock file or a SHA pin expects. An exact tag (v4.0.0), a major channel (v4) or latest float instead'
     required: false
-    default: 'v4'
   binary-path:
     description: 'Path to an already-built vulnetix binary to use instead of downloading a release'
     required: false
@@ -34,6 +33,9 @@ inputs:
     default: '.'
   args:
     description: 'Extra arguments for the command, separated by spaces or newlines (no shell quoting is applied)'
+    required: false
+  extra-args:
+    description: 'Extra arguments, one per line, so a value may contain spaces'
     required: false
   artifact-name:
     description: 'Upload every file the command wrote as a workflow artifact with this name'
@@ -59,6 +61,15 @@ inputs:
     required: false
   vex:
     description: 'VEX documents to apply before the gates, one path, directory or https URL per line (passed as --vex). VexSource documents under .vulnetix/config apply too'
+    required: false
+  fail-on:
+    description: 'Exit 1 when any of these hold, one per line or comma-separated: low, medium, high, critical, kev, malware, unpinned, exploit=poc and the rest of --fail-on'
+    required: false
+  exclude:
+    description: 'Paths to skip, one glob per line (passed as --exclude)'
+    required: false
+  rules:
+    description: 'External rule repositories in org/repo form, one per line (passed as --rule)'
     required: false
 
 outputs:
@@ -111,8 +122,12 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         VX_PATH: ${{ inputs.path }}
         VX_ARGS: ${{ inputs.args }}
+        VX_EXTRA_ARGS: ${{ inputs.extra-args }}
         VX_CODE_SCANNING: ${{ inputs.github-code-scanning }}
         VX_IN_VEX: ${{ inputs.vex }}
+        VX_IN_FAIL_ON: ${{ inputs.fail-on }}
+        VX_IN_EXCLUDE: ${{ inputs.exclude }}
+        VX_IN_RULES: ${{ inputs.rules }}
       run: bash "$GITHUB_ACTION_PATH/../action-lib/run.sh"
 
     - name: Upload the written files as an artifact

@@ -9,9 +9,8 @@ branding:
 
 inputs:
   version:
-    description: 'Release of the Vulnetix CLI to install: an exact tag (v4.0.0), a major channel (v4, the newest v4 release) or latest'
+    description: 'Release of the Vulnetix CLI to install. Empty installs the release this action ref was cut from, which is what a lock file or a SHA pin expects. An exact tag (v4.0.0), a major channel (v4) or latest float instead'
     required: false
-    default: 'v4'
   binary-path:
     description: 'Path to an already-built vulnetix binary to use instead of downloading a release'
     required: false

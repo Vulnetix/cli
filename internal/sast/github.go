@@ -133,7 +133,7 @@ func SplitByKind(log *SARIFLog) map[string]*SARIFLog {
 		for _, r := range run.Results {
 			k := runKind
 			// A result's kind says what it is; a scoped run keeps its category.
-			if rk, ok := r.Properties["vulnetix/kind"].(string); ok && rk != "" && !strings.HasPrefix(runKind, CategoryKind(rk)+"/") {
+			if rk, ok := r.Properties["vulnetix/kind"].(string); ok && rk != "" && !strings.Contains(runKind, "/") {
 				k = CategoryKind(rk)
 			}
 			if _, ok := byKind[k]; !ok {

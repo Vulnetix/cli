@@ -9,9 +9,8 @@ branding:
 
 inputs:
   version:
-    description: 'Release of the Vulnetix CLI to install: an exact tag (v4.0.0), a major channel (v4, the newest v4 release) or latest'
+    description: 'Release of the Vulnetix CLI to install. Empty installs the release this action ref was cut from, which is what a lock file or a SHA pin expects. An exact tag (v4.0.0), a major channel (v4) or latest float instead'
     required: false
-    default: 'v4'
   binary-path:
     description: 'Path to an already-built vulnetix binary to use instead of downloading a release'
     required: false
@@ -34,6 +33,9 @@ inputs:
     default: '.'
   args:
     description: 'Extra arguments for the command, separated by spaces or newlines (no shell quoting is applied)'
+    required: false
+  extra-args:
+    description: 'Extra arguments, one per line, so a value may contain spaces'
     required: false
   artifact-name:
     description: 'Upload every file the command wrote as a workflow artifact with this name'
@@ -130,6 +132,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         VX_PATH: ${{ inputs.path }}
         VX_ARGS: ${{ inputs.args }}
+        VX_EXTRA_ARGS: ${{ inputs.extra-args }}
         VX_IN_SIGN: ${{ inputs.sign }}
         VX_IN_BOM_MANUFACTURER: ${{ inputs.bom-manufacturer }}
         VX_IN_BOM_AUTHOR: ${{ inputs.bom-author }}

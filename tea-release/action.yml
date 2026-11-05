@@ -9,9 +9,8 @@ branding:
 
 inputs:
   version:
-    description: 'Release of the Vulnetix CLI to install: an exact tag (v4.0.0), a major channel (v4, the newest v4 release) or latest'
+    description: 'Release of the Vulnetix CLI to install. Empty installs the release this action ref was cut from, which is what a lock file or a SHA pin expects. An exact tag (v4.0.0), a major channel (v4) or latest float instead'
     required: false
-    default: 'v4'
   binary-path:
     description: 'Path to an already-built vulnetix binary to use instead of downloading a release'
     required: false
@@ -30,6 +29,9 @@ inputs:
     required: false
   args:
     description: 'Extra arguments for the command, separated by spaces or newlines (no shell quoting is applied)'
+    required: false
+  extra-args:
+    description: 'Extra arguments, one per line, so a value may contain spaces'
     required: false
   artifact-name:
     description: 'Upload every file the command wrote as a workflow artifact with this name'
@@ -73,6 +75,16 @@ inputs:
     required: false
   tea-dry-run:
     description: 'Print what would be published and exit: true or false'
+    required: false
+    default: 'false'
+  tea-channels:
+    description: 'Install channels with no single file to fetch, as name=...,url=...,purl=..., one per line (passed as --channel)'
+    required: false
+  tea-auto-version:
+    description: 'Outside a tag run, derive the version: git describe'
+    required: false
+  tea-checksums-from-release:
+    description: 'On a tag run, take the checksums from the GitHub release: true or false'
     required: false
     default: 'false'
 
@@ -125,6 +137,7 @@ runs:
         VULNETIX_API_TOKEN: ${{ inputs.api-token }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
         VX_ARGS: ${{ inputs.args }}
+        VX_EXTRA_ARGS: ${{ inputs.extra-args }}
         VX_IN_TEA_FILES: ${{ inputs.tea-files }}
         VX_IN_TEA_PRODUCT: ${{ inputs.tea-product }}
         VX_IN_TEA_PURL: ${{ inputs.tea-purl }}
@@ -133,6 +146,9 @@ runs:
         VX_IN_TEA_PRE_RELEASE: ${{ inputs.tea-pre-release }}
         VX_IN_TEA_VISIBILITY: ${{ inputs.tea-visibility }}
         VX_IN_TEA_DRY_RUN: ${{ inputs.tea-dry-run }}
+        VX_IN_TEA_CHANNELS: ${{ inputs.tea-channels }}
+        VX_IN_TEA_AUTO_VERSION: ${{ inputs.tea-auto-version }}
+        VX_IN_TEA_CHECKSUMS_FROM_RELEASE: ${{ inputs.tea-checksums-from-release }}
       run: bash "$GITHUB_ACTION_PATH/../action-lib/run.sh"
 
     - name: Upload the written files as an artifact
