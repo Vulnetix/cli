@@ -172,6 +172,9 @@ func configInputs(plan bool) []input {
 		{Name: "config-manager", Desc: "Manager the documents are declared by (default: gitops:<owner/repo> of this repository)"},
 		{Name: "config-prune", Desc: "Delete objects this manager owns that the documents no longer declare: true or false", Default: "false"},
 	}
+	if !plan {
+		in = append(in, input{Name: "config-plan-hash", Desc: "Apply only if the plan still has this hash (passed as --plan-hash), the planHash a reviewed config-plan printed. A run whose plan has changed since is refused and writes nothing, so a scheduled or on-push apply can only repeat the plan that was reviewed", Default: ""})
+	}
 	if plan {
 		in = append(in, input{Name: "validate-only", Desc: "Validate the documents offline (vulnetix config validate) instead of planning: true or false", Default: "false"})
 	}

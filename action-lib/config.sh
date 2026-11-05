@@ -40,6 +40,7 @@ fi
 
 if [ -n "${VX_IN_CONFIG_MANAGER:-}" ]; then cfg+=(--manager "$VX_IN_CONFIG_MANAGER"); fi
 if [ "${VX_IN_CONFIG_PRUNE:-}" = "true" ]; then cfg+=(--prune); fi
+if [ "$task" = "config-apply" ] && [ -n "${VX_IN_CONFIG_PLAN_HASH:-}" ]; then cfg+=(--plan-hash "$VX_IN_CONFIG_PLAN_HASH"); fi
 
 if [ "$task" = "config-apply" ]; then
   vulnetix config apply --auto-approve "${cfg[@]}" | tee "$tmp/vulnetix-apply.txt"
