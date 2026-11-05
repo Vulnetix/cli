@@ -155,10 +155,11 @@ func (r *renderer) scanStep(action, gate string, with [][2]string, artifact stri
 	} else {
 		s.with = append(s.with, [2]string{"fail-on-findings", "false"})
 	}
-	if rules := r.p.Rules[gate]; len(rules) > 0 {
-		s.with = append(s.with, [2]string{"rules", strings.Join(rules, "\n")})
+	rules := append([]string{}, r.p.Rules[gate]...)
+	if action != gate {
+		rules = append(rules, r.p.Rules[action]...)
 	}
-	if rules := r.p.Rules[action]; action != gate && len(rules) > 0 {
+	if len(rules) > 0 {
 		s.with = append(s.with, [2]string{"rules", strings.Join(rules, "\n")})
 	}
 	if r.p.Publish {
