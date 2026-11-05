@@ -419,15 +419,15 @@ jobs:
             git merge-base --is-ancestor "$base" "$VERSION" || {
               echo "::error::$VERSION does not descend from $MAJOR's last release"; exit 1; }
           fi
+          # What the tag pointed at when this job looked, before it is moved.
+          seen=$(git rev-parse -q --verify "refs/tags/$MAJOR" || true)
           git tag -f "$MAJOR" "$VERSION"
-          # The job token is a GitHub App token without the workflows
-          # permission. GitHub refuses it a tag move across commits that change
-          # .github/workflows (v3 to v3.162.0 on 2026-11-02), but lets it create
-          # a tag on a commit main already has, which is how auto-version tags
-          # every release. So when the move is refused, delete and recreate.
-          if ! git push origin -f "refs/tags/$MAJOR"; then
-            echo "the move was refused; recreating $MAJOR"
-            git push origin ":refs/tags/$MAJOR"
+          # A lease on what this job saw: if another release moved the tag in
+          # between, this push fails rather than moving it backwards. A refusal
+          # also fails the job and leaves the tag where it was, never absent.
+          if [ -n "$seen" ]; then
+            git push origin "--force-with-lease=refs/tags/$MAJOR:$seen" "refs/tags/$MAJOR"
+          else
             git push origin "refs/tags/$MAJOR"
           fi
           echo "$MAJOR -> $VERSION"
@@ -491,7 +491,9 @@ jobs:
           vulnetix version --short || echo "Version command failed"
 
   update-packages:
-    needs: release
+    # After the canary: a release that cannot install must not reach Homebrew,
+    # Scoop or the flake.
+    needs: [release, canary]
     # An older release finishing after a newer one must not roll Homebrew,
     # Scoop and the flake back to it.
     if: needs.release.outputs.newest == 'true'

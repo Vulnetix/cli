@@ -106,7 +106,10 @@ jobs:
       - name: Trigger release workflow
         if: steps.bump.outputs.skip != 'true'
         run: |
+          # At the tag, so the release builds the stamped commit and not whatever
+          # main has become since the tag was cut.
           gh workflow run release.yml \
+            --ref "${{ steps.bump.outputs.new_version }}" \
             --field version=${{ steps.bump.outputs.new_version }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

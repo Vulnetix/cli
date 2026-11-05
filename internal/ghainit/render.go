@@ -1,6 +1,7 @@
 package ghainit
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -34,6 +35,7 @@ type renderer struct {
 }
 
 type step struct {
+	always bool // runs even when an earlier step failed
 	uses   string
 	with   [][2]string
 	run    string
@@ -53,7 +55,7 @@ type job struct {
 
 // Legs resolves a selection against what was detected: the granular names, or
 // nil when the high-level scanner applies.
-func legs(sel Selection, found []string) (names []string, high, none bool) {
+func legs(sel Selection, found []string, emptyHigh bool) (names []string, high, none bool) {
 	switch {
 	case len(sel.Names) > 0:
 		return sel.Names, false, false
@@ -63,7 +65,10 @@ func legs(sel Selection, found []string) (names []string, high, none bool) {
 		return nil, true, false
 	}
 	if len(found) == 0 {
-		return nil, false, true
+		// Below the threshold everywhere, source can still be there, and the
+		// high-level scanner reads all of it. sca has nothing to scan without a
+		// manifest.
+		return nil, emptyHigh, !emptyHigh
 	}
 	if len(found) > granularLimit {
 		return nil, true, false
@@ -81,7 +86,8 @@ func Render(p *Policy, sig *Signals, opt Options) string {
 		r.co = "v7"
 	}
 	if p.Triggers == TriggerBelai {
-		r.guard = "github.event_name != 'pull_request' || startsWith(github.head_ref, 'belai/')"
+		// A fork's branch can be named belai/x too, so the head repository is checked.
+		r.guard = "github.event_name != 'pull_request' || (startsWith(github.head_ref, 'belai/') && github.event.pull_request.head.repo.full_name == github.repository)"
 	}
 	var jobs []job
 	if on(p.Secrets) {
@@ -132,12 +138,20 @@ func Render(p *Policy, sig *Signals, opt Options) string {
 }
 
 func (r *renderer) scoped(kind, title string, sel Selection, found []string, only, not string) []job {
-	names, high, none := legs(sel, found)
+	names, high, none := legs(sel, found, kind == "sast")
 	if none {
 		return nil
 	}
 	if high {
-		return []job{r.scanJob(kind, title, kind, kind, nil, "")}
+		j := r.scanJob(kind, title, kind, kind, nil, "")
+		if kind == "sca" { // the whole-repository SBOM job owns the artifact name sca
+			for i, kv := range j.steps[0].with {
+				if kv[0] == "artifact-name" {
+					j.steps[0].with[i][1] = "sca-scan"
+				}
+			}
+		}
+		return []job{j}
 	}
 	var out []job
 	for i, n := range names {
@@ -149,7 +163,10 @@ func (r *renderer) scoped(kind, title string, sel Selection, found []string, onl
 		}
 		j := r.scanJob(kind+"-"+n, title+" "+n, kind+"/"+n, kind, nil, "")
 		if rest != "" {
-			j.steps = append(j.steps, r.scanStep(kind, kind, [][2]string{{not, rest}}, kind+"-"+n+"-rest"))
+			// Always: a gate failing the first step must not hide what the rest covers.
+			st := r.scanStep(kind, kind, [][2]string{{not, rest}}, kind+"-"+n+"-rest")
+			st.always = true
+			j.steps = append(j.steps, st)
 		}
 		out = append(out, j)
 	}
@@ -349,10 +366,13 @@ func (r *renderer) write(jobs []job) string {
 		}
 		for _, s := range j.steps {
 			if s.run != "" {
-				fmt.Fprintf(&b, "      - run: %s\n", s.run)
+				fmt.Fprintf(&b, "      - run: %s\n", yamlValue(s.run))
 				continue
 			}
 			fmt.Fprintf(&b, "      - uses: %s\n", s.uses)
+			if s.always {
+				b.WriteString("        if: ${{ !cancelled() }}\n")
+			}
 			if s.noFail {
 				b.WriteString("        continue-on-error: true\n")
 			}
@@ -367,7 +387,7 @@ func (r *renderer) write(jobs []job) string {
 					}
 					continue
 				}
-				fmt.Fprintf(&b, "          %s: %s\n", kv[0], kv[1])
+				fmt.Fprintf(&b, "          %s: %s\n", kv[0], yamlValue(kv[1]))
 			}
 		}
 	}
@@ -385,4 +405,24 @@ func (r *renderer) runsOn() string {
 		return fmt.Sprintf(`${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('%s') }}`, pool)
 	}
 	return fmt.Sprintf("[self-hosted, Linux, X64, %s]", r.p.Runner)
+}
+
+// plainScalar is text YAML reads back as the same string: no leading or
+// trailing space and none of the characters that start a flow, alias, anchor,
+// tag, comment or quote. A colon is fine unless a space follows it.
+var plainScalar = regexp.MustCompile(`^[A-Za-z0-9_./@+,-]([A-Za-z0-9_./@+,: -]*[A-Za-z0-9_./@+,-])?$`)
+
+// yamlValue writes a policy-supplied string as a YAML scalar that means that
+// string: plain when it is safe as one, an expression when it is a single
+// ${{ }}, and double-quoted otherwise, so *.cdx.json, "a: b" and a trailing
+// comment marker survive.
+func yamlValue(s string) string {
+	switch {
+	case plainScalar.MatchString(s) && !strings.Contains(s, ": ") && !strings.Contains(s, " #") && !strings.HasPrefix(s, "- ") && s != "null":
+		return s
+	case strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}") && !strings.ContainsAny(s, "\n\r\"#"):
+		return s
+	}
+	b, _ := json.Marshal(s)
+	return string(b)
 }
