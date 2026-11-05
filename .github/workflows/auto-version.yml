@@ -85,11 +85,21 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "skip=false" >> $GITHUB_OUTPUT
 
-      - name: Create and push tag
+      # The tag sits on a commit above main that names its own binary, so every
+      # action ref resolves to one release. A lock file freezes the action
+      # commit, and this file freezes what that commit installs. The commit
+      # stays off main: it needs no bypass of the branch rules, cannot race
+      # another push, and the tag keeps it reachable.
+      - name: Stamp and tag the release
         if: steps.bump.outputs.skip != 'true'
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
         run: |
-          git tag -a "${{ steps.bump.outputs.new_version }}" -m "Release ${{ steps.bump.outputs.new_version }}"
-          git push origin "${{ steps.bump.outputs.new_version }}"
+          printf '%s\n' "$NEW_VERSION" > action-lib/cli-release
+          git add action-lib/cli-release
+          git commit -m "chore: pin the actions to $NEW_VERSION [skip ci]"
+          git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION"
+          git push origin "refs/tags/$NEW_VERSION"
 
       # Tags pushed by GITHUB_TOKEN don't trigger other workflows,
       # so we explicitly dispatch the release workflow

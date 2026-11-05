@@ -68,6 +68,7 @@ func generate() map[string][]byte {
 	}
 	out["docs/github-actions/README.md"] = []byte(docsIndex())
 	out["action-lib/commands.sh"] = []byte(commandsSh())
+	out[".github/workflows/actions-e2e.yml"] = []byte(e2eWorkflow())
 	return out
 }
 

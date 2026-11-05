@@ -68,7 +68,7 @@ func TestNoExpressionInsideAScript(t *testing.T) {
 // Third-party actions are pinned by commit SHA.
 func TestThirdPartyActionsArePinned(t *testing.T) {
 	sha := regexp.MustCompile(`^[^@]+@[0-9a-f]{40}( #.*)?$`)
-	for _, u := range []string{uploadArtifact, attestBuild, attestSBOM} {
+	for _, u := range []string{uploadArtifact, attestBuild, attestSBOM, cosignInstall} {
 		if !sha.MatchString(u) {
 			t.Errorf("%s is not pinned by SHA", u)
 		}

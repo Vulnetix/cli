@@ -405,7 +405,7 @@ jobs:
           "$bin/shellcheck" -e SC3043 install.sh
           # This workflow uses every action the job runs, so actionlint checks
           # their inputs as well as its own scripts.
-          "$bin/actionlint" -shellcheck "$bin/shellcheck" .github/workflows/test.yml
+          "$bin/actionlint" -shellcheck "$bin/shellcheck" .github/workflows/test.yml .github/workflows/actions-e2e.yml
         shell: bash
 
       - name: Build the CLI

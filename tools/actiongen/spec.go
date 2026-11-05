@@ -1,5 +1,10 @@
 package main
 
+import (
+	_ "embed"
+	"strings"
+)
+
 // The spec table: one entry per subdirectory action. Everything about an
 // action that differs from the others is here; the shape every action shares
 // is in main.go's templates.
@@ -174,10 +179,23 @@ func configInputs(plan bool) []input {
 	return in
 }
 
-// Third-party actions, pinned by commit SHA. Bump deliberately.
-const (
-	uploadArtifact = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2"
-	attestBuild    = "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2"
-	attestSBOM     = "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2"
-	cosignInstall  = "sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2"
+//go:embed pins/action.yml
+var pinsFile string
+
+// Third-party actions, pinned by commit SHA in pins/action.yml, which Dependabot
+// keeps current.
+var (
+	uploadArtifact = pin("actions/upload-artifact")
+	attestBuild    = pin("actions/attest-build-provenance")
+	attestSBOM     = pin("actions/attest")
+	cosignInstall  = pin("sigstore/cosign-installer")
 )
+
+func pin(repo string) string {
+	for _, l := range strings.Split(pinsFile, "\n") {
+		if r, ok := strings.CutPrefix(strings.TrimSpace(l), "- uses: "); ok && strings.HasPrefix(r, repo+"@") {
+			return r
+		}
+	}
+	panic("pins/action.yml has no pin for " + repo)
+}
