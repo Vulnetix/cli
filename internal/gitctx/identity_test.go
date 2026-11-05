@@ -1,6 +1,7 @@
 package gitctx
 
 import (
+	"os"
 	"os/exec"
 	"testing"
 )
@@ -9,6 +10,9 @@ func TestConfigUserReadsRepoConfig(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")
 	}
+	unsetGitEnv(t)
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
 	dir := t.TempDir()
 	run := func(args ...string) {
 		t.Helper()
@@ -36,6 +40,62 @@ func TestConfigUserToleratesNoRepo(t *testing.T) {
 	got := ConfigUser(t.TempDir() + "/missing")
 	if got.Name != "" || got.Email != "" {
 		t.Fatalf("ConfigUser outside a repo = %+v, want empty", got)
+	}
+}
+
+// unsetGitEnv drops the harness's GIT_* overrides (they point at a read-only
+// admin dir where every git write fails) so `git config` reads the repository
+// under test instead. Restored when the test ends.
+func unsetGitEnv(t *testing.T) {
+	t.Helper()
+	for _, k := range []string{"GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES"} {
+		if old, ok := os.LookupEnv(k); ok {
+			if err := os.Unsetenv(k); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { os.Setenv(k, old) })
+		}
+	}
+}
+
+// LocalActor falls back to osActor (user@host) when git config has no email,
+// and the git config email wins when it is set. ConfigUser caches per
+// directory, so every case gets its own directory.
+func TestLocalActorConfigAndFallback(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	unsetGitEnv(t)
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+
+	// Empty config email falls through to osActor's user@host.
+	run := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	noEmail := t.TempDir()
+	run(noEmail, "init", "-q")
+	run(noEmail, "config", "user.name", "Ada Lovelace")
+	info := CollectSystemInfo()
+	want := info.Username
+	if info.Hostname != "" {
+		want += "@" + info.Hostname
+	}
+	if got := LocalActor(noEmail); got != want {
+		t.Errorf("LocalActor without an email = %q, want %q", got, want)
+	}
+
+	// A set email wins over the fallback.
+	withEmail := t.TempDir()
+	run(withEmail, "init", "-q")
+	run(withEmail, "config", "user.name", "Ada Lovelace")
+	run(withEmail, "config", "user.email", "ada@example.com")
+	if got := LocalActor(withEmail); got != "ada@example.com" {
+		t.Errorf("LocalActor with an email = %q, want ada@example.com", got)
 	}
 }
 
