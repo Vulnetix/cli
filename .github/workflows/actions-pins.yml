@@ -19,7 +19,10 @@ jobs:
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 15
     steps:
+      # The stored read-only token would override the push token below.
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@v7
         with:
@@ -30,7 +33,7 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          git fetch --depth 1 origin "refs/pull/$PR_NUMBER/head"
+          git fetch --depth 1 "https://github.com/$GITHUB_REPOSITORY.git" "refs/pull/$PR_NUMBER/head"
           git show FETCH_HEAD:tools/actiongen/pins/action.yml > tools/actiongen/pins/action.yml
 
       - name: Regenerate
