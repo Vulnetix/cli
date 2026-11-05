@@ -738,10 +738,10 @@ jobs:
         run: |
           bad=0
           # A scan exits 1 on findings over a gate, and no gate is set here, so 0
-          # is the only pass. An action without its server exits 1, and proves it
+          # is the only pass. An action without credentials exits 1 or 2, and proves it
           # built its command and reached the CLI.
           expect() { if [ "$2" != 0 ]; then echo "::error::$1 exited $2"; bad=1; fi; }
-          ran() { case "$2" in 0 | 1) ;; *) echo "::error::$1 exited '$2'"; bad=1 ;; esac; }
+          ran() { case "$2" in 0 | 1 | 2) ;; *) echo "::error::$1 exited '$2'"; bad=1 ;; esac; }
           expect sbom "${{ steps.a_sbom.outputs.exit-code }}"
           expect sca "${{ steps.a_sca.outputs.exit-code }}"
           expect sast "${{ steps.a_sast.outputs.exit-code }}"
@@ -815,5 +815,5 @@ jobs:
           ran license-exceptions-check "${{ steps.a_license_exceptions_check.outputs.exit-code }}"
           ran ai-firewall-apply "${{ steps.a_ai_firewall_apply.outputs.exit-code }}"
           ran surface-liveness "${{ steps.a_surface_liveness.outputs.exit-code }}"
-          expect package-firewall "${{ steps.a_package_firewall.outputs.exit-code }}"
+          ran package-firewall "${{ steps.a_package_firewall.outputs.exit-code }}"
           exit "$bad"

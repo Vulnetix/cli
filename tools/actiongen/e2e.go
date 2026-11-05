@@ -56,7 +56,7 @@ var probes = map[string]probe{
 	"license-exceptions-check": {AnyExit: true},
 	"ai-firewall-apply":        {With: map[string]string{"dry-run": "true", "baseline-required": "false"}, AnyExit: true},
 	"surface-liveness":         {AnyExit: true},
-	"package-firewall":         {With: map[string]string{"ecosystem": "npm", "dry-run": "true"}},
+	"package-firewall":         {With: map[string]string{"ecosystem": "npm", "dry-run": "true"}, AnyExit: true},
 }
 
 // e2eWorkflow is .github/workflows/actions-e2e.yml: every action, run from this
@@ -158,10 +158,10 @@ jobs:
         run: |
           bad=0
           # A scan exits 1 on findings over a gate, and no gate is set here, so 0
-          # is the only pass. An action without its server exits 1, and proves it
+          # is the only pass. An action without credentials exits 1 or 2, and proves it
           # built its command and reached the CLI.
           expect() { if [ "$2" != 0 ]; then echo "::error::$1 exited $2"; bad=1; fi; }
-          ran() { case "$2" in 0 | 1) ;; *) echo "::error::$1 exited '$2'"; bad=1 ;; esac; }
+          ran() { case "$2" in 0 | 1 | 2) ;; *) echo "::error::$1 exited '$2'"; bad=1 ;; esac; }
 `)
 	for _, c := range check {
 		b.WriteString(c)
