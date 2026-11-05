@@ -29,14 +29,28 @@ jobs:
           go-version-file: go.mod
 
       # Git, not the API: this repository's workflow token runs out of quota.
-      - name: Take the pins from the pull request, and nothing else
+      - name: Take only what Dependabot changed
+        id: take
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          git fetch --depth 1 "https://github.com/$GITHUB_REPOSITORY.git" "refs/pull/$PR_NUMBER/head"
-          git show FETCH_HEAD:tools/actiongen/pins/action.yml > tools/actiongen/pins/action.yml
+          set -euo pipefail
+          git fetch --depth 20 "https://github.com/$GITHUB_REPOSITORY.git" "refs/pull/$PR_NUMBER/head"
+          # A commit this job pushed has nothing left to do. Pushing it ran this
+          # workflow again, and on one pull request that made 70 runs.
+          if git log -1 --format=%s FETCH_HEAD | grep -q '^chore(actions): regenerate'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          c=$(git log FETCH_HEAD -1 --author=dependabot --format=%H -- tools/actiongen/pins/action.yml)
+          [ -n "$c" ] || { echo "::error::no Dependabot commit changes the pins"; exit 1; }
+          # Its diff, applied to main, not the branch's whole file: a stale branch
+          # still carries the old line of a pin that merged since, and taking the
+          # file would put it back. A diff that no longer applies fails here.
+          git diff "$c~1" "$c" -- tools/actiongen/pins/action.yml | git apply
 
       - name: Regenerate
+        if: steps.take.outputs.skip != 'true'
         env:
           GOPRIVATE: github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
         run: go run ./tools/actiongen -root .
@@ -44,6 +58,7 @@ jobs:
       # A composite's pins are in the lock, so regenerating changes what it must
       # hold, and Dependabot's own relock cannot run here: it cannot read $/ refs.
       - name: Relock
+        if: steps.take.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
         run: |
@@ -51,6 +66,7 @@ jobs:
           gh actions-lock --no-narrow
 
       - name: Push to the pull request's branch
+        if: steps.take.outputs.skip != 'true'
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           TOKEN: ${{ secrets.PACKAGES_TOKEN }}

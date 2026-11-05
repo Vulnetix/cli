@@ -9,8 +9,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/vulnetix/cli/v4/internal/sast"
+	"github.com/vulnetix/cli/v4/internal/scan"
 )
 
 // PolicyPath is the policy file, relative to the repository root.
@@ -126,12 +132,58 @@ func LoadPolicy(root string) (*Policy, error) {
 	if err := yaml.Unmarshal(raw, p); err != nil {
 		return nil, fmt.Errorf("%s: %w", PolicyPath, err)
 	}
+	if err := p.Validate(); err != nil {
+		return nil, fmt.Errorf("%s: %w", PolicyPath, err)
+	}
+	return p, nil
+}
+
+var (
+	runnerLabel = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
+	actionPath  = regexp.MustCompile(`^(\.|[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)?)$`)
+	jobID       = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+)
+
+// Validate refuses what would render a broken or unsafe workflow: a value that
+// ends up in an expression, a runner label or a uses: line.
+func (p *Policy) Validate() error {
 	switch p.Triggers {
 	case TriggerPR, TriggerPush, TriggerBelai:
 	default:
-		return nil, fmt.Errorf("%s: triggers must be pr, push or belai, got %q", PolicyPath, p.Triggers)
+		return fmt.Errorf("triggers must be pr, push or belai, got %q", p.Triggers)
 	}
-	return p, nil
+	if p.Runner != "" && !runnerLabel.MatchString(p.Runner) {
+		return fmt.Errorf("runner %q is not a runner label", p.Runner)
+	}
+	langs := append(sast.ScopeLanguages(), "typescript")
+	for _, n := range p.SAST.Names {
+		if !slices.Contains(langs, n) {
+			return fmt.Errorf("sast: unknown language %q", n)
+		}
+	}
+	managers := scan.PackageManagers()
+	for _, n := range p.SCA.Names {
+		if !slices.Contains(managers, n) {
+			return fmt.Errorf("sca: unknown package manager %q", n)
+		}
+	}
+	for _, e := range p.Extras {
+		if !actionPath.MatchString(e.Action) {
+			return fmt.Errorf("extras: %q is not an action", e.Action)
+		}
+		if e.ID != "" && !jobID.MatchString(e.ID) {
+			return fmt.Errorf("extras: %q is not a job id", e.ID)
+		}
+		for _, a := range e.Prior {
+			if !actionPath.MatchString(a) {
+				return fmt.Errorf("extras: prior %q is not an action", a)
+			}
+		}
+		if e.Needs != "" && !jobID.MatchString(strings.Trim(e.Needs, "[], ")) && !strings.Contains(e.Needs, ",") {
+			return fmt.Errorf("extras: needs %q is not a job id", e.Needs)
+		}
+	}
+	return nil
 }
 
 func on(b *bool) bool { return b == nil || *b }

@@ -85,7 +85,7 @@ func TestNormalizeIgnoresNarrowedRefs(t *testing.T) {
 func TestPublishAndTEAFollowTheLegs(t *testing.T) {
 	p := DefaultPolicy()
 	out := Render(p, &Signals{Managers: []string{"go"}}, Options{})
-	for _, want := range []string{"needs: [secrets, sca-go, sbom]", "Vulnetix/cli/gha-upload@v4", "Vulnetix/cli/tea-release@v4", "needs: [sbom]", "fetch-depth: 0", "continue-on-error: true", "types: [published]"} {
+	for _, want := range []string{"needs: [secrets, sast, sca-go, sbom]", "Vulnetix/cli/gha-upload@v4", "Vulnetix/cli/tea-release@v4", "needs: [sbom]", "fetch-depth: 0", "continue-on-error: true", "types: [published]"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}
@@ -113,5 +113,68 @@ func TestExtrasRenderTheirInputs(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}
+	}
+}
+
+func TestPolicyValuesSurviveAsYAML(t *testing.T) {
+	for in, want := range map[string]string{
+		"python,javascript": "python,javascript", "echo hi": "echo hi", "*.cdx.json": `"*.cdx.json"`,
+		"a: b": `"a: b"`, "x # y": `"x # y"`, "[a]": `"[a]"`, "- x": `"- x"`, "null": `"null"`,
+		"${{ github.event_name == 'push' }}": "${{ github.event_name == 'push' }}", "true": "true",
+	} {
+		if got := yamlValue(in); got != want {
+			t.Errorf("yamlValue(%q) = %s, want %s", in, got, want)
+		}
+	}
+}
+
+func TestForkBranchNamedBelaiDoesNotGuardIn(t *testing.T) {
+	p := DefaultPolicy()
+	p.Triggers = TriggerBelai
+	out := Render(p, &Signals{Languages: []string{"go"}}, Options{})
+	if !strings.Contains(out, "github.event.pull_request.head.repo.full_name == github.repository") {
+		t.Errorf("a fork's belai/ branch must not pass the guard:\n%s", out)
+	}
+}
+
+func TestRestStepRunsAfterAGatedFailure(t *testing.T) {
+	p := DefaultPolicy()
+	p.Gates = map[string]string{"sast": "critical"}
+	out := Render(p, &Signals{Languages: []string{"go"}}, Options{})
+	if !strings.Contains(out, "Vulnetix/cli/sast@v4\n        if: ${{ !cancelled() }}") {
+		t.Errorf("the rest step must run when the leg's gate fails:\n%s", out)
+	}
+}
+
+func TestNoDetectedLanguageStillGetsSAST(t *testing.T) {
+	out := Render(DefaultPolicy(), &Signals{}, Options{})
+	if !strings.Contains(out, "Vulnetix/cli/sast@v4") {
+		t.Errorf("source below the threshold is still scanned:\n%s", out)
+	}
+}
+
+func TestHighLevelSCAAndSBOMDoNotShareAnArtifactName(t *testing.T) {
+	out := Render(DefaultPolicy(), &Signals{Managers: []string{"go", "npm", "pip"}}, Options{})
+	if strings.Count(out, "artifact-name: sca\n") != 1 || !strings.Contains(out, "artifact-name: sca-scan") {
+		t.Errorf("one artifact named sca:\n%s", out)
+	}
+}
+
+func TestPolicyValidation(t *testing.T) {
+	bad := []*Policy{
+		{Triggers: "pul"},
+		{Triggers: TriggerPush, Runner: "x'] }"},
+		{Triggers: TriggerPush, SAST: Selection{Names: []string{"cobol"}}},
+		{Triggers: TriggerPush, SCA: Selection{Names: []string{"leftpad"}}},
+		{Triggers: TriggerPush, Extras: []Extra{{Action: "sast@evil"}}},
+		{Triggers: TriggerPush, Extras: []Extra{{Action: "gha-audit", ID: "x\ny"}}},
+	}
+	for i, p := range bad {
+		if p.Validate() == nil {
+			t.Errorf("policy %d should be refused", i)
+		}
+	}
+	if err := (&Policy{Triggers: TriggerPR, Runner: "vulnetix-local", SAST: Selection{Names: []string{"typescript"}}, Extras: []Extra{{Action: "sast/go"}, {Action: "."}}}).Validate(); err != nil {
+		t.Errorf("a good policy was refused: %v", err)
 	}
 }

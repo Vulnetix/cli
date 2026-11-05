@@ -53,7 +53,7 @@ func posture(name, title, desc string, positionalPath bool, extra ...input) acti
 func init() {
 	for _, l := range sastLanguages {
 		actions = append(actions, action{Name: "sast-" + l.Key, Dir: "sast/" + l.Key, Title: "SAST " + l.Title,
-			Desc:    "Scan the " + l.Title + " files of a repository with the SAST rules (vulnetix sast --language " + l.Key + ").",
+			Desc:    "Scan the " + l.Title + " files of a repository with the SAST rules (vulnetix sast --language " + l.Key + ")." + aliasNote(l.Key),
 			Command: []string{"sast", "--language", l.Key}, Path: true, Scan: true, CodeScanning: true,
 			Inputs: append(append([]input{}, vexInputs...), scanGateInputs...)})
 	}
@@ -203,4 +203,12 @@ func init() {
 				{Name: "dry-run", Desc: "Show planned changes without writing files: true or false", Default: "false", Flag: "bool:--dry-run"},
 			}},
 	)
+}
+
+// aliasNote says when two actions are one scan, so a repository does not run both.
+func aliasNote(key string) string {
+	if key == "typescript" {
+		return " TypeScript is JavaScript to the CLI: this is the same scan, with the same files, category and tool name as sast/javascript, so use one of them."
+	}
+	return ""
 }

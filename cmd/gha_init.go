@@ -73,6 +73,9 @@ policy renders, which is the drift check for a workflow.`,
 			if cmd.Flags().Changed("runner") {
 				policy.Runner = ghaInitRunner
 			}
+			if err := policy.Validate(); err != nil {
+				return err
+			}
 		}
 		sig, err := ghainit.Detect(root)
 		if err != nil {
