@@ -54,7 +54,7 @@ jobs:
 
       - name: sbom
         id: a_sbom
-        uses: ./sbom
+        uses: $/sbom
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -63,7 +63,7 @@ jobs:
 
       - name: sca
         id: a_sca
-        uses: ./sca
+        uses: $/sca
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -72,7 +72,7 @@ jobs:
 
       - name: sast
         id: a_sast
-        uses: ./sast
+        uses: $/sast
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -81,7 +81,7 @@ jobs:
 
       - name: secrets
         id: a_secrets
-        uses: ./secrets
+        uses: $/secrets
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -90,7 +90,7 @@ jobs:
 
       - name: iac
         id: a_iac
-        uses: ./iac
+        uses: $/iac
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -99,7 +99,7 @@ jobs:
 
       - name: containers
         id: a_containers
-        uses: ./containers
+        uses: $/containers
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -108,7 +108,7 @@ jobs:
 
       - name: license
         id: a_license
-        uses: ./license
+        uses: $/license
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -117,7 +117,7 @@ jobs:
 
       - name: malscan
         id: a_malscan
-        uses: ./malscan
+        uses: $/malscan
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -126,7 +126,7 @@ jobs:
 
       - name: analyze
         id: a_analyze
-        uses: ./analyze
+        uses: $/analyze
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -135,7 +135,7 @@ jobs:
 
       - name: cbom
         id: a_cbom
-        uses: ./cbom
+        uses: $/cbom
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -144,7 +144,7 @@ jobs:
 
       - name: aibom
         id: a_aibom
-        uses: ./aibom
+        uses: $/aibom
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -153,7 +153,7 @@ jobs:
 
       - name: tea-release
         id: a_tea_release
-        uses: ./tea-release
+        uses: $/tea-release
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -163,7 +163,7 @@ jobs:
 
       - name: config-plan
         id: a_config_plan
-        uses: ./config-plan
+        uses: $/config-plan
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -172,7 +172,7 @@ jobs:
 
       - name: attest
         id: a_attest
-        uses: ./attest
+        uses: $/attest
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -181,7 +181,7 @@ jobs:
 
       - name: jail
         id: a_jail
-        uses: ./jail
+        uses: $/jail
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -190,7 +190,7 @@ jobs:
 
       - name: vex
         id: a_vex
-        uses: ./vex
+        uses: $/vex
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -198,7 +198,7 @@ jobs:
 
       - name: github-publish
         id: a_github_publish
-        uses: ./github-publish
+        uses: $/github-publish
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -207,7 +207,7 @@ jobs:
 
       - name: sast/python
         id: a_sast_python
-        uses: ./sast/python
+        uses: $/sast/python
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -216,7 +216,7 @@ jobs:
 
       - name: sast/java
         id: a_sast_java
-        uses: ./sast/java
+        uses: $/sast/java
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -225,7 +225,7 @@ jobs:
 
       - name: sast/javascript
         id: a_sast_javascript
-        uses: ./sast/javascript
+        uses: $/sast/javascript
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -234,7 +234,7 @@ jobs:
 
       - name: sast/typescript
         id: a_sast_typescript
-        uses: ./sast/typescript
+        uses: $/sast/typescript
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -243,7 +243,7 @@ jobs:
 
       - name: sast/c-cpp
         id: a_sast_c_cpp
-        uses: ./sast/c-cpp
+        uses: $/sast/c-cpp
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -252,7 +252,7 @@ jobs:
 
       - name: sast/go
         id: a_sast_go
-        uses: ./sast/go
+        uses: $/sast/go
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -261,7 +261,7 @@ jobs:
 
       - name: sast/php
         id: a_sast_php
-        uses: ./sast/php
+        uses: $/sast/php
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -270,7 +270,7 @@ jobs:
 
       - name: sast/ruby
         id: a_sast_ruby
-        uses: ./sast/ruby
+        uses: $/sast/ruby
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -279,7 +279,7 @@ jobs:
 
       - name: sast/kotlin
         id: a_sast_kotlin
-        uses: ./sast/kotlin
+        uses: $/sast/kotlin
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -288,7 +288,7 @@ jobs:
 
       - name: sast/csharp
         id: a_sast_csharp
-        uses: ./sast/csharp
+        uses: $/sast/csharp
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -297,7 +297,7 @@ jobs:
 
       - name: sast/shell
         id: a_sast_shell
-        uses: ./sast/shell
+        uses: $/sast/shell
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -306,7 +306,7 @@ jobs:
 
       - name: sast/rust
         id: a_sast_rust
-        uses: ./sast/rust
+        uses: $/sast/rust
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -315,7 +315,7 @@ jobs:
 
       - name: sca/bun
         id: a_sca_bun
-        uses: ./sca/bun
+        uses: $/sca/bun
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -324,7 +324,7 @@ jobs:
 
       - name: sca/bundler
         id: a_sca_bundler
-        uses: ./sca/bundler
+        uses: $/sca/bundler
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -333,7 +333,7 @@ jobs:
 
       - name: sca/cargo
         id: a_sca_cargo
-        uses: ./sca/cargo
+        uses: $/sca/cargo
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -342,7 +342,7 @@ jobs:
 
       - name: sca/cocoapods
         id: a_sca_cocoapods
-        uses: ./sca/cocoapods
+        uses: $/sca/cocoapods
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -351,7 +351,7 @@ jobs:
 
       - name: sca/composer
         id: a_sca_composer
-        uses: ./sca/composer
+        uses: $/sca/composer
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -360,7 +360,7 @@ jobs:
 
       - name: sca/go
         id: a_sca_go
-        uses: ./sca/go
+        uses: $/sca/go
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -369,7 +369,7 @@ jobs:
 
       - name: sca/gradle
         id: a_sca_gradle
-        uses: ./sca/gradle
+        uses: $/sca/gradle
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -378,7 +378,7 @@ jobs:
 
       - name: sca/hex
         id: a_sca_hex
-        uses: ./sca/hex
+        uses: $/sca/hex
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -387,7 +387,7 @@ jobs:
 
       - name: sca/maven
         id: a_sca_maven
-        uses: ./sca/maven
+        uses: $/sca/maven
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -396,7 +396,7 @@ jobs:
 
       - name: sca/npm
         id: a_sca_npm
-        uses: ./sca/npm
+        uses: $/sca/npm
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -405,7 +405,7 @@ jobs:
 
       - name: sca/nuget
         id: a_sca_nuget
-        uses: ./sca/nuget
+        uses: $/sca/nuget
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -414,7 +414,7 @@ jobs:
 
       - name: sca/pip
         id: a_sca_pip
-        uses: ./sca/pip
+        uses: $/sca/pip
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -423,7 +423,7 @@ jobs:
 
       - name: sca/pipenv
         id: a_sca_pipenv
-        uses: ./sca/pipenv
+        uses: $/sca/pipenv
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -432,7 +432,7 @@ jobs:
 
       - name: sca/pnpm
         id: a_sca_pnpm
-        uses: ./sca/pnpm
+        uses: $/sca/pnpm
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -441,7 +441,7 @@ jobs:
 
       - name: sca/poetry
         id: a_sca_poetry
-        uses: ./sca/poetry
+        uses: $/sca/poetry
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -450,7 +450,7 @@ jobs:
 
       - name: sca/pub
         id: a_sca_pub
-        uses: ./sca/pub
+        uses: $/sca/pub
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -459,7 +459,7 @@ jobs:
 
       - name: sca/swift
         id: a_sca_swift
-        uses: ./sca/swift
+        uses: $/sca/swift
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -468,7 +468,7 @@ jobs:
 
       - name: sca/uv
         id: a_sca_uv
-        uses: ./sca/uv
+        uses: $/sca/uv
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -477,7 +477,7 @@ jobs:
 
       - name: sca/yarn
         id: a_sca_yarn
-        uses: ./sca/yarn
+        uses: $/sca/yarn
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -486,7 +486,7 @@ jobs:
 
       - name: scan
         id: a_scan
-        uses: ./scan
+        uses: $/scan
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -495,7 +495,7 @@ jobs:
 
       - name: image
         id: a_image
-        uses: ./image
+        uses: $/image
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -505,7 +505,7 @@ jobs:
 
       - name: report
         id: a_report
-        uses: ./report
+        uses: $/report
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -514,7 +514,7 @@ jobs:
 
       - name: fix
         id: a_fix
-        uses: ./fix
+        uses: $/fix
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -524,7 +524,7 @@ jobs:
 
       - name: triage
         id: a_triage
-        uses: ./triage
+        uses: $/triage
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -533,7 +533,7 @@ jobs:
 
       - name: ignore-sync
         id: a_ignore_sync
-        uses: ./ignore-sync
+        uses: $/ignore-sync
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -542,7 +542,7 @@ jobs:
 
       - name: gha-workflows
         id: a_gha_workflows
-        uses: ./gha-workflows
+        uses: $/gha-workflows
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -552,7 +552,7 @@ jobs:
 
       - name: gha-actions
         id: a_gha_actions
-        uses: ./gha-actions
+        uses: $/gha-actions
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -562,7 +562,7 @@ jobs:
 
       - name: gha-settings
         id: a_gha_settings
-        uses: ./gha-settings
+        uses: $/gha-settings
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -571,7 +571,7 @@ jobs:
 
       - name: gha-org
         id: a_gha_org
-        uses: ./gha-org
+        uses: $/gha-org
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -580,7 +580,7 @@ jobs:
 
       - name: gha-audit
         id: a_gha_audit
-        uses: ./gha-audit
+        uses: $/gha-audit
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -590,7 +590,7 @@ jobs:
 
       - name: gha-status
         id: a_gha_status
-        uses: ./gha-status
+        uses: $/gha-status
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -598,7 +598,7 @@ jobs:
 
       - name: github-advisories
         id: a_github_advisories
-        uses: ./github-advisories
+        uses: $/github-advisories
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -609,7 +609,7 @@ jobs:
 
       - name: bom-diff
         id: a_bom_diff
-        uses: ./bom-diff
+        uses: $/bom-diff
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -619,7 +619,7 @@ jobs:
 
       - name: bom-validate
         id: a_bom_validate
-        uses: ./bom-validate
+        uses: $/bom-validate
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -628,7 +628,7 @@ jobs:
 
       - name: bom-merge
         id: a_bom_merge
-        uses: ./bom-merge
+        uses: $/bom-merge
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -640,7 +640,7 @@ jobs:
 
       - name: bom-enrich
         id: a_bom_enrich
-        uses: ./bom-enrich
+        uses: $/bom-enrich
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -653,7 +653,7 @@ jobs:
 
       - name: api-discover
         id: a_api_discover
-        uses: ./api-discover
+        uses: $/api-discover
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -663,7 +663,7 @@ jobs:
 
       - name: api-upload
         id: a_api_upload
-        uses: ./api-upload
+        uses: $/api-upload
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -672,7 +672,7 @@ jobs:
 
       - name: config-export
         id: a_config_export
-        uses: ./config-export
+        uses: $/config-export
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -680,7 +680,7 @@ jobs:
 
       - name: jail-explain
         id: a_jail_explain
-        uses: ./jail-explain
+        uses: $/jail-explain
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -689,7 +689,7 @@ jobs:
 
       - name: license-policy-validate
         id: a_license_policy_validate
-        uses: ./license-policy-validate
+        uses: $/license-policy-validate
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -698,7 +698,7 @@ jobs:
 
       - name: license-exceptions-check
         id: a_license_exceptions_check
-        uses: ./license-exceptions-check
+        uses: $/license-exceptions-check
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -707,7 +707,7 @@ jobs:
 
       - name: ai-firewall-apply
         id: a_ai_firewall_apply
-        uses: ./ai-firewall-apply
+        uses: $/ai-firewall-apply
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -717,7 +717,7 @@ jobs:
 
       - name: surface-liveness
         id: a_surface_liveness
-        uses: ./surface-liveness
+        uses: $/surface-liveness
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
@@ -725,7 +725,7 @@ jobs:
 
       - name: package-firewall
         id: a_package_firewall
-        uses: ./package-firewall
+        uses: $/package-firewall
         with:
           binary-path: ${{ steps.fixture.outputs.bin }}
           verify-provenance: 'false'
