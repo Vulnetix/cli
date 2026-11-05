@@ -126,6 +126,10 @@ func parseHCLBlock(body string) hclBlock {
 			label := ""
 			for i < len(body) && body[i] == '"' {
 				j := skipString(body, i)
+				if j <= i { // a quote that ends its line opens no label
+					i = j + 1
+					break
+				}
 				label = body[i+1 : j]
 				i = j + 1
 				for i < len(body) && (body[i] == ' ' || body[i] == '\t') {
