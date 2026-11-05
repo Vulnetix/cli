@@ -247,6 +247,11 @@ func (r *renderer) extraJob(e Extra) job {
 		id = strings.ReplaceAll(e.Action, "/", "-")
 	}
 	j := job{id: id, name: e.Action, perms: e.Permissions, needs: e.Needs}
+	for _, a := range e.Prior {
+		j.steps = append(j.steps, step{uses: "Vulnetix/cli/" + a + "@" + r.ref, with: [][2]string{
+			{"org-id", "${{ secrets.VULNETIX_ORG_ID }}"}, {"api-key", "${{ secrets.VULNETIX_API_KEY }}"},
+			{"fail-on-findings", "false"}}})
+	}
 	for _, c := range e.Run {
 		j.steps = append(j.steps, step{run: c})
 	}
@@ -259,6 +264,9 @@ func (r *renderer) extraJob(e Extra) job {
 	sort.Strings(keys)
 	for _, k := range keys {
 		s.with = append(s.with, [2]string{k, e.With[k]})
+	}
+	if _, set := e.With["fail-on-findings"]; !set {
+		s.with = append(s.with, [2]string{"fail-on-findings", "false"})
 	}
 	j.steps = append(j.steps, s)
 	return j

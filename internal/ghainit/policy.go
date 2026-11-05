@@ -48,7 +48,10 @@ type Extra struct {
 	Action string            `yaml:"action"`
 	ID     string            `yaml:"id,omitempty"`
 	With   map[string]string `yaml:"with,omitempty"`
-	// Steps run before the action, as `run:` lines.
+	// Prior are catalogue actions run first in the same job, for an action that
+	// reads what they write (report after sca, bom-validate after sbom).
+	Prior []string `yaml:"prior,omitempty"`
+	// Run are shell lines run before the action.
 	Run []string `yaml:"run,omitempty"`
 	// Needs names a job whose SBOM or results this one reads.
 	Needs string `yaml:"needs,omitempty"`
