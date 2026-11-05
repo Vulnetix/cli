@@ -53,6 +53,7 @@ var declined = map[string]string{
 	"license policy show":   "read-only; use setup and run:",
 	"license exceptions ls": "read-only; use setup and run:",
 	"triage status":         "reports this machine's provider CLIs",
+	"gha init":              "writes a workflow once; a drift check runs setup and then gha init --check",
 	"gha setup":             "writes a workflow; a person runs it once",
 
 	// Human decisions: an automated job must not make them.

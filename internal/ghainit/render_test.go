@@ -1,0 +1,94 @@
+package ghainit
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestOneOrTwoLanguagesGetJobsAndARestStep(t *testing.T) {
+	p := DefaultPolicy()
+	out := Render(p, &Signals{Languages: []string{"python", "javascript"}, Managers: []string{"uv"}}, Options{})
+	for _, want := range []string{
+		"uses: Vulnetix/cli/sast/python@v4", "uses: Vulnetix/cli/sast/javascript@v4",
+		"not-language: python,javascript", "uses: Vulnetix/cli/sca/uv@v4", "not-package-manager: uv",
+		"artifact-name: sca",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	if strings.Count(out, "not-language:") != 1 {
+		t.Error("exactly one leg carries the rest step")
+	}
+}
+
+func TestThreeLanguagesUseTheHighLevelScanner(t *testing.T) {
+	out := Render(DefaultPolicy(), &Signals{Languages: []string{"go", "python", "shell"}}, Options{})
+	if !strings.Contains(out, "uses: Vulnetix/cli/sast@v4") || strings.Contains(out, "sast/go") {
+		t.Errorf("three languages must use sast:\n%s", out)
+	}
+}
+
+func TestRestStepForNamedLegs(t *testing.T) {
+	p := DefaultPolicy()
+	p.SAST = Selection{Names: []string{"typescript"}}
+	if out := Render(p, &Signals{}, Options{}); !strings.Contains(out, "not-language: typescript") {
+		t.Errorf("named legs keep the rest step:\n%s", out)
+	}
+	p.NoRest = true
+	if out := Render(p, &Signals{}, Options{}); strings.Contains(out, "not-language") {
+		t.Errorf("no_rest leaves it out:\n%s", out)
+	}
+}
+
+func TestPrivateRepositoriesGuardOnBelaiBranches(t *testing.T) {
+	p := DefaultPolicy()
+	p.Triggers = TriggerBelai
+	out := Render(p, &Signals{Languages: []string{"go"}}, Options{})
+	if got := strings.Count(out, "startsWith(github.head_ref, 'belai/')"); got != strings.Count(out, "\n    runs-on:") {
+		t.Errorf("every job needs the guard, %d of them have it:\n%s", got, out)
+	}
+	if !strings.Contains(out, "pull_request:") {
+		t.Error("belai repositories scan pull requests")
+	}
+}
+
+func TestPublicPullRequestsStayOffTheSelfHostedPool(t *testing.T) {
+	p := DefaultPolicy()
+	p.Triggers = TriggerPR
+	out := Render(p, &Signals{}, Options{})
+	if !strings.Contains(out, `github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]')`) {
+		t.Errorf("runs-on must send pull requests to a hosted runner:\n%s", out)
+	}
+}
+
+func TestGatesApplyToTheirScanner(t *testing.T) {
+	p := DefaultPolicy()
+	p.Gates = map[string]string{"sast": "critical", "secrets": "high"}
+	out := Render(p, &Signals{Languages: []string{"go"}}, Options{})
+	if !strings.Contains(out, "fail-on: critical") || !strings.Contains(out, "fail-on: high") {
+		t.Errorf("gates missing:\n%s", out)
+	}
+	if !strings.Contains(out, "fail-on-findings: true") {
+		t.Errorf("a gated step must fail its job:\n%s", out)
+	}
+}
+
+func TestNormalizeIgnoresNarrowedRefs(t *testing.T) {
+	a := "      - uses: Vulnetix/cli/sast/go@v4\n"
+	b := "      - uses: Vulnetix/cli/sast/go@v4.24.0 # locked\n"
+	if Normalize(a) != Normalize(b) {
+		t.Error("a narrowed ref must not read as drift")
+	}
+}
+
+func TestExtrasRenderTheirInputs(t *testing.T) {
+	p := DefaultPolicy()
+	p.Extras = []Extra{{Action: "bom-validate", Run: []string{"echo hi"}, With: map[string]string{"file": "x.cdx.json"}, Permissions: map[string]string{"issues": "read"}}}
+	out := Render(p, &Signals{}, Options{})
+	for _, want := range []string{"  bom-validate:\n", "- run: echo hi", "file: x.cdx.json", "issues: read"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+}
