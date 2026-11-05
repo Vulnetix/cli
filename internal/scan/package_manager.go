@@ -26,7 +26,7 @@ var managerByType = map[string]string{
 	"go.mod": "go", "go.sum": "go",
 	"Cargo.toml": "cargo", "Cargo.lock": "cargo",
 	"Gemfile": "bundler", "Gemfile.lock": "bundler",
-	"pom.xml": "maven",
+	"pom.xml":      "maven",
 	"build.gradle": "gradle", "build.gradle.kts": "gradle", "gradle.lockfile": "gradle",
 	"composer.json": "composer", "composer.lock": "composer",
 	"packages.lock.json": "nuget", "packages.config": "nuget", "paket.dependencies": "nuget",
