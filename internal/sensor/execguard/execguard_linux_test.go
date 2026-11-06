@@ -113,3 +113,30 @@ func TestFilterIsShort(t *testing.T) {
 		t.Fatalf("filter has %d instructions", n)
 	}
 }
+
+func TestOwnExecIsSpentOnlyWhenTheAnswerLands(t *testing.T) {
+	const root = 100
+	var o ownExec
+	if o.matches(200, root) {
+		t.Fatal("another process matched as the workload's own exec")
+	}
+	// The first notification is interrupted before it is answered, so the
+	// reply fails and the kernel restarts the same exec.
+	if !o.matches(root, root) {
+		t.Fatal("the workload's own exec did not match")
+	}
+	o.settle(true, false)
+	if !o.matches(root, root) {
+		t.Fatal("an unanswered notification spent the allowance, so the restarted exec would be refused")
+	}
+	o.settle(true, true)
+	if o.matches(root, root) {
+		t.Fatal("the allowance was not spent by an answer that landed")
+	}
+	// An exec from the same process afterwards is an ordinary exec.
+	var fresh ownExec
+	fresh.settle(false, true)
+	if !fresh.matches(root, root) {
+		t.Fatal("answering a notification that did not match spent the allowance")
+	}
+}
