@@ -35,6 +35,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -199,10 +200,33 @@ func Run(command []string, decide Decider) (int, error) {
 		}
 	}()
 
-	go serve(listener, decide, cmd.Process.Pid)
+	// serve owns the listener and closes it when it returns. Closing it here
+	// instead let the next Run in the same process be handed the same
+	// descriptor number while this run's serve was still reading it, and that
+	// stale goroutine then answered the new workload's execs with the old
+	// run's decider.
+	stop, err := unix.Eventfd(0, unix.EFD_CLOEXEC)
+	if err != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		_ = unix.Close(listener)
+
+		return 0, err
+	}
+	served := make(chan struct{})
+	go func() {
+		defer close(served)
+		serve(listener, stop, decide, cmd.Process.Pid)
+	}()
 
 	err = cmd.Wait()
-	_ = unix.Close(listener)
+	_, _ = unix.Write(stop, []byte{1, 0, 0, 0, 0, 0, 0, 0})
+	select {
+	case <-served:
+	case <-time.After(2 * time.Second):
+		// serve is blocked in a read it cannot be woken from. It still owns
+		// the descriptor, so nothing else can be given its number.
+	}
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
 		if ws, ok := exitErr.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
@@ -256,12 +280,62 @@ type seccompNotifResp struct {
 	Flags uint32
 }
 
-// serve answers notifications until the listener closes. The first exec is
-// the workload itself and is allowed without asking.
-func serve(listener int, decide Decider, rootPID int) {
+// ownExec tracks whether the workload's own exec, the command the operator asked
+// to run, has been answered yet. It is allowed without asking, once.
+//
+// It is spent only when the answer reached the workload. A signal (the Go
+// runtime preempts with SIGURG under load) can interrupt the waiting execve
+// before it is answered: the kernel restarts it and sends a fresh notification
+// for the same exec, and the answer to the first fails with ENOENT. Spending it
+// on that first, unanswered notification made the restart look like the
+// workload launching another program, and refused the workload itself.
+type ownExec struct{ answered bool }
+
+// matches reports whether a notification from thread group tgid is the
+// workload's own exec.
+func (o *ownExec) matches(tgid, rootPID int) bool { return !o.answered && tgid == rootPID }
+
+// settle records the outcome of answering a notification that matched.
+func (o *ownExec) settle(matched, delivered bool) {
+	if matched && delivered {
+		o.answered = true
+	}
+}
+
+// serve answers notifications until stop is signalled or the listener hangs
+// up. The first exec is the workload itself and is allowed without asking.
+//
+// It owns both descriptors and closes them on return, so no other goroutine can
+// be handed their numbers while it still uses them.
+func serve(listener, stop int, decide Decider, rootPID int) {
+	defer unix.Close(listener)
+	defer unix.Close(stop)
 	_, execve, _ := syscallNumbers()
-	first := true
+	var spent ownExec
 	for {
+		// Wait for a notification or for the stop signal. Reading only when
+		// the listener is readable keeps the receive from blocking past it.
+		fds := []unix.PollFd{
+			{Fd: int32(listener), Events: unix.POLLIN},
+			{Fd: int32(stop), Events: unix.POLLIN},
+		}
+		if _, err := unix.Poll(fds, -1); err != nil {
+			if err == unix.EINTR {
+				continue
+			}
+
+			return
+		}
+		if fds[1].Revents != 0 {
+			return
+		}
+		if fds[0].Revents&unix.POLLIN == 0 {
+			if fds[0].Revents&(unix.POLLHUP|unix.POLLERR|unix.POLLNVAL) != 0 {
+				return
+			}
+
+			continue
+		}
 		var n seccompNotif
 		if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(listener), unix.SECCOMP_IOCTL_NOTIF_RECV, uintptr(unsafe.Pointer(&n))); errno != 0 {
 			if errno == unix.EINTR || errno == unix.ENOENT {
@@ -275,9 +349,8 @@ func serve(listener int, decide Decider, rootPID int) {
 		// locks its goroutine to an OS thread before installing the filter,
 		// and that thread need not be the group leader, so compare the
 		// thread's group with the workload's pid.
-		if first && threadGroup(int(n.PID)) == rootPID {
-			first = false
-		} else {
+		own := spent.matches(threadGroup(int(n.PID)), rootPID)
+		if !own {
 			pathArg, argvArg := n.Data.Args[0], n.Data.Args[1]
 			dirfd := int64(unix.AT_FDCWD)
 			if uint32(n.Data.Nr) != execve {
@@ -295,7 +368,8 @@ func serve(listener int, decide Decider, rootPID int) {
 				}
 			}
 		}
-		_, _, _ = unix.Syscall(unix.SYS_IOCTL, uintptr(listener), unix.SECCOMP_IOCTL_NOTIF_SEND, uintptr(unsafe.Pointer(&resp)))
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(listener), unix.SECCOMP_IOCTL_NOTIF_SEND, uintptr(unsafe.Pointer(&resp)))
+		spent.settle(own, errno == 0)
 	}
 }
 
