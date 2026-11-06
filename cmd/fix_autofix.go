@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -177,8 +178,11 @@ func rewriteAutofixCommandsForPackageManagers(plans []autofix.FixCandidate, file
 		// installed resolver for the same ecosystem. If none is installed we
 		// cannot install/re-resolve, so mark the fix manual rather than emit a
 		// command that will fail.
-		if pm != "" && !detected[pm] {
-			if alt := firstInstalledForEcosystem(eco, detectedByEcosystem); alt != "" {
+		fallback := pm != "" && !detected[pm]
+		if fallback {
+			if eco == "pypi" && pm == "pip" && hasPip3(out[i].SourceFile) {
+				pm = "pip3"
+			} else if alt := firstInstalledForEcosystem(eco, detectedByEcosystem); alt != "" {
 				pm = alt
 			} else if requiresInstalledManager(eco) && !out[i].Skipped {
 				out[i].Skipped = true
@@ -197,7 +201,18 @@ func rewriteAutofixCommandsForPackageManagers(plans []autofix.FixCandidate, file
 				out[i].Command = npmInstallCommand(pm)
 			}
 		case "pypi":
-			out[i].Command = pythonCommandForManager(out[i], pm)
+			if !fallback {
+				out[i].Command = pythonCommandForManager(out[i], pm)
+				break
+			}
+			cmd := pythonFallbackCommand(out[i], pm)
+			if cmd == "" && !out[i].Skipped {
+				out[i].Skipped = true
+				out[i].SkipReason = fmt.Sprintf("%s cannot install %s and no other Python package manager was detected on PATH", pm, filepath.Base(filepath.Clean(out[i].SourceFile)))
+			}
+			if cmd != "" {
+				out[i].Command = cmd
+			}
 		}
 	}
 	return out
@@ -477,6 +492,57 @@ func pythonCommandForManager(p autofix.FixCandidate, pm string) string {
 	default:
 		return p.Command
 	}
+}
+
+// hasPip3 reports whether a plain-pip plan for the manifest can run as pip3, which
+// is the only pip name many Linux and Homebrew Pythons put on PATH. A Pipfile
+// belongs to pipenv, so pip3 is no use to it.
+func hasPip3(sourceFile string) bool {
+	if filepath.Base(filepath.Clean(sourceFile)) == "Pipfile" {
+		return false
+	}
+	_, err := exec.LookPath("pip3")
+	return err == nil
+}
+
+// pythonFallbackCommand is the install for a manifest when no lockfile chose the
+// manager and pip is missing, so pm is whichever resolver the host has. A manager
+// is reached here by being installed, not by owning this project, so it gets only
+// a command that can read this kind of manifest: `uv sync`, `poetry update` and
+// `pdm update` need a pyproject.toml, and `uv sync` beside a requirements file
+// stops with "No `pyproject.toml` found". "" means pm cannot install the manifest
+// and the fix is manual.
+func pythonFallbackCommand(p autofix.FixCandidate, pm string) string {
+	base := filepath.Base(filepath.Clean(p.SourceFile))
+	pip := autofix.PipCommand(p.SourceFile)
+	usesPip := strings.HasPrefix(pip, "pip install")
+	switch pm {
+	case "pip":
+		return p.Command
+	case "pip3":
+		if usesPip {
+			return "pip3" + strings.TrimPrefix(pip, "pip")
+		}
+	case "uv":
+		if base == "pyproject.toml" {
+			return pythonCommandForManager(p, pm)
+		}
+		if usesPip {
+			return "uv " + pip
+		}
+	case "poetry", "pdm":
+		if base == "pyproject.toml" {
+			return pythonCommandForManager(p, pm)
+		}
+	case "pipenv":
+		if base == "pyproject.toml" || base == "Pipfile" {
+			return pythonCommandForManager(p, pm)
+		}
+		if strings.HasPrefix(pip, "pip install -r ") {
+			return "pipenv " + strings.TrimPrefix(pip, "pip ")
+		}
+	}
+	return ""
 }
 
 // scanAfterAutofix re-parses the (post-fix) manifests and re-queries the VDB to

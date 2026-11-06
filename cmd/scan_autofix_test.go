@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -204,4 +205,112 @@ func withFakePackageManagers(t *testing.T, names ...string) {
 		requireNoErr(t, os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\necho 1.0.0\n"), 0o755))
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+// withOnlyPackageManagers is withFakePackageManagers with nothing else on PATH, so
+// a real pip or uv on the host cannot change which fallback a test reaches.
+func withOnlyPackageManagers(t *testing.T, names ...string) {
+	t.Helper()
+	withFakePackageManagers(t, names...)
+	t.Setenv("PATH", strings.Split(os.Getenv("PATH"), string(os.PathListSeparator))[0])
+}
+
+// With no lockfile naming a manager and pip missing, the plan must use a command
+// that can read the manifest: `uv sync` beside a requirements file stops with
+// "No `pyproject.toml` found", which is how `fix` was found failing.
+func TestRewriteAutofixCommandsPythonFallback(t *testing.T) {
+	cases := []struct {
+		name     string
+		bins     []string
+		source   string
+		wantCmd  string
+		wantSkip bool
+	}{
+		{"pip3 for requirements", []string{"pip3", "uv"}, "sub/requirements.txt", "pip3 install -r requirements.txt", false},
+		{"pip3 for pyproject", []string{"pip3"}, "pyproject.toml", "pip3 install .", false},
+		{"uv for requirements", []string{"uv"}, "sub/requirements.txt", "uv pip install -r requirements.txt", false},
+		{"uv for pyproject", []string{"uv"}, "pyproject.toml", "uv sync", false},
+		{"uv for setup.py", []string{"uv"}, "setup.py", "uv pip install .", false},
+		{"pipenv for pyproject", []string{"pipenv"}, "pyproject.toml", "pipenv update requests", false},
+		{"pipenv for requirements", []string{"pipenv"}, "requirements.txt", "pipenv install -r requirements.txt", false},
+		{"poetry for pyproject", []string{"poetry"}, "pyproject.toml", "poetry update requests", false},
+		{"pipenv for Pipfile", []string{"pipenv"}, "Pipfile", "pipenv update requests", false},
+		{"pip3 never takes a Pipfile", []string{"pip3"}, "Pipfile", "", true},
+		{"nothing installed", nil, "requirements.txt", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			withOnlyPackageManagers(t, tc.bins...)
+			files := []scan.DetectedFile{{RelPath: tc.source}, {RelPath: "pyproject.toml"}, {RelPath: "Pipfile"}}
+			plans := []autofix.FixCandidate{{
+				PackageName: "requests",
+				Ecosystem:   "pypi",
+				SourceFile:  tc.source,
+				Method:      autofix.MethodDirectBump,
+				Command:     autofix.PipCommand(tc.source),
+			}}
+
+			out := rewriteAutofixCommandsForPackageManagers(plans, files)
+
+			assert.Equal(t, tc.wantSkip, out[0].Skipped, out[0].SkipReason)
+			if !tc.wantSkip {
+				assert.Equal(t, tc.wantCmd, out[0].Command)
+			}
+		})
+	}
+}
+
+// poetry and pdm cannot read a requirements file, so a host that has only those
+// lists the fix as manual rather than plan a command that fails.
+func TestRewriteAutofixCommandsPythonFallbackManagerCannotReadManifest(t *testing.T) {
+	withOnlyPackageManagers(t, "poetry")
+	files := []scan.DetectedFile{{RelPath: "requirements.txt"}, {RelPath: "pyproject.toml"}}
+	plans := []autofix.FixCandidate{{
+		PackageName: "requests",
+		Ecosystem:   "pypi",
+		SourceFile:  "requirements.txt",
+		Method:      autofix.MethodDirectBump,
+		Command:     autofix.PipCommand("requirements.txt"),
+	}}
+
+	out := rewriteAutofixCommandsForPackageManagers(plans, files)
+
+	assert.True(t, out[0].Skipped)
+	assert.Contains(t, out[0].SkipReason, "poetry cannot install requirements.txt")
+}
+
+// A lockfile still decides: only the no-lockfile fallback changed.
+func TestRewriteAutofixCommandsLockfileManagerBeatsPythonFallback(t *testing.T) {
+	withOnlyPackageManagers(t, "uv", "pip3")
+	files := []scan.DetectedFile{{RelPath: "api/pyproject.toml"}, {RelPath: "api/uv.lock"}, {RelPath: "api/requirements.txt"}}
+	plans := []autofix.FixCandidate{{
+		PackageName: "requests",
+		Ecosystem:   "pypi",
+		SourceFile:  "api/requirements.txt",
+		Method:      autofix.MethodDirectBump,
+		Command:     autofix.PipCommand("api/requirements.txt"),
+	}}
+
+	out := rewriteAutofixCommandsForPackageManagers(plans, files)
+
+	assert.Equal(t, "uv sync", out[0].Command)
+}
+
+// A lockfile's manager that is not installed falls back to plain pip, whose
+// command stands as planned.
+func TestRewriteAutofixCommandsMissingLockfileManagerFallsBackToPip(t *testing.T) {
+	withOnlyPackageManagers(t, "pip")
+	files := []scan.DetectedFile{{RelPath: "pyproject.toml"}, {RelPath: "uv.lock"}}
+	plans := []autofix.FixCandidate{{
+		PackageName: "requests",
+		Ecosystem:   "pypi",
+		SourceFile:  "pyproject.toml",
+		Method:      autofix.MethodDirectBump,
+		Command:     autofix.PipCommand("pyproject.toml"),
+	}}
+
+	out := rewriteAutofixCommandsForPackageManagers(plans, files)
+
+	assert.False(t, out[0].Skipped, out[0].SkipReason)
+	assert.Equal(t, "pip install .", out[0].Command)
 }

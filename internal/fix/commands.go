@@ -32,7 +32,7 @@ func commandFor(p FixCandidate, target string) string {
 		}
 		return "npm install " + name
 	case "pypi":
-		return pipCommandFor(p.SourceFile)
+		return PipCommand(p.SourceFile)
 	case "golang":
 		if target != "" {
 			return "go get " + name + "@v" + target + " && go mod tidy"
@@ -114,7 +114,7 @@ func npmTransitiveCommand(method FixMethod, parent, target string) string {
 	return "npm install " + parent + "@<safe-version>"
 }
 
-// pipCommandFor is the plain-pip install for a Python manifest. The command runs
+// PipCommand is the plain-pip install for a Python manifest. The command runs
 // in the manifest's own directory (FixBatch.Dir), so it names the file by its
 // base name: a root-relative path would not resolve from there. Only a
 // requirements file can be passed to `-r`; pip reads anything else as a list of
@@ -123,7 +123,7 @@ func npmTransitiveCommand(method FixMethod, parent, target string) string {
 // declared dependencies against the edited pins. A Pipfile belongs to pipenv.
 // A lockfile naming a manager (uv, poetry, pdm, pipenv) replaces this command
 // before it runs (cmd/fix_autofix.go pythonCommandForManager).
-func pipCommandFor(sourceFile string) string {
+func PipCommand(sourceFile string) string {
 	base := filepath.Base(filepath.Clean(sourceFile))
 	switch base {
 	case "pyproject.toml", "setup.py", "setup.cfg":
