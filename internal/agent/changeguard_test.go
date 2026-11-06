@@ -83,12 +83,16 @@ func TestIsGitCommitAllFlag(t *testing.T) {
 func gitRepo(t *testing.T) string {
 	t.Helper()
 
+	unsetGitEnv(t)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
 	root := t.TempDir()
 	run := func(args ...string) {
 		t.Helper()
 		cmd := exec.Command("git", args...)
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(gitChildEnv(),
 			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
 			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com",
 		)
@@ -103,6 +107,57 @@ func gitRepo(t *testing.T) string {
 	run("config", "commit.gpgsign", "false")
 
 	return root
+}
+
+// unsetGitEnv drops the harness's GIT_* overrides (they point into a read-only
+// admin dir and inject config, so every git write fails and repository lookups
+// hit the wrong repository) from the test process. The guard shells out to git
+// in-process and inherits them, so the scrub has to cover the whole test.
+// Restored when the test ends.
+func unsetGitEnv(t *testing.T) {
+	t.Helper()
+	for _, kv := range os.Environ() {
+		k, _, _ := strings.Cut(kv, "=")
+		override := k == "GIT_DIR" || k == "GIT_WORK_TREE" || k == "GIT_COMMON_DIR" ||
+			k == "GIT_OBJECT_DIRECTORY" || k == "GIT_ALTERNATE_OBJECT_DIRECTORIES" ||
+			k == "GIT_INDEX_FILE" || k == "GIT_CONFIG_COUNT" ||
+			strings.HasPrefix(k, "GIT_CONFIG_KEY_") || strings.HasPrefix(k, "GIT_CONFIG_VALUE_")
+		if !override {
+			continue
+		}
+		old, ok := os.LookupEnv(k)
+		if !ok {
+			continue
+		}
+		if err := os.Unsetenv(k); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Setenv(k, old) })
+	}
+}
+
+// gitChildEnv drops the harness's GIT_* overrides (they point at a read-only
+// admin dir where every git write fails) so spawned git operates on the
+// repository under test, and neutralises global and system config. This is
+// the recipe the internal/gitctx tests use.
+func gitChildEnv() []string {
+	env := make([]string, 0, len(os.Environ())+3)
+	for _, kv := range os.Environ() {
+		k, _, _ := strings.Cut(kv, "=")
+		switch {
+		case k == "GIT_DIR", k == "GIT_WORK_TREE", k == "GIT_COMMON_DIR",
+			k == "GIT_OBJECT_DIRECTORY", k == "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+			k == "GIT_INDEX_FILE", k == "GIT_CONFIG_COUNT",
+			k == "GIT_CONFIG_GLOBAL", k == "GIT_CONFIG_SYSTEM",
+			strings.HasPrefix(k, "GIT_CONFIG_KEY_"), strings.HasPrefix(k, "GIT_CONFIG_VALUE_"):
+			continue
+		}
+		env = append(env, kv)
+	}
+	return append(env,
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL=/dev/null",
+		"GIT_CONFIG_SYSTEM=/dev/null")
 }
 
 func write(t *testing.T, root, rel, content string) {
@@ -120,6 +175,7 @@ func gitIn(t *testing.T, root string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = root
+	cmd.Env = gitChildEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
 	}

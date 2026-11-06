@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/go-git/go-git/v5"
@@ -13,13 +14,34 @@ func run(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(),
-		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
-		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com",
-		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+	cmd.Env = gitEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
+}
+
+// gitEnv drops the harness's GIT_* overrides (they point at a read-only admin
+// dir where every git write fails) so spawned git operates on the repository
+// under test, and neutralises global and system config.
+func gitEnv() []string {
+	env := make([]string, 0, len(os.Environ())+5)
+	for _, kv := range os.Environ() {
+		k, _, _ := strings.Cut(kv, "=")
+		switch {
+		case k == "GIT_DIR", k == "GIT_WORK_TREE", k == "GIT_COMMON_DIR",
+			k == "GIT_OBJECT_DIRECTORY", k == "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+			k == "GIT_INDEX_FILE", k == "GIT_CONFIG_COUNT",
+			k == "GIT_CONFIG_GLOBAL", k == "GIT_CONFIG_SYSTEM",
+			strings.HasPrefix(k, "GIT_CONFIG_KEY_"), strings.HasPrefix(k, "GIT_CONFIG_VALUE_"):
+			continue
+		}
+		env = append(env, kv)
+	}
+	return append(env,
+		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
+		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com",
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
 }
 
 // A worktree's objects live in the main repository's git dir. go-git follows the `.git` file
