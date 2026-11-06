@@ -13,6 +13,7 @@ func TestCliRequestsCarryTheScanTargetRepository(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")
 	}
+	hermeticGitEnv(t)
 	t.Cleanup(func() { scanTargetDir.Store(nil) })
 
 	cwd, err := os.Getwd()
@@ -29,7 +30,9 @@ func TestCliRequestsCarryTheScanTargetRepository(t *testing.T) {
 		{"init", "-q", "-b", "scan-target-branch"},
 		{"-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "init"},
 	} {
-		if out, err := exec.Command("git", append([]string{"-C", target}, args...)...).CombinedOutput(); err != nil {
+		cmd := exec.Command("git", append([]string{"-C", target}, args...)...)
+		cmd.Env = hermeticGitChildEnv()
+		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
