@@ -11,12 +11,75 @@ import (
 	"time"
 )
 
+// gitEnvOverride reports whether k is one of the GIT_* variables the harness
+// exports for its own bookkeeping: GIT_DIR and friends point at a read-only
+// admin dir where every git write fails, and GIT_CONFIG_* injects its own
+// config. A git process that inherits them operates on the wrong repository
+// or fails outright.
+func gitEnvOverride(k string) bool {
+	return k == "GIT_DIR" || k == "GIT_WORK_TREE" || k == "GIT_COMMON_DIR" ||
+		k == "GIT_OBJECT_DIRECTORY" || k == "GIT_ALTERNATE_OBJECT_DIRECTORIES" ||
+		k == "GIT_INDEX_FILE" || k == "GIT_CONFIG_COUNT" ||
+		strings.HasPrefix(k, "GIT_CONFIG_KEY_") || strings.HasPrefix(k, "GIT_CONFIG_VALUE_")
+}
+
+// unsetGitEnv removes the harness's GIT_* overrides from this test process so
+// git commands spawned by the code under test also run hermetically. The old
+// values are restored when the test ends.
+func unsetGitEnv(t *testing.T) {
+	t.Helper()
+	for _, kv := range os.Environ() {
+		k, _, _ := strings.Cut(kv, "=")
+		if !gitEnvOverride(k) {
+			continue
+		}
+		old, ok := os.LookupEnv(k)
+		if !ok {
+			continue
+		}
+		if err := os.Unsetenv(k); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Setenv(k, old) })
+	}
+}
+
+// hermeticGitEnv makes a git-spawning test independent of the sandbox's git
+// configuration: no harness overrides, no user or system config files. This is
+// the recipe the internal/gitctx tests use.
+func hermeticGitEnv(t *testing.T) {
+	t.Helper()
+	unsetGitEnv(t)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+}
+
+// hermeticGitChildEnv builds an exec environment for a git child process: the
+// harness's GIT_* overrides are dropped and global/system config is
+// neutralised, so the command sees only the repository it is pointed at.
+func hermeticGitChildEnv() []string {
+	env := make([]string, 0, len(os.Environ())+3)
+	for _, kv := range os.Environ() {
+		if k, _, _ := strings.Cut(kv, "="); !gitEnvOverride(k) &&
+			k != "GIT_CONFIG_GLOBAL" && k != "GIT_CONFIG_SYSTEM" {
+			env = append(env, kv)
+		}
+	}
+	return append(env,
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL=/dev/null",
+		"GIT_CONFIG_SYSTEM=/dev/null")
+}
+
 // initGitRepo makes a throwaway repository in a temp dir and leaves the test
 // chdir'd into it. gitDescribeVersion shells out to git in the working
 // directory, which in a workflow is the checkout, so the test uses a real
-// repository rather than stubbing the command out.
+// repository rather than stubbing the command out. The spawned git runs in a
+// hermetic environment, without the harness's GIT_* overrides.
 func initGitRepo(t *testing.T, tag string, extraCommits int) {
 	t.Helper()
+	hermeticGitEnv(t)
 	dir := t.TempDir()
 	t.Chdir(dir)
 
