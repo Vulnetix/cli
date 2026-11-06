@@ -268,7 +268,7 @@ func (r *renderer) teaJob(jobs []job, sig *Signals) *job {
 	return &job{id: "tea", name: "TEA", needs: "[" + strings.Join(needs, ", ") + "]", when: "${{ !cancelled() }}", fullHistory: true,
 		perms: map[string]string{"actions": "read"},
 		steps: []step{{uses: "actions/download-artifact@v8", noFail: true, with: [][2]string{
-			{"pattern", "'{sca,cbom,aibom}'"}, {"merge-multiple", "true"}, {"path", "boms"}}},
+			{"pattern", "{sca,cbom,aibom}"}, {"merge-multiple", "true"}, {"path", "boms"}}},
 			{uses: "Vulnetix/cli/tea-release@" + r.ref, with: with}}}
 }
 

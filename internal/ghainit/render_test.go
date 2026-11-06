@@ -3,6 +3,8 @@ package ghainit
 import (
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestOneOrTwoLanguagesGetJobsAndARestStep(t *testing.T) {
@@ -176,5 +178,37 @@ func TestPolicyValidation(t *testing.T) {
 	}
 	if err := (&Policy{Triggers: TriggerPR, Runner: "vulnetix-local", SAST: Selection{Names: []string{"typescript"}}, Extras: []Extra{{Action: "sast/go"}, {Action: "."}}}).Validate(); err != nil {
 		t.Errorf("a good policy was refused: %v", err)
+	}
+}
+
+// The TEA job downloads the BOM artifacts with a brace glob. The value reaches
+// the workflow through yamlValue, so a pre-quoted literal ends up with its quotes
+// inside the pattern, which matches no artifact: the job then publishes an empty
+// collection and, with continue-on-error, still passes.
+func TestTEADownloadPatternIsTheBareGlob(t *testing.T) {
+	out := Render(DefaultPolicy(), &Signals{Managers: []string{"go"}}, Options{})
+	var wf struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				Uses string            `yaml:"uses"`
+				With map[string]string `yaml:"with"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal([]byte(out), &wf); err != nil {
+		t.Fatalf("rendered workflow is not YAML: %v\n%s", err, out)
+	}
+	found := false
+	for _, s := range wf.Jobs["tea"].Steps {
+		if !strings.HasPrefix(s.Uses, "actions/download-artifact@") {
+			continue
+		}
+		found = true
+		if got := s.With["pattern"]; got != "{sca,cbom,aibom}" {
+			t.Errorf("download pattern = %q, want {sca,cbom,aibom}", got)
+		}
+	}
+	if !found {
+		t.Errorf("the tea job has no download-artifact step:\n%s", out)
 	}
 }
