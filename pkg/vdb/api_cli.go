@@ -1031,6 +1031,67 @@ func cliPostWithEnvGzip[T any](c *Client, route string, env CliEnv, payload any)
 	return decodeCliResponse[T](raw)
 }
 
+// gatewayRetries is how many more times a request is sent when the gateway in
+// front of the API answered with an error page of its own. gatewayBackoff is the
+// first wait; it doubles each time.
+const gatewayRetries = 3
+
+var gatewayBackoff = 2 * time.Second
+
+// isGatewayMiss reports a 502, 503 or 504 whose body is the gateway's HTML
+// error page. That page is the edge speaking, so the request never reached the
+// API and sending it again cannot record anything twice. A 5xx the API itself
+// wrote (JSON) is not retried here: it may have acted on the request.
+func isGatewayMiss(statusCode int, body []byte) bool {
+	switch statusCode {
+	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+	default:
+		return false
+	}
+	_, html := htmlErrorSummary(statusCode, body)
+
+	return html
+}
+
+// sendAndRead sends req and returns the response with its body read and closed.
+// It exchanges a token the server rejected once, and repeats the request while
+// the gateway keeps answering with its own error page (see isGatewayMiss), so one
+// edge hiccup does not fail a whole upload.
+func (c *Client) sendAndRead(ctx context.Context, req *http.Request) (*http.Response, []byte, error) {
+	authRetried := false
+	for attempt := 0; ; attempt++ {
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to execute request: %w", err)
+		}
+		// A cached token the server no longer accepts: exchange again, once.
+		if c.retryUnauthorized(req, resp.StatusCode, &authRetried) {
+			resp.Body.Close()
+			req.Body, _ = req.GetBody()
+			if resp, err = c.HTTPClient.Do(req); err != nil {
+				return nil, nil, fmt.Errorf("failed to execute request: %w", err)
+			}
+		}
+		raw, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to read response: %w", err)
+		}
+		if attempt < gatewayRetries && isGatewayMiss(resp.StatusCode, raw) {
+			select {
+			case <-ctx.Done():
+				return nil, nil, ctx.Err()
+			case <-time.After(gatewayBackoff << attempt):
+			}
+			req.Body, _ = req.GetBody()
+
+			continue
+		}
+
+		return resp, raw, nil
+	}
+}
+
 func cliPostWithEnvContext[T any](ctx context.Context, c *Client, route string, env CliEnv, payload any) (*CliResponse[T], error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -1055,29 +1116,14 @@ func cliPostWithEnvContext[T any](ctx context.Context, c *Client, route string, 
 	}
 
 	req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(bodyBytes)), nil }
-	resp, err := c.HTTPClient.Do(req)
+	resp, raw, err := c.sendAndRead(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to execute request: %w", route, err)
+		return nil, fmt.Errorf("%s: %w", route, err)
 	}
-	// A cached token the server no longer accepts: exchange again, once.
-	authRetried := false
-	if c.retryUnauthorized(req, resp.StatusCode, &authRetried) {
-		resp.Body.Close()
-		req.Body, _ = req.GetBody()
-		if resp, err = c.HTTPClient.Do(req); err != nil {
-			return nil, fmt.Errorf("%s: failed to execute request: %w", route, err)
-		}
-	}
-	defer resp.Body.Close()
 	c.metaMu.Lock()
 	c.LastRateLimit = parseRateLimitHeaders(resp)
 	c.LastCacheStatus = resp.Header.Get("X-Cache")
 	c.metaMu.Unlock()
-
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("%s: failed to read response: %w", route, err)
-	}
 	if resp.StatusCode >= 400 {
 		msg := formatAPIError(resp.StatusCode, raw)
 		if resp.StatusCode == http.StatusNotFound {
