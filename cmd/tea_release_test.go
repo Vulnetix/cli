@@ -38,9 +38,15 @@ func initGitRepo(t *testing.T, tag string, extraCommits int) {
 	// The developer's global config sets commit.gpgsign=true. Signing a commit
 	// in a throwaway repository would prompt or fail, so it is turned off here.
 	run("config", "commit.gpgsign", "false")
+	run("config", "tag.gpgsign", "false")
 	run("commit", "-q", "--allow-empty", "-m", "initial")
 	if tag != "" {
-		run("tag", tag)
+		// The message is given on the command line, as for every commit above:
+		// a bare `git tag <name>` leaves the lightweight/annotated choice to
+		// the environment's config, and where that asks for an annotation git
+		// opens an editor, which a test has none of ("Terminal is dumb, but
+		// EDITOR unset"). gitCommitDate resolves an annotated tag to its commit.
+		run("tag", "-a", "-m", "test tag "+tag, tag)
 	}
 	for i := 0; i < extraCommits; i++ {
 		run("commit", "-q", "--allow-empty", "-m", "more")
