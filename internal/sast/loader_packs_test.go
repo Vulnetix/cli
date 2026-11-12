@@ -11,33 +11,9 @@ import (
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-)
 
-// unsetGitEnv drops the harness's GIT_* overrides (they point into a read-only
-// admin dir, so the go-git file transport that reads rule packs resolves
-// object lookups against the wrong repository and answers "not our ref") from
-// the test process. Restored when the test ends.
-func unsetGitEnv(t *testing.T) {
-	t.Helper()
-	for _, kv := range os.Environ() {
-		k, _, _ := strings.Cut(kv, "=")
-		override := k == "GIT_DIR" || k == "GIT_WORK_TREE" || k == "GIT_COMMON_DIR" ||
-			k == "GIT_OBJECT_DIRECTORY" || k == "GIT_ALTERNATE_OBJECT_DIRECTORIES" ||
-			k == "GIT_INDEX_FILE" || k == "GIT_CONFIG_COUNT" ||
-			strings.HasPrefix(k, "GIT_CONFIG_KEY_") || strings.HasPrefix(k, "GIT_CONFIG_VALUE_")
-		if !override {
-			continue
-		}
-		old, ok := os.LookupEnv(k)
-		if !ok {
-			continue
-		}
-		if err := os.Unsetenv(k); err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { os.Setenv(k, old) })
-	}
-}
+	"github.com/vulnetix/cli/v4/internal/testutils"
+)
 
 // rulePack makes a local git repository at registry/org/repo holding n rules.
 func rulePack(t *testing.T, registry, org, repo string, n int) RuleRef {
@@ -80,10 +56,7 @@ func TestImportedPacksReportInOneLine(t *testing.T) {
 	// The go-git file transport used to read the packs honours the harness's
 	// GIT_* overrides, which point its object lookups at the wrong repository
 	// ("not our ref"); drop them from the test process for the duration.
-	unsetGitEnv(t)
-	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
-	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
-	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+	testutils.HermeticGit(t)
 	registry := t.TempDir()
 	refs := []RuleRef{
 		rulePack(t, registry, "acme", "first", 2),
