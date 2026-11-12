@@ -58,8 +58,8 @@ func TestParseInstallCommand(t *testing.T) {
 		{"cargo pin", "cargo add serde@1.0.100", []string{"cargo:serde@1.0.100"}},
 		{"go pin", "go get github.com/gin-gonic/gin@v1.9.1", []string{"golang:github.com/gin-gonic/gin@v1.9.1"}},
 		{"composer pin", "composer require monolog/monolog:^3.0", []string{"composer:monolog/monolog@^3.0"}},
-		{"maven coords", "mvn dependency:get org.apache.logging.log4j:log4j-core:2.14.1",
-			[]string{"maven:org.apache.logging.log4j:log4j-core@2.14.1"}},
+		{"maven coords", "mvn dependency:get org.apache.logging.log4j:log4j-core:2.25.4",
+			[]string{"maven:org.apache.logging.log4j:log4j-core@2.25.4"}},
 
 		// ── several packages on one line ────────────────────────────────────
 		{"npm many", "npm i axios lodash express", []string{"npm:axios", "npm:lodash", "npm:express"}},

@@ -95,7 +95,7 @@ gem "nokogiri", "1.10.4"
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>
-      <version>2.14.1</version>
+      <version>2.25.4</version>
     </dependency>
   </dependencies>
 </project>`
