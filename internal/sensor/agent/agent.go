@@ -300,15 +300,27 @@ func (a *Agent) Run(ctx context.Context) error {
 	// Ready as soon as the sensor is up: the first feed fetch can take a
 	// minute on a slow network, and a notify unit that is not ready by its
 	// start timeout is killed.
+	// stopWatchdog ends the ping and waits for it, so no WATCHDOG=1 follows
+	// STOPPING=1. A restart returns from Run with ctx still live, so the ping
+	// cannot rely on ctx ending first.
+	stopWatchdog := func() {}
 	if ok, err := a.cfg.Notify("READY=1"); err != nil {
 		a.cfg.Logf("sensor: sd_notify READY failed: %v", err)
 	} else if ok && a.cfg.WatchdogInterval > 0 {
 		// The ping runs on its own: a feed refresh in the loop below can
 		// legitimately outlast the watchdog. What it proves is that the
 		// process is alive and scheduled, not stopped or wedged.
-		wctx, stopWatchdog := context.WithCancel(ctx)
+		wctx, cancel := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			a.watchdog(wctx, a.cfg.WatchdogInterval/2)
+		}()
+		stopWatchdog = func() {
+			cancel()
+			<-done
+		}
 		defer stopWatchdog()
-		go a.watchdog(wctx, a.cfg.WatchdogInterval/2)
 	}
 	if a.cfg.BPFLSM {
 		g, err := lsmguard.Load()
@@ -402,6 +414,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		stopped = nil
 	}
 	shutdown := func() error {
+		stopWatchdog()
 		_, _ = a.cfg.Notify("STOPPING=1")
 		sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
