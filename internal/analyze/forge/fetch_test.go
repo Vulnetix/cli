@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -149,4 +152,39 @@ func TestFetchCommitReviews(t *testing.T) {
 		{SHA: "ccc", Status: "unknown"},
 		{SHA: "ddd", Status: "unknown"},
 	}, got)
+}
+
+// fakeGh puts a gh on PATH that runs script.
+func fakeGh(t *testing.T, script string) {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "gh"), []byte("#!/bin/sh\n"+script+"\n"), 0o755))
+	t.Setenv("PATH", dir)
+}
+
+func TestResolveCredentials_GhCLI(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a shell script as gh")
+	}
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "")
+
+	fakeGh(t, `[ "$1 $2" = "auth token" ] && echo "  from-gh-cli  "`)
+	creds, err := ResolveCredentials(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "from-gh-cli", creds.Token, "gh's output is trimmed")
+	require.Equal(t, "gh CLI", creds.Source)
+
+	for name, script := range map[string]string{
+		"gh fails":        "exit 1",
+		"gh prints blank": "echo",
+	} {
+		fakeGh(t, script)
+		_, err := ResolveCredentials(context.Background())
+		require.ErrorIs(t, err, ErrNoCredentials, name)
+	}
+
+	t.Setenv("PATH", t.TempDir()) // no gh at all
+	_, err = ResolveCredentials(context.Background())
+	require.ErrorIs(t, err, ErrNoCredentials, "gh absent")
 }
