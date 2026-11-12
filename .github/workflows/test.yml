@@ -258,6 +258,41 @@ jobs:
           CGO_ENABLED: "1"
           CGO_CFLAGS: "-w"
 
+  # Mutation testing: gremlins changes the code (negated conditions, moved
+  # boundaries, swapped operators) and reruns the package's tests. A mutant the
+  # tests do not notice is a behaviour nothing checks, which line coverage
+  # cannot show. It runs the same command as `just mutation`'s default and
+  # fails when the share of mutants killed drops below the threshold.
+  mutation:
+    name: Mutation testing
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    needs: [lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # gremlins runs `go mod download` itself, so the private modules must be
+      # fetchable before it starts, exactly as for the tests.
+      - name: Configure private fetch of vdb-sca-match and vdb-manifest (not yet in module proxy)
+        run: |
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match,github.com/Vulnetix/vdb-manifest
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-manifest".insteadOf "https://github.com/Vulnetix/vdb-manifest"
+
+      # Same command and pins as `just mutation` (CI has no just). The version is
+      # pinned so a gremlins upgrade cannot silently change the result.
+      - name: Run gremlins
+        run: |
+          go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash \
+            --threshold-efficacy 80 --timeout-coefficient 10 ./internal/purl
+        shell: bash
+
   # Proves the customer-facing signing path end to end, against public Fulcio
   # and public Rekor, using the identity this workflow already has.
   #
