@@ -45,10 +45,10 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// startFakeGitHub runs f over TLS and returns the host to pass to Check. The
+// startFakeGitHub serves f over TLS and returns the host to pass to Check or NewClient. The
 // client Check builds uses http.DefaultTransport, which is pointed at the test
 // server's trusted transport for the duration of the test.
-func startFakeGitHub(t *testing.T, f *fakeGitHub) string {
+func startFakeGitHub(t *testing.T, f http.Handler) string {
 	t.Helper()
 	srv := httptest.NewTLSServer(f)
 	t.Cleanup(srv.Close)
