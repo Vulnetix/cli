@@ -40,11 +40,26 @@ type Guard struct {
 	paths   map[fileKey]string // for naming a refusal
 }
 
+// lsmListPath is where the kernel lists the LSMs it runs.
+const lsmListPath = "/sys/kernel/security/lsm"
+
+// checkBPFLSM refuses early, with the fix, when the kernel's LSM list (read
+// from path) does not include bpf: loading would fail later with a verifier or
+// attach error that does not say why. An unreadable list is not a refusal; the
+// attach itself is then the test.
+func checkBPFLSM(path string) error {
+	if lsms, err := os.ReadFile(path); err == nil && !bytes.Contains(lsms, []byte("bpf")) {
+		return errors.New("the kernel does not run the bpf LSM (add bpf to lsm= on the kernel command line)")
+	}
+
+	return nil
+}
+
 // Load loads and attaches the program. It needs the bpf LSM enabled in the
 // kernel and CAP_BPF with CAP_SYS_ADMIN (or root).
 func Load() (*Guard, error) {
-	if lsms, err := os.ReadFile("/sys/kernel/security/lsm"); err == nil && !bytes.Contains(lsms, []byte("bpf")) {
-		return nil, errors.New("the kernel does not run the bpf LSM (add bpf to lsm= on the kernel command line)")
+	if err := checkBPFLSM(lsmListPath); err != nil {
+		return nil, err
 	}
 	_ = rlimit.RemoveMemlock()
 	spec, err := Spec()
@@ -86,20 +101,7 @@ func (g *Guard) SetEnforce(on bool) error {
 // under root (the host filesystem as the sensor sees it). It returns the
 // paths it could not resolve.
 func (g *Guard) Sync(entries []Entry, root string) (missing []string, err error) {
-	want := map[fileKey]uint32{}
-	paths := map[fileKey]string{}
-	for i, e := range entries {
-		k, ok := statKey(filepath.Join(root, e.Path))
-		if !ok {
-			missing = append(missing, e.Path)
-
-			continue
-		}
-		if _, dup := want[k]; !dup {
-			want[k] = uint32(i)
-			paths[k] = e.Path
-		}
-	}
+	want, paths, missing := resolveEntries(entries, root)
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -119,6 +121,29 @@ func (g *Guard) Sync(entries []Entry, root string) (missing []string, err error)
 	g.entries, g.keys, g.paths = entries, want, paths
 
 	return missing, nil
+}
+
+// resolveEntries is what Sync writes: each entry's file identity under root
+// mapped to the entry's index (the rule number the program reports) and to
+// its path. A path that does not resolve to a regular file is missing; two
+// entries naming one file keep the first.
+func resolveEntries(entries []Entry, root string) (want map[fileKey]uint32, paths map[fileKey]string, missing []string) {
+	want = map[fileKey]uint32{}
+	paths = map[fileKey]string{}
+	for i, e := range entries {
+		k, ok := statKey(filepath.Join(root, e.Path))
+		if !ok {
+			missing = append(missing, e.Path)
+
+			continue
+		}
+		if _, dup := want[k]; !dup {
+			want[k] = uint32(i)
+			paths[k] = e.Path
+		}
+	}
+
+	return want, paths, missing
 }
 
 func statKey(path string) (fileKey, bool) {
@@ -146,16 +171,26 @@ func (g *Guard) Run(ctx context.Context, report func(Refusal)) {
 			continue
 		}
 		g.mu.Lock()
-		r := Refusal{PID: int(raw.pid), Enforced: raw.enforced, Path: g.paths[raw.key]}
-		if int(raw.rule) < len(g.entries) {
-			r.Rule = g.entries[raw.rule].Rule
-			if r.Path == "" {
-				r.Path = g.entries[raw.rule].Path
-			}
-		}
+		r := refusalFor(raw, g.entries, g.paths)
 		g.mu.Unlock()
 		report(r)
 	}
+}
+
+// refusalFor names a record from the program: the path synced for its file,
+// else the path of the rule it reports, and the rule only when the index is
+// one of the current entries (a record raced against a Sync that shrank the
+// list keeps its path and loses the rule rather than naming the wrong one).
+func refusalFor(raw rawRefusal, entries []Entry, paths map[fileKey]string) Refusal {
+	r := Refusal{PID: int(raw.pid), Enforced: raw.enforced, Path: paths[raw.key]}
+	if int(raw.rule) < len(entries) {
+		r.Rule = entries[raw.rule].Rule
+		if r.Path == "" {
+			r.Path = entries[raw.rule].Path
+		}
+	}
+
+	return r
 }
 
 // Close detaches the program; execs are no longer checked.
