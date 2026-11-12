@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/vulnetix/cli/v4/internal/testutils"
 )
 
 // A scan's cli.* requests describe the scanned repository, not the directory
@@ -13,7 +15,7 @@ func TestCliRequestsCarryTheScanTargetRepository(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")
 	}
-	hermeticGitEnv(t)
+	testutils.HermeticGit(t)
 	t.Cleanup(func() { scanTargetDir.Store(nil) })
 
 	cwd, err := os.Getwd()
@@ -31,7 +33,7 @@ func TestCliRequestsCarryTheScanTargetRepository(t *testing.T) {
 		{"-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "init"},
 	} {
 		cmd := exec.Command("git", append([]string{"-C", target}, args...)...)
-		cmd.Env = hermeticGitChildEnv()
+		cmd.Env = testutils.GitChildEnv()
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
