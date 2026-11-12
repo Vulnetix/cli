@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -47,6 +48,84 @@ func buildBinary(t *testing.T) string {
 		t.Fatalf("building the CLI failed: %v\n%s", err, out)
 	}
 	return bin
+}
+
+// lockedBuffer collects a child's output while the test reads it.
+type lockedBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (l *lockedBuffer) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedBuffer) Bytes() []byte {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return bytes.Clone(l.b.Bytes())
+}
+
+func (l *lockedBuffer) String() string { return string(l.Bytes()) }
+
+func writeAll(t *testing.T, w io.Writer, msgs [][]byte) {
+	t.Helper()
+	for _, m := range msgs {
+		if _, err := w.Write(m); err != nil {
+			t.Fatalf("writing to the server: %v", err)
+		}
+	}
+}
+
+// waitForMessage polls the server's stdout until a complete message matches.
+// A frame still being written is read on a later poll; whether the stream as a
+// whole is clean framing is the strict parse at the end of the test.
+func waitForMessage(t *testing.T, out *lockedBuffer, timeout time.Duration, what string, match func(map[string]any) bool) map[string]any {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		frames, _ := parseFrames(bytes.NewReader(out.Bytes()))
+		for _, f := range frames {
+			var m map[string]any
+			if json.Unmarshal(f, &m) == nil && match(m) {
+				return m
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("no %s on stdout within %s", what, timeout)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// isResponse matches the response to the request with the given id.
+func isResponse(id int) func(map[string]any) bool {
+	return func(m map[string]any) bool {
+		_, hasMethod := m["method"]
+		return !hasMethod && fmt.Sprint(m["id"]) == strconv.Itoa(id)
+	}
+}
+
+// waitForRules asks vulnetix/serverInfo until it reports the loaded rules,
+// which the server stores once the warm-up has indexed the workspace.
+func waitForRules(t *testing.T, stdin io.Writer, out *lockedBuffer, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for id := 100; ; id++ {
+		writeAll(t, stdin, [][]byte{frame(t, map[string]any{"jsonrpc": "2.0", "id": id, "method": "vulnetix/serverInfo"})})
+		resp := waitForMessage(t, out, timeout, "a serverInfo response", isResponse(id))
+		if result, ok := resp["result"].(map[string]any); ok {
+			if n, _ := result["rulesEmbedded"].(float64); n > 0 {
+				return
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the server did not load its rules within %s", timeout)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 }
 
 // frame renders a JSON-RPC message with LSP framing.
@@ -136,7 +215,7 @@ func TestNoStdoutPollution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr lockedBuffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -164,6 +243,14 @@ func TestNoStdoutPollution(t *testing.T) {
 		"jsonrpc": "2.0", "method": "initialized", "params": map[string]any{},
 	}))
 
+	writeAll(t, stdin, msgs)
+	msgs = nil
+
+	// A document opened before the warm-up has loaded the rules is not analysed
+	// until its next change, so wait for serverInfo to report them before
+	// opening one. These requests are protocol on stdout like any other.
+	waitForRules(t, stdin, &stdout, 2*time.Minute)
+
 	docURI := "file://" + filepath.ToSlash(filepath.Join(root, "main.go"))
 	msgs = append(msgs, frame(t, map[string]any{
 		"jsonrpc": "2.0", "method": "textDocument/didOpen",
@@ -184,18 +271,17 @@ func TestNoStdoutPollution(t *testing.T) {
 		"params": map[string]any{"textDocument": map[string]any{"uri": docURI}},
 	}))
 
-	for _, m := range msgs {
-		if _, err := stdin.Write(m); err != nil {
-			t.Fatalf("writing to the server: %v", err)
-		}
-	}
+	writeAll(t, stdin, msgs)
 
-	// Give analysis a chance to run and publish, which is when a stray write is
-	// most likely.
-	time.Sleep(6 * time.Second)
+	// Wait for analysis to run and publish, which is when a stray write is most
+	// likely.
+	waitForMessage(t, &stdout, 2*time.Minute, "diagnostics for "+docURI, func(m map[string]any) bool {
+		params, _ := m["params"].(map[string]any)
+		return m["method"] == "textDocument/publishDiagnostics" && params["uri"] == docURI
+	})
 
 	_, _ = stdin.Write(frame(t, map[string]any{"jsonrpc": "2.0", "id": 2, "method": "shutdown"}))
-	time.Sleep(300 * time.Millisecond)
+	waitForMessage(t, &stdout, 15*time.Second, "the shutdown response", isResponse(2))
 	_, _ = stdin.Write(frame(t, map[string]any{"jsonrpc": "2.0", "method": "exit"}))
 	_ = stdin.Close()
 

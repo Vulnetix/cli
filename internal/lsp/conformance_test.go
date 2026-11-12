@@ -248,7 +248,7 @@ func TestDidOpenPublishesDiagnostics(t *testing.T) {
 	c, stop := startServer(t, root)
 	defer stop()
 	initialize(t, c, root)
-	waitForWarm(t)
+	waitForWarm(t, c)
 
 	uri := PathToURI(vulnPath)
 	require.NoError(t, c.conn.Notify(context.Background(), protocol.MethodDidOpen, protocol.DidOpenParams{
@@ -279,7 +279,7 @@ func TestClosingADocumentClearsItsDiagnostics(t *testing.T) {
 	c, stop := startServer(t, root)
 	defer stop()
 	initialize(t, c, root)
-	waitForWarm(t)
+	waitForWarm(t, c)
 
 	uri := PathToURI(vulnPath)
 	require.NoError(t, c.conn.Notify(context.Background(), protocol.MethodDidOpen, protocol.DidOpenParams{
@@ -325,14 +325,25 @@ func TestDocumentsOutsideTheWorkspaceAreNotScanned(t *testing.T) {
 	c, stop := startServer(t, root)
 	defer stop()
 	initialize(t, c, root)
-	waitForWarm(t)
+	waitForWarm(t, c)
 
 	uri := PathToURI(outside)
 	require.NoError(t, c.conn.Notify(context.Background(), protocol.MethodDidOpen, protocol.DidOpenParams{
 		TextDocument: protocol.TextDocumentItem{URI: uri, LanguageID: "go", Version: 1, Text: vulnerableGo},
 	}))
 
-	time.Sleep(500 * time.Millisecond)
+	// Barrier: open a file inside the workspace after the outside one and wait
+	// for its diagnostics. The outside file is turned away when it is opened,
+	// while the inside one has to be analysed, so by the time the inside one is
+	// published a publish for the outside one would have arrived too.
+	inside := filepath.Join(root, "vuln.go")
+	require.NoError(t, os.WriteFile(inside, []byte(vulnerableGo), 0o644))
+	insideURI := PathToURI(inside)
+	require.NoError(t, c.conn.Notify(context.Background(), protocol.MethodDidOpen, protocol.DidOpenParams{
+		TextDocument: protocol.TextDocumentItem{URI: insideURI, LanguageID: "go", Version: 1, Text: vulnerableGo},
+	}))
+	require.NotEmpty(t, c.waitForPublish(t, insideURI, 2*time.Minute), "the in-workspace file should be analysed")
+
 	require.Empty(t, c.diagsFor(uri), "a file outside the workspace should not be analysed")
 }
 
@@ -364,15 +375,25 @@ func TestWorkspaceScanCanBeCancelled(t *testing.T) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-// waitForWarm gives the background warm-up time to index and compile.
+// waitForWarm waits until the background warm-up has loaded the rules and
+// indexed the workspace.
 //
 // The server deliberately returns from initialize before compiling, so the
-// editor window is not blocked. Tests that assert on findings have to wait for
-// it, and a generous ceiling costs nothing when the condition is usually met
-// in well under a second.
-func waitForWarm(t *testing.T) {
+// editor window is not blocked, and a document opened before the warm-up ends
+// is not analysed until its next change. serverInfo reports the loaded rules
+// once the warm-up has stored them together with the workspace index, which is
+// the point at which a didOpen is analysed. Polling it returns as soon as that
+// happens instead of sleeping a fixed time that is too long on a clean run and
+// too short on a loaded one.
+func waitForWarm(t *testing.T, c *testClient) {
 	t.Helper()
-	time.Sleep(3 * time.Second)
+	require.Eventually(t, func() bool {
+		var info protocol.ServerInfoResult
+		if err := c.conn.Call(context.Background(), protocol.MethodServerInfo, nil, &info); err != nil {
+			return false
+		}
+		return info.RulesEmbedded > 0
+	}, 2*time.Minute, 20*time.Millisecond, "the server never finished warming up")
 }
 
 const vulnerableGo = `package main
