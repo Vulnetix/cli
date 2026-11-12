@@ -262,7 +262,7 @@ Examples:
   vulnetix vdb remediation plan CVE-2021-44228
   vulnetix vdb remediation plan CVE-2021-44228 --include-guidance
   vulnetix vdb remediation plan CVE-2021-44228 --ecosystem npm --package-name log4j
-  vulnetix vdb remediation plan CVE-2021-44228 --purl "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+  vulnetix vdb remediation plan CVE-2021-44228 --purl "pkg:maven/org.apache.logging.log4j/log4j-core@2.25.4"
   vulnetix vdb remediation plan CVE-2021-44228 --include-guidance --include-verification-steps --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

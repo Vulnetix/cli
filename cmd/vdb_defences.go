@@ -197,7 +197,7 @@ tag file as the argument, or any input-kind flag. Flags given with the argument
 narrow it further.
 
   vulnetix vdb ` + l.rel + ` get CVE-2021-44228
-  vulnetix vdb ` + l.rel + ` get pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1
+  vulnetix vdb ` + l.rel + ` get pkg:maven/org.apache.logging.log4j/log4j-core@2.25.4
   vulnetix vdb ` + l.rel + ` get cpe:2.3:a:apache:log4j:2.14.1:*:*:*:*:*:*:*
   vulnetix vdb ` + l.rel + ` get urn:tei:purl:vulnetix.com:pkg:npm/lodash@4.17.20
   vulnetix vdb ` + l.rel + ` get ./log4j.swidtag
@@ -496,7 +496,7 @@ layer-7 regex.
 
 For an advisory, a package, a product or anything else you hold:
   vulnetix vdb virtual-patches get CVE-2021-44228
-  vulnetix vdb virtual-patches get pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1
+  vulnetix vdb virtual-patches get pkg:maven/org.apache.logging.log4j/log4j-core@2.25.4
   vulnetix vdb virtual-patches get cpe:2.3:o:paloaltonetworks:pan-os:11.1.0:*:*:*:*:*:*:*
   vulnetix vdb virtual-patches get CVE-2021-44228 --format modsecurity -o modsec.conf
 

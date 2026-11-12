@@ -115,7 +115,7 @@ func TestReadInputLines(t *testing.T) {
 		"",
 		"pkg:npm/lodash@4.17.20",
 		`{"key":"log4j","vendor":"apache","product":"log4j","version":"2.14.1"}`,
-		`{"purl":"pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"}`,
+		`{"purl":"pkg:maven/org.apache.logging.log4j/log4j-core@2.25.4"}`,
 	}, "\n")
 	items, err := readInputLines(strings.NewReader(text))
 	if err != nil {
@@ -125,7 +125,7 @@ func TestReadInputLines(t *testing.T) {
 	for _, it := range items {
 		keys = append(keys, it.Key)
 	}
-	want := []string{"CVE-2024-3400", "pkg:npm/lodash@4.17.20", "log4j", "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"}
+	want := []string{"CVE-2024-3400", "pkg:npm/lodash@4.17.20", "log4j", "pkg:maven/org.apache.logging.log4j/log4j-core@2.25.4"}
 	if !reflect.DeepEqual(keys, want) {
 		t.Fatalf("keys = %v, want %v", keys, want)
 	}
