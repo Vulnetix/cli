@@ -97,7 +97,7 @@ findings:
     in_cisa_kev: true
     aliases: ["GHSA-jfh8-c2jp-5v3q"]
     versions:
-      current: 2.14.1
+      current: 2.25.4
       fixed_in: 2.17.1
   CVE-2020-8203:
     package: lodash
@@ -149,7 +149,7 @@ func TestUserPromptSubmit_AnswersFromTheRepoRecord(t *testing.T) {
 	if got.Decision != Inform {
 		t.Fatalf("decision = %v, want Inform", got.Decision)
 	}
-	for _, want := range []string{"log4j-core@2.14.1", "critical", "known exploited", "fixed in 2.17.1"} {
+	for _, want := range []string{"log4j-core@2.25.4", "critical", "known exploited", "fixed in 2.17.1"} {
 		if !strings.Contains(got.Message, want) {
 			t.Errorf("message should contain %q:\n%s", want, got.Message)
 		}
