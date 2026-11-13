@@ -13,6 +13,7 @@ package forge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -74,6 +75,16 @@ var ErrNoCredentials = fmt.Errorf(`no GitHub credentials found.
 
   Or run with --no-forge to skip these metrics entirely. They will be reported as
   "not measured" rather than zero — the report never claims we looked when we did not`)
+
+// ErrRateLimited means the preflight could not run because the token's quota is spent. It is
+// not an access problem: inside GitHub Actions the job token's quota belongs to the whole
+// repository, and other jobs can spend it before analyze starts. A caller should skip the
+// forge pass and report its metrics as not measured, not fail the whole analysis.
+var ErrRateLimited = errors.New("the GitHub API rate limit for this token is exhausted")
+
+func rateLimitedError(creds *Credentials, err error) error {
+	return fmt.Errorf("%w (token from %s): %v", ErrRateLimited, creds.Source, err)
+}
 
 // repoAccessError explains a token that works but cannot see this repository.
 //
@@ -172,11 +183,17 @@ func Check(ctx context.Context, creds *Credentials, host string, repo Repo) (*Ch
 
 	user, _, err := client.gh.Users.Get(ctx, "")
 	if err != nil {
+		if IsRateLimit(err) {
+			return nil, rateLimitedError(creds, err)
+		}
 		if repo.Owner == "" || repo.Name == "" {
 			return nil, fmt.Errorf("GitHub rejected the token from %s: %w", creds.Source, err)
 		}
 
 		if _, resp, rerr := client.gh.Repositories.Get(ctx, repo.Owner, repo.Name); rerr != nil {
+			if IsRateLimit(rerr) {
+				return nil, rateLimitedError(creds, rerr)
+			}
 			return nil, repoAccessError(creds, "repository-scoped token", repo, resp, rerr)
 		}
 
@@ -197,6 +214,9 @@ func Check(ctx context.Context, creds *Credentials, host string, repo Repo) (*Ch
 
 	if repo.Owner != "" && repo.Name != "" {
 		if _, resp, rerr := client.gh.Repositories.Get(ctx, repo.Owner, repo.Name); rerr != nil {
+			if IsRateLimit(rerr) {
+				return nil, rateLimitedError(creds, rerr)
+			}
 			return nil, repoAccessError(creds, user.GetLogin(), repo, resp, rerr)
 		}
 	}

@@ -18,6 +18,7 @@ package forge
 // reason. It is not a failure, and it is not a silence.
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -126,15 +127,8 @@ func (b *budget) Reason() string {
 // a real failure matters: one means "come back later", the other means something is broken,
 // and treating them the same makes both harder to diagnose.
 func IsRateLimit(err error) bool {
-	if err == nil {
-		return false
-	}
-	if _, ok := err.(*github.RateLimitError); ok {
-		return true
-	}
-	if _, ok := err.(*github.AbuseRateLimitError); ok {
-		return true
-	}
+	var rl *github.RateLimitError
+	var abuse *github.AbuseRateLimitError
 
-	return false
+	return errors.As(err, &rl) || errors.As(err, &abuse)
 }
