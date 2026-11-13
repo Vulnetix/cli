@@ -8,6 +8,7 @@ package analyze
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -165,6 +166,13 @@ func Check(ctx context.Context, opts Options) (*Preflight, error) {
 	// unable to read a private repo it was never granted — and GitHub reports that as a 404, so
 	// the failure looks like a typo rather than a permission.
 	result, err := forge.Check(ctx, creds, host, forgeRepo)
+	if errors.Is(err, forge.ErrRateLimited) {
+		// The token is fine; its quota is spent, often by other jobs sharing it. That costs the
+		// forge metrics, which are then not measured, and never the rest of the report.
+		p.ForgeStatus = fmt.Sprintf("GitHub: skipped (%v). Pull-request, review and issue metrics will be reported as not measured.", err)
+
+		return p, nil
+	}
 	if err != nil {
 		return nil, err
 	}

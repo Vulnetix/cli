@@ -20,11 +20,23 @@ import (
 type fakeGitHub struct {
 	userStatus, repoStatus, rateStatus int
 	calls                              []string
+
+	// exhausted answers every endpoint but /rate_limit the way GitHub does once a token's
+	// quota is spent: 403, X-RateLimit-Remaining: 0, "API rate limit exceeded".
+	exhausted bool
 }
 
 func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.calls = append(f.calls, r.URL.Path)
 	w.Header().Set("Content-Type", "application/json")
+	if f.exhausted && r.URL.Path != "/api/v3/rate_limit" {
+		w.Header().Set("X-RateLimit-Limit", "1000")
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.Header().Set("X-RateLimit-Reset", fmt.Sprint(time.Now().Add(time.Hour).Unix()))
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = fmt.Fprint(w, `{"message":"API rate limit exceeded for installation."}`)
+		return
+	}
 	reply := func(status int, body string) {
 		w.WriteHeader(status)
 		if status == http.StatusOK {
@@ -123,6 +135,39 @@ func TestCheck_UserTokenCannotSeeTheRepo(t *testing.T) {
 	msg := err.Error()
 	require.Contains(t, msg, "the GitHub token from GH_TOKEN is valid (authenticated as octocat) but cannot read acme/widgets")
 	require.Contains(t, msg, "almost certainly\n  an access problem")
+}
+
+// A spent quota is "come back later", not an access problem. In GitHub Actions the job token's
+// quota is the repository's, and other jobs can spend it first; reporting that as "cannot read
+// Vulnetix/cli" sent the reader to check permissions that were fine.
+func TestCheck_ExhaustedQuotaIsNotAnAccessError(t *testing.T) {
+	for _, repo := range []Repo{testRepo, {}} {
+		host := startFakeGitHub(t, &fakeGitHub{exhausted: true})
+
+		_, err := Check(context.Background(), testCreds, host, repo)
+		require.ErrorIs(t, err, ErrRateLimited, "repo %+v", repo)
+		require.NotContains(t, err.Error(), "cannot read")
+		require.Contains(t, err.Error(), "GH_TOKEN")
+	}
+}
+
+// GITHUB_TOKEN cannot read /user (403, not a rate limit); the repository read is then the one
+// that meets the spent quota.
+func TestCheck_RepositoryScopedTokenWithExhaustedQuota(t *testing.T) {
+	f := &fakeGitHub{userStatus: 403, rateStatus: 200}
+	host := startFakeGitHub(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f.exhausted = r.URL.Path == "/api/v3/repos/acme/widgets"
+		f.ServeHTTP(w, r)
+	}))
+
+	_, err := Check(context.Background(), testCreds, host, testRepo)
+	require.ErrorIs(t, err, ErrRateLimited)
+	require.NotContains(t, err.Error(), "cannot read")
+}
+
+func TestIsRateLimit_Wrapped(t *testing.T) {
+	require.True(t, IsRateLimit(fmt.Errorf("fetch: %w", &github.RateLimitError{})))
+	require.False(t, IsRateLimit(fmt.Errorf("fetch: %w", errors.New("boom"))))
 }
 
 // The quota is informational: failing to read it does not fail the check.

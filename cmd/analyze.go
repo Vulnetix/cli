@@ -69,7 +69,9 @@ GitHub authentication
   The token's hourly quota is usually shared (in Actions, with every other job in the
   repository), so the GitHub pass stops while half the quota is still left and reports
   what it did not fetch. --forge-window-days reads a shorter window from GitHub than
-  --window-days reads from git, which costs fewer requests.
+  --window-days reads from git, which costs fewer requests. A token whose quota is already
+  spent skips GitHub, reporting those metrics as not measured; the rest of the report is
+  unaffected.
 
   A repository whose remote is not GitHub skips the check automatically.`,
 	Args: cobra.MaximumNArgs(1),
