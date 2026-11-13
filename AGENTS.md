@@ -384,6 +384,29 @@ than HTTP 404 still marks the repo indefinite, so the same misses are stored.
 `VULNETIX_GH_PARITY=1 go test ./internal/license -run TestGHAPIDirectMatchesGH`
 compares the two against the live API; run it when adding an expression.
 
+Those lookups spend the GitHub API quota that, inside GitHub Actions, the whole
+repository shares. On the push that merged #341, the scan jobs' lookups spent
+4,913 requests in under three and a half minutes, and SCA's SARIF upload and
+analyze's forge pass found the quota gone. So:
+
+- **Validate the name first.** `validOwnerRepo` drops a name GitHub cannot
+  hold before any request: `$/sbom` from `uses: $/sbom`, a glob, `<your`.
+- **Keep the chain short.** It runs repository, then `/license`, then the root
+  listing and the files it names, and a 404 on the repository ends it. There is
+  no second pass with `GITHUB_TOKEN`: gh already sends it.
+- **Spend through one budget.** Every request goes through `githubGet` or
+  `ghAPICall`, which spend from `internal/ghquota`, the budget analyze's forge
+  pass uses. It is seeded from `/rate_limit`, which is free.
+- **Keep a larger share in Actions.** There the lookups keep 80% of the limit
+  (`ciLicenseShare`), above the forge pass's half.
+- **Stop on a rate-limit answer.** What they did not check stays `UNKNOWN`,
+  and `reportGitHubLookups` says how many repositories went unchecked. In
+  Actions it also logs each batch's request count.
+
+`TestLookupChainCost` and `TestLookupsKeepTheirShareInGitHubActions` pin this
+behaviour. `vulnetix gha init` gives no token to a scanner run as an extra's
+`prior` step (`priorScanners`), because such a step publishes nothing.
+
 ### SBOM/CDX Subcommand
 
 The `cdx` command (alias `sbom`, implemented in `cmd/cdx.go`) writes one offline CycloneDX document — no VDB lookup, upload, memory write, quality gate or container daemon. Discovery passes: manifests/lockfiles, installed package trees (`internal/ecosystems`), container package DBs (dpkg/apk/pacman), Dockerfile/compose/k8s/Helm, CI/CD pipeline files, shell scripts + Makefile/justfile recipes, and **compiled artefacts** via `internal/binpkg`. AIBOM and CBOM components are merged into the same file.

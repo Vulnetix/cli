@@ -218,7 +218,15 @@ var licenseCmd = &cobra.Command{
 Manifests are discovered by walking the directory tree, parsed locally,
 and each package's license is resolved from manifest fields or an embedded
 SPDX license database. When authenticated, license findings are submitted to
-Vulnetix so the scan is recorded; unauthenticated scans stay entirely local.
+Vulnetix so the scan is recorded; unauthenticated scans submit nothing.
+
+A license those cannot name is looked up in the Vulnetix store (when
+authenticated), the package's registry and deps.dev, and then, with a GitHub
+token (GITHUB_TOKEN, GH_TOKEN or the gh CLI's), on GitHub. The GitHub lookups
+stop while part of the token's hourly rate limit is left: half, or 80% inside
+GitHub Actions, where the job token's quota belongs to the whole repository.
+They also stop when GitHub answers with a rate limit. A license they did not
+check stays UNKNOWN, and a warning says how many repositories went unchecked.
 
 License findings are stored in the CycloneDX SBOM at .vulnetix/sbom.cdx.json
 alongside vulnerability findings (neither overwrites the other).

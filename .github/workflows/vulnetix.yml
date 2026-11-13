@@ -259,6 +259,7 @@ jobs:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
+          github-token: ""
       - uses: Vulnetix/cli/github-advisories@v4.24.30
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
@@ -277,6 +278,7 @@ jobs:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
+          github-token: ""
       - uses: Vulnetix/cli/bom-validate@v4.24.30
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
@@ -391,6 +393,7 @@ jobs:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           fail-on-findings: false
+          github-token: ""
       - uses: Vulnetix/cli/upload@v4.24.30
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
