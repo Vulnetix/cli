@@ -259,6 +259,15 @@ test-coverage-check:
     go test -v -coverprofile=coverage.out ./...
     go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//' | awk '{if ($1 < 15) exit 1}'
 
+# Mutation testing with gremlins: mutate the package's code and rerun its tests;
+# a mutant that survives is behaviour no test checks. Fails when fewer than
+# `efficacy` percent of the mutants are killed. Pinned, like golangci-lint in CI,
+# so an upgrade cannot change the result unannounced. CI runs the default
+# (.github/workflows/test.yml, job "Mutation testing"); pass another package to
+# survey it, e.g. `just mutation ./internal/versions 0`.
+mutation pkg="./internal/purl" efficacy="80":
+    go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash --threshold-efficacy {{efficacy}} --timeout-coefficient 10 {{pkg}}
+
 # Comprehensive test suite
 test-all: test test-coverage-check
 
