@@ -44,9 +44,23 @@ provenance of the build workflow on this organisation's runners (the
 `runner_environment` field says so); it is not an isolated builder, so it is not
 SLSA Build L3.
 
-A provenance failure does not stop the TEA publish: the release is published
-without the bundle and the job warns. A public TEA product cannot be
-unpublished, so preview a release first. Do not re-dispatch an existing tag for
+A public TEA product cannot be unpublished, so `publish-tea` waits for the
+bundle: it runs only when `provenance` succeeded (and, for the newest release,
+when `update-packages` did, which needs the canary, which needs provenance).
+A failed `provenance` job is re-run (`gh run rerun <run-id> --failed`), and
+everything after it runs again.
+
+Release assets are uploaded by release id (`scripts/release-asset-upload.sh`),
+never with `gh release upload <tag>`. The uploads use `PACKAGES_TOKEN`, a
+personal token whose 5,000 REST requests an hour are shared with everything
+else that uses it. When they are spent, gh's lookup of a release by tag prints
+`release not found` for a published release (it prefers that answer when its
+REST lookup and its GraphQL draft lookup both fail, cli/cli#13723), which
+failed v4.24.8, v4.24.32 and v4.24.34. The script resolves the id over
+GraphQL, which has its own quota, waits for a spent REST quota to reset (up to
+65 minutes) and honours `Retry-After`, and every error names its HTTP status.
+
+Preview a release before publishing it. Do not re-dispatch an existing tag for
 that: it rebuilds the binaries and replaces the release assets. Run the CLI
 locally against the release's own checksums instead; `--dry-run` publishes
 nothing:
