@@ -128,6 +128,41 @@ func TestAnalyzeSkipsTheForgeOnPullRequests(t *testing.T) {
 	t.Errorf("no analyze step:\n%s", out)
 }
 
+// A scanner given the job token resolves unknown licences through the GitHub
+// API, which spends the repository's shared quota; a pull request withholds it.
+func TestScannersGetNoTokenOnPullRequests(t *testing.T) {
+	p := DefaultPolicy()
+	p.Analyze, p.CBOM, p.AIBOM, p.License = true, true, true, true
+	out := Render(p, &Signals{Languages: []string{"go"}, Managers: []string{"go"}}, Options{})
+	var wf struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				Uses string            `yaml:"uses"`
+				With map[string]string `yaml:"with"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal([]byte(out), &wf); err != nil {
+		t.Fatalf("rendered workflow is not YAML: %v\n%s", err, out)
+	}
+	want := "${{ github.event_name != 'pull_request' && github.token || '' }}"
+	for _, id := range []string{"sast-go", "sca-go", "license", "cbom", "aibom", "analyze", "sbom"} {
+		job, ok := wf.Jobs[id]
+		if !ok {
+			t.Errorf("no %s job:\n%s", id, out)
+			continue
+		}
+		for _, s := range job.Steps {
+			if !strings.HasPrefix(s.Uses, "Vulnetix/cli/") {
+				continue
+			}
+			if got := s.With["github-token"]; got != want {
+				t.Errorf("%s %s github-token = %q, want %q", id, s.Uses, got, want)
+			}
+		}
+	}
+}
+
 func TestSetupExtraTakesNoInputs(t *testing.T) {
 	p := DefaultPolicy()
 	p.Extras = []Extra{{Action: "setup", Then: []string{"vulnetix version"}}}
