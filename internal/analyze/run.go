@@ -31,6 +31,12 @@ type Options struct {
 	WindowDays int
 	MaxCommits int
 
+	// ForgeWindowDays bounds the forge pass (pull requests, issues, commit reviews) on its
+	// own. Every pull request in the window costs several GitHub API calls, so a CI run on
+	// every push can read a short recent window and leave the full one to a release or a
+	// manual run. Zero follows WindowDays.
+	ForgeWindowDays int
+
 	ComplexityThreshold int
 
 	NoGit   bool
@@ -62,6 +68,15 @@ type Options struct {
 
 	// Context stops the file passes early when cancelled. Nil is context.Background().
 	Context context.Context
+}
+
+// forgeWindowDays is the window the forge pass reads: ForgeWindowDays when set, else the
+// history window.
+func (o Options) forgeWindowDays() int {
+	if o.ForgeWindowDays > 0 {
+		return o.ForgeWindowDays
+	}
+	return o.WindowDays
 }
 
 func (o Options) ctx() context.Context {

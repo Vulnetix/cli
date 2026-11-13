@@ -38,11 +38,12 @@ const maxCommitReviewChecks = 300
 
 func collectForge(b *Builder, client *forge.Client, repo forge.Repo, git *gitStats, opts Options, now time.Time, pr reporter) error {
 	ctx := context.Background()
-	since := now.AddDate(0, 0, -opts.WindowDays)
+	days := opts.forgeWindowDays()
+	since := now.AddDate(0, 0, -days)
 	window := &MetricWindow{
 		Since: since.UTC().Format(time.RFC3339),
 		Until: now.UTC().Format(time.RFC3339),
-		Label: fmt.Sprintf("last_%d_days", opts.WindowDays),
+		Label: fmt.Sprintf("last_%d_days", days),
 	}
 
 	// This is the slowest collector by a distance: every pull request costs several API calls
@@ -67,7 +68,7 @@ func collectForge(b *Builder, client *forge.Client, repo forge.Repo, git *gitSta
 	emitIssues(b, issues, window)
 
 	pr.Stage("Resolving which commits were reviewed")
-	emitCommitReview(b, client, repo, git, prRefs, window)
+	emitCommitReview(b, client, repo, git, prRefs, since, window)
 
 	// If the budget ran out, every count above is short by an unknown amount — and an unknown
 	// amount is exactly what must not be silently absorbed. Say it.
@@ -396,9 +397,28 @@ func emitIssues(b *Builder, issues []forge.Issue, window *MetricWindow) {
 		window, respSecs, respRefs)
 }
 
+// commitsToReview picks the commits the compliance pass asks the forge about: non-merge
+// commits inside the forge window, newest first. A merge commit's review status is the review
+// status of the PR it merged, which we already have. The forge window can be shorter than the
+// history walk, and every commit asked about costs an API call, so a commit older than the
+// window is not asked about.
+func commitsToReview(commits []*CommitRecord, since time.Time) []string {
+	shas := make([]string, 0, len(commits))
+	for _, c := range commits {
+		if c.ParentCount > 1 {
+			continue
+		}
+		if at, err := time.Parse(time.RFC3339, c.CommittedAt); err == nil && at.Before(since) {
+			continue
+		}
+		shas = append(shas, c.SHA)
+	}
+	return shas
+}
+
 // emitCommitReview is github-metrics-aggregator's compliance metric.
 func emitCommitReview(b *Builder, client *forge.Client, repo forge.Repo, git *gitStats,
-	prRefs map[string]EvidenceRef, window *MetricWindow) {
+	prRefs map[string]EvidenceRef, since time.Time, window *MetricWindow) {
 
 	if git == nil || len(git.commits) == 0 {
 		b.Unmeasured(Metric{
@@ -410,16 +430,8 @@ func emitCommitReview(b *Builder, client *forge.Client, repo forge.Repo, git *gi
 		return
 	}
 
-	// Only non-merge commits, newest first, capped. A merge commit's review status is the
-	// review status of the PR it merged, which we already have.
-	shas := make([]string, 0, len(git.commits))
+	shas := commitsToReview(git.commits, since)
 	byShaRef := map[string]EvidenceRef{}
-	for _, c := range git.commits {
-		if c.ParentCount > 1 {
-			continue
-		}
-		shas = append(shas, c.SHA)
-	}
 
 	omitted := 0
 	if len(shas) > maxCommitReviewChecks {

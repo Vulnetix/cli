@@ -2,6 +2,7 @@ package forge
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -126,6 +127,43 @@ func TestBudget(t *testing.T) {
 	require.True(t, b.Exhausted(), "we stop while there is still headroom left for everyone else")
 	require.Contains(t, b.Reason(), "rate limit")
 	require.Equal(t, 2, b.Spent())
+}
+
+// Inside GitHub Actions the job token's 1,000 requests an hour belong to the whole repository.
+// A forge pass that spent them down to a fixed 100 starved CodeQL's SARIF upload and the
+// release dispatch on the same push, so the collector keeps half the limit for them.
+func TestBudget_KeepsHalfTheLimitForOtherJobs(t *testing.T) {
+	cases := []struct {
+		limit, remaining int
+		exhausted        bool
+	}{
+		{1000, 501, false},
+		{1000, 500, true},
+		{1000, 300, true}, // already below the floor when we start: spend nothing more
+		{5000, 2501, false},
+		{5000, 2500, true},
+		{150, 101, false}, // a small limit still keeps at least the fixed reserve
+		{150, 100, true},
+	}
+	for _, c := range cases {
+		b := newBudget()
+		b.Observe(&github.Response{Rate: github.Rate{Limit: c.limit, Remaining: c.remaining}})
+		require.Equal(t, c.exhausted, b.Exhausted(), "limit %d, remaining %d", c.limit, c.remaining)
+		if c.exhausted {
+			require.Contains(t, b.Reason(), fmt.Sprintf("%d of %d requests left", c.remaining, c.limit))
+		}
+	}
+}
+
+// A response that carries no rate headers (some enterprise instances) cannot exhaust the
+// budget on its own; it is still counted.
+func TestBudget_UnknownLimit(t *testing.T) {
+	b := newBudget()
+	b.Observe(&github.Response{})
+	require.False(t, b.Exhausted())
+	_, known := b.Remaining()
+	require.False(t, known)
+	require.Equal(t, 1, b.Spent())
 }
 
 func TestIsRateLimit(t *testing.T) {

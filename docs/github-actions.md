@@ -66,6 +66,15 @@ Each CLI command also has its own composite action in a subdirectory of this rep
 `config-plan`, `config-apply`, `attest`, `jail`, `vex` and `github-publish`. Their inputs,
 outputs, permissions and examples are in [`github-actions/`](github-actions/README.md).
 
+`analyze` reads pull requests, issues and commit reviews from GitHub with the job token, several
+requests per pull request. That token's hourly quota (1,000 requests) belongs to the whole
+repository, and every other job shares it, including CodeQL's SARIF upload and a workflow
+dispatch. So the GitHub pass stops while half the token's hourly limit is still left, and the
+report declares what it did not fetch. The workflow `vulnetix gha init` writes passes
+`--no-forge` on a pull request and `--forge-window-days=7` on a push or a release. Only a manual
+run (`workflow_dispatch`) reads the full `--window-days` window from GitHub. The git history
+window stays at 365 days in every case.
+
 They are generated, not hand-written: `tools/actiongen/spec.go` is the table, and
 `go generate ./tools/actiongen` writes every `<name>/action.yml`, every
 `docs/github-actions/<name>.md` and `action-lib/commands.sh`. `TestGeneratedFilesAreCurrent`

@@ -525,6 +525,7 @@
         "complexity-threshold",
         "disable-memory",
         "fail-on-upload-error",
+        "forge-window-days",
         "max-commits",
         "no-analytics",
         "no-banner",

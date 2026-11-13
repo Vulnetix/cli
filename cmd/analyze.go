@@ -66,6 +66,11 @@ GitHub authentication
   than zero, because "we found no unreviewed commits" and "we did not look" are different
   claims and this report will not conflate them.
 
+  The token's hourly quota is usually shared (in Actions, with every other job in the
+  repository), so the GitHub pass stops while half the quota is still left and reports
+  what it did not fetch. --forge-window-days reads a shorter window from GitHub than
+  --window-days reads from git, which costs fewer requests.
+
   A repository whose remote is not GitHub skips the check automatically.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runAnalyze,
@@ -74,6 +79,7 @@ GitHub authentication
 func init() {
 	analyzeCmd.Flags().String("path", ".", "Directory to analyze")
 	analyzeCmd.Flags().Int("window-days", 365, "How far back to walk history")
+	analyzeCmd.Flags().Int("forge-window-days", 0, "How far back to read pull requests, issues and commit reviews from GitHub (0: --window-days). Each pull request costs several API calls")
 	analyzeCmd.Flags().Int("max-commits", 20000, "Cap on commits walked; when hit, the report declares it")
 	analyzeCmd.Flags().Int("complexity-threshold", 15, "Cyclomatic complexity at which a file counts as highly complex")
 	analyzeCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty, json")
@@ -98,6 +104,7 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 		opts.Path = args[0]
 	}
 	opts.WindowDays, _ = cmd.Flags().GetInt("window-days")
+	opts.ForgeWindowDays, _ = cmd.Flags().GetInt("forge-window-days")
 	opts.MaxCommits, _ = cmd.Flags().GetInt("max-commits")
 	opts.ComplexityThreshold, _ = cmd.Flags().GetInt("complexity-threshold")
 	opts.NoGit, _ = cmd.Flags().GetBool("no-git")

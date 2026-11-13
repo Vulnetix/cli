@@ -214,7 +214,7 @@ jobs:
           artifact-name: analyze
           fail-on-findings: false
           github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
-          extra-args: ${{ github.event_name == 'pull_request' && '--no-forge' || '' }}
+          extra-args: ${{ github.event_name == 'pull_request' && '--no-forge' || github.event_name != 'workflow_dispatch' && '--forge-window-days=7' || '' }}
 
   sbom:
     name: SBOM

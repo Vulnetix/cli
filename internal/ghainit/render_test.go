@@ -99,8 +99,9 @@ func TestPublishAndTEAFollowTheLegs(t *testing.T) {
 }
 
 // The forge pass spends the repository's shared hourly token quota, so a pull
-// request runs analyze without it and the push to the default branch keeps it.
-func TestAnalyzeSkipsTheForgeOnPullRequests(t *testing.T) {
+// request runs analyze without it, a push or a release reads a short recent
+// window, and only a manual run reads the full one.
+func TestAnalyzeBoundsTheForgePass(t *testing.T) {
 	p := DefaultPolicy()
 	p.Analyze = true
 	out := Render(p, &Signals{}, Options{})
@@ -119,7 +120,7 @@ func TestAnalyzeSkipsTheForgeOnPullRequests(t *testing.T) {
 		if !strings.HasPrefix(s.Uses, "Vulnetix/cli/analyze@") {
 			continue
 		}
-		want := "${{ github.event_name == 'pull_request' && '--no-forge' || '' }}"
+		want := "${{ github.event_name == 'pull_request' && '--no-forge' || github.event_name != 'workflow_dispatch' && '--forge-window-days=7' || '' }}"
 		if got := s.With["extra-args"]; got != want {
 			t.Errorf("analyze extra-args = %q, want %q", got, want)
 		}

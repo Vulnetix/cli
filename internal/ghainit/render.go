@@ -116,12 +116,7 @@ func Render(p *Policy, sig *Signals, opt Options) string {
 			case "analyze": // it reads history and the repository's pull requests and issues
 				j.fullHistory = true
 				j.perms = map[string]string{"pull-requests": "read", "issues": "read"}
-				// The forge pass reads every pull request and issue in the window and
-				// spends the job token down to its reserve. That token shares the
-				// repository's hourly quota with every other job, CodeQL's SARIF
-				// upload among them, so on a pull request it would fail the run's
-				// required checks. The push to the default branch measures the forge.
-				j.steps[0].with = append(j.steps[0].with, [2]string{"extra-args", "${{ github.event_name == 'pull_request' && '--no-forge' || '' }}"})
+				j.steps[0].with = append(j.steps[0].with, [2]string{"extra-args", analyzeForgeArgs})
 			case "aibom": // a commit scan is slow and this runs on every push
 				j.steps[0].with = append(j.steps[0].with, [2]string{"extra-args", "--commit-scan-max\n1"})
 			}
@@ -213,6 +208,19 @@ func (r *renderer) scanStep(action, gate string, with [][2]string, artifact stri
 // required code-scanning check failed. A pull request publishes nothing to
 // GitHub from these jobs; the push to the default branch keeps the token.
 const scanToken = "${{ github.event_name != 'pull_request' && github.token || '' }}"
+
+// analyzeForgeArgs bounds the analyze job's forge pass, which reads pull requests,
+// issues and commit reviews from GitHub with the job token, several requests a pull
+// request. That token's hourly quota belongs to the whole repository and is shared with
+// every other job, CodeQL's SARIF upload and the release dispatch among them. A pull
+// request skips the pass. A push to the default branch, which happens on every merge, and
+// a release, which an auto-versioned repository publishes on every merge too, read only
+// the last recentForgeWindowDays days. A manual run (workflow_dispatch) reads the full
+// window. The CLI also stops the pass while half the quota is left.
+var analyzeForgeArgs = fmt.Sprintf("${{ github.event_name == 'pull_request' && '--no-forge' || github.event_name != 'workflow_dispatch' && '--forge-window-days=%d' || '' }}", recentForgeWindowDays)
+
+// recentForgeWindowDays is the forge window on a push or a release.
+const recentForgeWindowDays = 7
 
 func (r *renderer) scanJob(id, name, action, gate string, with [][2]string, _ string) job {
 	j := job{id: id, name: name, steps: []step{r.scanStep(action, gate, with, id)}}
