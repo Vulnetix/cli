@@ -11,6 +11,8 @@ import (
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
+
+	"github.com/vulnetix/cli/v4/internal/testutils"
 )
 
 // rulePack makes a local git repository at registry/org/repo holding n rules.
@@ -51,6 +53,10 @@ func rulePack(t *testing.T, registry, org, repo string, n int) RuleRef {
 func TestImportedPacksReportInOneLine(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
+	// The go-git file transport used to read the packs honours the harness's
+	// GIT_* overrides, which point its object lookups at the wrong repository
+	// ("not our ref"); drop them from the test process for the duration.
+	testutils.HermeticGit(t)
 	registry := t.TempDir()
 	refs := []RuleRef{
 		rulePack(t, registry, "acme", "first", 2),

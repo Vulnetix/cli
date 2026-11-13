@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/vulnetix/cli/v4/internal/report"
+
+	"github.com/vulnetix/cli/v4/internal/testutils"
 )
 
 func TestResourceAt(t *testing.T) {
@@ -61,6 +63,7 @@ func TestResourceAt(t *testing.T) {
 func gitIn(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false"}, args...)...)
+	cmd.Env = testutils.GitChildEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
@@ -73,6 +76,7 @@ func TestBlameSecrets(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")
 	}
+	testutils.HermeticGit(t)
 	dir := t.TempDir()
 	gitIn(t, dir, "init", "-q")
 	if err := os.WriteFile(filepath.Join(dir, "prod.env"), []byte("A=1\nKEY=value\n"), 0o644); err != nil {
@@ -142,6 +146,7 @@ func TestBlameSecretsReadsHistoryCopies(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")
 	}
+	testutils.HermeticGit(t)
 	dir := t.TempDir()
 	gitIn(t, dir, "init", "-q")
 	if err := os.WriteFile(filepath.Join(dir, "old.env"), []byte("KEY=value\n"), 0o644); err != nil {

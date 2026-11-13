@@ -4,6 +4,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/vulnetix/cli/v4/internal/testutils"
 )
 
 // A decision names the signed-in account when there is one; the git config
@@ -12,6 +14,7 @@ func TestDecisionActorPrefersSignedInAccount(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")
 	}
+	testutils.HermeticGit(t)
 	dir := t.TempDir()
 	for _, args := range [][]string{
 		{"init", "-q"},

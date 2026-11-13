@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vulnetix/cli/v4/internal/testutils"
 )
 
 func TestClassifyGitCommand(t *testing.T) {
@@ -83,12 +85,13 @@ func TestIsGitCommitAllFlag(t *testing.T) {
 func gitRepo(t *testing.T) string {
 	t.Helper()
 
+	testutils.HermeticGit(t)
 	root := t.TempDir()
 	run := func(args ...string) {
 		t.Helper()
 		cmd := exec.Command("git", args...)
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(),
+		cmd.Env = testutils.GitChildEnv(
 			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
 			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com",
 		)
@@ -120,6 +123,7 @@ func gitIn(t *testing.T, root string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = root
+	cmd.Env = testutils.GitChildEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
 	}

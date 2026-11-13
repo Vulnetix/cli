@@ -9,14 +9,18 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vulnetix/cli/v4/internal/testutils"
 )
 
 // initGitRepo makes a throwaway repository in a temp dir and leaves the test
 // chdir'd into it. gitDescribeVersion shells out to git in the working
 // directory, which in a workflow is the checkout, so the test uses a real
-// repository rather than stubbing the command out.
+// repository rather than stubbing the command out. The spawned git runs in a
+// hermetic environment, without the harness's GIT_* overrides.
 func initGitRepo(t *testing.T, tag string, extraCommits int) {
 	t.Helper()
+	testutils.HermeticGit(t)
 	dir := t.TempDir()
 	t.Chdir(dir)
 
