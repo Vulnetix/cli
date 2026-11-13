@@ -15,24 +15,6 @@ import (
 
 var registryCache sync.Map // "ecosystem:name:version" → string (license)
 
-// getAuthenticatedGitHubRequest creates an HTTP GET request for the GitHub API,
-// adding the Authorization header if a token is available.
-func getAuthenticatedGitHubRequest(u string) (*http.Request, error) {
-	req, err := http.NewRequest("GET", u, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	for _, key := range []string{"GITHUB_TOKEN", "GH_TOKEN"} {
-		if tok := os.Getenv(key); tok != "" {
-			req.Header.Set("Authorization", "Bearer "+tok)
-			break
-		}
-	}
-	return req, nil
-}
-
 // FetchFromEcosystemRegistry attempts to resolve a license from the package's
 // native ecosystem registry for ecosystems not covered by deps.dev.
 func FetchFromEcosystemRegistry(pkg PackageLicense) string {
@@ -589,14 +571,10 @@ func fetchCocoaPodsLicense(name string) string {
 // from the CocoaPods/Specs GitHub directory listing and fetches its spec.
 func fetchCocoaPodsSpecLatestFromGitHub(name string) string {
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(name)))
-	dirURL := fmt.Sprintf("https://api.github.com/repos/CocoaPods/Specs/contents/Specs/%s/%s/%s/%s",
+	dirURL := fmt.Sprintf(ghAPIBase+"repos/CocoaPods/Specs/contents/Specs/%s/%s/%s/%s",
 		string(hash[0]), string(hash[1]), string(hash[2]), url.PathEscape(name))
 
-	req, err := getAuthenticatedGitHubRequest(dirURL)
-	if err != nil {
-		return ""
-	}
-	resp, err := getHTTPClient().Do(req)
+	resp, err := githubGet(dirURL)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		if resp != nil {
 			resp.Body.Close()
@@ -892,20 +870,10 @@ func fetchOpamLicense(name, version string) string {
 // an opam package and fetches the latest opam file.
 func fetchOpamLicenseViaGitHubSearch(name string) string {
 	// List subdirectories of packages/{name} to find all available versions.
-	apiURL := fmt.Sprintf(
-		"https://api.github.com/repos/ocaml/opam-repository/contents/packages/%s",
+	apiURL := fmt.Sprintf(ghAPIBase+"repos/ocaml/opam-repository/contents/packages/%s",
 		url.PathEscape(name))
 
-	req, err := http.NewRequest("GET", apiURL, nil)
-	if err != nil {
-		return ""
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-	if pat := findGitHubPAT(); pat != "" {
-		req.Header.Set("Authorization", "token "+pat)
-	}
-
-	resp, err := getHTTPClient().Do(req)
+	resp, err := githubGet(apiURL)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		if resp != nil {
 			resp.Body.Close()

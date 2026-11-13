@@ -44,6 +44,11 @@ get a sast/<language> job each, and the largest job carries a rest step so the
 jobs together cover what the high-level sast action covers; three or more use the
 high-level action. Package managers work the same way with sca/<manager>.
 
+The job token's GitHub API quota belongs to the whole repository, so the
+workflow spends it only where it publishes. Scanners get the token off pull
+requests only. A scanner run as an extra's prior step gets none, because it
+only writes the file the extra reads.
+
 Refs are written as @v4. Run gh actions-lock afterwards to narrow them to exact
 tags and lock them; --check ignores refs, so a locked workflow stays current.
 

@@ -164,6 +164,50 @@ func TestScannersGetNoTokenOnPullRequests(t *testing.T) {
 	}
 }
 
+// A prior step writes the file its extra reads and publishes nothing, so a scanner run
+// there gets no token, on any event: with the action's default token it looked up
+// licences against the repository's GitHub API quota.
+func TestPriorScannerStepsGetNoToken(t *testing.T) {
+	p := DefaultPolicy()
+	p.Extras = []Extra{
+		{Action: "bom-validate", Prior: []string{"sbom"}},
+		{Action: "github-advisories", Prior: []string{"sast/go"}},
+		{Action: "report", Prior: []string{"gha-status"}},
+	}
+	out := Render(p, &Signals{}, Options{})
+	var wf struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				Uses string             `yaml:"uses"`
+				With map[string]*string `yaml:"with"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal([]byte(out), &wf); err != nil {
+		t.Fatalf("rendered workflow is not YAML: %v\n%s", err, out)
+	}
+	for id, prior := range map[string]string{"bom-validate": "sbom", "github-advisories": "sast/go", "report": "gha-status"} {
+		steps := wf.Jobs[id].Steps
+		i := 0
+		for i < len(steps) && !strings.HasPrefix(steps[i].Uses, "Vulnetix/cli/") {
+			i++
+		}
+		if i >= len(steps)-1 || !strings.HasPrefix(steps[i].Uses, "Vulnetix/cli/"+prior+"@") {
+			t.Fatalf("%s: prior step missing:\n%s", id, out)
+		}
+		tok, set := steps[i].With["github-token"]
+		if prior == "gha-status" {
+			if set {
+				t.Errorf("%s: a prior that is not a scanner keeps the action's default token", id)
+			}
+			continue
+		}
+		if !set || tok == nil || *tok != "" {
+			t.Errorf("%s: prior %s github-token = %v, want an empty string\n%s", id, prior, tok, out)
+		}
+	}
+}
+
 func TestSetupExtraTakesNoInputs(t *testing.T) {
 	p := DefaultPolicy()
 	p.Extras = []Extra{{Action: "setup", Then: []string{"vulnetix version"}}}

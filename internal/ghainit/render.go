@@ -304,6 +304,17 @@ func actionRef(action, ref string) string {
 	return "Vulnetix/cli/" + action + "@" + ref
 }
 
+// priorScanners are the scanners a prior step can run. A prior step only writes
+// the file its extra reads and publishes nothing, so the one thing the job token
+// bought it was licence lookups against the repository's GitHub API quota; the
+// action's own default token is withheld from it on every event. Two such steps
+// (sbom before bom-validate and before upload) looked up the same licences as
+// the sbom job on every push.
+var priorScanners = map[string]bool{
+	"scan": true, "sca": true, "sast": true, "secrets": true, "iac": true, "containers": true,
+	"license": true, "sbom": true, "cbom": true, "aibom": true,
+}
+
 func (r *renderer) extraJob(e Extra) job {
 	id := e.ID
 	if id == "" {
@@ -315,6 +326,9 @@ func (r *renderer) extraJob(e Extra) job {
 		if a != "setup" { // setup takes none of these
 			p.with = [][2]string{{"org-id", "${{ secrets.VULNETIX_ORG_ID }}"}, {"api-key", "${{ secrets.VULNETIX_API_KEY }}"},
 				{"fail-on-findings", "false"}}
+			if priorScanners[strings.SplitN(a, "/", 2)[0]] {
+				p.with = append(p.with, [2]string{"github-token", ""})
+			}
 		}
 		j.steps = append(j.steps, p)
 	}

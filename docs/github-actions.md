@@ -75,6 +75,27 @@ report declares what it did not fetch. The workflow `vulnetix gha init` writes p
 run (`workflow_dispatch`) reads the full `--window-days` window from GitHub. The git history
 window stays at 365 days in every case.
 
+The scanners that resolve licences (`sca`, `license`, `sbom`, `containers` and `scan`) ask
+GitHub for a repository's licence when the Vulnetix store, the package registry and deps.dev
+cannot name it, with the same job token. Those lookups spend from the same quota:
+
+- **A name GitHub cannot hold is never asked about.** That includes a workflow's `uses: $/sbom`,
+  a glob and a template placeholder.
+- **The lookup chain is short.** The repository answers first. A 404 there ends the chain;
+  otherwise the next steps are GitHub's own licence detection, then the licence files that
+  the root listing names, so a repository costs one to four requests.
+- **Inside GitHub Actions the lookups keep 80% of the token's hourly limit for everything
+  else.** They stop at 4,000 left of 5,000, above the half that analyze's forge pass keeps.
+  Every job of a run sees the same remaining count, so the floor holds for the whole run.
+- **They also stop as soon as GitHub answers with a rate limit.** A licence they did not
+  check stays `UNKNOWN`, and a warning names how many repositories went unchecked.
+- **Each job logs what it spent.** In Actions, every batch of lookups prints a line such as
+  `GitHub licence lookups: 31 requests for 26 repositories (4880 of 5000 left)`.
+
+`vulnetix gha init` passes the token to a scanner only off pull requests. It passes no token
+to a scanner that runs as an extra's `prior` step, because that step only writes the file the
+extra reads.
+
 They are generated, not hand-written: `tools/actiongen/spec.go` is the table, and
 `go generate ./tools/actiongen` writes every `<name>/action.yml`, every
 `docs/github-actions/<name>.md` and `action-lib/commands.sh`. `TestGeneratedFilesAreCurrent`
