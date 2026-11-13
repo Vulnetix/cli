@@ -18,15 +18,30 @@ package forge
 // reason. It is not a failure, and it is not a silence.
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/google/go-github/v66/github"
 )
 
-// reserve is the number of requests we refuse to spend. Leaving headroom matters because
-// this token is usually shared — with other steps in the same CI job, and in vdb-manager's
-// case with other processors — and draining it to zero breaks them, not us.
+// reserve is the least number of requests we refuse to spend. Leaving headroom matters
+// because this token is usually shared — with other steps in the same CI job, and in
+// vdb-manager's case with other processors — and draining it to zero breaks them, not us.
 const reserve = 100
+
+// reserveShare is the fraction of the hourly limit we refuse to spend, when it is more than
+// reserve. A fixed 100 was not enough headroom: inside GitHub Actions the job token's quota
+// (1,000 an hour) belongs to the whole repository, and a forge pass on every push to the
+// default branch spent it down to 100. CodeQL's SARIF upload and the release dispatch then
+// failed with "API rate limit exceeded for installation". Keeping half the limit bounds
+// what one run can take, whatever else runs beside it.
+const reserveShare = 0.5
+
+// floor is the remaining quota at which the collector stops, for a token with this hourly
+// limit.
+func floor(limit int) int {
+	return max(reserve, int(float64(limit)*reserveShare))
+}
 
 type budget struct {
 	mu sync.Mutex
@@ -60,7 +75,7 @@ func (b *budget) Observe(resp *github.Response) {
 		b.remaining = resp.Rate.Remaining
 		b.limit = resp.Rate.Limit
 		b.known = true
-		if b.remaining <= reserve {
+		if b.remaining <= floor(b.limit) {
 			b.exhausted = true
 		}
 	}
@@ -102,8 +117,9 @@ func (b *budget) Reason() string {
 		return ""
 	}
 
-	return "GitHub API rate limit reached; the remaining items were not fetched. " +
-		"Re-run when the quota resets, or narrow --window-days."
+	return fmt.Sprintf("Stopped at this run's share of the GitHub API rate limit (%d of %d requests left, "+
+		"kept for other jobs that share the token); the remaining items were not fetched. "+
+		"Re-run when the quota resets, or narrow --forge-window-days.", b.remaining, b.limit)
 }
 
 // IsRateLimit reports whether an error is GitHub telling us to stop. Distinguishing it from
