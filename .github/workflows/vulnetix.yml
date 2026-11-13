@@ -204,6 +204,7 @@ jobs:
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           artifact-name: analyze
           fail-on-findings: false
+          extra-args: ${{ github.event_name == 'pull_request' && '--no-forge' || '' }}
 
   sbom:
     name: SBOM

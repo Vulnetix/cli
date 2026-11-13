@@ -98,6 +98,36 @@ func TestPublishAndTEAFollowTheLegs(t *testing.T) {
 	}
 }
 
+// The forge pass spends the repository's shared hourly token quota, so a pull
+// request runs analyze without it and the push to the default branch keeps it.
+func TestAnalyzeSkipsTheForgeOnPullRequests(t *testing.T) {
+	p := DefaultPolicy()
+	p.Analyze = true
+	out := Render(p, &Signals{}, Options{})
+	var wf struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				Uses string            `yaml:"uses"`
+				With map[string]string `yaml:"with"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal([]byte(out), &wf); err != nil {
+		t.Fatalf("rendered workflow is not YAML: %v\n%s", err, out)
+	}
+	for _, s := range wf.Jobs["analyze"].Steps {
+		if !strings.HasPrefix(s.Uses, "Vulnetix/cli/analyze@") {
+			continue
+		}
+		want := "${{ github.event_name == 'pull_request' && '--no-forge' || '' }}"
+		if got := s.With["extra-args"]; got != want {
+			t.Errorf("analyze extra-args = %q, want %q", got, want)
+		}
+		return
+	}
+	t.Errorf("no analyze step:\n%s", out)
+}
+
 func TestSetupExtraTakesNoInputs(t *testing.T) {
 	p := DefaultPolicy()
 	p.Extras = []Extra{{Action: "setup", Then: []string{"vulnetix version"}}}
