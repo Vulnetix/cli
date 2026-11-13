@@ -108,8 +108,31 @@ jobs:
         run: |
           # At the tag, so the release builds the stamped commit and not whatever
           # main has become since the tag was cut.
-          gh workflow run release.yml \
-            --ref "${{ steps.bump.outputs.new_version }}" \
-            --field version=${{ steps.bump.outputs.new_version }}
+          #
+          # The tag is already pushed, so a failed dispatch leaves a version with
+          # no release, and the next run tags past it. The job token shares the
+          # repository's hourly installation quota with every scan on the push
+          # to main, and a run of merges spends it: on 2026-11-13 every dispatch
+          # after the first answered "API rate limit exceeded for installation".
+          # So retry, then dispatch with the release token, which has its own
+          # quota (and is the token release.yml publishes with anyway).
+          dispatch() {
+            GH_TOKEN="$1" gh workflow run release.yml \
+              --ref "$VERSION" \
+              --field version="$VERSION"
+          }
+          for attempt in 1 2 3; do
+            if dispatch "$JOB_TOKEN"; then exit 0; fi
+            echo "::warning::dispatch with the job token failed (attempt $attempt)"
+            sleep $((attempt * 20))
+          done
+          if [ -n "$RELEASE_TOKEN" ] && dispatch "$RELEASE_TOKEN"; then
+            echo "::notice::dispatched $VERSION with the release token"
+            exit 0
+          fi
+          echo "::error::could not dispatch release.yml for $VERSION; run: gh workflow run release.yml --ref $VERSION --field version=$VERSION"
+          exit 1
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.bump.outputs.new_version }}
+          JOB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
