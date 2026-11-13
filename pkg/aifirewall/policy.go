@@ -427,15 +427,15 @@ func Plan(desired PolicyFile, server ServerState) []Change {
 		}
 	}
 	if desired.Spec.Prune {
-		for name, cur := range server.Guardrails {
+		for _, name := range sortedKeys(server.Guardrails) {
 			if !hasGuardrail(desired.Spec.Guardrails, name) {
 				changes = append(changes, Change{
-					Kind: KindGuardrail, Op: OpDelete, Target: name, UUID: cur.UUID,
+					Kind: KindGuardrail, Op: OpDelete, Target: name, UUID: server.Guardrails[name].UUID,
 				})
 			}
 		}
 	} else {
-		for name := range server.Guardrails {
+		for _, name := range sortedKeys(server.Guardrails) {
 			if !hasGuardrail(desired.Spec.Guardrails, name) {
 				changes = append(changes, Change{
 					Kind: KindGuardrail, Op: OpDrift, Target: name,
@@ -526,7 +526,8 @@ func Plan(desired PolicyFile, server ServerState) []Change {
 	// which *opens* access — the opposite of what every other prune does — so it
 	// stays a deliberate, explicit act. Reporting it costs nothing and stops the
 	// row from being silently invisible, which is how it behaved before.
-	for slug, action := range server.Providers {
+	for _, slug := range sortedKeys(server.Providers) {
+		action := server.Providers[slug]
 		if action == "" || hasProvider(desired.Spec.Providers, slug) {
 			continue
 		}
@@ -604,8 +605,10 @@ func mentionsModel(models []ModelSpec, key string) bool {
 	return false
 }
 
-// sortedKeys keeps the plan deterministic; map iteration order is not.
-func sortedKeys(m map[string]string) []string {
+// sortedKeys keeps the plan deterministic; map iteration order is not. Every
+// loop in Plan over a server map goes through it, or the drift and deletes it
+// reports come out in a different order on every apply.
+func sortedKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)
