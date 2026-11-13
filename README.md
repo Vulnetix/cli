@@ -184,6 +184,12 @@ just test
 `just test` runs `go test ./...`. Go 1.25 or newer is required (see `go.mod`). The `justfile`
 lists the other recipes, including the generators for docs and actions.
 
+`just mutation` runs mutation testing with gremlins (pinned at v0.6.0): it changes the code of a
+package (negated conditions, moved boundaries, swapped operators) and reruns that package's tests,
+and fails when fewer than 80% of the mutants are caught. CI runs the default, `./internal/purl`, in
+the "Mutation testing" job. Pass another package and threshold to survey it, for example
+`just mutation ./internal/versions 0`.
+
 ## Contributing
 
 Open an issue or a pull request at [github.com/Vulnetix/cli](https://github.com/Vulnetix/cli).
