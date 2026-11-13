@@ -114,7 +114,12 @@ func Summary(f Found) string {
 func plural(n int, word string) string {
 	s := itoa(n) + " " + word
 	if n != 1 {
-		s += "s"
+		// Summary pluralises "loss" as well as "operation".
+		if strings.HasSuffix(word, "s") {
+			s += "es"
+		} else {
+			s += "s"
+		}
 	}
 	return s
 }
