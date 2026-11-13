@@ -116,6 +116,12 @@ func Render(p *Policy, sig *Signals, opt Options) string {
 			case "analyze": // it reads history and the repository's pull requests and issues
 				j.fullHistory = true
 				j.perms = map[string]string{"pull-requests": "read", "issues": "read"}
+				// The forge pass reads every pull request and issue in the window and
+				// spends the job token down to its reserve. That token shares the
+				// repository's hourly quota with every other job, CodeQL's SARIF
+				// upload among them, so on a pull request it would fail the run's
+				// required checks. The push to the default branch measures the forge.
+				j.steps[0].with = append(j.steps[0].with, [2]string{"extra-args", "${{ github.event_name == 'pull_request' && '--no-forge' || '' }}"})
 			case "aibom": // a commit scan is slow and this runs on every push
 				j.steps[0].with = append(j.steps[0].with, [2]string{"extra-args", "--commit-scan-max\n1"})
 			}
@@ -195,8 +201,18 @@ func (r *renderer) scanStep(action, gate string, with [][2]string, artifact stri
 	if r.p.Publish {
 		s.with = append(s.with, [2]string{"github-code-scanning", "${{ github.event_name == 'push' }}"})
 	}
+	s.with = append(s.with, [2]string{"github-token", scanToken})
 	return s
 }
+
+// scanToken withholds the job token from a scanner on a pull request. With a
+// token the CLI resolves every licence the registries and deps.dev left unknown
+// through the GitHub API, several requests a package, and a scan of a large
+// repository spends the repository's hourly quota in minutes. That quota is
+// shared with every other job, CodeQL's SARIF upload among them, so the run's
+// required code-scanning check failed. A pull request publishes nothing to
+// GitHub from these jobs; the push to the default branch keeps the token.
+const scanToken = "${{ github.event_name != 'pull_request' && github.token || '' }}"
 
 func (r *renderer) scanJob(id, name, action, gate string, with [][2]string, _ string) job {
 	j := job{id: id, name: name, steps: []step{r.scanStep(action, gate, with, id)}}
@@ -209,7 +225,7 @@ func (r *renderer) scanJob(id, name, action, gate string, with [][2]string, _ st
 func (r *renderer) plainJob(id, name, action string) job {
 	return job{id: id, name: name, steps: []step{{uses: "Vulnetix/cli/" + action + "@" + r.ref, with: [][2]string{
 		{"org-id", "${{ secrets.VULNETIX_ORG_ID }}"}, {"api-key", "${{ secrets.VULNETIX_API_KEY }}"},
-		{"artifact-name", id}, {"fail-on-findings", "false"}}}}}
+		{"artifact-name", id}, {"fail-on-findings", "false"}, {"github-token", scanToken}}}}}
 }
 
 // sbomJob is the whole-repository leg. Its job id and artifact name stay fixed:

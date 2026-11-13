@@ -40,6 +40,7 @@ jobs:
             Vulnetix/opa-cigna-tf
             Vulnetix/opa-aquasecurity-trivy
           github-code-scanning: ${{ github.event_name == 'push' }}
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
 
   sast:
     name: SAST
@@ -64,6 +65,7 @@ jobs:
             Vulnetix/opa-cigna-tf
             Vulnetix/opa-aquasecurity-trivy
           github-code-scanning: ${{ github.event_name == 'push' }}
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
 
   sca-go:
     name: SCA go
@@ -81,6 +83,7 @@ jobs:
           artifact-name: sca-go
           fail-on-findings: false
           github-code-scanning: ${{ github.event_name == 'push' }}
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
       - uses: Vulnetix/cli/sca@v4.24.3
         if: ${{ !cancelled() }}
         with:
@@ -90,6 +93,7 @@ jobs:
           artifact-name: sca-go-rest
           fail-on-findings: false
           github-code-scanning: ${{ github.event_name == 'push' }}
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
 
   iac:
     name: IaC
@@ -115,6 +119,7 @@ jobs:
             Vulnetix/opa-aquasecurity-trivy
             Vulnetix/opa-snyk-labs-iac
           github-code-scanning: ${{ github.event_name == 'push' }}
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
 
   containers:
     name: Containers
@@ -139,6 +144,7 @@ jobs:
             Vulnetix/opa-cigna-tf
             Vulnetix/opa-aquasecurity-trivy
           github-code-scanning: ${{ github.event_name == 'push' }}
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
 
   license:
     name: License
@@ -156,6 +162,7 @@ jobs:
           artifact-name: license
           fail-on-findings: false
           github-code-scanning: ${{ github.event_name == 'push' }}
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
 
   cbom:
     name: CBOM
@@ -169,6 +176,7 @@ jobs:
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           artifact-name: cbom
           fail-on-findings: false
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
 
   aibom:
     name: AIBOM
@@ -182,6 +190,7 @@ jobs:
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           artifact-name: aibom
           fail-on-findings: false
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
           extra-args: |
             --commit-scan-max
             1
@@ -204,6 +213,8 @@ jobs:
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           artifact-name: analyze
           fail-on-findings: false
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
+          extra-args: ${{ github.event_name == 'pull_request' && '--no-forge' || '' }}
 
   sbom:
     name: SBOM
@@ -221,6 +232,7 @@ jobs:
           api-key: ${{ secrets.VULNETIX_API_KEY }}
           artifact-name: sca
           fail-on-findings: false
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
           dependency-graph: ${{ github.event_name == 'push' }}
           attest: ${{ github.event_name == 'push' }}
 
