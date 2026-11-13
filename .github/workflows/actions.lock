@@ -33,6 +33,7 @@ workflows:
         - 'actions/checkout@v7'
         - 'sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532'
     '.github/workflows/slsa-provenance.yml':
+        - 'actions/checkout@v7'
         - 'actions/download-artifact@v8'
         - 'actions/upload-artifact@v7'
         - 'sigstore/cosign-installer@v4.1.2'

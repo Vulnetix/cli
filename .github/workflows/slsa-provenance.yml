@@ -34,10 +34,19 @@ on:
         description: 'release tag the bundle is uploaded to (e.g. v1.2.3)'
         type: string
         required: true
+      release_id:
+        description: 'numeric id of that release, when the caller has it; otherwise it is looked up by tag over GraphQL'
+        type: string
+        required: false
+        default: ''
     secrets:
-      # The token that created the release. The job's own GITHUB_TOKEN gets
-      # "release not found" from the release API on the self-hosted runners,
-      # so no bundle was ever attached; the creating token can see it.
+      # The token that created the release (other callers keep GITHUB_TOKEN).
+      # "release not found" from `gh release upload` was never about which
+      # token could see the release: gh (since cli/cli#13723) reports a REST
+      # rate-limit answer on its tag lookup as "release not found" whenever
+      # the GraphQL draft lookup beside it finds no draft. The upload below
+      # therefore never resolves the release by tag over REST, and it tells a
+      # spent quota apart from a missing release.
       release_token:
         required: false
 
@@ -48,7 +57,10 @@ jobs:
   provenance:
     name: Sign and verify provenance
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
-    timeout-minutes: 15
+    # Signing takes about a minute. The rest is room for the upload to wait
+    # out a spent REST quota (up to an hour, see the upload step) rather than
+    # fail the release.
+    timeout-minutes: 80
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -58,6 +70,7 @@ jobs:
       - uses: sigstore/cosign-installer@v4.1.2
 
       - name: Build the statement
+        id: statement
         env:
           VERSION: ${{ inputs.version }}
         run: |
@@ -78,7 +91,14 @@ jobs:
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sigstore" | jq -r .value)"
           payload="$(printf '%s' "$token" | cut -d. -f2 | tr '_-' '/+')"
           while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="${payload}="; done
-          signer="$(printf '%s' "$payload" | base64 -d | jq -r .job_workflow_ref)"
+          claims="$(printf '%s' "$payload" | base64 -d)"
+          signer="$(jq -r .job_workflow_ref <<<"$claims")"
+          # The commit of this workflow, for the upload script below.
+          workflow_sha="$(jq -r '.job_workflow_sha // empty' <<<"$claims")"
+          if ! [[ $workflow_sha =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::the OIDC token names no job_workflow_sha"; exit 1
+          fi
+          echo "workflow_sha=$workflow_sha" >> "$GITHUB_OUTPUT"
           case "$signer" in
             Vulnetix/cli/.github/workflows/slsa-provenance.yml@*) ;;
             *) echo "::error::unexpected signing workflow: $signer"; exit 1 ;;
@@ -148,15 +168,36 @@ jobs:
 
           mv candidate.sigstore.json provenance.sigstore.json
 
-      - name: Upload to the release
-        env:
-          GH_TOKEN: ${{ secrets.release_token || github.token }}
-          VERSION: ${{ inputs.version }}
-        run: gh release upload "$VERSION" provenance.sigstore.json --clobber --repo "$GITHUB_REPOSITORY"
-
+      # The in-run hand-off goes first: it does not depend on the REST quota,
+      # so a release upload that fails no longer takes the bundle with it.
       - uses: actions/upload-artifact@v7
         with:
           name: slsa-provenance
           path: provenance.sigstore.json
           # Only the caller's publish-tea job reads this, in this same run.
           retention-days: 1
+          # A re-run of this job replaces the bundle an earlier attempt left.
+          overwrite: true
+
+      # The upload script, from this workflow's own commit (the OIDC claim the
+      # statement step read), so a caller in another repository runs the code
+      # this workflow is signed with.
+      - uses: actions/checkout@v7
+        with:
+          repository: Vulnetix/cli
+          ref: ${{ steps.statement.outputs.workflow_sha }}
+          path: .slsa-provenance
+          sparse-checkout: scripts/release-asset-upload.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      # By release id, never by tag over REST: gh reports a spent REST quota on
+      # its tag lookup as "release not found" (the script's header has why),
+      # which failed v4.24.8, v4.24.32 and v4.24.34 until a re-run. A spent
+      # quota now waits for its reset rather than failing the release.
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ secrets.release_token || github.token }}
+          VERSION: ${{ inputs.version }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: bash .slsa-provenance/scripts/release-asset-upload.sh "$GITHUB_REPOSITORY" "$VERSION" "$RELEASE_ID" provenance.sigstore.json

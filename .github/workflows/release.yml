@@ -211,6 +211,9 @@ jobs:
       newest: ${{ steps.newest.outputs.newest }}
       major: ${{ steps.newest.outputs.major }}
       module: ${{ steps.module.outputs.module }}
+      # The release's numeric id: later uploads go to it rather than looking
+      # the release up by tag (scripts/release-asset-upload.sh has why).
+      release_id: ${{ steps.publish.outputs.release_id }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -311,20 +314,44 @@ jobs:
           path: bin/checksums.txt
           retention-days: 1
 
+      # Whether the release exists is asked over GraphQL, not `gh release
+      # view`: gh reports a REST lookup refused for a spent quota as "release
+      # not found", which would send a re-run to create a release that exists.
       - name: Create or update Release
+        id: publish
         run: |
+          set -euo pipefail
           VERSION=${{ needs.version.outputs.version }}
           if ! git tag -l "$VERSION" | grep -q "$VERSION"; then
             git tag -a "$VERSION" -m "Release $VERSION"
           fi
-          if gh release view "$VERSION" > /dev/null 2>&1; then
-            gh release upload "$VERSION" bin/* --clobber
+          release_id() {
+            # shellcheck disable=SC2016 # $owner, $name and $tag are GraphQL variables
+            gh api graphql \
+              -f query='query($owner:String!,$name:String!,$tag:String!){repository(owner:$owner,name:$name){release(tagName:$tag){databaseId}}}' \
+              -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -f tag="$VERSION" \
+              --jq '.data.repository.release.databaseId // empty'
+          }
+          ID=$(release_id)
+          if [ -n "$ID" ]; then
+            bash scripts/release-asset-upload.sh "$GITHUB_REPOSITORY" "$VERSION" "$ID" bin/*
           else
             gh release create "$VERSION" bin/* \
               --title "Release $VERSION" \
               --latest=${{ steps.newest.outputs.newest }} \
               --generate-notes
+            for attempt in 1 2 3 4 5 6; do
+              ID=$(release_id) || ID=''
+              [ -n "$ID" ] && break
+              sleep $(( attempt * 10 ))
+            done
           fi
+          if [ -z "$ID" ]; then
+            echo "::error::GraphQL has no release for $VERSION after creating it"
+            exit 1
+          fi
+          echo "release $VERSION is id $ID"
+          echo "release_id=$ID" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
 
@@ -443,6 +470,7 @@ jobs:
     with:
       subjects_artifact: release-subjects
       version: ${{ needs.release.outputs.version }}
+      release_id: ${{ needs.release.outputs.release_id }}
     secrets:
       release_token: ${{ secrets.PACKAGES_TOKEN }}
 
@@ -661,13 +689,19 @@ jobs:
   # one.
   publish-tea:
     needs: [release, update-packages, provenance]
-    # A provenance failure publishes the release without the bundle, with a
-    # warning below, rather than leaving the transparency log silent about it.
-    # The other two needs still have to succeed, as they did before.
-    # update-packages is skipped, not failed, for a release older than the newest.
-    if: ${{ !cancelled() && needs.release.result == 'success' && (needs.update-packages.result == 'success' || needs.update-packages.result == 'skipped') }}
+    # A TEA release cannot be unpublished, so it waits for the provenance
+    # bundle it attaches: a failed provenance job is re-run, and this job with
+    # it. update-packages may be skipped only because the release is older
+    # than the newest; skipped because its canary never ran (which needs
+    # provenance) it is a failure upstream, and publishing then put a release
+    # in the transparency log that Homebrew, Scoop and the flake never got.
+    if: >-
+      ${{ !cancelled() && needs.release.result == 'success' && needs.provenance.result == 'success'
+      && (needs.update-packages.result == 'success'
+      || (needs.update-packages.result == 'skipped' && needs.release.outputs.newest != 'true')) }}
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
-    timeout-minutes: 20
+    # Room for the signature upload to wait out a spent REST quota.
+    timeout-minutes: 90
     # id-token lets this job get an OIDC token from GitHub, which is the
     # identity public Fulcio issues a short-lived certificate against. That is
     # what makes the signing below keyless: there is no key to hold or rotate.
@@ -691,22 +725,17 @@ jobs:
           aws s3 cp "s3://$STAGE_BUCKET/$STAGE_PREFIX/cross-binaries.tgz" - | tar -xzf - -C bin
 
       # The bundle for every binary in the release, signed by the provenance
-      # job. Not fatal: `tea release` drops a file it cannot read and says so.
+      # job, which this job needs to have succeeded.
       - name: Download the provenance bundle
-        id: provenance
-        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
           name: slsa-provenance
           path: provenance
 
-      - name: Report whether the provenance was produced
+      - name: Check the provenance bundle
         run: |
-          if [ -s provenance/provenance.sigstore.json ]; then
-            echo "provenance: $(wc -c < provenance/provenance.sigstore.json) bytes"
-          else
-            echo "::warning::no provenance bundle was produced; publishing the release without it"
-          fi
+          test -s provenance/provenance.sigstore.json
+          echo "provenance: $(wc -c < provenance/provenance.sigstore.json) bytes"
 
       - name: Install the binary this release built
         run: |
@@ -785,12 +814,13 @@ jobs:
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             vulnetix.cdx.json
 
-          gh release upload "${{ needs.release.outputs.version }}" \
-            vulnetix.cdx.json.sig vulnetix.cdx.json.pem \
-            vulnetix.cdx.json.intoto.jsonl --clobber
+          # By release id: `gh release upload <tag>` reports a spent REST
+          # quota as "release not found" (scripts/release-asset-upload.sh).
+          bash scripts/release-asset-upload.sh "$GITHUB_REPOSITORY" \
+            "${{ needs.release.outputs.version }}" "${{ needs.release.outputs.release_id }}" \
+            vulnetix.cdx.json.sig vulnetix.cdx.json.pem vulnetix.cdx.json.intoto.jsonl
         env:
-          # The token that created the release: GITHUB_TOKEN gets "release
-          # not found" here, as in slsa-provenance.yml.
+          # The token that created the release.
           GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
 
       - name: Publish product, release, artifacts and distributions
