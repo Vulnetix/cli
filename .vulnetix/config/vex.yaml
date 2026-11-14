@@ -1,0 +1,13 @@
+# Committed VEX statements for this repository. Every Vulnetix scan (local and
+# CI) reads the documents under .vulnetix/vex/ before its gates, so a finding a
+# statement closes is reported as not_affected or fixed instead of open.
+apiVersion: vulnetix.com/v1
+kind: VexSource
+metadata:
+  name: repo-vex
+spec:
+  path:
+    path: .vulnetix/vex
+  scope:
+    repos:
+      - Vulnetix/cli
