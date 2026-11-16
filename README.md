@@ -4,6 +4,8 @@
 
 # Vulnetix CLI and GitHub Action
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Vulnetix/cli)
+
 Vulnetix scans a repository for vulnerable dependencies, code flaws, secrets, IaC and container
 misconfigurations, licence conflicts and malware, then tells you which findings affect the
 version you run and the lowest version that fixes them. It is for developers who want that
