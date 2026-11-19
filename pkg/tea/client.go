@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // DefaultServer is Vulnetix's own TEA root, at the current specification. It is
@@ -79,9 +80,9 @@ var Catalogues = []string{CatalogueFirstParty, CataloguePublic}
 func ServerForCatalogue(name string) (string, error) {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "", CatalogueFirstParty:
-		return DefaultServer, nil
+		return brand.URL(DefaultServer), nil
 	case CataloguePublic:
-		return PublicServer, nil
+		return brand.URL(PublicServer), nil
 	}
 	return "", fmt.Errorf("unknown catalogue %q: valid catalogues are %s",
 		name, strings.Join(Catalogues, ", "))
@@ -92,7 +93,7 @@ func ServerForCatalogue(name string) (string, error) {
 func IsPublicServer(root string) bool {
 	root = strings.TrimRight(strings.TrimSpace(root), "/")
 	for _, public := range []string{PublicServer, LegacyPublicServer, "https://www.vulnetix.com/tea/public/v1"} {
-		if strings.EqualFold(root, public) {
+		if strings.EqualFold(root, public) || strings.EqualFold(root, brand.URL(public)) {
 			return true
 		}
 	}
@@ -122,7 +123,7 @@ type Client struct {
 // reading somebody else's open transparency log.
 func New(baseURL string, creds *auth.Credentials) *Client {
 	if strings.TrimSpace(baseURL) == "" {
-		baseURL = DefaultServer
+		baseURL = brand.URL(DefaultServer)
 	}
 	return &Client{
 		BaseURL: strings.TrimRight(baseURL, "/"),

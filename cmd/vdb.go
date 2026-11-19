@@ -25,6 +25,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/memory"
 	"github.com/vulnetix/cli/v4/internal/purl"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/cache"
 	"github.com/vulnetix/cli/v4/pkg/tty"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
@@ -91,7 +92,7 @@ Credential sources (checked in order):
   3. Environment variables: VVD_ORG + VVD_SECRET (SigV4)
   4. Project file: .vulnetix/credentials.json
   5. Home file: ~/.vulnetix/credentials.json
-  6. netrc machine packages.vulnetix.com (Direct API Key)
+  6. netrc machine ` + auth.PackageFirewallMachine() + ` (Direct API Key)
   7. Unauthenticated Community (built-in, --no-community to disable)
 
 API version:
@@ -821,7 +822,7 @@ Examples:
 		// No credentials — use direct HTTP GET (spec is public)
 		baseURL := vdbBaseURL
 		if baseURL == "" {
-			baseURL = vdb.DefaultBaseURL
+			baseURL = brand.URL(vdb.DefaultBaseURL)
 		}
 		apiVer := vdb.DefaultAPIVersion
 		if vdbAPIVersion != "" {
@@ -977,7 +978,7 @@ func newVDBClient() *vdb.Client {
 	var client *vdb.Client
 	if vdbCreds != nil {
 		client = vdb.NewClientFromCredentials(vdbCreds)
-		if vdbBaseURL != "" && vdbBaseURL != vdb.DefaultBaseURL {
+		if vdbBaseURL != "" && vdbBaseURL != brand.URL(vdb.DefaultBaseURL) {
 			client.BaseURL = vdbBaseURL
 		}
 	} else {
@@ -2069,7 +2070,7 @@ func init() {
 	vdbCmd.PersistentFlags().StringVar(&vdbSecretKey, "secret", "", "SigV4 secret key (overrides VVD_SECRET env var)")
 	vdbCmd.PersistentFlags().StringVar(&vdbAPIKey, "api-key", "", "Direct API key (overrides VULNETIX_API_KEY env var)")
 	vdbCmd.PersistentFlags().StringVar(&vdbMethod, "method", "", "Auth method: apikey or sigv4 (auto-detected from flags if omitted)")
-	vdbCmd.PersistentFlags().StringVar(&vdbBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	vdbCmd.PersistentFlags().StringVar(&vdbBaseURL, "base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
 	vdbCmd.PersistentFlags().StringVarP(&vdbAPIVersion, "api-version", "V", "v2", `VDB API version. v2 is the current API and the default, so there is nothing to pass. "v1" is the legacy API: deprecated, kept for backwards compatibility, and it will be removed. Commands that exist only on v2 (timeline, affected, kev, advisories, workarounds, cwe, remediation, cloud-locators, scorecard, reachability) refuse -V v1.`)
 	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, yaml, pretty)")
 	vdbCmd.PersistentFlags().StringVar(&vdbReachability, "reachability", "both",

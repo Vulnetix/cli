@@ -67,7 +67,7 @@ func printBanner(cmd *cobra.Command) {
 
 	var fwText string
 	if home, err := os.UserHomeDir(); err == nil {
-		groups := groupEcosystems(home, auth.PackageFirewallHost)
+		groups := groupEcosystems(home, auth.PackageFirewallMachine())
 		if len(groups.Configured) > 0 {
 			formattedEcos := make([]string, len(groups.Configured))
 			for i, e := range groups.Configured {

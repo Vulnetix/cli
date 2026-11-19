@@ -32,6 +32,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/memory"
 	"github.com/vulnetix/cli/v4/internal/reachability"
 	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
@@ -337,7 +338,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	// across every batch. A single Pro response is enough to suppress it —
 	// guards against transient replica/cache flaps on the server.
 	if anyTierGated && tierObserved != "pro" && !silent {
-		fmt.Fprintln(w, "Note: reachability requires Pro / Team / Business / Enterprise — upgrade at https://www.vulnetix.com/pricing")
+		fmt.Fprintln(w, "Note: reachability requires Pro / Team / Business / Enterprise — upgrade at "+brand.URL("https://www.vulnetix.com/pricing"))
 	}
 
 	merged := map[string]any{

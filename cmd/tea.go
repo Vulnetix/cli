@@ -25,6 +25,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/tea"
 )
 
@@ -60,7 +61,7 @@ Publishing needs your own credentials and always targets your own
 organisation's server.`,
 	}
 
-	cmd.PersistentFlags().String("server", tea.DefaultServer,
+	cmd.PersistentFlags().String("server", brand.URL(tea.DefaultServer),
 		"TEA server root URL (a supplier's server works for every read)")
 	cmd.PersistentFlags().String("catalogue", tea.CatalogueFirstParty,
 		"which built-in catalogue to read: "+strings.Join(tea.Catalogues, " or ")+" (not combinable with --server)")
@@ -177,7 +178,7 @@ func teaSelect(cmd *cobra.Command, allowCommunity bool) (*teaSelection, error) {
 			"--server names a root URL and --catalogue names one of the built-in roots")
 	}
 
-	server := tea.DefaultServer
+	server := brand.URL(tea.DefaultServer)
 	if serverFlag != nil {
 		server = serverFlag.Value.String()
 	}
@@ -190,7 +191,7 @@ func teaSelect(cmd *cobra.Command, allowCommunity bool) (*teaSelection, error) {
 	}
 	server = strings.TrimRight(strings.TrimSpace(server), "/")
 	if server == "" {
-		server = tea.DefaultServer
+		server = brand.URL(tea.DefaultServer)
 	}
 
 	sel := &teaSelection{Server: server, Public: tea.IsPublicServer(server), Source: teaCredNone}

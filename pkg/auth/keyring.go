@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/zalando/go-keyring"
 )
 
@@ -50,7 +51,7 @@ func keychainHint() string {
 	default:
 		backend = "a supported OS keychain"
 	}
-	return fmt.Sprintf("\n  expected: %s\n  setup guide: %s\n  alternatively store credentials in a file with --store home|project", backend, KeychainSetupURL)
+	return fmt.Sprintf("\n  expected: %s\n  setup guide: %s\n  alternatively store credentials in a file with --store home|project", backend, brand.URL(KeychainSetupURL))
 }
 
 // saveSecretToKeyring stores a secret under (keyringService, account).

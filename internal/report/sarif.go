@@ -23,6 +23,7 @@ import (
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
 	"github.com/vulnetix/cli/v4/internal/sast"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // BuildSARIF returns the report's SCA findings as a single-run SARIF log with
@@ -45,7 +46,7 @@ func BuildSARIF(r Report, root, toolVersion string) *sarif.Log {
 					ID:               a.ID,
 					Name:             a.ID,
 					ShortDescription: &sarif.Message{Text: a.ID + " in a dependency"},
-					HelpURI:          "https://www.vulnetix.com/vulnerability/" + a.ID,
+					HelpURI:          brand.URL("https://www.vulnetix.com/vulnerability/" + a.ID),
 					Properties: sarif.PropertyBag{
 						"severity": sev,
 						"tags":     sast.SecurityTags([]string{"sca", "dependency"}, nil),
@@ -110,7 +111,7 @@ func BuildSARIF(r Report, root, toolVersion string) *sarif.Log {
 			Tool: sarif.Tool{Driver: sarif.ToolComponent{
 				Name:           "vulnetix",
 				Version:        toolVersion,
-				InformationURI: "https://vulnetix.com",
+				InformationURI: brand.URL("https://vulnetix.com"),
 				Rules:          descriptors,
 			}},
 			Results:           results,

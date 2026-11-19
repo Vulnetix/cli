@@ -20,6 +20,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/sensor/provision"
 	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // systemctl runs systemctl; replaced in tests.
@@ -55,7 +56,7 @@ func defineCommon(fs *flag.FlagSet) commonFlags {
 	return commonFlags{
 		configDir: fs.String("config-dir", provision.DefaultDir, "where the sensor credential and profile config are kept"),
 		stateDir:  fs.String("state-dir", "/var/lib/vulnetix-sensor", "where the sensor keeps its key"),
-		endpoint:  fs.String("endpoint", "", "Vulnetix site API (default: the endpoint the device enrolled with, else "+provision.DefaultEndpoint+")"),
+		endpoint:  fs.String("endpoint", "", "Vulnetix site API (default: the endpoint the device enrolled with, else "+brand.URL(provision.DefaultEndpoint)+")"),
 	}
 }
 
@@ -77,7 +78,7 @@ func (c commonFlags) endpointFor(cred provision.Credential) string {
 		return cred.Endpoint
 	}
 
-	return provision.DefaultEndpoint
+	return brand.URL(provision.DefaultEndpoint)
 }
 
 type enrollOptions struct {
@@ -156,7 +157,7 @@ func enrollCmd(args []string) error {
 	}
 	endpoint := *o.endpoint
 	if endpoint == "" {
-		endpoint = provision.DefaultEndpoint
+		endpoint = brand.URL(provision.DefaultEndpoint)
 	}
 	provision.UserAgent = "vulnetix-sensor/" + version
 

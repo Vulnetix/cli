@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v4/internal/scan"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
@@ -59,7 +60,7 @@ func applyOrgQualityGate(cmd *cobra.Command, p qualityGateOverridePointers) {
 
 	client := vdb.NewClientFromCredentials(creds)
 	client.APIVersion = "/v2"
-	client.BaseURL = vdb.DefaultBaseURL
+	client.BaseURL = brand.URL(vdb.DefaultBaseURL)
 	if f := cmd.Flags().Lookup("base-url"); f != nil {
 		if baseURL, _ := cmd.Flags().GetString("base-url"); baseURL != "" {
 			client.BaseURL = baseURL

@@ -175,6 +175,28 @@ See the [Pix documentation](https://docs.vulnes.is/pix/) and the
 | `.vulnetix/memory.yaml`, `.vulnetix/sbom.cdx.json` | What the last scan found; `vulnetix report` reads them without rescanning |
 | `VULNETIX_ORG_ID`, `VULNETIX_API_KEY`, `VULNETIX_API_TOKEN` | Credentials from the environment, read before any file |
 | `VULNETIX_NO_ANALYTICS`, `DO_NOT_TRACK` | Turn off anonymous usage analytics |
+| `VULNETIX_BRAND` (alias `VULNESIS_BRAND`) | Which brand's hosts the CLI talks to and links: `vulnetix` (default) or `vulnesis`. See [Brand selection](#brand-selection) |
+
+### Brand selection
+
+The CLI serves two brands: Vulnetix (`vulnetix.com`, the default) and Vulnesis (`vulnes.is`).
+Set `VULNETIX_BRAND=vulnesis` (or `VULNESIS_BRAND=vulnesis`; the value is case-insensitive) to
+point every default endpoint and printed link at `vulnes.is`. Unset, empty or any other value
+keeps Vulnetix, so nothing changes unless you opt in. `VULNETIX_BRAND` wins when both are set.
+
+Under Vulnesis only `vulnetix.com` hosts change, and only the host:
+
+| Vulnetix | Vulnesis |
+|----------|----------|
+| `vulnetix.com` | `vulnes.is` |
+| `www.vulnetix.com`, `packages.vulnetix.com`, `docs.vulnetix.com` | `www.vulnes.is`, `packages.vulnes.is`, `docs.vulnes.is` |
+| `api.vdb.vulnetix.com` | `api-vdb.vulnes.is` |
+
+The Package Firewall netrc machine follows the brand (`packages.vulnes.is`). Explicit overrides
+(`--base-url`, `--proxy-url`, `--gateway-url`, `--server`, `VULNETIX_API_URL`, `VULNETIX_WEB_URL`,
+`VULNETIX_SIEM_URL`, `VULNETIX_ENDPOINT`) still win over the brand's default. Identifiers are not
+rebranded: config `apiVersion: vulnetix.com/v1`, TEI identifiers, schema `$id`s, SPDX namespaces,
+SARIF tool names and the `vulnetix` command itself stay as they are.
 
 ## Development
 

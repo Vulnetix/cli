@@ -7,6 +7,7 @@ import (
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
 	"github.com/vulnetix/cli/v4/internal/sast"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // BuildLog returns the analysis as a GitHub-ready SARIF log with the code
@@ -98,7 +99,7 @@ func BuildLog(result *AnalysisResult, root, toolVersion string) *sarif.Log {
 			Tool: sarif.Tool{Driver: sarif.ToolComponent{
 				Name:           "vulnetix",
 				Version:        toolVersion,
-				InformationURI: "https://vulnetix.com",
+				InformationURI: brand.URL("https://vulnetix.com"),
 				Rules:          descriptors,
 			}},
 			Results:           results,

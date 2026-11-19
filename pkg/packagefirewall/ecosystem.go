@@ -2,6 +2,7 @@ package packagefirewall
 
 import (
 	"fmt"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"strings"
 )
 
@@ -70,7 +71,7 @@ func ByCommand(command string) (Ecosystem, bool) {
 func ProxyURL(base string, eco Ecosystem) string {
 	u := strings.TrimRight(strings.TrimSpace(base), "/")
 	if u == "" {
-		u = "https://packages.vulnetix.com"
+		u = brand.URL("https://packages.vulnetix.com")
 	}
 	if eco.Prefix == "" {
 		return u

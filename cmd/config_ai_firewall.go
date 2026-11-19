@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
@@ -21,13 +22,13 @@ func newConfigGetAiFirewallCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ai-firewall",
 		Short: "Show AI Firewall providers, model lists, and guardrails",
-		Long: `Display the org-wide Vulnetix AI Firewall policy: the provider catalog with
+		Long: brand.Text(`Display the org-wide Vulnetix AI Firewall policy: the provider catalog with
 this org's allow/deny association, the model allow/deny lists, and the content
-guardrails enforced inline by https://guardrails.vulnetix.com.`,
+guardrails enforced inline by https://guardrails.vulnetix.com.`),
 		Args: cobra.NoArgs,
 		RunE: runConfigGetAiFirewall,
 	}
-	cmd.Flags().String("base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	cmd.Flags().String("base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp))
 	return cmd
@@ -58,11 +59,11 @@ func newConfigSetAiFirewallCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ai-firewall",
 		Short: "Configure AI Firewall providers, model lists, and guardrails",
-		Long: `Configure the org-wide Vulnetix AI Firewall (https://guardrails.vulnetix.com)
+		Long: brand.Text(`Configure the org-wide Vulnetix AI Firewall (https://guardrails.vulnetix.com)
 policy. Point OpenAI SDKs at
 https://guardrails.vulnetix.com/{providerSlug}/{orgUuid}/v1 as the base URL
 with your own provider API key — no custom headers needed; the gateway
-enforces this policy inline.`,
+enforces this policy inline.`),
 	}
 	cmd.AddCommand(newConfigSetAiFirewallProviderCommand())
 	cmd.AddCommand(newConfigSetAiFirewallModelCommand())
@@ -289,7 +290,7 @@ func runConfigSetAiFirewallGuardrail(cmd *cobra.Command, args []string) error {
 }
 
 func addAiFirewallCommonFlags(cmd *cobra.Command) {
-	cmd.Flags().String("base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	cmd.Flags().String("base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp))
 }

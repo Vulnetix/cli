@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vulnetix/cli/v4/internal/sensor/provision"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // An update is not finished when the binary is swapped. The new sensor must
@@ -262,7 +263,7 @@ func guardRescueCmd(args []string) error {
 // HTTP answer counts, including a refusal, because it is the network being
 // tested and not the credential.
 func serverReachable(c commonFlags, store provision.Store) bool {
-	endpoint := provision.DefaultEndpoint
+	endpoint := brand.URL(provision.DefaultEndpoint)
 	if cred, err := store.LoadCredential(); err == nil {
 		endpoint = c.endpointFor(cred)
 	}

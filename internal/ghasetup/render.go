@@ -2,6 +2,7 @@ package ghasetup
 
 import (
 	"fmt"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"sort"
 	"strings"
 )
@@ -368,7 +369,7 @@ func renderPublish(tools []*Tool, runsOn string, opt Options) string {
 	// found". --retry-all-errors retries the 5xx.
 	b.WriteString("        run: |\n")
 	b.WriteString("          curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \\\n")
-	b.WriteString("            -o \"$RUNNER_TEMP/vulnetix-install.sh\" https://cli.vulnetix.com/install.sh\n")
+	b.WriteString("            -o \"$RUNNER_TEMP/vulnetix-install.sh\" " + brand.URL("https://cli.vulnetix.com/install.sh") + "\n")
 	b.WriteString("          sh \"$RUNNER_TEMP/vulnetix-install.sh\" --install-dir \"$HOME/.local/bin\"\n")
 	b.WriteString("          echo \"$HOME/.local/bin\" >> \"$GITHUB_PATH\"\n")
 	b.WriteString("      - name: Publish scanner reports\n")

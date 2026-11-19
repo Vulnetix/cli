@@ -16,6 +16,7 @@ import (
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
@@ -106,7 +107,7 @@ func (e *CycloneDXValidationError) Error() string {
 // NewClient creates a new upload client
 func NewClient(baseURL string, creds *auth.Credentials) *Client {
 	if baseURL == "" {
-		baseURL = DefaultBaseURL
+		baseURL = brand.URL(DefaultBaseURL)
 	}
 	return &Client{
 		BaseURL: baseURL,

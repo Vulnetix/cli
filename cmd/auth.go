@@ -17,6 +17,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/display"
 	"github.com/vulnetix/cli/v4/internal/upload"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
@@ -143,7 +144,7 @@ var authStatusCmd = &cobra.Command{
 		ctx.Logger.Result(display.Header(t, "Package Firewall"))
 		addons := liveAddonStatus(creds)
 		if home, err := os.UserHomeDir(); err == nil {
-			groups := groupEcosystems(home, auth.PackageFirewallHost)
+			groups := groupEcosystems(home, auth.PackageFirewallMachine())
 			if len(groups.Configured) > 0 {
 				ctx.Logger.Result(display.Subheader(t, "Configured"))
 				for _, eco := range groups.Configured {
@@ -190,7 +191,7 @@ Examples:
   vulnetix auth verify
 
   # Verify with explicit base URL
-  vulnetix auth verify --base-url https://api.vdb.vulnetix.com/v1`,
+  vulnetix auth verify --base-url ` + brand.URL(upload.DefaultBaseURL),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runAuthVerify(cmd)
 	},
@@ -417,7 +418,7 @@ func webBaseURL() string {
 	if u := strings.TrimSpace(os.Getenv("VULNETIX_WEB_URL")); u != "" {
 		return strings.TrimRight(u, "/")
 	}
-	return defaultWebURL
+	return brand.URL(defaultWebURL)
 }
 
 func deviceAPIBase() string { return webBaseURL() + "/api/site/v1/cli/device" }
@@ -757,8 +758,8 @@ func init() {
 	_ = authCmd.RegisterFlagCompletionFunc("method", cobra.FixedCompletions([]string{"apikey", "sigv4"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = authCmd.RegisterFlagCompletionFunc("store", cobra.FixedCompletions([]string{"home", "project", "keyring"}, cobra.ShellCompDirectiveNoFileComp))
 
-	authStatusCmd.Flags().StringVar(&authStatusBaseURL, "base-url", upload.DefaultBaseURL, "Base URL for Vulnetix API")
-	authVerifyCmd.Flags().StringVar(&verifyBaseURL, "base-url", upload.DefaultBaseURL, "Base URL for Vulnetix API")
+	authStatusCmd.Flags().StringVar(&authStatusBaseURL, "base-url", brand.URL(upload.DefaultBaseURL), "Base URL for Vulnetix API")
+	authVerifyCmd.Flags().StringVar(&verifyBaseURL, "base-url", brand.URL(upload.DefaultBaseURL), "Base URL for Vulnetix API")
 
 	authCmd.AddCommand(authLoginCmd, authStatusCmd, authLogoutCmd, authVerifyCmd)
 	rootCmd.AddCommand(authCmd)

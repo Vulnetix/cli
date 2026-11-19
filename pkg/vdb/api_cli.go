@@ -21,6 +21,7 @@ import (
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
 	"github.com/vulnetix/cli/v4/internal/gitctx"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // ─── Envelope types (mirror vdb-api/internal/handler/v2_cli_common.go) ────
@@ -1197,14 +1198,14 @@ func (e *PlanLockedError) Error() string {
 		feature = "this feature"
 	}
 	if e.Addon != "" {
-		return fmt.Sprintf("%s requires the %s add-on; nothing was changed. See %s", feature, addonDisplayName(e.Addon), addonBillingURL)
+		return fmt.Sprintf("%s requires the %s add-on; nothing was changed. See %s", feature, addonDisplayName(e.Addon), brand.URL(addonBillingURL))
 	}
 	plan := e.RequiredPlan
 	if plan == "" {
 		plan = "a higher"
 	}
 
-	return fmt.Sprintf("%s requires the %s plan; nothing was changed. See https://www.vulnetix.com/pricing", feature, plan)
+	return fmt.Sprintf("%s requires the %s plan; nothing was changed. See %s", feature, plan, brand.URL("https://www.vulnetix.com/pricing"))
 }
 
 // decodePlanLocked reports whether a body is the plan-locked marker.

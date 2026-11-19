@@ -13,6 +13,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/display"
 	autofix "github.com/vulnetix/cli/v4/internal/fix"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
@@ -111,7 +112,7 @@ Policy form:
 	cmd.Flags().Int("priority", 0, "Mirror priority")
 	cmd.Flags().Bool("enable", false, "Enable an existing or new mirror")
 	cmd.Flags().Bool("disable", false, "Disable an existing or new mirror")
-	cmd.Flags().String("base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	cmd.Flags().String("base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp))
@@ -359,7 +360,7 @@ credential or the change (unsetting with 'null').`,
 	cmd.Flags().String("this-quarter-severity", "", "Severity for dependencies reaching EOL this calendar quarter (skip, low, medium, high, critical)")
 	cmd.Flags().String("within-30-days-severity", "", "Severity for dependencies reaching EOL within 30 days (skip, low, medium, high, critical)")
 	cmd.Flags().String("retired-severity", "", "Severity for dependencies already past EOL (skip, low, medium, high, critical)")
-	cmd.Flags().String("base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	cmd.Flags().String("base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 
 	for _, name := range []string{"next-quarter-severity", "this-quarter-severity", "within-30-days-severity", "retired-severity"} {
@@ -439,7 +440,7 @@ credential or the change (unsetting with 'null').`,
 	cmd.Flags().String("exploits", "", "Exploit maturity gate (poc, active, weaponized, or 'null' to unset for the org)")
 	cmd.Flags().String("severity", "", "Severity gate (low, medium, high, critical, or 'null' to unset for the org)")
 	cmd.Flags().String("sca-autofix-strategy", "", "SCA autofix target strategy ("+strings.Join(qualityGateAutofixStrats, ", ")+", or 'null' to unset for the org)")
-	cmd.Flags().String("base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	cmd.Flags().String("base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 
 	boolNullComp := cobra.FixedCompletions([]string{"true", "false", "null"}, cobra.ShellCompDirectiveNoFileComp)
@@ -561,7 +562,7 @@ caller's scan flag (or builtin default) in effect.`,
 		Args: cobra.NoArgs,
 		RunE: runConfigGetQualityGate,
 	}
-	cmd.Flags().String("base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	cmd.Flags().String("base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp))
 	return cmd
@@ -658,7 +659,7 @@ mirror across all ecosystems.`,
 		Args: cobra.NoArgs,
 		RunE: runConfigGetPackageFirewall,
 	}
-	cmd.Flags().String("base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	cmd.Flags().String("base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp))
 	return cmd
@@ -761,7 +762,7 @@ policy is configured the org has not opted in and no EOL findings are created.`,
 		Args: cobra.NoArgs,
 		RunE: runConfigGetEolPolicy,
 	}
-	cmd.Flags().String("base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	cmd.Flags().String("base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp))
 	return cmd

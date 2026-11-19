@@ -34,6 +34,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/tui"
 	"github.com/vulnetix/cli/v4/internal/update"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/cache"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
@@ -3740,7 +3741,7 @@ func isUnauthenticatedScan() bool {
 func printCommunitySignupReminder() {
 	fmt.Fprintln(os.Stderr, "  ℹ Snapshots are skipped for unauthenticated scans.")
 	fmt.Fprintln(os.Stderr, "    Get a free Community Plan API key (your own dedicated quota) at")
-	fmt.Fprintln(os.Stderr, "    https://www.vulnetix.com/resolve/register, then run 'vulnetix auth login'.")
+	fmt.Fprintln(os.Stderr, "    "+brand.URL("https://www.vulnetix.com/resolve/register")+", then run 'vulnetix auth login'.")
 	fmt.Fprintln(os.Stderr)
 }
 

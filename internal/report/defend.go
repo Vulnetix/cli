@@ -7,6 +7,7 @@ import (
 
 	"github.com/vulnetix/cli/v4/internal/defences"
 	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // DefendView is everything `vulnetix defend` shows for one finding.
@@ -76,7 +77,7 @@ func RenderDefend(v DefendView, o Options, t *display.Terminal) string {
 	case defences.StateGated:
 		writeLaneCounts(&b, s, "BLOCK", d.Block, "they stop the request")
 		writeLaneCounts(&b, s, "DETECT", d.Detect, "they tell you it happened")
-		fmt.Fprintf(&b, "\n %s Rule bodies and downloads need a Pro plan: %s\n", s.Defence(s.G.Defence), s.Cmd(pricingURL))
+		fmt.Fprintf(&b, "\n %s Rule bodies and downloads need a Pro plan: %s\n", s.Defence(s.G.Defence), s.Cmd(brand.URL(pricingURL)))
 		return b.String()
 	}
 

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,6 +10,10 @@ import (
 )
 
 const PackageFirewallHost = "packages.vulnetix.com"
+
+// PackageFirewallMachine is the netrc machine the Package Firewall credential
+// lives under: PackageFirewallHost for the current brand.
+func PackageFirewallMachine() string { return brand.Host(PackageFirewallHost) }
 
 // NetrcInfo describes the Vulnetix Package Firewall entry in netrc.
 type NetrcInfo struct {
@@ -62,7 +67,7 @@ func NetrcStatus() NetrcInfo {
 	}
 	info.Secure = true
 
-	orgID, apiKey, ok := parseNetrcMachine(string(data), PackageFirewallHost)
+	orgID, apiKey, ok := parseNetrcMachine(string(data), PackageFirewallMachine())
 	if !ok {
 		return info
 	}
@@ -70,7 +75,7 @@ func NetrcStatus() NetrcInfo {
 	info.OrgID = orgID
 	info.APIKey = apiKey
 	if orgID == "" || apiKey == "" {
-		info.Err = fmt.Errorf("netrc entry for %s is missing login or password", PackageFirewallHost)
+		info.Err = fmt.Errorf("netrc entry for %s is missing login or password", PackageFirewallMachine())
 	}
 	return info
 }
@@ -85,10 +90,10 @@ func LoadNetrcCredentials() (*Credentials, error) {
 		return nil, fmt.Errorf("netrc file not found")
 	}
 	if !info.MachineFound {
-		return nil, fmt.Errorf("netrc file %s has no machine %s entry", info.Path, PackageFirewallHost)
+		return nil, fmt.Errorf("netrc file %s has no machine %s entry", info.Path, PackageFirewallMachine())
 	}
 	if info.OrgID == "" || info.APIKey == "" {
-		return nil, fmt.Errorf("netrc entry for %s is missing login or password", PackageFirewallHost)
+		return nil, fmt.Errorf("netrc entry for %s is missing login or password", PackageFirewallMachine())
 	}
 	return &Credentials{
 		OrgID:  info.OrgID,
