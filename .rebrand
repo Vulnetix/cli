@@ -1,31 +1,35 @@
 # scripts/rebrand.py config (Vulnesis/ops).
-# Code scanning categories (vulnetix/<kind>/), the dependency-graph detector id,
-# the campaign filter on them and the skills source prefix are identifiers that
-# existing GitHub alerts, snapshots and lockfiles are keyed on: shared data.
-keep "vulnetix/"
-# Signing identity (SPIFFE id) that verifiers pin; the test token encodes it too.
-keep spiffe://sigstore.vulnetix.com/
-# The stagger test hashes the real fleet's slugs and asserts no two collide.
-imports-only internal/ghasetup/ghasetup_test.go
-# The URL inputs are rewritten (they name the moved repo); the expected owner follows.
-rewrite "github.com", "vulnetix", "cli"} => "github.com", "vulnesis", "cli"}
-# cli is shared by both brands: it keeps exactly Vulnetix's dependencies, so the
-# non-transferred Vulnetix modules keep their paths (and pinned versions).
-keep github.com/Vulnetix/vdb-manifest
-keep github.com/Vulnetix/vdb-openapi
-keep github.com/Vulnetix/vdb-sca-match
-keep github.com/vulnetix/malscan-engine
-# SARIF tool names ("Vulnetix SCA", ...): code scanning keys alert history on them,
-# and the own-tool check (vdb-cyclonedx IsVulnetixToolName) matches them.
-keep "Vulnetix SAST"
-keep "Vulnetix SCA"
-keep "Vulnetix VDB"
-keep "Vulnetix Malscan"
-keep "Vulnetix AI Firewall"
-keep "Vulnetix License"
-keep "Vulnetix IaC"
-keep "Vulnetix GitHub"
-keep "Vulnetix CLI Environment"
-keep "Vulnetix CLI"
-# The audit SARIF golden follows the rewritten rule text.
-post go test ./cmd -run TestGHAAuditSARIFIsValidAndStable -update-gha-golden
+# cli is shared by Vulnetix and Vulnesis users and its releases ship to both:
+# only documentation is rebranded. Code, the GitHub actions (*/action.yml), the
+# release machinery and every compiled-in endpoint stay exactly as in Vulnetix,
+# so a release never moves a Vulnetix user to vulnes.is. The brand is chosen at
+# run time (a separate feature), defaulting to Vulnetix.
+ignore *.go
+ignore go.mod
+ignore go.sum
+ignore cmd/*
+ignore internal/*
+ignore pkg/*
+ignore tools/*
+ignore third_party/*
+ignore testdata/*
+ignore test_dir/*
+ignore schemas/*
+ignore deploy/*
+ignore action-lib/*
+ignore terraform/*
+ignore scripts/*
+ignore examples/*
+ignore benchmark/*
+ignore .vulnetix/*
+ignore .repo/*
+ignore .github/*
+ignore action.yml
+ignore */action.yml
+ignore Dockerfile
+ignore install.sh
+ignore flake.nix
+ignore justfile
+ignore skills-lock.json
+# The code still reads VULNETIX_* variables: documentation must name them as is.
+keep VULNETIX_
