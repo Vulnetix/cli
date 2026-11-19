@@ -71,6 +71,9 @@ func renderJailExemption(resp *vdb.CliJailExemptResponse) string {
 				pluralise("day", e.DaysLeft))
 		}
 	}
+	for _, w := range resp.Warnings {
+		fmt.Fprintf(&b, "  warning %s\n", w)
+	}
 	return strings.TrimRight(b.String(), "\n")
 }
 
