@@ -11,7 +11,7 @@ annotated, and in the total / suppressed / effective counts.
 | `--vex-file <path>` | A file or a directory (one level of `.json` files). Repeatable. |
 | `--vex <path\|dir\|https URL>` | The same, and an `https://` URL is downloaded for the run (8 MiB cap, 30 s). Plain `http://` is refused. A `--vex` URL that cannot be fetched fails the scan: it was asked for, and a quiet gap would widen the gate. |
 | `VexSource` documents in `.vulnetix/config` | A `path` source is read from disk (relative to the repository root, then `.vulnetix/config`) and a `urls` source is fetched. A source that cannot be read is a warning. |
-| Vulnetix console | When the scan is authenticated, the statements the console holds for the repository as rules (see below). Community mode asks for nothing. |
+| Vulnesis console | When the scan is authenticated, the statements the console holds for the repository as rules (see below). Community mode asks for nothing. |
 | `--no-vex` | Turns all of it off, the console's statements included. |
 
 `tea`, `s3` and `git` sources are fetched by the console, not by the CLI, so a scan
@@ -47,7 +47,7 @@ the statement behind them (`vulnerabilityId`, `productPurl`, `justification`, `s
 `sourceType`, `sourceRef`, `sourceDocumentId`, `statementTimestamp`; see vdb-api
 `docs/cli-suppressions-vex.md`), and an authenticated scan applies them in the same VEX pass as
 `--vex` documents: the same matching, the same annotation (`vulnetix:vex/source` reads
-`Vulnetix VexSource/<name>`), the same total / suppressed / effective counts.
+`Vulnesis VexSource/<name>`), the same total / suppressed / effective counts.
 
 | | |
 |---|---|
@@ -63,7 +63,7 @@ A console statement is dropped when a `--vex` document, a `path` or `urls` `VexS
 another console rule already says the same: the same vulnerability (or an alias of it), the same
 status, and the same product, or the same package with no version, which speaks about every
 version. A local statement about one version does not cover a console statement about all of them.
-Documents sent to Vulnetix (`cli.vex-ingest`) are the local ones only; the console's statements are
+Documents sent to Vulnesis (`cli.vex-ingest`) are the local ones only; the console's statements are
 never sent back.
 
 ### Ownership

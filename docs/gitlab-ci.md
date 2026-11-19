@@ -1,6 +1,6 @@
 # GitLab CI
 
-This documentation has moved to **[docs.vulnetix.com/cli/ci-cd/gitlab-ci](https://docs.vulnetix.com/cli/ci-cd/gitlab-ci/)**.
+This documentation has moved to **[docs.vulnes.is/cli/ci-cd/gitlab-ci](https://docs.vulnes.is/cli/ci-cd/gitlab-ci/)**.
 
 Runnable, schema-validated examples live in [`examples/gitlab/`](../examples/gitlab/).
 
@@ -19,10 +19,10 @@ vulnetix:
     VULNETIX_VERSION: v3.59.4
   before_script:
     - apk add --no-cache bash ca-certificates curl tar
-    - curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir /usr/local/bin --version "$VULNETIX_VERSION"
+    - curl -fsSL https://cli.vulnes.is/install.sh | sh -s -- --install-dir /usr/local/bin --version "$VULNETIX_VERSION"
   script:
     - vulnetix auth verify
     - vulnetix scan --severity high
 ```
 
-See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/gitlab-ci/) for one job per scan subcommand, publishing artifacts, `parallel:matrix`, GitLab Releases, and the CI/CD Component every project can inherit.
+See the [full documentation](https://docs.vulnes.is/cli/ci-cd/gitlab-ci/) for one job per scan subcommand, publishing artifacts, `parallel:matrix`, GitLab Releases, and the CI/CD Component every project can inherit.

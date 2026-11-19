@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="pix.svg" alt="Pix, the Vulnetix AI coding assistant" width="140">
+  <img src="pix.svg" alt="Pix, the Vulnesis AI coding assistant" width="140">
 </p>
 
-# Vulnetix CLI and GitHub Action
+# Vulnesis CLI and GitHub Action
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Vulnetix/cli)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Vulnesis/cli)
 
-Vulnetix scans a repository for vulnerable dependencies, code flaws, secrets, IaC and container
+Vulnesis scans a repository for vulnerable dependencies, code flaws, secrets, IaC and container
 misconfigurations, licence conflicts and malware, then tells you which findings affect the
 version you run and the lowest version that fixes them. It is for developers who want that
 answer on their own machine, and for teams who run the same scan in CI and track the results in
@@ -29,12 +29,12 @@ the Resolve Platform.
 
 | Method | Platforms | Command |
 |--------|-----------|---------|
-| [Install script](./docs/curl.md) | Linux, macOS | `curl -fsSL https://cli.vulnetix.com/install.sh \| sh` |
+| [Install script](./docs/curl.md) | Linux, macOS | `curl -fsSL https://cli.vulnes.is/install.sh \| sh` |
 | [Homebrew](./docs/homebrew.md) | Linux, macOS | `brew install vulnetix/tap/vulnetix` |
-| [Scoop](./docs/scoop.md) | Windows | `scoop bucket add vulnetix https://github.com/Vulnetix/scoop-bucket; scoop install vulnetix/vulnetix` |
-| [Nix](./docs/nix.md) | Linux, macOS | `nix profile install github:Vulnetix/cli` |
+| [Scoop](./docs/scoop.md) | Windows | `scoop bucket add vulnetix https://github.com/Vulnesis/scoop-bucket; scoop install vulnetix/vulnetix` |
+| [Nix](./docs/nix.md) | Linux, macOS | `nix profile install github:Vulnesis/cli` |
 | [Go install](./docs/go-install.md) | All | `go install github.com/vulnetix/cli/v4@latest` |
-| [Binary download](./docs/curl.md) | All | [GitHub Releases](https://github.com/Vulnetix/cli/releases/latest) |
+| [Binary download](./docs/curl.md) | All | [GitHub Releases](https://github.com/Vulnesis/cli/releases/latest) |
 | [From source](./docs/from-source.md) | All | `go build -o vulnetix .` |
 
 Architectures: AMD64, ARM64, ARM and 386.
@@ -88,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: Vulnetix/cli@v4
+      - uses: Vulnesis/cli@v4
         with:
           task: sca
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
@@ -101,7 +101,7 @@ installs cosign and verifies the release's signed provenance (`verify-provenance
 To upload a report you already have:
 
 ```yaml
-- uses: Vulnetix/cli@v4
+- uses: Vulnesis/cli@v4
   with:
     org-id: ${{ secrets.VULNETIX_ORG_ID }}
     api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -126,13 +126,13 @@ The `task` input takes:
 | `cbom` | Write a cryptography bill of materials |
 | `aibom` | Write an AI bill of materials |
 | `jail` | Assess the repository against the organisation's jail policy |
-| `upload` | Upload one artifact file to Vulnetix |
-| `gha` | Upload every artifact of this workflow run to Vulnetix |
+| `upload` | Upload one artifact file to Vulnesis |
+| `gha` | Upload every artifact of this workflow run to Vulnesis |
 | `tea-release` | Publish a release and its artifacts to the Transparency Exchange API |
 | `config-plan` | Plan Platform IaC documents and comment the plan on the pull request |
 | `config-apply` | Apply Platform IaC documents |
 
-Most tasks also have their own action, such as `Vulnetix/cli/sca@v4`, with artifact, attestation and
+Most tasks also have their own action, such as `Vulnesis/cli/sca@v4`, with artifact, attestation and
 release steps. See [docs/github-actions.md](./docs/github-actions.md) for every input and
 [docs/GHA_COMMAND.md](./docs/GHA_COMMAND.md) for uploading workflow artifacts.
 
@@ -146,7 +146,7 @@ release steps. See [docs/github-actions.md](./docs/github-actions.md) for every 
 
 ## Pix for coding agents
 
-Pix wires Vulnetix into the coding agents on your machine (Claude Code, Codex and others): hooks
+Pix wires Vulnesis into the coding agents on your machine (Claude Code, Codex and others): hooks
 that check a dependency before it lands and a commit before it records a credential, and skills
 for work that needs your working tree, such as fixing a finding and checking the fix landed.
 
@@ -154,16 +154,16 @@ for work that needs your working tree, such as fixing a finding and checking the
 vulnetix agent install
 ```
 
-It detects the agents, writes each one's hook config and skills, and configures the Vulnetix MCP
+It detects the agents, writes each one's hook config and skills, and configures the Vulnesis MCP
 server where the agent speaks MCP. In Claude Code you can install the plugin instead:
 
 ```
-/plugin marketplace add Vulnetix/pix-ai-coding-assistant
+/plugin marketplace add Vulnesis/pix-ai-coding-assistant
 /plugin install vulnetix@vulnetix-plugins
 ```
 
-See the [Pix documentation](https://docs.vulnetix.com/pix/) and the
-[Pix repository](https://github.com/Vulnetix/pix-ai-coding-assistant).
+See the [Pix documentation](https://docs.vulnes.is/pix/) and the
+[Pix repository](https://github.com/Vulnesis/pix-ai-coding-assistant).
 
 ## Configuration
 
@@ -194,15 +194,15 @@ the "Mutation testing" job. Pass another package and threshold to survey it, for
 
 ## Contributing
 
-Open an issue or a pull request at [github.com/Vulnetix/cli](https://github.com/Vulnetix/cli).
+Open an issue or a pull request at [github.com/Vulnetix/cli](https://github.com/Vulnesis/cli).
 Run `just test` before you send a change, and regenerate any generated file you touch (the
 `justfile` and [AGENTS.md](./AGENTS.md) say which).
 
 ## Documentation
 
-- [CLI documentation](https://docs.vulnetix.com/cli/)
-- [Pix documentation](https://docs.vulnetix.com/pix/)
-- [VDB API](https://docs.vulnetix.com/vdb-api/)
+- [CLI documentation](https://docs.vulnes.is/cli/)
+- [Pix documentation](https://docs.vulnes.is/pix/)
+- [VDB API](https://docs.vulnes.is/vdb-api/)
 - [Installation guides](./docs/README.md)
 - [Distribution](./docs/PUBLISHING.md)
 - [GitHub App](https://github.com/marketplace/vulnetix)

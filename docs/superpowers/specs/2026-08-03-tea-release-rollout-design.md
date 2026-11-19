@@ -1,4 +1,4 @@
-# TEA release publishing across every Vulnetix repository
+# TEA release publishing across every Vulnesis repository
 
 Date: 2026-08-03
 Status: approved, not yet implemented
@@ -53,9 +53,9 @@ repository declare install channels that have no single file to fetch.
 Two files per unit of work, one of them shared:
 
 ```
-Vulnetix/cli/cmd/tea_release.go                    (edited: +2 opt-in flags)
-Vulnetix/cli/internal/github/release.go            (new, release asset fetch)
-Vulnetix/cli/.github/workflows/tea-release.yml     (new, workflow_call)
+Vulnesis/cli/cmd/tea_release.go                    (edited: +2 opt-in flags)
+Vulnesis/cli/internal/github/release.go            (new, release asset fetch)
+Vulnesis/cli/.github/workflows/tea-release.yml     (new, workflow_call)
 <each repo>/.github/workflows/vulnetix.yml         (edited: +1 job, +1 trigger)
 ```
 
@@ -86,7 +86,7 @@ two so they cannot race each other's collection publish.
 
 ## The reusable workflow
 
-`Vulnetix/cli/.github/workflows/tea-release.yml`
+`Vulnesis/cli/.github/workflows/tea-release.yml`
 
 ```yaml
 name: TEA Release
@@ -107,7 +107,7 @@ on:
         type: string
         default: 'ubuntu-latest'
       cli-version:
-        description: 'Vulnetix CLI version to install'
+        description: 'Vulnesis CLI version to install'
         type: string
         default: 'v3.NN.0'   # the release that introduced --auto-version
 ```
@@ -191,7 +191,7 @@ Added to each repository's `vulnetix.yml`:
     name: TEA
     needs: analyze
     continue-on-error: true
-    uses: Vulnetix/cli/.github/workflows/tea-release.yml@main
+    uses: Vulnesis/cli/.github/workflows/tea-release.yml@main
     with:
       visibility: public      # present on public repositories only
     secrets: inherit
@@ -202,7 +202,7 @@ a reason to fail a repository's CI. The publish is a record of what was built,
 not a gate on building it.
 
 `needs: analyze` and not `needs: publish`: the existing `publish` job uploads to
-Vulnetix over a different path, and the two have no ordering relationship.
+Vulnesis over a different path, and the two have no ordering relationship.
 
 ## Per-repository configuration
 
@@ -277,7 +277,7 @@ Beyond that, verification is staged, because a reusable workflow's real
 behaviour only appears when a real repository calls it:
 
 1. **Dry run locally.** `vulnetix tea release .vulnetix/*.cdx.json --dry-run
-   --auto-version --product Vulnetix/cli` confirms the derived version, file
+   --auto-version --product Vulnesis/cli` confirms the derived version, file
    expansion, media types and identity without publishing.
 2. **One repository first.** Wire `vdb-cyclonedx`'s caller job. It is public,
    low blast radius, and produces real BOMs. Confirm with

@@ -51,7 +51,7 @@ src/@iconify/icons-bundle.js
 **/__pycache__
 **/vulnetix.db
 
-# Vulnetix credentials
+# Vulnesis credentials
 .vulnetix/*
 .claude/
 **/credentials.json

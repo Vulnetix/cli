@@ -1,4 +1,4 @@
-# Vulnetix CLI — System Documentation
+# Vulnesis CLI — System Documentation
 
 ## Business Rules
 
@@ -107,9 +107,9 @@ The command outputs an interactive TUI (unless `--format json` or `--format text
 users to view alerts, apply resolutions (dismissals) to GitHub, and record VEX decisions to
 `.vulnetix/memory.yaml`.
 
-### 2. Vulnetix VEX Generation
+### 2. Vulnesis VEX Generation
 
-Triage specific vulnerability IDs using the Vulnetix VDB and generate VEX attestations.
+Triage specific vulnerability IDs using the Vulnesis VDB and generate VEX attestations.
 This mode aligns with the Claude Code plugin's bulk triage agent, sharing the same
 memory file schema and VEX generation logic.
 
@@ -209,14 +209,14 @@ Findings are appended to `.vulnetix/sbom.cdx.json` (CycloneDX format) alongside 
 | `--exploits` | Exit 1 if any exploited vuln found |
 | `--eol` | Exit 1 if any end-of-life packages found |
 | `-o` / `--output` | Output format: `pretty`, `json`, `json-spdx` |
-| `--upload` | Upload SBOM to Vulnetix SaaS after scan |
+| `--upload` | Upload SBOM to Vulnesis SaaS after scan |
 | `--from-memory` | Reconstruct prior scan results without re-scanning |
 
 Results are saved to `.vulnetix/sbom.cdx.json`.
 
 ### Memory reconciliation and auto-VEX
 
-Every scan-family subcommand (`scan`, `sca`, `sast`, `secrets`, `containers`, `iac`, `license`, `cbom`, `aibom`, `malscan`) reconciles what it just found against what `.vulnetix/memory.yaml` remembers, and attests anything that has since been remediated as a VEX statement. The user never has to tell Vulnetix a finding is fixed — disappearing from a clean scan is the signal.
+Every scan-family subcommand (`scan`, `sca`, `sast`, `secrets`, `containers`, `iac`, `license`, `cbom`, `aibom`, `malscan`) reconciles what it just found against what `.vulnetix/memory.yaml` remembers, and attests anything that has since been remediated as a VEX statement. The user never has to tell Vulnesis a finding is fixed — disappearing from a clean scan is the signal.
 
 **The memory file always lives under the scan root.** `.vulnetix/` is `filepath.Join(rootPath, ".vulnetix")` where `rootPath` is whatever the command resolved from `--path` (or its positional argument), never the process working directory. Helpers go through `vulnetixDirFor(rootPath)` in `cmd/reconcile.go` so there is exactly one place this join happens.
 
@@ -348,7 +348,7 @@ For every authenticated submission the server writes, inside one PostgreSQL tran
 
 - **`Artifact` + `Link`** — primary artefact (CycloneDX or SARIF) in S3 at `{orgId}/{cyclonedx|sarif}/{prefix}-{snapshotUuid}.json`. Bucket name = the new bucket we landed on (column names `r2Bucket`/`r2Key` retained from the R2 era).
 - **`ArtifactPipeline`** — orgUuid scope, `source = CLI_{CATEGORY}`, `processingState = COMPLETED`, `createdByService = vulnetix-cli`.
-- **`ScannerRun`** — `toolName = Vulnetix {Sub}` (`Vulnetix SCA`/`Vulnetix SAST`/`Vulnetix Secrets`/`Vulnetix IaC`/`Vulnetix Containers`/`Vulnetix License`), `category = SCA|SAST|SECRETS|IAC|OCI|LICENSE`, `vendor = Vulnetix`, `source = www.vulnetix.com/vdb`. The same `toolName`/`source` are written to `CycloneDXInfo`, `SARIFInfo`, `IngestionSnapshot`, `SBOMToolMetadata`, `Finding`, and the server-built CycloneDX `metadata.tools[0]`. (A CVE's advisory `source` — nvd/github/etc. — is preserved separately on the vuln rating, untouched.)
+- **`ScannerRun`** — `toolName = Vulnesis {Sub}` (`Vulnesis SCA`/`Vulnesis SAST`/`Vulnesis Secrets`/`Vulnesis IaC`/`Vulnesis Containers`/`Vulnesis License`), `category = SCA|SAST|SECRETS|IAC|OCI|LICENSE`, `vendor = Vulnesis`, `source = www.vulnes.is/vdb`. The same `toolName`/`source` are written to `CycloneDXInfo`, `SARIFInfo`, `IngestionSnapshot`, `SBOMToolMetadata`, `Finding`, and the server-built CycloneDX `metadata.tools[0]`. (A CVE's advisory `source` — nvd/github/etc. — is preserved separately on the vuln rating, untouched.)
 - **`CliScanEnvironment`** — one row per ScannerRun capturing the full CLI env block: cliVersion/commit/buildDate, platform/arch/os, hostname/shell, git branch/commit/author/remotes/dirty/repoRoot, memoryPath. Previously sent but dropped; now persisted for every CLI endpoint (SCA + SARIF).
 - **For SCA**: `CycloneDXInfo` + per-package `Dependency` (now incl. `license`) + `DependencyRegistry` + `SBOMLicense` + `CycloneDXInfoLicense` + `SBOMToolMetadata` + per-finding `FindingIntroducedVia` chains (now the full root→leaf path from the dependency graph, not `[<unknown>, key]`) + per-manifest `CliManifest` (raw body archived as a `type='manifest'` Artifact in S3 at `{orgId}/manifests/{sha256}{ext}`, with ecosystem/provider/registry/sha256/declaredLicense) + `PackageManagerDetection` (stamped with `scannerRunUuid`) + `PackageManagerCapability` (with resolved `binary`/`binaryPath`/`version`/`versionCommand`/`authoritative`).
 - **For SARIF flows**: `SARIFInfo` + per-result `SarifResults` (now incl. `codeSnippet`/`snippetStartLine`/`snippetEndLine` — the captured source context for file+line findings).
@@ -377,7 +377,7 @@ The SCA round-trip chunks PURLs (25/req). Raw manifest bodies ride only on the c
 
 ### Snapshot URL output
 
-On success the final stderr line is `{Kind} snapshot: https://www.vulnetix.com/resolve/scanner-results/{uuid}`. The URL resolves to the IngestionSnapshot row and surfaces every artefact + finding + VEX statement attached to that run.
+On success the final stderr line is `{Kind} snapshot: https://www.vulnes.is/resolve/scanner-results/{uuid}`. The URL resolves to the IngestionSnapshot row and surfaces every artefact + finding + VEX statement attached to that run.
 
 ### `.vulnetix/` directory layout
 
@@ -508,11 +508,11 @@ graph TB
     end
 
     subgraph External["External Services"]
-        VDBApi["VDB API<br/>api.vdb.vulnetix.com/v1"]
-        Console["Vulnetix Console<br/>www.vulnetix.com (device flow)"]
+        VDBApi["VDB API<br/>api-vdb.vulnes.is/v1"]
+        Console["Vulnesis Console<br/>www.vulnes.is (device flow)"]
         GHAPI["GitHub API<br/>api.github.com"]
         Registries["Ecosystem Registries<br/>rubygems.org, hex.pm, hackage,<br/>cran, packagist, pub.dev,<br/>cocoapods, juliahub, deps.dev"]
-        GHReleases["GitHub Releases<br/>Vulnetix/cli"]
+        GHReleases["GitHub Releases<br/>Vulnesis/cli"]
     end
 
     User --> Main --> Cobra
@@ -626,7 +626,7 @@ sequenceDiagram
     participant U as User
     participant C as cmd/upload.go
     participant UL as upload.Client
-    participant S as Vulnetix SaaS
+    participant S as Vulnesis SaaS
 
     U->>C: vulnetix upload --file report.cdx.json
     C->>C: auth.LoadCredentials()
@@ -673,7 +673,7 @@ flowchart TD
 ### Base URL
 
 ```
-https://api.vdb.vulnetix.com/v1
+https://api-vdb.vulnes.is/v1
 ```
 
 ### Authentication
@@ -707,7 +707,7 @@ Two methods, resolved by `vdb.Client.DoRequest()`:
 | `vdb fix-distributions` | GET | `/fix-distributions` | — | `api.go:327` |
 | `vdb purl` | — | Dispatches to one of the above | varies | `vdb.go:749` |
 
-### Upload API (api.vdb.vulnetix.com/v1)
+### Upload API (api-vdb.vulnes.is/v1)
 
 | Operation | Method | Path |
 |-----------|--------|------|
@@ -955,7 +955,7 @@ make dev && ./bin/vulnetix vdb new-thing --help
 │   │   ├── payload.go               SBOM construction helpers
 │   │   ├── poller.go                Upload status polling
 │   │   ├── results.go               Scan result display formatting
-│   │   ├── upload.go                SBOM upload to Vulnetix SaaS
+│   │   ├── upload.go                SBOM upload to Vulnesis SaaS
 │   │   ├── vdb_lookup.go            VDB batch lookup coordinator
 │   │   └── version_check.go         EOL version check helpers
 │   ├── testutils/

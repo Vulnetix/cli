@@ -1,11 +1,11 @@
 # GitHub Actions
 
-This documentation has moved to **[docs.vulnetix.com/cli/ci-cd/github-actions](https://docs.vulnetix.com/cli/ci-cd/github-actions/)**.
+This documentation has moved to **[docs.vulnes.is/cli/ci-cd/github-actions](https://docs.vulnes.is/cli/ci-cd/github-actions/)**.
 
 ## Quick Start
 
 ```yaml
-name: Vulnetix
+name: Vulnesis
 on: [push, pull_request]
 permissions:
   contents: read
@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: Vulnetix/cli@v4
+      - uses: Vulnesis/cli@v4
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -40,7 +40,7 @@ Every input reaches the action's scripts as an environment variable, never as a
 |-------|-------------|----------|---------|
 | `org-id` | Organization ID (UUID); needed with `api-key` | No | - |
 | `api-key` | Direct API Key for authentication | No | - |
-| `api-token` | Vulnetix API token; the server resolves the organization | No | - |
+| `api-token` | Vulnesis API token; the server resolves the organization | No | - |
 | `task` | Task to perform: `info`, `upload`, `gha`, `tea-release`, `config-plan`, `config-apply` | No | `info` |
 | `version` | CLI release to install: an exact tag (`v4.0.0`), a major channel (`v4`, the newest v4 release) or `latest` | No | `v4` |
 | `binary-path` | Use this already-built binary instead of downloading a release | No | - |
@@ -56,12 +56,12 @@ Every input reaches the action's scripts as an environment variable, never as a
 | `summary` | Summary of vulnerabilities processed |
 | `upload-uuid` | Pipeline UUID of uploaded artifact (with `task: upload`) |
 
-See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/github-actions/) for advanced configuration, matrix strategies, and troubleshooting.
+See the [full documentation](https://docs.vulnes.is/cli/ci-cd/github-actions/) for advanced configuration, matrix strategies, and troubleshooting.
 
 ## One action per command
 
 Each CLI command also has its own composite action in a subdirectory of this repository, used as
-`Vulnetix/cli/<name>@v4`: `setup`, `sca`, `sast`, `secrets`, `iac`, `containers`, `license`,
+`Vulnesis/cli/<name>@v4`: `setup`, `sca`, `sast`, `secrets`, `iac`, `containers`, `license`,
 `malscan`, `analyze`, `cbom`, `aibom`, `sbom`, `upload`, `gha-upload`, `tea-release`,
 `config-plan`, `config-apply`, `attest`, `jail`, `vex` and `github-publish`. Their inputs,
 outputs, permissions and examples are in [`github-actions/`](github-actions/README.md).
@@ -76,7 +76,7 @@ run (`workflow_dispatch`) reads the full `--window-days` window from GitHub. The
 window stays at 365 days in every case.
 
 The scanners that resolve licences (`sca`, `license`, `sbom`, `containers` and `scan`) ask
-GitHub for a repository's licence when the Vulnetix store, the package registry and deps.dev
+GitHub for a repository's licence when the Vulnesis store, the package registry and deps.dev
 cannot name it, with the same job token. Those lookups spend from the same quota:
 
 - **A name GitHub cannot hold is never asked about.** That includes a workflow's `uses: $/sbom`,

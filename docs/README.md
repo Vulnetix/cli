@@ -1,8 +1,8 @@
-# Vulnetix CLI Documentation
+# Vulnesis CLI Documentation
 
-Documentation has moved to **[docs.vulnetix.com/cli](https://docs.vulnetix.com/cli/)**.
+Documentation has moved to **[docs.vulnes.is/cli](https://docs.vulnes.is/cli/)**.
 
-Their source is the [Vulnetix/platform-docs](https://github.com/Vulnetix/platform-docs) repository.
+Their source is the [Vulnesis/platform-docs](https://github.com/Vulnesis/platform-docs) repository.
 
 [`generated/`](generated/) holds pages this repository renders from its own catalogs, because the
 platform docs generators read them from here:
