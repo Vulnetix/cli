@@ -1,1 +1,11 @@
 # scripts/rebrand.py config (Vulnesis/ops).
+# Code scanning categories (vulnetix/<kind>/), the dependency-graph detector id,
+# the campaign filter on them and the skills source prefix are identifiers that
+# existing GitHub alerts, snapshots and lockfiles are keyed on: shared data.
+keep "vulnetix/"
+# Signing identity (SPIFFE id) that verifiers pin; the test token encodes it too.
+keep spiffe://sigstore.vulnetix.com/
+# The stagger test hashes the real fleet's slugs and asserts no two collide.
+imports-only internal/ghasetup/ghasetup_test.go
+# The URL inputs are rewritten (they name the moved repo); the expected owner follows.
+rewrite "github.com", "vulnetix", "cli"} => "github.com", "vulnesis", "cli"}
