@@ -17,6 +17,15 @@ keep github.com/Vulnetix/vdb-sca-match
 keep github.com/vulnetix/malscan-engine
 # SARIF tool names ("Vulnetix SCA", ...): code scanning keys alert history on them,
 # and the own-tool check (vdb-cyclonedx IsVulnetixToolName) matches them.
-keep "Vulnetix 
+keep "Vulnetix SAST"
+keep "Vulnetix SCA"
+keep "Vulnetix VDB"
+keep "Vulnetix Malscan"
+keep "Vulnetix AI Firewall"
+keep "Vulnetix License"
+keep "Vulnetix IaC"
+keep "Vulnetix GitHub"
+keep "Vulnetix CLI Environment"
+keep "Vulnetix CLI"
 # The audit SARIF golden follows the rewritten rule text.
 post go test ./cmd -run TestGHAAuditSARIFIsValidAndStable -update-gha-golden
