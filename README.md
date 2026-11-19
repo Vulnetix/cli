@@ -179,18 +179,18 @@ See the [Pix documentation](https://docs.vulnes.is/pix/) and the
 
 ### Brand selection
 
-The CLI serves two brands: Vulnetix (`vulnetix.com`, the default) and Vulnesis (`vulnes.is`).
+The CLI serves two brands: Vulnesis (`vulnes.is`, the default) and Vulnesis (`vulnes.is`).
 Set `VULNETIX_BRAND=vulnesis` (or `VULNESIS_BRAND=vulnesis`; the value is case-insensitive) to
 point every default endpoint and printed link at `vulnes.is`. Unset, empty or any other value
-keeps Vulnetix, so nothing changes unless you opt in. `VULNETIX_BRAND` wins when both are set.
+keeps Vulnesis, so nothing changes unless you opt in. `VULNETIX_BRAND` wins when both are set.
 
-Under Vulnesis only `vulnetix.com` hosts change, and only the host:
+Under Vulnesis only `vulnes.is` hosts change, and only the host:
 
-| Vulnetix | Vulnesis |
+| Vulnesis | Vulnesis |
 |----------|----------|
-| `vulnetix.com` | `vulnes.is` |
-| `www.vulnetix.com`, `packages.vulnetix.com`, `docs.vulnetix.com` | `www.vulnes.is`, `packages.vulnes.is`, `docs.vulnes.is` |
-| `api.vdb.vulnetix.com` | `api-vdb.vulnes.is` |
+| `vulnes.is` | `vulnes.is` |
+| `www.vulnes.is`, `packages.vulnes.is`, `docs.vulnes.is` | `www.vulnes.is`, `packages.vulnes.is`, `docs.vulnes.is` |
+| `api-vdb.vulnes.is` | `api-vdb.vulnes.is` |
 
 The Package Firewall netrc machine follows the brand (`packages.vulnes.is`). Explicit overrides
 (`--base-url`, `--proxy-url`, `--gateway-url`, `--server`, `VULNETIX_API_URL`, `VULNETIX_WEB_URL`,
