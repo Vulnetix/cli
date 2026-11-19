@@ -33,3 +33,6 @@ ignore justfile
 ignore skills-lock.json
 # The code still reads VULNETIX_* variables: documentation must name them as is.
 keep VULNETIX_
+# Generated from the code (which is not rebranded); tests check they match it.
+ignore docs/command-manifest.json
+ignore docs/generated/*
