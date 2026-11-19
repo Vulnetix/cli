@@ -9,3 +9,14 @@ keep spiffe://sigstore.vulnetix.com/
 imports-only internal/ghasetup/ghasetup_test.go
 # The URL inputs are rewritten (they name the moved repo); the expected owner follows.
 rewrite "github.com", "vulnetix", "cli"} => "github.com", "vulnesis", "cli"}
+# cli is shared by both brands: it keeps exactly Vulnetix's dependencies, so the
+# non-transferred Vulnetix modules keep their paths (and pinned versions).
+keep github.com/Vulnetix/vdb-manifest
+keep github.com/Vulnetix/vdb-openapi
+keep github.com/Vulnetix/vdb-sca-match
+keep github.com/vulnetix/malscan-engine
+# SARIF tool names ("Vulnetix SCA", ...): code scanning keys alert history on them,
+# and the own-tool check (vdb-cyclonedx IsVulnetixToolName) matches them.
+keep "Vulnetix 
+# The audit SARIF golden follows the rewritten rule text.
+post go test ./cmd -run TestGHAAuditSARIFIsValidAndStable -update-gha-golden
