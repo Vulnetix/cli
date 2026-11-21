@@ -13,6 +13,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/display"
 	"github.com/vulnetix/cli/v4/internal/managedfile"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	pfw "github.com/vulnetix/cli/v4/pkg/packagefirewall"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
@@ -78,7 +79,7 @@ var packageFirewallGoDevCmd = &cobra.Command{
 	Short: "Configure pkgsite-cli to use Vulnetix Package Firewall",
 	Long: `Configure pkgsite-cli to use the Vulnetix pkg.go.dev API proxy.
 
-This writes Basic auth credentials to netrc for packages.vulnetix.com and prints
+This writes Basic auth credentials to netrc for ` + auth.PackageFirewallMachine() + ` and prints
 the shell alias or function needed to point pkgsite-cli at the firewall.`,
 	RunE: runPackageFirewallGoDev,
 }
@@ -110,11 +111,11 @@ func goProxyList(proxyURL string, failClosed bool) string {
 func goProxyNotes(failClosed bool) []string {
 	if failClosed {
 		return []string{
-			"GOPROXY is the firewall alone (--fail-closed). Without the Package Firewall add-on the proxy answers HTTP 402 and go stops: add the add-on at " + addonBillingPage + " or rerun without --fail-closed.",
+			"GOPROXY is the firewall alone (--fail-closed). Without the Package Firewall add-on the proxy answers HTTP 402 and go stops: add the add-on at " + brand.URL(addonBillingPage) + " or rerun without --fail-closed.",
 		}
 	}
 	return []string{
-		"GOPROXY falls back to proxy.golang.org and then direct (the | separator). The Go proxy needs the Package Firewall add-on: without it the firewall answers HTTP 402, and a comma-separated list would stop go with an error. Add it at " + addonBillingPage + ".",
+		"GOPROXY falls back to proxy.golang.org and then direct (the | separator). The Go proxy needs the Package Firewall add-on: without it the firewall answers HTTP 402, and a comma-separated list would stop go with an error. Add it at " + brand.URL(addonBillingPage) + ".",
 		"The fallback also applies when the firewall blocks a module by policy, so a blocked module can still be fetched. Use --fail-closed for GOPROXY=<firewall> alone.",
 	}
 }
@@ -127,7 +128,7 @@ func runPackageFirewallGo(cmd *cobra.Command, args []string) error {
 
 	proxyURL := strings.TrimSpace(packageFirewallProxyURL)
 	if proxyURL == "" {
-		proxyURL = packageFirewallDefaultProxy
+		proxyURL = brand.URL(packageFirewallDefaultProxy)
 	}
 	proxyHost, err := parseProxyHost(proxyURL)
 	if err != nil {
@@ -197,7 +198,7 @@ func runPackageFirewallGoDev(cmd *cobra.Command, args []string) error {
 
 	proxyURL := strings.TrimSpace(packageFirewallProxyURL)
 	if proxyURL == "" {
-		proxyURL = packageFirewallDefaultProxy
+		proxyURL = brand.URL(packageFirewallDefaultProxy)
 	}
 	proxyHost, err := parseProxyHost(proxyURL)
 	if err != nil {
@@ -259,7 +260,7 @@ func runPackageFirewallEcosystem(cmd *cobra.Command, eco pfw.Ecosystem) error {
 
 	proxyURL := strings.TrimSpace(packageFirewallProxyURL)
 	if proxyURL == "" {
-		proxyURL = packageFirewallDefaultProxy
+		proxyURL = brand.URL(packageFirewallDefaultProxy)
 	}
 	proxyHost, err := parseProxyHost(proxyURL)
 	if err != nil {
@@ -636,7 +637,7 @@ var packageFirewallUninstallCmd = &cobra.Command{
 
 Name one or more ecosystems to unconfigure exactly those, or use --all for every
 supported ecosystem, or --except to unconfigure all but the named ones. The shared
-netrc credential (machine packages.vulnetix.com) is left in place unless
+netrc credential (machine ` + auth.PackageFirewallMachine() + `) is left in place unless
 --remove-credentials (or --purge) is given, because every ecosystem authenticates
 with the same entry — removing it would break any ecosystem still configured.
 
@@ -650,7 +651,7 @@ func runPackageFirewallUninstall(cmd *cobra.Command, args []string) error {
 
 	proxyURL := strings.TrimSpace(packageFirewallProxyURL)
 	if proxyURL == "" {
-		proxyURL = packageFirewallDefaultProxy
+		proxyURL = brand.URL(packageFirewallDefaultProxy)
 	}
 	proxyHost, err := parseProxyHost(proxyURL)
 	if err != nil {
@@ -1066,11 +1067,11 @@ func init() {
 		packageFirewallCmd.AddCommand(c)
 	}
 
-	packageFirewallUninstallCmd.Flags().StringVar(&packageFirewallProxyURL, "proxy-url", packageFirewallDefaultProxy, "Package Firewall proxy URL (host to detect and strip)")
+	packageFirewallUninstallCmd.Flags().StringVar(&packageFirewallProxyURL, "proxy-url", brand.URL(packageFirewallDefaultProxy), "Package Firewall proxy URL (host to detect and strip)")
 	packageFirewallUninstallCmd.Flags().BoolVar(&packageFirewallDryRun, "dry-run", false, "Show planned changes without writing files")
 	packageFirewallUninstallCmd.Flags().BoolVar(&packageFirewallUninstallAll, "all", false, "Unconfigure every supported ecosystem")
 	packageFirewallUninstallCmd.Flags().StringSliceVar(&packageFirewallUninstallExcept, "except", nil, "Unconfigure all supported ecosystems except these")
-	packageFirewallUninstallCmd.Flags().BoolVar(&packageFirewallUninstallCreds, "remove-credentials", false, "Also remove the shared netrc credential (machine packages.vulnetix.com)")
+	packageFirewallUninstallCmd.Flags().BoolVar(&packageFirewallUninstallCreds, "remove-credentials", false, "Also remove the shared netrc credential (machine "+auth.PackageFirewallMachine()+")")
 	packageFirewallUninstallCmd.Flags().BoolVar(&packageFirewallUninstallPurge, "purge", false, "Remove the shared netrc credential and every supported ecosystem")
 	packageFirewallCmd.AddCommand(packageFirewallUninstallCmd)
 
@@ -1078,7 +1079,7 @@ func init() {
 }
 
 func addPackageFirewallFlags(cmd *cobra.Command, label string) {
-	cmd.Flags().StringVar(&packageFirewallBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
-	cmd.Flags().StringVar(&packageFirewallProxyURL, "proxy-url", packageFirewallDefaultProxy, "Package Firewall "+label+" proxy URL")
+	cmd.Flags().StringVar(&packageFirewallBaseURL, "base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
+	cmd.Flags().StringVar(&packageFirewallProxyURL, "proxy-url", brand.URL(packageFirewallDefaultProxy), "Package Firewall "+label+" proxy URL")
 	cmd.Flags().BoolVar(&packageFirewallDryRun, "dry-run", false, "Show planned changes without writing files")
 }

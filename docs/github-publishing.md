@@ -2,7 +2,7 @@
 
 The CLI publishes its results to GitHub in GitHub's own formats, independently of
 sending them to Vulnetix. Public documentation lives at
-[docs.vulnetix.com](https://docs.vulnetix.com/cli/ci-cd/github-actions/); this page is the
+[docs.vulnes.is](https://docs.vulnes.is/cli/ci-cd/github-actions/); this page is the
 in-repository reference for how it works.
 
 ## GitHub-compatible SARIF
@@ -62,8 +62,8 @@ up to `--wait` (2 minutes) for GitHub to process each upload. Permissions:
 Every scan-family command takes `--github-publish code-scanning`. At the end of the scan it
 uploads the scan's own results, with an empty upload for each kind that ran clean, so fixed
 alerts close. It forces `--no-cache`: a cached run must never close an alert that is still
-real. A failure only warns; the scan's exit code and its Vulnetix upload are unaffected, and a
-community run (no Vulnetix credentials) still publishes to GitHub.
+real. A failure only warns; the scan's exit code and its Vulnesis upload are unaffected, and a
+community run (no Vulnesis credentials) still publishes to GitHub.
 
 ## `vulnetix gha publish dependency-graph`
 
@@ -113,7 +113,7 @@ this repository's own SAST findings (`cmd/gha_publish_advisories.go`,
 |---|---|
 | Scope | Findings of kind `sast` at or above `--min-severity` (default `high`), read from `--sarif` (default `.vulnetix/sast.sarif`). Suppressed findings, test-suite findings (`vulnetix/test-suite`) and confidence-gap findings are excluded |
 | Grouping | One advisory per rule and CWE set, worst severity first, then most locations, capped at `--max` (default 10) |
-| Fields | `summary` `[Vulnetix] <rule>`, a description listing up to 25 locations, `cwe_ids`, `severity`; never a CVSS vector. The package is the repository's own, from `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml` or `composer.json`, else ecosystem `other` with the repository name |
+| Fields | `summary` `[Vulnesis] <rule>`, a description listing up to 25 locations, `cwe_ids`, `severity`; never a CVSS vector. The package is the repository's own, from `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml` or `composer.json`, else ecosystem `other` with the repository name |
 | Dedupe | The description ends with `<!-- vulnetix-advisory:<hash> -->` (hash of rule and CWEs). A later run updates the matching draft with `PATCH` and leaves a published or closed one alone |
 | Lifecycle | Never published: the update body has no `state`. Publishing stays a maintainer's decision |
 | Token | Repository advisories write: a fine-grained PAT or a GitHub App token. The workflow `GITHUB_TOKEN` cannot create advisories |
@@ -122,7 +122,7 @@ this repository's own SAST findings (`cmd/gha_publish_advisories.go`,
 
 ## `vulnetix gha publish campaigns`
 
-Mirrors Vulnetix remediation campaigns (Pro) as GitHub security campaigns
+Mirrors Vulnesis remediation campaigns (Pro) as GitHub security campaigns
 (`POST /orgs/{org}/campaigns`) (`cmd/gha_publish_campaigns.go`, `internal/campaigns`,
 `internal/github/campaigns.go`). It needs GitHub Advanced Security and is meant to run as an
 organization-level scheduled job, after code scanning has published the alerts it maps to.
@@ -132,14 +132,14 @@ organization-level scheduled job, after code scanning has published the alerts i
 | Source | `GET /api/site/v1/campaigns` and `.../{id}/items` through the shared `siteClient` (`cmd/site_client.go`, the same client and credential the config engine uses). It uses the same credentials as every other command (`vulnetix auth login`, `VULNETIX_API_KEY` with `VULNETIX_ORG_ID`, or `VULNETIX_API_TOKEN`); an owner, an admin or an admin service account. It only ever reads there |
 | Entitlement | A non-Pro organization gets HTTP 200 with a `planLocked` marker body, not an error. It is reported as a note and the command exits 0 |
 | Mapping | An open item maps to an open code scanning alert of this CLI (category `vulnetix/...`) in the item's repository where `rule.id == findingId`; when the item names a package, the alert message must name it too. A dependency item maps to a `vulnetix/sca/` alert naming the package. Items in repositories outside `--org`, items whose alerts cannot be read, and done items are not mapped. Nothing matching means no campaign is created |
-| Name and fields | `[Vulnetix] <name>` (at most 50 characters); `ends_at` from `deadlineAt`, else `--default-days` (90) after creation; `contact_link` is the campaign in the Vulnetix console |
+| Name and fields | `[Vulnesis] <name>` (at most 50 characters); `ends_at` from `deadlineAt`, else `--default-days` (90) after creation; `contact_link` is the campaign in the Vulnesis console |
 | Marker | The description ends with `<!-- vulnetix-campaign:<uuid> -->`, so a later run finds the campaign and `PATCH`es name, description, `ends_at` and `contact_link` when they changed |
-| Close | A completed or archived Vulnetix campaign closes its GitHub campaign (`state: closed`). A campaign closed in GitHub by a person stays closed |
-| Scope change | GitHub cannot change a campaign's alerts after creation. A second marker, `<!-- vulnetix-scope:<hash> -->`, is a hash of the Vulnetix cohort's item keys. If the cohort changed, the run says so; with `--recreate-on-scope-change` it creates the new campaign first, then closes the old one, so a failure leaves the old one running |
+| Close | A completed or archived Vulnesis campaign closes its GitHub campaign (`state: closed`). A campaign closed in GitHub by a person stays closed |
+| Scope change | GitHub cannot change a campaign's alerts after creation. A second marker, `<!-- vulnetix-scope:<hash> -->`, is a hash of the Vulnesis cohort's item keys. If the cohort changed, the run says so; with `--recreate-on-scope-change` it creates the new campaign first, then closes the old one, so a failure leaves the old one running |
 | Limits | 1,000 alerts per campaign, 255-character description (the markers are kept whole) |
 | Tokens | GitHub: a PAT or GitHub App token of an organization owner or security manager (`GITHUB_TOKEN`, `GH_TOKEN` or `gh auth token`); the workflow `GITHUB_TOKEN` cannot manage campaigns. A 403 or 404 is reported with that hint |
 
-`--dry-run` reads from Vulnetix and GitHub and prints what would be created, updated or closed;
+`--dry-run` reads from Vulnesis and GitHub and prints what would be created, updated or closed;
 it writes nothing. The `github-publish` action runs it with `campaigns: true`
 (`campaigns-github-token`, `campaigns-org`, `campaigns-recreate`,
 `campaigns-dry-run`).

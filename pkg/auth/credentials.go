@@ -201,7 +201,7 @@ func CredentialSource() string {
 		return "home (~/.vulnetix/credentials.json)"
 	}
 	if _, err := LoadNetrcCredentials(); err == nil {
-		return "netrc (" + PackageFirewallHost + ")"
+		return "netrc (" + PackageFirewallMachine() + ")"
 	}
 	return "none"
 }
@@ -288,7 +288,7 @@ func AllSourceStatusDetailed() []SourceStatus {
 	statuses = append(statuses, keyring)
 
 	netrc := NetrcStatus()
-	netrcStatus := SourceStatus{Label: "netrc " + netrc.Path + " machine " + PackageFirewallHost, Active: active == "netrc ("+PackageFirewallHost+")"}
+	netrcStatus := SourceStatus{Label: "netrc " + netrc.Path + " machine " + PackageFirewallMachine(), Active: active == "netrc ("+PackageFirewallMachine()+")"}
 	switch {
 	case !netrc.Found:
 		netrcStatus.State = "not set"

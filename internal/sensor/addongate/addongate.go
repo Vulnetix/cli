@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"net/http"
 )
 
@@ -53,7 +54,7 @@ func (e *Error) Error() string {
 		how = fmt.Sprintf("HTTP %d planLocked", e.Status)
 	}
 
-	return fmt.Sprintf("%s %s: %s: %s (add it at %s)", e.Method, e.Path, how, subject, BillingURL)
+	return fmt.Sprintf("%s %s: %s: %s (add it at %s)", e.Method, e.Path, how, subject, brand.URL(BillingURL))
 }
 
 // Is reports whether err is, or wraps, an add-on denial.

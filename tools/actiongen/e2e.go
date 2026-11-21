@@ -93,6 +93,9 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+          # Self-hosted runner: the Go caches persist on disk between jobs, and the
+          # post-step cache save tars several GB, which ran past timeout-minutes.
+          cache: false
 
       - name: Configure private module fetch
         run: |

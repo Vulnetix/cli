@@ -17,6 +17,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/display"
 	"github.com/vulnetix/cli/v4/internal/update"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/cache"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
@@ -137,7 +138,7 @@ Start with:
   vulnetix auth login     sign in, or skip it to scan in community mode
   vulnetix scan           scan the current directory
 
-Docs: https://docs.vulnetix.com/cli/`,
+Docs: ` + brand.URL("https://docs.vulnetix.com/cli/"),
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initDisplayContext(cmd, display.ModeText)
 		artifacts.SetCommand(cmd.CommandPath())
@@ -271,7 +272,7 @@ func runInfoTask(cmd *cobra.Command) error {
 	// 5. Check Package Firewall netrc
 	progress.SetStage("Checking Package Firewall netrc credentials")
 	netrc := auth.NetrcStatus()
-	netrcLabel := fmt.Sprintf("%s machine %s (netrc)", netrc.Path, auth.PackageFirewallHost)
+	netrcLabel := fmt.Sprintf("%s machine %s (netrc)", netrc.Path, auth.PackageFirewallMachine())
 	switch {
 	case netrc.Found && netrc.Err != nil:
 		anyFound = true

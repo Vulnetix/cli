@@ -1,13 +1,13 @@
 # CLI Reference
 
-This documentation has moved to **[docs.vulnetix.com/cli](https://docs.vulnetix.com/cli/)**.
+This documentation has moved to **[docs.vulnes.is/cli](https://docs.vulnes.is/cli/)**.
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
 | `vulnetix` | Authentication healthcheck (default) |
-| `vulnetix auth login` | Authenticate with Vulnetix |
+| `vulnetix auth login` | Authenticate with Vulnesis |
 | `vulnetix auth status` | Show authentication state |
 | `vulnetix auth verify` | Verify stored credentials |
 | `vulnetix auth logout` | Remove stored credentials |
@@ -24,4 +24,4 @@ This documentation has moved to **[docs.vulnetix.com/cli](https://docs.vulnetix.
 | `vulnetix update` | Update CLI to latest release |
 | `vulnetix completion` | Generate shell autocompletion scripts |
 
-See the [full CLI reference](https://docs.vulnetix.com/cli/) for all flags, options, and usage patterns.
+See the [full CLI reference](https://docs.vulnes.is/cli/) for all flags, options, and usage patterns.

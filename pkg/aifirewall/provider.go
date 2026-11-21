@@ -14,6 +14,7 @@ package aifirewall
 
 import (
 	"fmt"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"net/url"
 	"strings"
 )
@@ -151,7 +152,7 @@ func InfoBaseURLEnv(slug string) string {
 func GatewayURL(gateway, slug, orgUUID string) string {
 	base := strings.TrimRight(strings.TrimSpace(gateway), "/")
 	if base == "" {
-		base = DefaultGatewayURL
+		base = brand.URL(DefaultGatewayURL)
 	}
 	base += "/" + slug + "/" + orgUUID
 	if p, ok := ProviderBySlug(slug); ok && p.Wire == WireMessages {
@@ -164,7 +165,7 @@ func GatewayURL(gateway, slug, orgUUID string) string {
 // URL found in a client's config points at us or somewhere else.
 func GatewayHost(gateway string) (string, error) {
 	if strings.TrimSpace(gateway) == "" {
-		gateway = DefaultGatewayURL
+		gateway = brand.URL(DefaultGatewayURL)
 	}
 	u, err := url.Parse(gateway)
 	if err != nil || u.Scheme == "" || u.Hostname() == "" {

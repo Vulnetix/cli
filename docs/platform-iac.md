@@ -1,7 +1,7 @@
 # Platform IaC files
 
 How the CLI decides what a Platform IaC document is and where it finds them. Public
-documentation lives at [docs.vulnetix.com](https://docs.vulnetix.com/platform-iac/cli/validate/);
+documentation lives at [docs.vulnes.is](https://docs.vulnes.is/platform-iac/cli/validate/);
 this page is the in-repository reference. The code is `internal/platformiac`.
 
 ## The rule

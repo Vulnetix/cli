@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Vulnetix is a CLI tool for automated vulnerability management that focuses on remediation over discovery. It's designed as both a standalone Go CLI and a GitHub Action. The tool supports multiple operational modes including authentication healthchecks, artifact uploads, and vulnerability database queries.
+Vulnesis is a CLI tool for automated vulnerability management that focuses on remediation over discovery. It's designed as both a standalone Go CLI and a GitHub Action. The tool supports multiple operational modes including authentication healthchecks, artifact uploads, and vulnerability database queries.
 
 ## Architecture
 
@@ -18,7 +18,7 @@ This is a Go-based CLI application with the following key components:
 
 ### VDB Subcommands
 
-The `vdb` command queries the Vulnetix Vulnerability Database API. v2 is the current API and the default, so commands and their examples take no `-V` flag. `-V v1` selects the deprecated legacy API (it prints a notice and will be removed); v2-only commands refuse it via `requireV2`. `-o json` selects JSON output.
+The `vdb` command queries the Vulnesis Vulnerability Database API. v2 is the current API and the default, so commands and their examples take no `-V` flag. `-V v1` selects the deprecated legacy API (it prints a notice and will be removed); v2-only commands refuse it via `requireV2`. `-o json` selects JSON output.
 
 **V1+V2 commands**: `vuln`, `exploits`, `gcve`, `product`, `packages`, `ecosystems`, `sources`, `summary`, `ids`, `eol` (+ `product`/`release`), `purl`
 **V2-only commands** (require v2, which is now the default — do not pass `-V v1`): `scorecard` (+ `search` subcommand), `timeline`, `affected`, `kev`, `advisories`, `workarounds`, `cwe` (+ `guidance`), `remediation` (+ `plan`), `cloud-locators`, `fixes` (V2 fetches registry/distributions/source in parallel), tree-sitter reachability (`x_treeSitterQueries`)
@@ -90,7 +90,7 @@ Every scanner's terminal output is drawn by `internal/report`: `Build` turns fin
 
 ### JavaScript Lockfiles And Workspaces
 
-The npm-family lock parsers live in `vdb-sca-match/parse` (`npmlock.go`, `yarnlock.go`, `pnpmlock.go`, `bunlock.go`) and are tested against real locks from npm, yarn, pnpm and bun in `parse/testdata/workspaces` and `internal/scan/testdata/workspaces`. Every one must read the lock that tool's current release writes: the pnpm parser knew only `/name@ver` keys and read zero packages from every v9 lock (Vulnetix/cli#177), and `bun.lock` was not read at all.
+The npm-family lock parsers live in `vdb-sca-match/parse` (`npmlock.go`, `yarnlock.go`, `pnpmlock.go`, `bunlock.go`) and are tested against real locks from npm, yarn, pnpm and bun in `parse/testdata/workspaces` and `internal/scan/testdata/workspaces`. Every one must read the lock that tool's current release writes: the pnpm parser knew only `/name@ver` keys and read zero packages from every v9 lock (Vulnesis/cli#177), and `bun.lock` was not read at all.
 
 - **A monorepo has one lock, at the workspace root.** `FindNpmWorkspace` (`internal/scan/npm_workspace.go`) finds the nearest ancestor whose `package.json` `workspaces`, `lerna.json` `packages` or `pnpm-workspace.yaml` `packages` globs include a member. The build-or-lock gate treats that root's lock as the member's when it is inside the scan, and names the root to scan when it is not. A lock further up that does not list the member belongs to another project and never counts.
 - **A workspace member is never a registry package.** `workspace:`, `file:`, `link:` and `portal:` specs are dropped by the `package.json` parser (`workspace:*` passed as pinned and was queried under the member's name), and every lock parser skips workspace, link, git and tarball entries.
@@ -179,7 +179,7 @@ captured**". Three tiers follow, and every emitting path is one of them:
 
 Two rules that are easy to get wrong and were:
 
-**`manufacturer` is the org running the scan, not Vulnetix.** Vulnetix is the
+**`manufacturer` is the org running the scan, not Vulnetix.** Vulnesis is the
 tool and belongs in `metadata.tools`. It is resolved by one function,
 `cdx.ResolveManufacturer`, and returns **nil rather than guessing** — an absent
 manufacturer costs a reader one unknown, an invented one is a false claim.
@@ -350,7 +350,7 @@ transformation is always traceable. Attribution: `--sign` signs with **this**
 machine's identity, because this machine made these claims; a signature on the
 input attests the input and is preserved as a property rather than discarded.
 The VDB request carries a `CliToolAttribution` naming the input's own generator,
-so the server records "syft found these, Vulnetix enriched them" rather than
+so the server records "syft found these, Vulnesis enriched them" rather than
 claiming the discovery.
 
 ### Licence Policy And Exceptions
@@ -417,13 +417,13 @@ Parity with `sca` is a requirement, not a nice-to-have: components carry purl/ec
 
 The default output path is the same `.vulnetix/sbom.cdx.json` that `scan`/`sca` use as memory, so `preserveCDXVulnerabilities` carries existing `vulnerabilities` (and any component they reference, marked `vulnetix:sbom/carried-over`) into the new document. Do not "simplify" that away.
 
-CI/CD and shell coverage is driven by `internal/scan/detector.go` (`ciPipelineDirs`, `ciPipelineNameSuffixes`, `looksLikeGitHubActionsPath`, `IsCIPipelineFile`) plus the command-key list in `vdb-sca-match/parse` (`isCICommandKey`, multi-document YAML decode). `parseCIFileScoped` runs the YAML walk **and** the line-oriented shell pass on every CI file — Kotlin/Groovy/TOML pipelines parse as YAML scalars without error, so "did it parse as YAML" is not a usable fallback test. Note that a bare package name equal to a package-manager binary (`npm i -g pnpm`) is treated as a command boundary, not a package — pick fixtures accordingly. GitHub Actions files count as CI for `--no-ci`/`--no-ci-package-analysis`. After changing detection, update `src/content/docs/sbom/generate/coverage.md` in Vulnetix/platform-docs (https://docs.vulnetix.com/sbom/generate/coverage/): its coverage tables are hand-maintained.
+CI/CD and shell coverage is driven by `internal/scan/detector.go` (`ciPipelineDirs`, `ciPipelineNameSuffixes`, `looksLikeGitHubActionsPath`, `IsCIPipelineFile`) plus the command-key list in `vdb-sca-match/parse` (`isCICommandKey`, multi-document YAML decode). `parseCIFileScoped` runs the YAML walk **and** the line-oriented shell pass on every CI file — Kotlin/Groovy/TOML pipelines parse as YAML scalars without error, so "did it parse as YAML" is not a usable fallback test. Note that a bare package name equal to a package-manager binary (`npm i -g pnpm`) is treated as a command boundary, not a package — pick fixtures accordingly. GitHub Actions files count as CI for `--no-ci`/`--no-ci-package-analysis`. After changing detection, update `src/content/docs/sbom/generate/coverage.md` in Vulnesis/platform-docs (https://docs.vulnes.is/sbom/generate/coverage/): its coverage tables are hand-maintained.
 
 ### AIBOM Subcommand
 
 The `aibom` command discovers AI coding agents/assistants and AI usage in a project and emits a CycloneDX AI Bill of Materials. It has four passes — environment (tool/provider env-var *names* only; values are never read), filesystem (tool config dirs, instructions, ignore files, skills, hooks, plugins, steering, memory, prompts, agents, commands, marketplace manifests), source code (AI SDK usage + model-name literals extracted by anchoring on the SDK parameter, so unknown/future models are captured), and commit history (commits authored by an AI agent, via `commit_patterns` matched against author/committer identity + message — Co-Authored-By trailers, session markers, agent bot authors; catches agents like Devin/Jules that leave no working-tree trace). Flags: `--no-env`, `--no-source`, `--no-commits` (default on), `--commit-scan-max`, `--include-home`, `--include-system`, `--system-root`, `--catalog`.
 
-All detection is driven by the catalog in `internal/aibom/catalog/*.json` (`tools.json`, `libraries.json`, `families.json`) — the single source of truth. After editing the catalog, run `just gen-aibom` to regenerate the catalog pages under `docs/generated/aibom/`, which the platform docs (docs.vulnetix.com, Vulnetix/platform-docs) are built from. The catalog is embedded and overridable at runtime with `--catalog`. Output maps tools→`application`, SDKs→`library`, models→`machine-learning-model` (+`modelCard`) components, validated against the bundled CycloneDX schema.
+All detection is driven by the catalog in `internal/aibom/catalog/*.json` (`tools.json`, `libraries.json`, `families.json`) — the single source of truth. After editing the catalog, run `just gen-aibom` to regenerate the catalog pages under `docs/generated/aibom/`, which the platform docs (docs.vulnes.is, Vulnesis/platform-docs) are built from. The catalog is embedded and overridable at runtime with `--catalog`. Output maps tools→`application`, SDKs→`library`, models→`machine-learning-model` (+`modelCard`) components, validated against the bundled CycloneDX schema.
 
 ### CBOM Subcommand
 
@@ -433,7 +433,7 @@ Detection is driven by the catalog in `internal/cbom/catalog/*.json` (`algorithm
 
 ### AI Firewall Subcommand
 
-The `ai-firewall` command wires local AI clients to the hosted OpenAI-compatible gateway at `https://guardrails.vulnetix.com/{providerSlug}/{orgUuid}/v1` (org is a **URL path component**, unlike the Package Firewall which carries it as the HTTP Basic username), and manages the org policy the gateway enforces. Two keys: the client sends `Authorization: Bearer $VULNETIX_API_KEY`; the org's *provider* key is held server-side (BYOK, KMS-encrypted, write-only) and swapped in by the gateway.
+The `ai-firewall` command wires local AI clients to the hosted OpenAI-compatible gateway at `https://guardrails.vulnes.is/{providerSlug}/{orgUuid}/v1` (org is a **URL path component**, unlike the Package Firewall which carries it as the HTTP Basic username), and manages the org policy the gateway enforces. Two keys: the client sends `Authorization: Bearer $VULNETIX_API_KEY`; the org's *provider* key is held server-side (BYOK, KMS-encrypted, write-only) and swapped in by the gateway.
 
 Command tree: `install [client...]` / `uninstall [--all|--except]` / `status [--strict]` / `policy {provider,model,guardrail}` / `key {set,remove}` / `settings` / `get` / `apply` / `export` / `baseline` / `snippet`. `config set|get ai-firewall` still works — the same constructors in `cmd/config_ai_firewall.go` are registered under both parents (delegate, not alias: a `*cobra.Command` cannot live in two trees).
 
@@ -445,7 +445,7 @@ File writing goes through `internal/managedfile` (extracted from `cmd/package_fi
 
 Declarative policy lives in `.vulnetix/ai-firewall.yaml` (`apiVersion: vulnetix.com/v1`, `kind: AiFirewallPolicy`); `apply` plans in the order **guardrails → models → providers → keys → settings** so tightening never opens a window, reports unmanaged server objects as drift (deletes only with `--prune`), and composes in the server's recommended guardrail baseline (`cli.ai-firewall-baseline`, soft-fails on 404 unless `--baseline-required`). Guardrails reconcile by **name**, so names must be unique. Patterns are Go RE2 — no lookaround — and an uncompilable pattern is *skipped by the gateway*, so `status` compiles every one and warns.
 
-Backend follow-ups (not yet implemented): `cli.ai-firewall-get` must return `hasKey`/`keyUpdatedAt`/`logsEnabled`/`gateway.wireApis`; new endpoints `cli.ai-firewall-key`, `cli.ai-firewall-settings`, `cli.ai-firewall-baseline`. The CLI ships first and tolerates their absence. Docs: `src/content/docs/ai-firewall/` in Vulnetix/platform-docs (https://docs.vulnetix.com/ai-firewall/), hand-written, not generated.
+Backend follow-ups (not yet implemented): `cli.ai-firewall-get` must return `hasKey`/`keyUpdatedAt`/`logsEnabled`/`gateway.wireApis`; new endpoints `cli.ai-firewall-key`, `cli.ai-firewall-settings`, `cli.ai-firewall-baseline`. The CLI ships first and tolerates their absence. Docs: `src/content/docs/ai-firewall/` in Vulnesis/platform-docs (https://docs.vulnes.is/ai-firewall/), hand-written, not generated.
 
 ### SAST Rule Precision: Match The Code, Not The Words
 
@@ -510,7 +510,7 @@ var rather than an argument.
 
 ### Malscan Subcommand
 
-The `malscan` command runs the `malscan-engine` (module `github.com/vulnetix/malscan-engine`, consumed like `vdb-cyclonedx`) **in-process** against the project's locally-installed dependencies — unlike `--block-malware` on the `sca` path, which defers to the backend's periodic pipelines. It runs the full engine over each resolved ecosystem target: `iocscan.Scan` (STIX IOC filesystem scan — known-bad domains/IPs/URLs in text + extracted binary strings, with file+line+context), `detect.Detect` (manifest/install-script pattern + shell-obfuscation detectors), `ioc.ExtractIOCs`, and `badhash` (known-bad artifact-hash blocklist over declared/candidate hashes).
+The `malscan` command runs the `malscan-engine` (module `github.com/vulnesis/malscan-engine`, consumed like `vdb-cyclonedx`) **in-process** against the project's locally-installed dependencies — unlike `--block-malware` on the `sca` path, which defers to the backend's periodic pipelines. It runs the full engine over each resolved ecosystem target: `iocscan.Scan` (STIX IOC filesystem scan — known-bad domains/IPs/URLs in text + extracted binary strings, with file+line+context), `detect.Detect` (manifest/install-script pattern + shell-obfuscation detectors), `ioc.ExtractIOCs`, and `badhash` (known-bad artifact-hash blocklist over declared/candidate hashes).
 
 Scan targets are resolved per ecosystem by `internal/ecosystems/locations.go` — the single source of truth mapping each ecosystem to its engine slug + project-local install dirs (npm `node_modules`, python `site-packages`/`.venv`, go `vendor`, rust/cargo, ruby, php, java, dotnet, dart, elixir) and user-scoped/home caches (`~/.npm`, `~/go/pkg/mod`, `~/.cargo`, `~/.m2`, …). Home caches are scanned only with `--include-home`. `--include-system` (on `malscan`, `cdx`/`sbom` and `aibom`) widens the scope to the whole machine: each ecosystem's `systemDirs` (machine-wide installs) under `--system-root` (default `/`; a mounted volume, unpacked image or `/proc/<pid>/root` describes that system instead), the user-scoped dirs of every account in `/home/*` and `/root`, and `ecosystems.SystemBinaryDirs`. OS package databases (dpkg, rpm in BDB/NDB/SQLite, apk, pacman) and `/etc/os-release` are read by `internal/sysinv`, pure Go, which emits distro-qualified purls (`distro=`, `arch=`, `epoch=`, `upstream=`) so distro advisories with backported fixes match. Findings are SARIF (with code samples, evidence context and host env), always written to `.vulnetix/malscan.sarif` (override with `--output-file`), pretty-printed unless `-o {json,sarif}`, and uploaded to `/v2/cli.malscan` when authenticated. Flags: `--path`, `--include-home`, `--include-system`, `--system-root`, `-o`, `--output-file`, `--no-binary-analysis`, `--scan-depth`, `--max-file-size`, `--no-ioc-feeds`, `--catalog`, `--no-upload`.
 

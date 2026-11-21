@@ -6,6 +6,7 @@ import (
 
 	"github.com/vulnetix/cli/v4/internal/gitctx"
 	"github.com/vulnetix/cli/v4/internal/scan"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // ScanContext carries optional environment-enrichment data passed to BOM builders.
@@ -117,12 +118,12 @@ var scoreTypeToMethod = map[string]string{
 // The URL is always https://www.vulnetix.com/vdb.
 func vulnSourceForFind(f scan.VulnFinding) *Source {
 	if f.Source == "vulnetix" {
-		return &Source{Name: "Vulnetix VDB", URL: "https://www.vulnetix.com/vdb"}
+		return &Source{Name: "Vulnetix VDB", URL: brand.URL("https://www.vulnetix.com/vdb")}
 	}
 	if f.Source != "" {
-		return &Source{Name: f.Source, URL: "https://www.vulnetix.com/vdb"}
+		return &Source{Name: f.Source, URL: brand.URL("https://www.vulnetix.com/vdb")}
 	}
-	return &Source{Name: "Vulnetix VDB", URL: "https://www.vulnetix.com/vdb"}
+	return &Source{Name: "Vulnetix VDB", URL: brand.URL("https://www.vulnetix.com/vdb")}
 }
 
 // ---------------------------------------------------------------------------

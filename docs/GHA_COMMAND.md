@@ -1,6 +1,6 @@
 # GHA Command Reference
 
-This documentation has moved to **[docs.vulnetix.com/cli/ci-cd/gha-command](https://docs.vulnetix.com/cli/ci-cd/gha-command/)**.
+This documentation has moved to **[docs.vulnes.is/cli/ci-cd/gha-command](https://docs.vulnes.is/cli/ci-cd/gha-command/)**.
 
 ## Overview
 
@@ -30,8 +30,8 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     steps:
-      - name: Upload artifacts to Vulnetix
-        uses: Vulnetix/cli@v3.59.4
+      - name: Upload artifacts to Vulnesis
+        uses: Vulnesis/cli@v3.59.4
         with:
           task: gha
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
@@ -40,4 +40,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 ```
 
-See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/gha-command/) for detailed usage and examples.
+See the [full documentation](https://docs.vulnes.is/cli/ci-cd/gha-command/) for detailed usage and examples.

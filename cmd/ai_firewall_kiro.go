@@ -15,6 +15,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/display"
 	aifw "github.com/vulnetix/cli/v4/pkg/aifirewall"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/kiroauth"
 	"github.com/vulnetix/cli/v4/pkg/tty"
 )
@@ -194,7 +195,7 @@ func runAiFirewallKiroLogin(cmd *cobra.Command, _ []string) error {
 	}
 	ctx.Logger.Result(display.KeyValue(t, pairs))
 	ctx.Logger.Result("Point belai's kiro provider at the Vulnetix AI Firewall, or call " +
-		aifw.DefaultGatewayURL + "/kiro/" + creds.OrgID + "/v1 with your Vulnetix API key.")
+		brand.URL(aifw.DefaultGatewayURL) + "/kiro/" + creds.OrgID + "/v1 with your Vulnetix API key.")
 	return nil
 }
 

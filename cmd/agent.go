@@ -11,6 +11,7 @@ import (
 
 	"github.com/vulnetix/cli/v4/internal/agent"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 var (
@@ -289,7 +290,7 @@ func runAgentInstall(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintf(out, "  skills   %s\n", dir)
 		}
 		if h.MCP {
-			fmt.Fprintf(out, "  mcp      https://mcp.vulnetix.com/mcp\n")
+			fmt.Fprintf(out, "  mcp      %s\n", brand.URL("https://mcp.vulnetix.com/mcp"))
 		}
 	}
 
@@ -308,7 +309,7 @@ func reportAgentAuth(out io.Writer) {
 	default:
 		fmt.Fprintln(out, "Running on the shared Community tier: reads work, rate limits are shared.")
 		fmt.Fprintln(out, "A free Community key with its own quota:")
-		fmt.Fprintln(out, "  https://www.vulnetix.com/resolve/register, then 'vulnetix auth login'.")
+		fmt.Fprintln(out, "  "+brand.URL("https://www.vulnetix.com/resolve/register")+", then 'vulnetix auth login'.")
 	}
 }
 

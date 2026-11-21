@@ -25,6 +25,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v4/internal/display"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
@@ -454,7 +455,7 @@ func (l defenceLaneCLI) printCounts(cmd *cobra.Command, resp *vdb.DefenceCountsR
 		}
 	}
 	if resp.Gated() && countsTotal(resp, l.rel) > 0 {
-		fmt.Fprintln(cmd.ErrOrStderr(), "\nThe rule text and the console links are included with Pro: https://www.vulnetix.com/pricing")
+		fmt.Fprintln(cmd.ErrOrStderr(), "\nThe rule text and the console links are included with Pro: "+brand.URL("https://www.vulnetix.com/pricing"))
 	}
 }
 

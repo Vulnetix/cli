@@ -1,6 +1,6 @@
 # Publishing & Distribution
 
-How releases are built and published. Installing a release is documented at **[docs.vulnetix.com/cli/get-started/install](https://docs.vulnetix.com/cli/get-started/install/)**.
+How releases are built and published. Installing a release is documented at **[docs.vulnes.is/cli/get-started/install](https://docs.vulnes.is/cli/get-started/install/)**.
 
 ## Distribution Channels
 
@@ -10,10 +10,10 @@ How releases are built and published. Installing a release is documented at **[d
 | Go Install | Automated | `go install github.com/vulnetix/cli/v4@latest` |
 | Homebrew Tap | Automated on release | `brew install vulnetix/tap/vulnetix` |
 | Scoop Bucket | Automated on release | `scoop install vulnetix` |
-| Nix Flake | Automated on release | `nix profile install github:Vulnetix/cli` |
-| GitHub Actions | In-repo | `uses: Vulnetix/cli@v4` (the major tag moves to each newest release of that major; the action installs the newest release of the same major by default) |
+| Nix Flake | Automated on release | `nix profile install github:Vulnesis/cli` |
+| GitHub Actions | In-repo | `uses: Vulnesis/cli@v4` (the major tag moves to each newest release of that major; the action installs the newest release of the same major by default) |
 
-See [Install](https://docs.vulnetix.com/cli/get-started/install/) for every channel's install steps.
+See [Install](https://docs.vulnes.is/cli/get-started/install/) for every channel's install steps.
 
 ## Majors, Latest and the package managers
 
@@ -22,7 +22,7 @@ across every major becomes the GitHub Latest release, moves its major tag
 (`MAJOR=${VERSION%%.*}`, so `v3` or `v4`) and updates Homebrew, Scoop and the
 flake. Once v4 ships, a v3 patch release is still published with its binaries,
 but the `v3` tag, Latest and the package managers stay where they are, so
-`uses: Vulnetix/cli@v3` keeps its last v3 release and nothing rolls back.
+`uses: Vulnesis/cli@v3` keeps its last v3 release and nothing rolls back.
 
 The Go module path in the build ldflags, the `go install` test and the TEA
 channel is read from `go.mod` (`go list -m`), so a major bump needs no edit to
@@ -66,22 +66,22 @@ locally against the release's own checksums instead; `--dry-run` publishes
 nothing:
 
 ```sh
-gh release download vX.Y.Z --repo Vulnetix/cli --pattern checksums.txt
+gh release download vX.Y.Z --repo Vulnesis/cli --pattern checksums.txt
 vulnetix tea release vulnetix.cdx.json provenance.sigstore.json --dry-run \
-  --version vX.Y.Z --product Vulnetix/cli \
+  --version vX.Y.Z --product Vulnesis/cli \
   --checksums checksums.txt --exclude checksums.txt \
-  --base-url https://github.com/Vulnetix/cli/releases/download/vX.Y.Z
+  --base-url https://github.com/Vulnesis/cli/releases/download/vX.Y.Z
 ```
 
-Verify a downloaded binary against the bundle (use `Vulnetix/belai` for belai):
+Verify a downloaded binary against the bundle (use `Vulnesis/belai` for belai):
 
 ```sh
-gh release download vX.Y.Z --repo Vulnetix/cli --pattern provenance.sigstore.json --pattern 'vulnetix-linux-amd64'
+gh release download vX.Y.Z --repo Vulnesis/cli --pattern provenance.sigstore.json --pattern 'vulnetix-linux-amd64'
 cosign verify-blob-attestation \
   --bundle provenance.sigstore.json --new-bundle-format \
   --type slsaprovenance1 \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp '^https://github.com/Vulnetix/cli/\.github/workflows/slsa-provenance\.yml@' \
+  --certificate-identity-regexp '^https://github.com/Vulnesis/cli/\.github/workflows/slsa-provenance\.yml@' \
   --digest "$(sha256sum vulnetix-linux-amd64 | cut -d' ' -f1)" --digestAlg sha256
 ```
 

@@ -146,3 +146,5 @@ require (
 // The one OpenAPI/Swagger reader for every Vulnetix service (the attack
 // surface feature). Cloned next to this repo for local builds; becomes a
 // tagged require at release, like vdb-cyclonedx.
+
+exclude golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d

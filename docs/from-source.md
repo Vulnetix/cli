@@ -1,11 +1,11 @@
 # Build from Source
 
-This documentation has moved to **[docs.vulnetix.com/cli/get-started/install](https://docs.vulnetix.com/cli/get-started/install/)**.
+This documentation has moved to **[docs.vulnes.is/cli/get-started/install](https://docs.vulnes.is/cli/get-started/install/)**.
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/Vulnetix/cli.git
+git clone https://github.com/Vulnesis/cli.git
 cd cli
 go build -o vulnetix .
 ./vulnetix auth login

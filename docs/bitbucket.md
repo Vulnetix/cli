@@ -1,6 +1,6 @@
 # Bitbucket Pipelines
 
-This documentation has moved to **[docs.vulnetix.com/cli/ci-cd/bitbucket](https://docs.vulnetix.com/cli/ci-cd/bitbucket/)**.
+This documentation has moved to **[docs.vulnes.is/cli/ci-cd/bitbucket](https://docs.vulnes.is/cli/ci-cd/bitbucket/)**.
 
 ## Quick Start
 
@@ -8,7 +8,7 @@ This documentation has moved to **[docs.vulnetix.com/cli/ci-cd/bitbucket](https:
 pipelines:
   default:
     - step:
-        name: Vulnetix Security Scan
+        name: Vulnesis Security Scan
         image: golang:1.25
         script:
           - go install github.com/vulnetix/cli/v4@latest
@@ -16,4 +16,4 @@ pipelines:
           - vulnetix
 ```
 
-See the [full documentation](https://docs.vulnetix.com/cli/ci-cd/bitbucket/) for pipeline templates and advanced configuration.
+See the [full documentation](https://docs.vulnes.is/cli/ci-cd/bitbucket/) for pipeline templates and advanced configuration.

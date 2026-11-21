@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/vulnetix/cli/v4/internal/sensor/decide"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // DefaultURL is Guardian's per-tenant events route.
@@ -124,7 +125,7 @@ type Forwarder struct {
 func (f *Forwarder) init() {
 	f.initOnce.Do(func() {
 		if f.URL == "" {
-			f.URL = DefaultURL
+			f.URL = brand.URL(DefaultURL)
 		}
 		if f.Client == nil {
 			f.Client = &http.Client{Timeout: defaultTimeout}

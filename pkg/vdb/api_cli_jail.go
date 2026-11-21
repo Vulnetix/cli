@@ -257,6 +257,9 @@ type CliJailExemptRequest struct {
 type CliJailExemptResponse struct {
 	Exemption *CliJailExemptionApplied `json:"exemption,omitempty"`
 	Action    string                   `json:"action"`
+	// Warnings name what the server changed about the request, such as an
+	// expiry shortened to the maximum window.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // CliJail evaluates the org's jail policy for this repo.

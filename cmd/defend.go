@@ -21,6 +21,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/scan"
 	"github.com/vulnetix/cli/v4/internal/scanopts"
 	"github.com/vulnetix/cli/v4/internal/triage"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
@@ -225,7 +226,7 @@ func noRulesReason(sum defences.Summary) string {
 	case defences.StateUnavailable:
 		return "defence lookup is not available in this version yet"
 	case defences.StateGated:
-		return "rule bodies and downloads need a Pro plan (" + pricingHint + ")"
+		return "rule bodies and downloads need a Pro plan (" + brand.URL(pricingHint) + ")"
 	case defences.StateNone:
 		return "nothing is published for " + sum.ID + " yet"
 	case defences.StateNotIndexed:

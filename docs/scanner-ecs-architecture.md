@@ -4,10 +4,10 @@
 
 The scanner system processes SCA (Software Composition Analysis) manifest files across three layers:
 
-1. **CLI** (vulnetix/cli) — discovers manifests, collects git and filesystem context, uploads to API
-2. **VDB API** (vulnetix/vdb-api) — receives uploads, stores to S3, triggers ECS RunTask
-3. **Scanner ECS Processor** (vulnetix/vdb-manager go-processors, Go) — parses manifests, enriches with vulnerability data, writes results to S3
-4. **Scan Watchdog** (vulnetix/vdb-manager go-processors, Go) — EventBridge 10min, recovers stalled/stuck scans
+1. **CLI** (vulnesis/cli) — discovers manifests, collects git and filesystem context, uploads to API
+2. **VDB API** (vulnesis/vdb-api) — receives uploads, stores to S3, triggers ECS RunTask
+3. **Scanner ECS Processor** (vulnesis/vdb-manager go-processors, Go) — parses manifests, enriches with vulnerability data, writes results to S3
+4. **Scan Watchdog** (vulnesis/vdb-manager go-processors, Go) — EventBridge 10min, recovers stalled/stuck scans
 
 The CLI acts as a **smart collector, dumb sender** — it gathers rich local context but does not parse dependencies. All dependency resolution and vulnerability matching happens server-side so parsers can be updated independently of CLI versions.
 
@@ -15,7 +15,7 @@ The CLI acts as a **smart collector, dumb sender** — it gathers rich local con
 
 ```mermaid
 sequenceDiagram
-    participant CLI as Vulnetix CLI
+    participant CLI as Vulnesis CLI
     participant Git as go-git
     participant FS as Filesystem
     participant API as VDB API v2
@@ -62,7 +62,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    subgraph CLI["CLI (vulnetix/cli)"]
+    subgraph CLI["CLI (vulnesis/cli)"]
         A[vulnetix scan] --> B[Walker: discover manifests]
         B --> C[go-git: collect git context]
         B --> D[FS: collect file tree metadata]
@@ -677,7 +677,7 @@ Both cross-compiled to ARM64 with `CGO_ENABLED=0`, stripped with `-ldflags="-s -
 
 All components are implemented and pushed to their respective repos.
 
-### CLI (vulnetix/cli)
+### CLI (vulnesis/cli)
 
 | Component | File | Status |
 |-----------|------|--------|
@@ -689,7 +689,7 @@ All components are implemented and pushed to their respective repos.
 | Upload engine threading | `internal/scan/upload.go`, `cmd/scan.go` | Deployed |
 | TUI git context passthrough | `internal/tui/model.go` | Deployed |
 
-### ECS Processors (vulnetix/vdb-manager go-processors)
+### ECS Processors (vulnesis/vdb-manager go-processors)
 
 | Component | File | Status |
 |-----------|------|--------|
@@ -698,7 +698,7 @@ All components are implemented and pushed to their respective repos.
 | Scanner processor | `cmd/scanner-processor/main.go` | Deployed |
 | Scan watchdog | `cmd/scan-watchdog/main.go` | Deployed |
 
-### VDB API (vulnetix/vdb-api)
+### VDB API (vulnesis/vdb-api)
 
 | Component | File | Status |
 |-----------|------|--------|
@@ -708,7 +708,7 @@ All components are implemented and pushed to their respective repos.
 | Scan status (reads S3) | `internal/handler/v2_scan.go` (`V2ScanStatus`) | Deployed |
 | In-memory ScanQueue | `internal/handler/v2_scan_queue.go` | Removed |
 
-### Terraform (vulnetix/vdb-manager terraform/)
+### Terraform (vulnesis/vdb-manager terraform/)
 
 | Component | File | Status |
 |-----------|------|--------|

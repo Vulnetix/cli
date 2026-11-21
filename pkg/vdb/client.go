@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/cache"
 	"github.com/vulnetix/cli/v4/pkg/tty"
 )
@@ -175,7 +176,7 @@ var sharedTransport = &http.Transport{
 // NewClient creates a new VDB API client using SigV4 auth
 func NewClient(orgID, secretKey string) *Client {
 	return &Client{
-		BaseURL:    DefaultBaseURL,
+		BaseURL:    brand.URL(DefaultBaseURL),
 		APIVersion: DefaultAPIVersion,
 		OrgID:      orgID,
 		SecretKey:  secretKey,
@@ -190,7 +191,7 @@ func NewClient(orgID, secretKey string) *Client {
 // NewClientFromCredentials creates a VDB API client from centralized credentials
 func NewClientFromCredentials(creds *auth.Credentials) *Client {
 	return &Client{
-		BaseURL:    DefaultBaseURL,
+		BaseURL:    brand.URL(DefaultBaseURL),
 		APIVersion: DefaultAPIVersion,
 		OrgID:      creds.OrgID,
 		SecretKey:  creds.Secret,

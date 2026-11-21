@@ -9,6 +9,7 @@ import (
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
 	"github.com/vulnetix/cli/v4/internal/artifacts"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // SARIF 2.1.0 types now live in the shared module
@@ -173,7 +174,7 @@ func BuildSARIF(findings []Finding, rules []RuleMetadata, toolVersion string) *S
 			Driver: SARIFToolDriver{
 				Name:           "vulnetix",
 				Version:        toolVersion,
-				InformationURI: "https://vulnetix.com",
+				InformationURI: brand.URL("https://vulnetix.com"),
 				Rules:          descriptors,
 			},
 		},

@@ -1,0 +1,38 @@
+# scripts/rebrand.py config (Vulnesis/ops).
+# cli is shared by Vulnetix and Vulnesis users and its releases ship to both:
+# only documentation is rebranded. Code, the GitHub actions (*/action.yml), the
+# release machinery and every compiled-in endpoint stay exactly as in Vulnetix,
+# so a release never moves a Vulnetix user to vulnes.is. The brand is chosen at
+# run time (a separate feature), defaulting to Vulnetix.
+ignore *.go
+ignore go.mod
+ignore go.sum
+ignore cmd/*
+ignore internal/*
+ignore pkg/*
+ignore tools/*
+ignore third_party/*
+ignore testdata/*
+ignore test_dir/*
+ignore schemas/*
+ignore deploy/*
+ignore action-lib/*
+ignore terraform/*
+ignore scripts/*
+ignore examples/*
+ignore benchmark/*
+ignore .vulnetix/*
+ignore .repo/*
+ignore .github/*
+ignore action.yml
+ignore */action.yml
+ignore Dockerfile
+ignore install.sh
+ignore flake.nix
+ignore justfile
+ignore skills-lock.json
+# The code still reads VULNETIX_* variables: documentation must name them as is.
+keep VULNETIX_
+# Generated from the code (which is not rebranded); tests check they match it.
+ignore docs/command-manifest.json
+ignore docs/generated/*

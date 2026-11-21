@@ -62,6 +62,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/sensor/tetragon"
 	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -173,7 +174,7 @@ func defineFlags(fs *flag.FlagSet) *options {
 		egressListen: fs.String("egress-listen", "", "address the outbound proxy listens on, e.g. 127.0.0.1:3128 (set HTTPS_PROXY to it)"),
 		feedKey:      fs.String("feed-key", defaultFeedKey(), "base64 Ed25519 public key feeds are signed with (default: VULNETIX_FEED_KEY, else the key pinned at build); without one every rule reports and never blocks"),
 		stateDir:     fs.String("state-dir", "/var/lib/vulnetix-sensor", "where the sensor keeps its key"),
-		endpoint:     fs.String("endpoint", uplink.DefaultEndpoint, "Vulnetix site API"),
+		endpoint:     fs.String("endpoint", brand.URL(uplink.DefaultEndpoint), "Vulnetix site API"),
 		offline:      fs.Bool("offline", false, "run without reporting to Vulnetix (rules still load from the feeds)"),
 		showVersion:  fs.Bool("version", false, "print the version and exit"),
 		configDir: fs.String("config-dir", provision.DefaultDir,
@@ -188,7 +189,7 @@ func defineFlags(fs *flag.FlagSet) *options {
 		dnsUpstream: fs.String("dns-upstream", "", "resolver the DNS guard forwards to (default: the first nameserver in /etc/resolv.conf)"),
 		// The token's default is read after parsing, so -h never prints it.
 		siemToken: fs.String("siem-token", "", "Guardian ingest token (gdn_...) from the console Sources page, for --forward siem (default: VULNETIX_SIEM_TOKEN)"),
-		siemURL:   fs.String("siem-url", "", "Guardian events route for --forward siem (default: VULNETIX_SIEM_URL, else "+siem.DefaultURL+")"),
+		siemURL:   fs.String("siem-url", "", "Guardian events route for --forward siem (default: VULNETIX_SIEM_URL, else "+brand.URL(siem.DefaultURL)+")"),
 	}
 	fs.Var(&o.feeds, "feed", "published detection rule feed URL (repeatable)")
 	fs.Var(&o.healthPaths, "health-path", "path a load balancer probes; never held (repeatable)")
@@ -555,11 +556,11 @@ func siemForwarder(o *options) (*siem.Forwarder, error) {
 		endpoint = strings.TrimSpace(os.Getenv("VULNETIX_SIEM_URL"))
 	}
 	if endpoint == "" {
-		endpoint = siem.DefaultURL
+		endpoint = brand.URL(siem.DefaultURL)
 	}
 	u, err := url.Parse(endpoint)
 	if err != nil || u.Host == "" || (u.Scheme != "https" && !(u.Scheme == "http" && isLoopback(u.Hostname()))) {
-		return nil, fmt.Errorf("--siem-url must be an https URL such as %s", siem.DefaultURL)
+		return nil, fmt.Errorf("--siem-url must be an https URL such as %s", brand.URL(siem.DefaultURL))
 	}
 
 	return &siem.Forwarder{URL: endpoint, Token: token}, nil

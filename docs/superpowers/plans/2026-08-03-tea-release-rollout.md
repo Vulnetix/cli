@@ -127,7 +127,7 @@ func TestGitDescribeVersion_NoTags(t *testing.T) {
 // must beat anything derived, or a pipeline could not override a bad describe.
 func TestResolveTeaReleaseInputs_ExplicitVersionWinsOverAutoVersion(t *testing.T) {
 	initGitRepo(t, "v1.0.0", 3)
-	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+	t.Setenv("GITHUB_REPOSITORY", "Vulnesis/cli")
 	t.Setenv("GITHUB_REF_TYPE", "branch")
 
 	cmd := newTeaReleaseCommand()
@@ -154,7 +154,7 @@ func TestResolveTeaReleaseInputs_ExplicitVersionWinsOverAutoVersion(t *testing.T
 // pre-release, or every real release would be published as one.
 func TestResolveTeaReleaseInputs_TagRunIsNotPreRelease(t *testing.T) {
 	initGitRepo(t, "v1.0.0", 0)
-	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+	t.Setenv("GITHUB_REPOSITORY", "Vulnesis/cli")
 	t.Setenv("GITHUB_REF_TYPE", "tag")
 	t.Setenv("GITHUB_REF_NAME", "v2.0.0")
 
@@ -179,7 +179,7 @@ func TestResolveTeaReleaseInputs_TagRunIsNotPreRelease(t *testing.T) {
 // flagged so a consumer can tell the two apart.
 func TestResolveTeaReleaseInputs_BranchRunIsPreRelease(t *testing.T) {
 	initGitRepo(t, "v1.0.0", 2)
-	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+	t.Setenv("GITHUB_REPOSITORY", "Vulnesis/cli")
 	t.Setenv("GITHUB_REF_TYPE", "branch")
 	t.Setenv("GITHUB_REF_NAME", "main")
 
@@ -203,7 +203,7 @@ func TestResolveTeaReleaseInputs_BranchRunIsPreRelease(t *testing.T) {
 // Without the flag, nothing changes. cli/release.yml depends on this.
 func TestResolveTeaReleaseInputs_WithoutAutoVersionBranchStillErrors(t *testing.T) {
 	initGitRepo(t, "v1.0.0", 2)
-	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+	t.Setenv("GITHUB_REPOSITORY", "Vulnesis/cli")
 	t.Setenv("GITHUB_REF_TYPE", "branch")
 
 	cmd := newTeaReleaseCommand()
@@ -215,7 +215,7 @@ func TestResolveTeaReleaseInputs_WithoutAutoVersionBranchStillErrors(t *testing.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd /home/chris/GitHub/Vulnetix/cli && go test ./cmd/ -run 'TeaRelease|GitDescribe' -v`
+Run: `cd /home/chris/GitHub/Vulnesis/cli && go test ./cmd/ -run 'TeaRelease|GitDescribe' -v`
 Expected: FAIL to compile, `undefined: gitDescribeVersion`, and `flag accessed but not defined: auto-version`.
 
 - [ ] **Step 3: Add the flag**
@@ -305,18 +305,18 @@ with:
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
-Run: `cd /home/chris/GitHub/Vulnetix/cli && just fmt && go test ./cmd/ -run 'TeaRelease|GitDescribe' -v`
+Run: `cd /home/chris/GitHub/Vulnesis/cli && just fmt && go test ./cmd/ -run 'TeaRelease|GitDescribe' -v`
 Expected: PASS, all seven tests.
 
 - [ ] **Step 7: Run the full suite**
 
-Run: `cd /home/chris/GitHub/Vulnetix/cli && just test`
+Run: `cd /home/chris/GitHub/Vulnesis/cli && just test`
 Expected: PASS. `TestResolveTeaReleaseInputs_WithoutAutoVersionBranchStillErrors` is the guard that `cli/release.yml` is unaffected.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-cd /home/chris/GitHub/Vulnetix/cli
+cd /home/chris/GitHub/Vulnesis/cli
 git add cmd/tea_release.go cmd/tea_release_test.go
 git commit -m "feat(tea): add --auto-version for non-tag release publishing
 
@@ -379,11 +379,11 @@ func TestFetchReleaseByTag(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	rel, err := FetchReleaseByTag(context.Background(), "tok", srv.URL, "Vulnetix/cli", "v1.2.3")
+	rel, err := FetchReleaseByTag(context.Background(), "tok", srv.URL, "Vulnesis/cli", "v1.2.3")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != "/repos/Vulnetix/cli/releases/tags/v1.2.3" {
+	if gotPath != "/repos/Vulnesis/cli/releases/tags/v1.2.3" {
 		t.Errorf("path %q", gotPath)
 	}
 	if gotAuth != "Bearer tok" {
@@ -403,7 +403,7 @@ func TestFetchReleaseByTag_NotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := FetchReleaseByTag(context.Background(), "tok", srv.URL, "Vulnetix/cli", "v9.9.9")
+	_, err := FetchReleaseByTag(context.Background(), "tok", srv.URL, "Vulnesis/cli", "v9.9.9")
 	if err == nil {
 		t.Fatal("want an error for a release that does not exist")
 	}
@@ -471,7 +471,7 @@ func TestDownloadAsset_RejectsPathTraversal(t *testing.T) {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd /home/chris/GitHub/Vulnetix/cli && go test ./internal/github/ -run 'Release|Asset' -v`
+Run: `cd /home/chris/GitHub/Vulnesis/cli && go test ./internal/github/ -run 'Release|Asset' -v`
 Expected: FAIL to compile, `undefined: FetchReleaseByTag`.
 
 - [ ] **Step 3: Write the implementation**
@@ -603,13 +603,13 @@ func DownloadAsset(ctx context.Context, token string, a ReleaseAsset, destDir st
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `cd /home/chris/GitHub/Vulnetix/cli && just fmt && go test ./internal/github/ -run 'Release|Asset' -v`
+Run: `cd /home/chris/GitHub/Vulnesis/cli && just fmt && go test ./internal/github/ -run 'Release|Asset' -v`
 Expected: PASS, all five tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /home/chris/GitHub/Vulnetix/cli
+cd /home/chris/GitHub/Vulnesis/cli
 git add internal/github/release.go internal/github/release_test.go
 git commit -m "feat(github): read a release and download one of its assets
 
@@ -687,7 +687,7 @@ func TestResolveChecksumsManifest_NoMatchingAssetResolvesToNothing(t *testing.T)
 
 	t.Setenv("GITHUB_REF_TYPE", "tag")
 	t.Setenv("GITHUB_REF_NAME", "v1.0.0")
-	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+	t.Setenv("GITHUB_REPOSITORY", "Vulnesis/cli")
 	t.Setenv("GITHUB_API_URL", srv.URL)
 	t.Setenv("GITHUB_TOKEN", "tok")
 
@@ -715,14 +715,14 @@ func TestResolveChecksumsManifest_FetchesTheAsset(t *testing.T) {
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	mux.HandleFunc("/repos/Vulnetix/cli/releases/tags/v1.0.0", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/repos/Vulnesis/cli/releases/tags/v1.0.0", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"tag_name":"v1.0.0","assets":[{"name":"checksums.txt","browser_download_url":"` +
 			srv.URL + `/download/checksums.txt"}]}`))
 	})
 
 	t.Setenv("GITHUB_REF_TYPE", "tag")
 	t.Setenv("GITHUB_REF_NAME", "v1.0.0")
-	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+	t.Setenv("GITHUB_REPOSITORY", "Vulnesis/cli")
 	t.Setenv("GITHUB_API_URL", srv.URL)
 	t.Setenv("GITHUB_TOKEN", "tok")
 
@@ -764,7 +764,7 @@ Add to that file's import block: `"net/http"`, `"net/http/httptest"`, `"os"`.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd /home/chris/GitHub/Vulnetix/cli && go test ./cmd/ -run 'ChecksumsManifest' -v`
+Run: `cd /home/chris/GitHub/Vulnesis/cli && go test ./cmd/ -run 'ChecksumsManifest' -v`
 Expected: FAIL to compile, `undefined: resolveChecksumsManifest`.
 
 - [ ] **Step 3: Add the flag**
@@ -860,28 +860,28 @@ The body of that block is otherwise unchanged. Its existing `parsed, err := dist
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
-Run: `cd /home/chris/GitHub/Vulnetix/cli && just fmt && go test ./cmd/ -run 'ChecksumsManifest|TeaRelease|GitDescribe' -v`
+Run: `cd /home/chris/GitHub/Vulnesis/cli && just fmt && go test ./cmd/ -run 'ChecksumsManifest|TeaRelease|GitDescribe' -v`
 Expected: PASS.
 
 - [ ] **Step 7: Run the full suite and lint**
 
-Run: `cd /home/chris/GitHub/Vulnetix/cli && just test && just lint`
+Run: `cd /home/chris/GitHub/Vulnesis/cli && just test && just lint`
 Expected: PASS.
 
 - [ ] **Step 8: Confirm the dry run end to end**
 
 Run:
 ```bash
-cd /home/chris/GitHub/Vulnetix/cli
+cd /home/chris/GitHub/Vulnesis/cli
 vulnetix sca --no-banner --no-progress -o /tmp/spot.cdx.json || true
-go run . tea release /tmp/spot.cdx.json --dry-run --auto-version --product Vulnetix/cli
+go run . tea release /tmp/spot.cdx.json --dry-run --auto-version --product Vulnesis/cli
 ```
 Expected: the printed `version` is a `git describe` string such as `v3.75.0-12-gabc1234`, and stderr says `dry run — nothing was published`.
 
 - [ ] **Step 9: Commit**
 
 ```bash
-cd /home/chris/GitHub/Vulnetix/cli
+cd /home/chris/GitHub/Vulnesis/cli
 git add cmd/tea_release.go cmd/tea_release_test.go
 git commit -m "feat(tea): add --checksums-from-release
 
@@ -902,14 +902,14 @@ The workflow installs a published CLI, so the flags must exist in a release befo
 
 **Interfaces:**
 - Consumes: `--auto-version` (Task 1) and `--checksums-from-release` (Task 3).
-- Produces: a `workflow_call` workflow at `Vulnetix/cli/.github/workflows/tea-release.yml@main` with inputs `visibility`, `channels`, `runs-on`, `cli-version`. Tasks 5, 6 and 7 call it.
+- Produces: a `workflow_call` workflow at `Vulnesis/cli/.github/workflows/tea-release.yml@main` with inputs `visibility`, `channels`, `runs-on`, `cli-version`. Tasks 5, 6 and 7 call it.
 
 - [ ] **Step 1: Cut a CLI release**
 
 Push the commits from Tasks 1 to 3 and let `release.yml` run, or tag manually. Then record the released version:
 
 ```bash
-cd /home/chris/GitHub/Vulnetix/cli
+cd /home/chris/GitHub/Vulnesis/cli
 git push
 gh release list --limit 3
 ```
@@ -917,7 +917,7 @@ gh release list --limit 3
 Expected: a release exists whose binary has both flags. Verify:
 
 ```bash
-curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir /tmp/vbin --version "$RELEASED"
+curl -fsSL https://cli.vulnes.is/install.sh | sh -s -- --install-dir /tmp/vbin --version "$RELEASED"
 /tmp/vbin/vulnetix tea release --help | grep -E 'auto-version|checksums-from-release'
 ```
 Expected: both flags listed. Note `$RELEASED` for the next step.
@@ -956,7 +956,7 @@ on:
         type: string
         default: 'ubuntu-latest'
       cli-version:
-        description: 'Vulnetix CLI version to install'
+        description: 'Vulnesis CLI version to install'
         type: string
         default: 'v3.NN.0'
 
@@ -990,9 +990,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Vulnetix CLI
+      - name: Install Vulnesis CLI
         run: |
-          curl -fsSL https://cli.vulnetix.com/install.sh \
+          curl -fsSL https://cli.vulnes.is/install.sh \
             | sh -s -- --install-dir "$HOME/.local/bin" --version "${{ inputs.cli-version }}"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
@@ -1039,13 +1039,13 @@ jobs:
 
 - [ ] **Step 3: Verify the workflow parses**
 
-Run: `cd /home/chris/GitHub/Vulnetix/cli && actionlint .github/workflows/tea-release.yml`
+Run: `cd /home/chris/GitHub/Vulnesis/cli && actionlint .github/workflows/tea-release.yml`
 Expected: no output, exit 0.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /home/chris/GitHub/Vulnetix/cli
+cd /home/chris/GitHub/Vulnesis/cli
 git add .github/workflows/tea-release.yml
 git commit -m "ci: add reusable tea-release workflow
 
@@ -1061,7 +1061,7 @@ git push
 Public, low blast radius, produces real BOMs. One repository proves the wiring before the other twenty-four inherit any mistake in it.
 
 **Files:**
-- Modify: `~/GitHub/Vulnetix/vdb-cyclonedx/.github/workflows/vulnetix.yml`
+- Modify: `~/GitHub/Vulnesis/vdb-cyclonedx/.github/workflows/vulnetix.yml`
 
 **Interfaces:**
 - Consumes: the reusable workflow from Task 4.
@@ -1069,7 +1069,7 @@ Public, low blast radius, produces real BOMs. One repository proves the wiring b
 
 - [ ] **Step 1: Add the release trigger**
 
-In `~/GitHub/Vulnetix/vdb-cyclonedx/.github/workflows/vulnetix.yml`, replace:
+In `~/GitHub/Vulnesis/vdb-cyclonedx/.github/workflows/vulnetix.yml`, replace:
 
 ```yaml
 on:
@@ -1100,7 +1100,7 @@ Append to the end of the same file, at the same indentation as the existing `ana
     # The transparency log being unreachable is not a reason to fail this
     # repository's CI. The publish records what was built; it does not gate it.
     continue-on-error: true
-    uses: Vulnetix/cli/.github/workflows/tea-release.yml@main
+    uses: Vulnesis/cli/.github/workflows/tea-release.yml@main
     with:
       visibility: public
     secrets: inherit
@@ -1108,13 +1108,13 @@ Append to the end of the same file, at the same indentation as the existing `ana
 
 - [ ] **Step 3: Verify it parses**
 
-Run: `cd ~/GitHub/Vulnetix/vdb-cyclonedx && actionlint .github/workflows/vulnetix.yml`
+Run: `cd ~/GitHub/Vulnesis/vdb-cyclonedx && actionlint .github/workflows/vulnetix.yml`
 Expected: no output, exit 0.
 
 - [ ] **Step 4: Commit and push**
 
 ```bash
-cd ~/GitHub/Vulnetix/vdb-cyclonedx
+cd ~/GitHub/Vulnesis/vdb-cyclonedx
 git add .github/workflows/vulnetix.yml
 git commit -m "ci: publish transparency evidence to TEA on every push and release"
 git push
@@ -1122,7 +1122,7 @@ git push
 
 - [ ] **Step 5: Watch the run**
 
-Run: `cd ~/GitHub/Vulnetix/vdb-cyclonedx && gh run watch "$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')"`
+Run: `cd ~/GitHub/Vulnesis/vdb-cyclonedx && gh run watch "$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')"`
 Expected: the `TEA / Publish to TEA` job succeeds and its log prints `published N artifact(s) in collection v1`.
 
 - [ ] **Step 6: Confirm the objects exist**
@@ -1137,7 +1137,7 @@ Expected: the product lists a release whose version is a `git describe` string, 
 - [ ] **Step 7: Verify a tag run**
 
 ```bash
-cd ~/GitHub/Vulnetix/vdb-cyclonedx
+cd ~/GitHub/Vulnesis/vdb-cyclonedx
 git tag v0.0.1-teatest && git push origin v0.0.1-teatest
 gh run watch "$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')"
 vulnetix tea product "$PRODUCT_UUID"
@@ -1227,7 +1227,7 @@ Same edits as Task 5 Step 1 and Step 2, except the caller job carries **no** `wi
     name: TEA
     needs: analyze
     continue-on-error: true
-    uses: Vulnetix/cli/.github/workflows/tea-release.yml@main
+    uses: Vulnesis/cli/.github/workflows/tea-release.yml@main
     secrets: inherit
 ```
 
@@ -1247,7 +1247,7 @@ In `cli/.github/workflows/vulnetix.yml`, apply the trigger edit from Task 5 Step
     # reproduce that ordering, so it stays out of the way on tags.
     if: github.ref_type != 'tag'
     continue-on-error: true
-    uses: Vulnetix/cli/.github/workflows/tea-release.yml@main
+    uses: Vulnesis/cli/.github/workflows/tea-release.yml@main
     with:
       visibility: public
     secrets: inherit
@@ -1327,7 +1327,7 @@ Expected: the private repositories' products appear for the authenticated organi
 
 ```bash
 curl -fsS -o /dev/null -w '%{http_code}\n' \
-  "https://api.vulnetix.com/tea/v1/product/$PRIVATE_PRODUCT_UUID"
+  "https://api.vulnes.is/tea/v1/product/$PRIVATE_PRODUCT_UUID"
 ```
 Expected: `401` or `404`, not `200`. A `200` means a private repository's SBOM is world-readable and must be corrected before going further.
 

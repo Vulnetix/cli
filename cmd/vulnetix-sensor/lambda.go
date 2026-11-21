@@ -19,6 +19,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/sensor/proxy"
 	"github.com/vulnetix/cli/v4/internal/sensor/uplink"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // lambdaExtensionCmd runs the sensor as a Lambda external extension. It is
@@ -74,7 +75,7 @@ func lambdaExtensionCmd(_ []string) error {
 		FlushEvery: time.Second,
 	}
 	if creds, err := auth.LoadCredentials(); err == nil && creds != nil {
-		cfg.Uplink = &uplink.Client{Endpoint: envOr("VULNETIX_ENDPOINT", uplink.DefaultEndpoint), Creds: creds, Version: version}
+		cfg.Uplink = &uplink.Client{Endpoint: envOr("VULNETIX_ENDPOINT", brand.URL(uplink.DefaultEndpoint)), Creds: creds, Version: version}
 	} else {
 		log.Printf("vulnetix-sensor: no credentials; rules load and nothing is reported")
 	}

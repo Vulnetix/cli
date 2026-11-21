@@ -25,6 +25,7 @@ import (
 
 	"github.com/vulnetix/cli/v4/internal/sensor/addongate"
 	"github.com/vulnetix/cli/v4/pkg/auth"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // DefaultEndpoint is the site API.
@@ -73,7 +74,7 @@ func (c *Client) Base() string {
 		return e
 	}
 
-	return DefaultEndpoint
+	return brand.URL(DefaultEndpoint)
 }
 
 // Goodbye says the sensor is stopping, so the console shows a stop rather
@@ -230,7 +231,7 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte, out a
 	}
 	endpoint := strings.TrimRight(c.Endpoint, "/")
 	if endpoint == "" {
-		endpoint = DefaultEndpoint
+		endpoint = brand.URL(DefaultEndpoint)
 	}
 	var reader io.Reader
 	gzipped := false

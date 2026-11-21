@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/vulnetix/cli/v4/internal/sensor/addongate"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 )
 
 // DefaultEndpoint is the site API.
@@ -266,7 +267,7 @@ func Uninstall(ctx context.Context, endpoint, authHeader, code, sensorKey string
 func call(ctx context.Context, endpoint, method, path, authHeader string, headers http.Header, in, out any) (int, error) {
 	endpoint = strings.TrimRight(endpoint, "/")
 	if endpoint == "" {
-		endpoint = DefaultEndpoint
+		endpoint = brand.URL(DefaultEndpoint)
 	}
 	var body io.Reader
 	if in != nil {

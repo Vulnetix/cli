@@ -11,6 +11,7 @@ import (
 	"github.com/vulnetix/cli/v4/internal/display"
 	"github.com/vulnetix/cli/v4/internal/managedfile"
 	aifw "github.com/vulnetix/cli/v4/pkg/aifirewall"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"github.com/vulnetix/cli/v4/pkg/vdb"
 )
 
@@ -29,7 +30,7 @@ func newAiFirewallCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ai-firewall",
 		Short: "Wire AI clients to the Vulnetix AI Firewall and manage its policy",
-		Long: `Manage the Vulnetix AI Firewall for the authenticated organisation.
+		Long: brand.Text(`Manage the Vulnetix AI Firewall for the authenticated organisation.
 
 The firewall is a hosted OpenAI-compatible gateway:
 
@@ -45,7 +46,7 @@ forwards the request upstream.
     policy      provider / model / guardrail rules the gateway enforces
     key         store this org's provider API keys (BYOK)
     apply       reconcile the org's policy from .vulnetix/ai-firewall.yaml
-    snippet     print ready-to-run code wired to the gateway`,
+    snippet     print ready-to-run code wired to the gateway`),
 	}
 	cmd.AddCommand(newAiFirewallStatusCommand())
 	cmd.AddCommand(newAiFirewallInstallCommand())
@@ -70,8 +71,8 @@ func init() {
 // addAiFirewallWiringFlags are the flags every command that touches the gateway
 // URL or local files needs.
 func addAiFirewallWiringFlags(cmd *cobra.Command) {
-	cmd.Flags().String("base-url", vdb.DefaultBaseURL, "VDB API base URL")
-	cmd.Flags().String("gateway-url", aifw.DefaultGatewayURL, "AI Firewall gateway URL")
+	cmd.Flags().String("base-url", brand.URL(vdb.DefaultBaseURL), "VDB API base URL")
+	cmd.Flags().String("gateway-url", brand.URL(aifw.DefaultGatewayURL), "AI Firewall gateway URL")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp))
 }
@@ -854,7 +855,7 @@ stripped from it. A file you wrote is never deleted.`,
 	cmd.Flags().Bool("all", false, "Unconfigure every client")
 	cmd.Flags().StringSlice("except", nil, "Unconfigure every client except these")
 	cmd.Flags().Bool("dry-run", false, "Show planned changes without writing files")
-	cmd.Flags().String("gateway-url", aifw.DefaultGatewayURL, "AI Firewall gateway URL (host to detect and strip)")
+	cmd.Flags().String("gateway-url", brand.URL(aifw.DefaultGatewayURL), "AI Firewall gateway URL (host to detect and strip)")
 	cmd.Flags().StringP("output", "o", "pretty", "Output format (pretty, json)")
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp))
 	cmd.ValidArgs = clientIDs()

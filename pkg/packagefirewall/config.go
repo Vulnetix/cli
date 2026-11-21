@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"github.com/vulnetix/cli/v4/pkg/brand"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -543,7 +544,7 @@ func mergeYayConfig(aurURL, rpcURL string) func(string) (string, error) {
 func archBaseURL(opts ConfigOptions) string {
 	base := strings.TrimRight(strings.TrimSpace(opts.ProxyURL), "/")
 	if base == "" {
-		base = "https://packages.vulnetix.com"
+		base = brand.URL("https://packages.vulnetix.com")
 	}
 	return base + "/arch"
 }
@@ -614,7 +615,7 @@ func homebrewEnvConfig(opts ConfigOptions) string {
 func proxyURLTrim(rawURL string) string {
 	base := strings.TrimRight(strings.TrimSpace(rawURL), "/")
 	if base == "" {
-		return "https://packages.vulnetix.com"
+		return brand.URL("https://packages.vulnetix.com")
 	}
 	return base
 }
@@ -631,7 +632,7 @@ func withBasicAuth(rawURL, username, password string) string {
 func proxyHost(rawURL string) string {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Host == "" {
-		return "packages.vulnetix.com"
+		return brand.Host("packages.vulnetix.com")
 	}
 	return u.Host
 }
